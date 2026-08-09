@@ -1,0 +1,1576 @@
+<?php
+session_start();
+require_once 'db_connect.php';
+if (!isset($_SESSION['pastor_id'])) { header("Location: login.php"); exit(); }
+
+$pastor_id = $_SESSION['pastor_id'];
+$pastor_name = $_SESSION['pastor_name'];
+$tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
+
+$pastor = $conn->query("SELECT * FROM pastors WHERE id = $pastor_id")->fetch_assoc();
+
+// Notifications
+$unread_notifs = $conn->query("SELECT COUNT(*) as count FROM notifications WHERE user_id = $pastor_id AND user_type = 'pastor' AND is_read = 0")->fetch_assoc()['count'];
+$notifications = $conn->query("SELECT * FROM notifications WHERE user_id = $pastor_id AND user_type = 'pastor' ORDER BY created_at DESC LIMIT 20");
+
+// Members Data
+$members = $conn->query("SELECT * FROM members ORDER BY is_approved ASC, first_name ASC");
+$approved_members = $conn->query("SELECT * FROM members WHERE is_approved = 1 ORDER BY first_name ASC");
+
+// Appointments
+$appointments = $conn->query("
+    SELECT a.*, m.first_name, m.last_name 
+    FROM appointments a 
+    JOIN members m ON a.member_id = m.id 
+    WHERE a.pastor_id = $pastor_id 
+    ORDER BY a.appointment_date ASC
+");
+
+// Pastor Content
+$current_daily_message = $conn->query("SELECT * FROM daily_messages WHERE pastor_id = $pastor_id ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
+$highlights = $conn->query("SELECT * FROM church_highlights WHERE pastor_id = $pastor_id ORDER BY created_at DESC");
+
+
+// Handle Register Member
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register_member'])) {
+    $fn  = $conn->real_escape_string(trim($_POST['first_name']));
+    $ln  = $conn->real_escape_string(trim($_POST['last_name']));
+    $ph  = $conn->real_escape_string(trim($_POST['phone']));
+    $ad  = $conn->real_escape_string(trim($_POST['address']));
+    $pw  = password_hash(trim($_POST['password']), PASSWORD_DEFAULT);
+    // Check duplicate phone
+    $dup = $conn->query("SELECT id FROM members WHERE phone = '$ph'")->num_rows;
+    if ($dup > 0) {
+        header("Location: pastor_dashboard.php?tab=members&error=A member with that phone number already exists");
+        exit();
+    }
+    $conn->query("INSERT INTO members (first_name, last_name, phone, address, password, is_approved, reg_date) VALUES ('$fn','$ln','$ph','$ad','$pw',1,NOW())");
+    header("Location: pastor_dashboard.php?tab=members&success=Member registered successfully");
+    exit();
+}
+
+// Handle Delete Member
+if (isset($_GET['action']) && $_GET['action'] == 'delete_member' && isset($_GET['id'])) {
+    $del_id = (int)$_GET['id'];
+    $conn->query("DELETE FROM members WHERE id = $del_id");
+    header("Location: pastor_dashboard.php?tab=members&success=Member deleted");
+    exit();
+}
+
+// Handle Send Message inline
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_message'])) {
+    $member_id = (int)$_POST['member_id'];
+    $msg = $conn->real_escape_string($_POST['message_content']);
+    $conn->query("INSERT INTO member_messages (member_id, pastor_name, message) VALUES ($member_id, '$pastor_name', '$msg')");
+    header("Location: pastor_dashboard.php?tab=appointments_messages&success=Message Sent");
+    exit();
+}
+
+// Handle Password Change inline
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_password'])) {
+    if ($_POST['new_password'] === $_POST['confirm_password']) {
+        $hashed = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
+        $conn->query("UPDATE pastors SET password = '$hashed' WHERE id = $pastor_id");
+        header("Location: pastor_dashboard.php?tab=settings&success=Password Updated");
+        exit();
+    } else {
+        header("Location: pastor_dashboard.php?tab=settings&error=Passwords do not match");
+        exit();
+    }
+}
+// Handle Department Transfers
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['handle_transfer'])) {
+    $member_id = (int)$_POST['member_id'];
+    $action = $_POST['action']; // 'approve' or 'reject'
+    
+    if ($action === 'approve') {
+        // We get the requested department from the DB to be safe
+        $mem = $conn->query("SELECT pending_department FROM members WHERE id = $member_id")->fetch_assoc();
+        if ($mem && $mem['pending_department']) {
+            $new_dept = $conn->real_escape_string($mem['pending_department']);
+            $conn->query("UPDATE members SET department = '$new_dept', pending_department = NULL WHERE id = $member_id");
+            header("Location: pastor_dashboard.php?tab=departments&success=Transfer approved successfully");
+            exit();
+        }
+    } elseif ($action === 'reject') {
+        $conn->query("UPDATE members SET pending_department = NULL WHERE id = $member_id");
+        header("Location: pastor_dashboard.php?tab=departments&success=Transfer request rejected");
+        exit();
+    }
+}
+
+// Handle Daily Message
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_daily_message'])) {
+    $quote = $conn->real_escape_string($_POST['quote']);
+    $video_name = null;
+    if (isset($_FILES['video_file']) && $_FILES['video_file']['error'] == 0) {
+        $ext = strtolower(pathinfo($_FILES['video_file']['name'], PATHINFO_EXTENSION));
+        if (in_array($ext, ['mp4', 'webm', 'ogg'])) {
+            $video_name = 'daily_vid_' . time() . '.' . $ext;
+            move_uploaded_file($_FILES['video_file']['tmp_name'], 'uploads/' . $video_name);
+        }
+    }
+    $conn->query("DELETE FROM daily_messages WHERE pastor_id = $pastor_id");
+    $conn->query("INSERT INTO daily_messages (pastor_id, quote, video_file) VALUES ($pastor_id, '$quote', " . ($video_name ? "'$video_name'" : "NULL") . ")");
+    
+    // Notify all members
+    $members_result = $conn->query("SELECT id FROM members");
+    while($mem = $members_result->fetch_assoc()) {
+        $m_id = $mem['id'];
+        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($m_id, 'member', 'Pastor $pastor_name has posted a new Daily Quote!')");
+    }
+
+    header("Location: pastor_dashboard.php?tab=inspiration_highlights&success=Daily Quote Posted");
+    exit();
+}
+
+// Handle Upload Highlight
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['upload_highlight'])) {
+    $caption = $conn->real_escape_string($_POST['caption']);
+    if (isset($_FILES['highlight_image']) && $_FILES['highlight_image']['error'] == 0) {
+        $ext = strtolower(pathinfo($_FILES['highlight_image']['name'], PATHINFO_EXTENSION));
+        if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'webm', 'ogg'])) {
+            $img_name = 'highlight_' . time() . '.' . $ext;
+            if (move_uploaded_file($_FILES['highlight_image']['tmp_name'], 'uploads/' . $img_name)) {
+                $conn->query("INSERT INTO church_highlights (pastor_id, image_file, caption) VALUES ($pastor_id, '$img_name', '$caption')");
+                
+                // Notify all members
+                $members_result = $conn->query("SELECT id FROM members");
+                while($mem = $members_result->fetch_assoc()) {
+                    $m_id = $mem['id'];
+                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($m_id, 'member', 'Pastor $pastor_name has uploaded a new Church Highlight!')");
+                }
+
+                header("Location: pastor_dashboard.php?tab=inspiration_highlights&success=Highlight Uploaded");
+                exit();
+            }
+        }
+    }
+    header("Location: pastor_dashboard.php?tab=inspiration_highlights&error=Upload failed or invalid format");
+    exit();
+}
+
+// Handle Delete Highlight
+if (isset($_GET['action']) && $_GET['action'] == 'delete_highlight' && isset($_GET['id'])) {
+    $hid = (int)$_GET['id'];
+    $h = $conn->query("SELECT image_file FROM church_highlights WHERE id = $hid AND pastor_id = $pastor_id")->fetch_assoc();
+    if ($h) {
+        @unlink('uploads/' . $h['image_file']);
+        $conn->query("DELETE FROM church_highlights WHERE id = $hid");
+        header("Location: pastor_dashboard.php?tab=inspiration_highlights&success=Highlight Deleted");
+        exit();
+    }
+}
+
+// Automatically mark notifications as read if tab is opened
+if ($tab == 'notifications' && $unread_notifs > 0) {
+    $conn->query("UPDATE notifications SET is_read = 1 WHERE user_id = $pastor_id AND user_type = 'pastor'");
+    $unread_notifs = 0; // reset for display
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pastor Dashboard - Munyari Church</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="dashboard-layout">
+        <div class="sidebar">
+            <div class="sidebar-brand">Munyari Pastoral</div>
+            <div class="sidebar-nav">
+                <a href="?tab=dashboard" class="sidebar-link <?= $tab == 'dashboard' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    Dashboard
+                </a>
+                
+                <a href="?tab=manage_members" class="sidebar-link <?= $tab == 'manage_members' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Manage Members
+                </a>
+                <a href="?tab=departments" class="sidebar-link <?= $tab == 'departments' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    Departments
+                </a>
+                <a href="?tab=assign_roles" class="sidebar-link <?= $tab == 'assign_roles' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                    Assign Roles
+                </a>
+                <a href="?tab=assign_roles" class="sidebar-link <?= $tab == 'assign_roles' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                    Assign Roles
+                </a>
+                <a href="?tab=appointments_messages" class="sidebar-link <?= $tab == 'appointments_messages' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Member Connections
+                </a>
+                <a href="?tab=organized_events" class="sidebar-link <?= $tab == 'organized_events' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Organised Events
+                </a>
+                <a href="?tab=inspiration_highlights" class="sidebar-link <?= $tab == 'inspiration_highlights' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Daily Quote & Highlights
+                </a>
+                <a href="?tab=discipline_reports" class="sidebar-link <?= $tab == 'discipline_reports' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
+                    Discipline & Reports
+                </a>
+                <a href="?tab=graduation_info" class="sidebar-link <?= $tab == 'graduation_info' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
+                    Graduation Info
+                </a>
+                <a href="?tab=prayer_board" class="sidebar-link <?= $tab == 'prayer_board' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                    Prayer Board
+                </a>
+            </div>
+            
+            <div>
+                <a href="?tab=settings" class="sidebar-link <?= $tab == 'settings' ? 'active' : '' ?>" style="border-top: 1px solid rgba(255,255,255,0.05); margin-top: 5px;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Settings
+                </a>
+                <a href="logout.php" class="sidebar-logout" style="margin-top: 0;">Sign Out</a>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="topbar">
+                    <?php endif; ?>
+                </a>
+                <div style="margin-left: 10px; border-left: 1px solid var(--border-color); padding-left: 20px; display: flex; align-items: center; gap: 15px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <a href="?tab=settings" title="Go to Settings" style="text-decoration: none;">
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 16px; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                                <?= strtoupper(substr($pastor['first_name'], 0, 1)) ?>
+                            </div>
+                        </a>
+                        <div style="line-height: 1.2;">
+                <div class="alert alert-error"><?= htmlspecialchars($_GET['error']) ?></div>
+            <?php endif; ?>
+
+            <?php if ($tab == 'dashboard'): ?>
+                <div class="page-header">
+                    <h1>Welcome, Pastor <?= htmlspecialchars($pastor['first_name']) ?></h1>
+                    <p>Your pastoral management dashboard.</p>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="stat-card">
+                        <h3>Total Congregation</h3>
+                        <div class="value" style="color: var(--primary);"><?= $approved_members->num_rows ?></div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Pending Appointments</h3>
+                        <?php 
+                        $pending_apps = $conn->query("SELECT COUNT(*) as count FROM appointments WHERE pastor_id = $pastor_id AND status='Pending'")->fetch_assoc()['count'];
+                        ?>
+                        <div class="value" style="color: var(--warning);"><?= $pending_apps ?></div>
+                    </div>
+                </div>
+
+            <?php elseif ($tab == 'notifications'): ?>
+                <div class="page-header">
+                    <h1>Notifications</h1>
+                    <p>Alerts and updates.</p>
+                </div>
+                <div class="content-card">
+                    <?php if($notifications->num_rows > 0): ?>
+                        <?php while($n = $notifications->fetch_assoc()): ?>
+                            <div style="padding: 15px; border-bottom: 1px solid var(--border-color); <?= !$n['is_read'] ? 'background: rgba(37,99,235,0.05); font-weight:600;' : '' ?>">
+                                <p><?= htmlspecialchars($n['message']) ?></p>
+                                <small style="color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($n['created_at'])) ?></small>
+                            </div>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <p>No notifications.</p>
+                    <?php endif; ?>
+                </div>
+
+            <?php elseif ($tab == 'manage_members'): ?>
+                <div class="page-header">
+                    <h1>Manage Members</h1>
+                    <p>Register new members directly, or manage existing ones.</p>
+                </div>
+
+                <!-- Register New Member Form (AJAX) -->
+                <div class="content-card" style="margin-bottom: 30px;">
+                    <h2 style="margin-bottom: 20px;">Register New Member</h2>
+                    Booked Appointments
+                </a>
+                <a href="?tab=organized_events" class="sidebar-link <?= $tab == 'organized_events' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Organised Events
+                </a>
+                <a href="?tab=general_leadership" class="sidebar-link <?= $tab == 'general_leadership' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M9 20H4v-2a3 3 0 015.356-1.857M15 11a4 4 0 10-6 0 4 4 0 006 0zm6-1a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    General Leadership
+                </a>
+                <a href="?tab=inspiration_highlights" class="sidebar-link <?= $tab == 'inspiration_highlights' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Daily Quote & Highlights
+                </a>
+                <a href="?tab=financials" class="sidebar-link <?= $tab == 'financials' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></rect><circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9h.01M18 15h.01"></path></svg>
+                    Financial Records
+                </a>
+                <a href="?tab=discipline_reports" class="sidebar-link <?= $tab == 'discipline_reports' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
+                    Discipline & Reports
+                </a>
+                <a href="?tab=graduation_info" class="sidebar-link <?= $tab == 'graduation_info' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
+                    Graduation Info
+                </a>
+                <a href="?tab=prayer_board" class="sidebar-link <?= $tab == 'prayer_board' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                    Prayer Board
+                </a>
+                <a href="?tab=sport_board" class="sidebar-link <?= $tab == 'sport_board' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Sport Board
+                </a>
+                <a href="?tab=usher_monitoring" class="sidebar-link <?= $tab == 'usher_monitoring' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                    Usher Monitoring
+                </a>
+            </div>
+            
+            <div>
+                <a href="?tab=settings" class="sidebar-link <?= $tab == 'settings' ? 'active' : '' ?>" style="border-top: 1px solid rgba(255,255,255,0.05); margin-top: 5px;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Settings
+                </a>
+                <a href="logout.php" class="sidebar-logout" style="margin-top: 0;">Sign Out</a>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="topbar">
+                <button id="themeToggle" class="icon-btn" title="Toggle Dark/Light Theme">
+                    <svg id="moonIcon" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                    <svg id="sunIcon" style="display:none;" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                </button>
+                <a href="?tab=notifications" class="icon-btn <?= $unread_notifs > 0 ? 'bell-shake' : '' ?>" title="Notifications" style="<?= $unread_notifs > 0 ? 'color: var(--warning); border-color: var(--warning);' : '' ?>">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                    <?php if($unread_notifs > 0): ?>
+                        <span class="notif-badge"><?= $unread_notifs ?></span>
+                    <?php endif; ?>
+                </a>
+                <div style="margin-left: 10px; border-left: 1px solid var(--border-color); padding-left: 20px; display: flex; align-items: center; gap: 15px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <a href="?tab=settings" title="Go to Settings" style="text-decoration: none;">
+                            <img src="uploads/<?= htmlspecialchars($pastor['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                        </a>
+                        <div style="line-height: 1.2;">
+                            <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-main); display: block;">Pr. <?= htmlspecialchars($pastor['first_name']) ?></span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); background: var(--border-color); padding: 2px 6px; border-radius: 4px;">Pastor</span>
+                        </div>
+                    </div>
+                    <a href="logout.php" class="icon-btn" title="Sign Out" style="color: var(--danger); border-color: transparent; background: rgba(239, 68, 68, 0.1);">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </a>
+                </div>
+            </div>
+            <?php if(isset($_GET['success'])): ?>
+                <div class="alert alert-success"><?= htmlspecialchars($_GET['success']) ?></div>
+            <?php elseif(isset($_GET['error'])): ?>
+                <div class="alert alert-error"><?= htmlspecialchars($_GET['error']) ?></div>
+            <?php endif; ?>
+
+            <?php if ($tab == 'dashboard'): ?>
+                <div class="page-header">
+                    <h1>Welcome, Pastor <?= htmlspecialchars($pastor['first_name']) ?></h1>
+                    <p>Your pastoral management dashboard.</p>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="stat-card">
+                        <h3>Total Congregation</h3>
+                        <div class="value" style="color: var(--primary);"><?= $approved_members->num_rows ?></div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Pending Appointments</h3>
+                        <?php 
+                        $pending_apps = $conn->query("SELECT COUNT(*) as count FROM appointments WHERE pastor_id = $pastor_id AND status='Pending'")->fetch_assoc()['count'];
+                        ?>
+                        <div class="value" style="color: var(--warning);"><?= $pending_apps ?></div>
+                    </div>
+                </div>
+
+                                const row = document.createElement('tr');
+                                row.style.animation = 'fadeIn 0.4s ease';
+                                row.innerHTML = `
+                                    <td><img src="uploads/default_avatar.png" alt="Profile" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);"></td>
+                                    <td style="font-weight:500;">${m.first_name} ${m.last_name}</td>
+                                    <td>${m.phone}</td>
+                                    <td>${m.address || '—'}</td>
+                                    <td><span class="badge approved">Approved</span></td>
+                                    <td>
+                                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                            <a href="pastor_action.php?action=deactivate&id=${m.id}" class="btn-sm" style="background:var(--warning);color:white;text-decoration:none;">Deactivate</a>
+                                            <a href="?tab=manage_members&action=delete_member&id=${m.id}" onclick="return confirm('Permanently delete this member?')" class="btn-sm" style="background:var(--danger);color:white;text-decoration:none;">Delete</a>
+                                        </div>
+                                    </td>`;
+                                tbody.insertBefore(row, tbody.firstChild);
+
+                                // Clear form
+                                form.reset();
+
+                                // Auto-hide alert after 4 seconds
+                                setTimeout(() => { alert.style.display = 'none'; }, 4000);
+                            } else {
+                                // Show red error alert
+                                alert.style.display = 'block';
+                                alert.style.background = 'rgba(239,68,68,0.12)';
+                                alert.style.color = '#dc2626';
+                                alert.style.border = '1px solid rgba(239,68,68,0.3)';
+                                alert.textContent = res.message;
+                            }
+                        })
+                        .catch(() => {
+                            alert.style.display = 'block';
+                            alert.style.background = 'rgba(239,68,68,0.12)';
+                            alert.style.color = '#dc2626';
+                            alert.textContent = 'Network error. Please try again.';
+                        })
+                        .finally(() => {
+                            btn.disabled = false;
+                            btn.textContent = 'Register Member';
+                        });
+                });
+                </script>
+
+            <?php elseif ($tab == 'departments'): ?>
+                <div class="page-header">
+                    <h1>Church Departments</h1>
+                    <p>Overview of active departments and their members.</p>
+                </div>
+                
+                <?php
+                // Fetch pending requests
+                $pending_transfers = $conn->query("SELECT * FROM members WHERE pending_department IS NOT NULL ORDER BY first_name ASC");
+                if ($pending_transfers->num_rows > 0):
+                ?>
+                <div class="content-card" style="margin-bottom: 30px; border-left: 4px solid var(--warning);">
+                    <h2 style="margin-bottom: 15px; color: var(--warning);">Pending Transfer Requests</h2>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>Name</th><th>Current Dept</th><th>Requested Dept</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                <?php while($pt = $pending_transfers->fetch_assoc()): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($pt['first_name'] . ' ' . $pt['last_name']) ?></td>
+                                    <td><?= htmlspecialchars($pt['department'] ?? 'None') ?></td>
+                                    <td style="font-weight: 500; color: var(--primary);"><?= htmlspecialchars($pt['pending_department']) ?></td>
+                                    <td>
+                                        <form method="POST" action="?tab=departments" style="display:inline-flex; gap:8px;">
+                                            <input type="hidden" name="handle_transfer" value="1">
+                                            <input type="hidden" name="member_id" value="<?= $pt['id'] ?>">
+                                            <button type="submit" name="action" value="approve" class="btn-sm btn-success" style="border:none; cursor:pointer;">Approve</button>
+                                            <button type="submit" name="action" value="reject" class="btn-sm" style="border:none; background:var(--danger); color:white; cursor:pointer;">Reject</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <?php endif; ?>
+                
+                <?php
+                // Fetch department counts
+                $dept_counts = [];
+                $depts_result = $conn->query("SELECT department, COUNT(*) as count FROM members WHERE is_approved=1 GROUP BY department");
+                while ($row = $depts_result->fetch_assoc()) {
+                    $dept_counts[$row['department']] = $row['count'];
+                }
+                $departments = ['Youths', 'Elders', 'Sunday School', 'Womens Ministry', 'None'];
+                ?>
+                <div class="dashboard-grid">
+                    <?php foreach ($departments as $dept): ?>
+                        <div class="stat-card">
+                            <h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;"><?= $dept == 'None' ? 'General / No Dept' : htmlspecialchars($dept) ?></h3>
+                            <div class="value" style="color: var(--primary);"><?= isset($dept_counts[$dept]) ? $dept_counts[$dept] : 0 ?></div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <?php foreach ($departments as $dept): ?>
+                    <?php 
+                    $dept_esc = $conn->real_escape_string($dept);
+                    $dept_members = $conn->query("SELECT * FROM members WHERE is_approved=1 AND department='$dept_esc' ORDER BY first_name ASC");
+                    if ($dept_members->num_rows > 0):
+                    ?>
+                        <div class="content-card" style="margin-top: 30px;">
+                            <h2 style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><?= $dept == 'None' ? 'General / No Dept' : htmlspecialchars($dept) ?></h2>
+                            <div class="table-responsive">
+                                <table>
+                                    <thead><tr><th>Name</th><th>Phone</th><th>Role</th></tr></thead>
+                                    <tbody>
+                                        <?php while($dm = $dept_members->fetch_assoc()): ?>
+                                            <tr>
+                                                <td><?= htmlspecialchars($dm['first_name'] . ' ' . $dm['last_name']) ?></td>
+                                                <td><?= htmlspecialchars($dm['phone']) ?></td>
+                                                <td><?= htmlspecialchars($dm['church_role'] ?? 'Member') ?></td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    </tbody>
+                                                <td><?= htmlspecialchars($dm['church_role'] ?? 'Member') ?></td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+
+            <?php elseif ($tab == 'financials'): ?>
+                <div class="page-header">
+                    <h1>Financial Records Tracking</h1>
+                    <p>Overview of all monies collected by department treasurers.</p>
+                </div>
+
+                <!-- Financial Summaries -->
+                <?php
+                // Fetch totals per department
+                $dept_totals = [];
+                $totals_query = $conn->query("SELECT department, COALESCE(SUM(amount), 0) as total FROM financial_records GROUP BY department");
+                if ($totals_query) {
+                    while ($row = $totals_query->fetch_assoc()) {
+                        $dept_totals[$row['department']] = $row['total'];
+                    }
+                }
+                
+                $overall_total = array_sum($dept_totals);
+                ?>
+                <div class="content-card" style="margin-bottom: 30px;">
+                    <h2 style="margin-bottom: 15px;">Department Summaries</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                            <div style="font-size: 0.9rem; opacity: 0.9;">Overall Total</div>
+                            <div style="font-size: 1.8rem; font-weight: 700;">$<?= number_format($overall_total, 2) ?></div>
+                        </div>
+                        <?php
+                        $target_depts = ['General Church', 'Youth Ministry', 'Womens Ministry', 'Elders', 'Sunday School'];
+                        foreach ($target_depts as $dept):
+                            $amt = $dept_totals[$dept] ?? 0;
+                        ?>
+                        <div style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px;">
+                            <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 500;"><?= htmlspecialchars($dept) ?></div>
+                            <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin-top: 5px;">$<?= number_format($amt, 2) ?></div>
+                        </div>
+                $depts_result = $conn->query("SELECT department, COUNT(*) as count FROM members WHERE is_approved=1 GROUP BY department");
+                while ($row = $depts_result->fetch_assoc()) {
+                    $dept_counts[$row['department']] = $row['count'];
+                }
+                $departments = ['Youths', 'Elders', 'Sunday School', 'Womens Ministry', 'None'];
+                ?>
+                <div class="dashboard-grid">
+                    <?php foreach ($departments as $dept): ?>
+                        <div class="stat-card">
+                            <h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;"><?= $dept == 'None' ? 'General / No Dept' : htmlspecialchars($dept) ?></h3>
+                            <div class="value" style="color: var(--primary);"><?= isset($dept_counts[$dept]) ? $dept_counts[$dept] : 0 ?></div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <?php foreach ($departments as $dept): ?>
+                    <?php 
+                    $dept_esc = $conn->real_escape_string($dept);
+                    $dept_members = $conn->query("SELECT * FROM members WHERE is_approved=1 AND department='$dept_esc' ORDER BY first_name ASC");
+                    if ($dept_members->num_rows > 0):
+                    ?>
+                        <div class="content-card" style="margin-top: 30px;">
+                            <h2 style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><?= $dept == 'None' ? 'General / No Dept' : htmlspecialchars($dept) ?></h2>
+                            <div class="table-responsive">
+                                <table>
+                                    <thead><tr><th>Name</th><th>Phone</th><th>Role</th></tr></thead>
+                                    <tbody>
+                                        <?php while($dm = $dept_members->fetch_assoc()): ?>
+                                            <tr>
+                                                <td><?= htmlspecialchars($dm['first_name'] . ' ' . $dm['last_name']) ?></td>
+                                                <td><?= htmlspecialchars($dm['phone']) ?></td>
+                                                <td><?= htmlspecialchars($dm['church_role'] ?? 'Member') ?></td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    </tbody>
+                                </table>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <p style="color: var(--text-muted);">No financial records have been submitted yet.</p>
+                    <?php endif; ?>
+                </div>
+
+            <?php elseif ($tab == 'assign_roles'): ?>
+                <?php 
+                $church_roles = $conn->query("SELECT * FROM church_roles WHERE role_name NOT IN (SELECT church_role FROM members WHERE church_role IS NOT NULL AND church_role != '') ORDER BY role_name ASC");
+                $all_roles_list = $conn->query("SELECT * FROM church_roles ORDER BY role_name ASC");
+
+                // Define hierarchy structure
+                $hierarchy = [
+                    'General Church' => [
+                        'General Church Secretary', 'Vice Church Secretary', 'Treasurer', 'Church Elder'
+                    ],
+                    'Youth Ministry' => [
+                        'Youth Chairman', 'Vice Youth Chairman', 'Youth Secretary', 'Vice Youth Secretary', 'Youth Treasurer'
+                    ],
+                    'Womens Ministry' => [
+                        'Women Chairlady', 'Vice Women Chairlady', 'Women Secretary', 'Vice Women Secretary', 'Women Treasurer'
+                    ],
+                    'Elders' => [
+                        'Elder Chairman', 'Vice Elder Chairman', 'Elder Secretary', 'Vice Elder Secretary', 'Elder Treasurer'
+                    ],
+
+            <?php elseif ($tab == 'assign_roles'): ?>
+                <?php 
+                $church_roles = $conn->query("SELECT * FROM church_roles WHERE role_name NOT IN (SELECT church_role FROM members WHERE church_role IS NOT NULL AND church_role != '') ORDER BY role_name ASC");
+                $all_roles_list = $conn->query("SELECT * FROM church_roles ORDER BY role_name ASC");
+
+                // Define hierarchy structure
+                $hierarchy = [
+                    'General Church' => [
+                        'General Church Secretary', 'Vice Church Secretary', 'Treasurer', 'Church Elder'
+                    ],
+                    'Youth Ministry' => [
+                        'Youth Chairman', 'Vice Youth Chairman', 'Youth Secretary', 'Vice Youth Secretary', 'Youth Treasurer'
+                    ],
+                    'Womens Ministry' => [
+                        'Women Chairlady', 'Vice Women Chairlady', 'Women Secretary', 'Vice Women Secretary', 'Women Treasurer'
+                    ],
+                    'Elders' => [
+                        'Elder Chairman', 'Vice Elder Chairman', 'Elder Secretary', 'Vice Elder Secretary', 'Elder Treasurer'
+                    ],
+                    'Sunday School' => [
+                        'Sunday School Patron', 'Vice Sunday School Patron', 'Sunday School Secretary', 'Vice Sunday School Secretary', 'Sunday School Treasurer'
+                    ]
+                ];
+                ?>
+                <div class="page-header">
+                    <h1>Assign Roles</h1>
+                    <p>Appoint approved members to church positions or create new roles.</p>
+                </div>
+                
+                <!-- Pending Chairman Appointments -->
+                <?php
+                $pending_roles = $conn->query("SELECT id, first_name, last_name, department, pending_role FROM members WHERE pending_role IS NOT NULL AND pending_role != ''");
+                if ($pending_roles && $pending_roles->num_rows > 0):
+                ?>
+                <div class="content-card" style="margin-bottom: 30px; border-left: 4px solid var(--primary);">
+                    <h2 style="color: var(--primary);">Pending Subsidiary Appointments</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 15px;">These members have been nominated by their department chairmen for subsidiary roles.</p>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Member</th>
+                                    <th>Department</th>
+                                    <th>Proposed Role</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php while($pr = $pending_roles->fetch_assoc()): ?>
+                                    <tr>
+                                        <td style="font-weight: 500;"><?= htmlspecialchars($pr['first_name'] . ' ' . $pr['last_name']) ?></td>
+                                        <td><span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981;"><?= htmlspecialchars($pr['department']) ?></span></td>
+                                        <td style="font-weight: 600; color: var(--text-main);"><?= htmlspecialchars($pr['pending_role']) ?></td>
+                                        <td>
+                                            <div style="display: flex; gap: 10px;">
+                                                <a href="pastor_action.php?action=approve_appointment&id=<?= $pr['id'] ?>" class="btn-action btn-approve" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">Approve</a>
+                                                <a href="pastor_action.php?action=reject_appointment&id=<?= $pr['id'] ?>" class="btn-action btn-reject" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;" onclick="return confirm('Reject this appointment?');">Reject</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <!-- Assign Role Form -->
+                    <div class="content-card" style="flex: 1; min-width: 300px;">
+                        <h2>Assign to Member</h2>
+                        <form method="POST" action="pastor_action.php?action=assign_role">
+                            <div class="form-group">
+                                <label>Select Member</label>
+                                <select name="member_id" class="form-control" required>
+                                    <option value="">-- Select Member --</option>
+                                    <?php 
+                                    $approved_members->data_seek(0);
+                                    while($m = $approved_members->fetch_assoc()): ?>
+                                        <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?> (Current: <?= htmlspecialchars($m['church_role'] ?? 'Member') ?>)</option>
+                                    <?php endwhile; ?>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Assign Role</label>
+                                <select name="role" class="form-control" required>
+                                    <option value="">-- Select Role --</option>
+                                    <?php 
+                                    // Organize available roles into hierarchy
+                                    $available_categorized = [];
+                                    $available_uncategorized = [];
+                                    while($r = $church_roles->fetch_assoc()) {
+                                        $r_name = trim($r['role_name']);
+                                        $placed = false;
+                                        foreach($hierarchy as $dept => $roles) {
+                                            foreach($roles as $expected_role) {
+                                                if (strtolower($r_name) === strtolower($expected_role)) {
+                                                    $available_categorized[$dept][$expected_role] = $r_name;
+                                                    $placed = true;
+                                                    break 2;
+                                                }
+                                            }
+                                        }
+                                        if (!$placed) {
+                                            $available_uncategorized[] = $r_name;
+                                        }
+                                    }
+
+                                    foreach ($hierarchy as $dept => $roles) {
+                                        if (!empty($available_categorized[$dept])) {
+                                            echo "<optgroup label=\"$dept\">";
+                                            foreach ($roles as $expected_role) {
+                                                if (isset($available_categorized[$dept][$expected_role])) {
+                                                    $val = htmlspecialchars($available_categorized[$dept][$expected_role]);
+                                                    echo "<option value=\"$val\">$val</option>";
+                                                }
+                                            }
+                                            echo "</optgroup>";
+                                        }
+                                    }
+
+                                    if (!empty($available_uncategorized)) {
+                                        echo "<optgroup label=\"Other Roles\">";
+                                        foreach ($available_uncategorized as $val) {
+                                            $val_clean = htmlspecialchars($val);
+                                            echo "<option value=\"$val_clean\">$val_clean</option>";
+                                        }
+                                        echo "</optgroup>";
+                                    }
+                                    ?>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn-submit">Assign Role</button>
+                        </form>
+                    </div>
+                    
+                    <!-- Create Custom Role Form -->
+                    <div class="content-card" style="flex: 1; min-width: 300px;">
+                        <h2>Manage Roles</h2>
+                        <form method="POST" action="pastor_action.php?action=create_role" style="margin-bottom: 20px;">
+                            <div class="form-group">
+                                <label>New Role Name</label>
+                                <div style="display:flex; gap:10px;">
+                                    <input type="text" name="new_role" class="form-control" placeholder="e.g. Vice Youth Chairman" required style="margin-bottom:0;">
+                                    <button type="submit" class="btn" style="background:var(--secondary); color:white; border:none; border-radius:var(--radius-md); font-weight:600; cursor:pointer; padding: 0 20px;">Save</button>
+                                </div>
+                            </div>
+                        </form>
+                        
+                        <div style="border-top: 1px solid var(--border-color); padding-top: 15px;">
+                            <h3 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 15px;">All Roles Overview</h3>
+                            <?php 
+                            // Organize all roles into hierarchy
+                            $all_categorized = [];
+                            $all_uncategorized = [];
+                            while($r = $all_roles_list->fetch_assoc()) {
+                                $r_name = trim($r['role_name']);
+                                $placed = false;
+                                foreach($hierarchy as $dept => $roles) {
+                                    foreach($roles as $expected_role) {
+                                        if (strtolower($r_name) === strtolower($expected_role)) {
+                                            $all_categorized[$dept][$expected_role] = $r;
+                                            $placed = true;
+                                            break 2;
+                                        }
+                                    }
+                                }
+                                if (!$placed) {
+                                    $all_uncategorized[] = $r;
+                                }
+                            }
+
+                            foreach ($hierarchy as $dept => $roles) {
+                                if (!empty($all_categorized[$dept])) {
+                                    echo "<div style='margin-bottom: 15px;'>";
+                                    echo "<div style='font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;'>$dept</div>";
+                                    echo "<div style='display: flex; flex-wrap: wrap; gap: 8px;'>";
+                                    foreach ($roles as $expected_role) {
+                                        if (isset($all_categorized[$dept][$expected_role])) {
+                                            $r = $all_categorized[$dept][$expected_role];
+                                            echo "<div style='background: var(--bg-main); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-main);'>";
+                                            echo htmlspecialchars($r['role_name']);
+                                            echo "<a href='pastor_action.php?action=delete_role&role_id=" . $r['id'] . "' onclick=\"return confirm('Are you sure you want to remove this role from the system?');\" style='color: var(--danger); text-decoration: none; font-weight: bold; font-size: 1rem; line-height: 1;'>&times;</a>";
+                                            echo "</div>";
+                                        }
+                                    }
+                                    echo "</div></div>";
+                                }
+                            }
+
+                            if (!empty($all_uncategorized)) {
+                                echo "<div style='margin-bottom: 15px;'>";
+                                echo "<div style='font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;'>Other Roles</div>";
+                                echo "<div style='display: flex; flex-wrap: wrap; gap: 8px;'>";
+            <?php elseif ($tab == 'assign_roles'): ?>
+                <?php 
+                $required_roles = [
+                    'General Church Secretary', 'Vice Church Secretary', 'Treasurer', 'Church Elder',
+                    'Head Usher', 'Usher', 'Building Chairman', 'Vice Building Chairman', 'Building Secretary', 'Vice Building Secretary', 'Building Treasurer',
+                    <?php else: ?>
+                        <p style="color: var(--text-muted);">No financial records have been submitted yet.</p>
+                    <?php endif; ?>
+                </div>
+
+            <?php elseif ($tab == 'assign_roles'): ?>
+                <?php 
+                $required_roles = [
+                    'General Church Secretary', 'Vice Church Secretary', 'Treasurer', 'Senior Church Elder',
+                    'Head Usher', 'Usher', 'Building Chairman', 'Vice Building Chairman', 'Building Secretary', 'Vice Building Secretary', 'Building Treasurer',
+                    'Youth Chairman', 'Vice Youth Chairman', 'Youth Secretary', 'Vice Youth Secretary', 'Youth Treasurer', 'Mama Youth', 'Baba Youth',
+                    'Women Chairlady', 'Vice Women Chairlady', 'Women Secretary', 'Vice Women Secretary', 'Women Treasurer',
+                    'Elder Chairman', 'Vice Elder Chairman', 'Elder Secretary', 'Vice Elder Secretary', 'Elder Treasurer',
+                    'Sunday School Patron', 'Vice Sunday School Patron', 'Sunday School Secretary', 'Vice Sunday School Secretary', 'Sunday School Treasurer'
+                ];
+                foreach ($required_roles as $required_role) {
+                    $safe_required_role = $conn->real_escape_string($required_role);
+                    $conn->query("INSERT IGNORE INTO church_roles (role_name) VALUES ('$safe_required_role')");
+                }
+                $church_roles = $conn->query("SELECT * FROM church_roles WHERE role_name NOT IN (SELECT church_role FROM members WHERE church_role IS NOT NULL AND church_role != '') ORDER BY role_name ASC");
+                $all_roles_list = $conn->query("SELECT * FROM church_roles ORDER BY role_name ASC");
+
+                // Define hierarchy structure
+                $common_subsidiary_roles = ['Organizing Secretary', 'Discipline Master', 'Prayer Coordinator', 'Choir Leader'];
+                $youth_sunday_subsidiary_roles = array_merge($common_subsidiary_roles, ['Graduands Secretary', 'Sports Secretary']);
+                $hierarchy = [
+                    'General Church' => [
+                        'General Church Secretary', 'Vice Church Secretary', 'Treasurer', 'Senior Church Elder'
+                    ],
+                    'Other Ministry Leaders' => [
+                        'Head Usher', 'Usher', 'Building Chairman', 'Vice Building Chairman', 'Building Secretary', 'Vice Building Secretary', 'Building Treasurer'
+                    ],
+                    'Youth Ministry' => array_merge([
+                        'Youth Chairman', 'Vice Youth Chairman', 'Youth Secretary', 'Vice Youth Secretary', 'Youth Treasurer', 'Mama Youth', 'Baba Youth'
+                    ], $youth_sunday_subsidiary_roles),
+                    'Womens Ministry' => array_merge([
+                        'Women Chairlady', 'Vice Women Chairlady', 'Women Secretary', 'Vice Women Secretary', 'Women Treasurer'
+                    ], $common_subsidiary_roles),
+                    'Elders' => array_merge([
+                        'Elder Chairman', 'Vice Elder Chairman', 'Elder Secretary', 'Vice Elder Secretary', 'Elder Treasurer'
+                    ], $common_subsidiary_roles),
+                    'Sunday School' => array_merge([
+                        'Sunday School Patron', 'Vice Sunday School Patron', 'Sunday School Secretary', 'Vice Sunday School Secretary', 'Sunday School Treasurer'
+                    ], $youth_sunday_subsidiary_roles)
+                ];
+                $hierarchy_department_names = [
+                    'Youth Ministry' => 'Youths',
+                    'Womens Ministry' => 'Womens Ministry',
+                    'Elders' => 'Elders',
+                    'Sunday School' => 'Sunday School',
+                ];
+
+                $all_hierarchy_roles = [];
+                foreach ($hierarchy as $roles) {
+                    foreach ($roles as $role_name) {
+                        $all_hierarchy_roles[normalize_role_name($role_name)] = $role_name;
+                    }
+                }
+                foreach ($all_hierarchy_roles as $role_name) {
+                    $safe_role_name = $conn->real_escape_string($role_name);
+                    $conn->query("INSERT IGNORE INTO church_roles (role_name) VALUES ('$safe_role_name')");
+                }
+
+                $assigned_members_for_availability = [];
+                $assigned_global_roles = [];
+                $assigned_lookup_result = $conn->query("SELECT church_role, department FROM members WHERE church_role IS NOT NULL AND church_role != ''");
+                if ($assigned_lookup_result) {
+                    while ($assigned_lookup_row = $assigned_lookup_result->fetch_assoc()) {
+                        $assigned_members_for_availability[] = $assigned_lookup_row;
+                        // Split combined roles (e.g. "Head Usher, Vice Youth Secretary") and track each one
+                        $individual_roles = array_filter(array_map('trim', explode(',', str_replace('&', ',', $assigned_lookup_row['church_role'] ?? ''))));
+
+                $role_is_available = function($role_name, $context_department = '') use ($assigned_members_for_availability, $assigned_global_roles, $head_usher_already_assigned) {
+                    $normalized_role = normalize_role_name($role_name);
+
+                    // Head Usher: strictly one — hide from dropdown if already assigned
+                    if ($normalized_role === 'head usher') {
+                        return !$head_usher_already_assigned;
+                    }
+
+                    // Usher: always available (unlimited appointments)
+                    if ($normalized_role === 'usher') {
+                        return true;
+                    }
+
+                    if (is_subsidiary_department_role($role_name) && !empty($context_department)) {
+                        foreach ($assigned_members_for_availability as $assigned_row) {
+                            // Check each individual role in potentially combined roles
+                            $row_roles = array_filter(array_map('trim', explode(',', str_replace('&', ',', $assigned_row['church_role'] ?? ''))));
+                            foreach ($row_roles as $row_role) {
+                                if (
+                                    normalize_role_name($row_role) === $normalized_role &&
+                                    department_matches($assigned_row['department'] ?? '', $context_department)
+                                ) {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    }
+
+                    return empty($assigned_global_roles[$normalized_role]);
+                };
+                ?>
+                <div class="page-header">
+                    <h1>Assign Roles</h1>
+                    <p>Appoint approved members to the required church leadership positions.</p>
+                </div>
+                
+                <!-- Pending Chairman Appointments -->
+                <?php
+                $pending_roles = $conn->query("SELECT id, first_name, last_name, department, pending_role FROM members WHERE pending_role IS NOT NULL AND pending_role != ''");
+                if ($pending_roles && $pending_roles->num_rows > 0):
+                ?>
+                <div class="content-card" style="margin-bottom: 30px; border-left: 4px solid var(--primary);">
+                    <h2 style="color: var(--primary);">Pending Subsidiary Appointments</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 15px;">These members have been nominated by their department chairmen for subsidiary roles.</p>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Member</th>
+                                    <th>Department</th>
+                                    <th>Proposed Role</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php while($pr = $pending_roles->fetch_assoc()): ?>
+                                    <tr>
+                                        <td style="font-weight: 500;"><?= htmlspecialchars($pr['first_name'] . ' ' . $pr['last_name']) ?></td>
+                                        <td><span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981;"><?= htmlspecialchars($pr['department']) ?></span></td>
+                                        <td style="font-weight: 600; color: var(--text-main);"><?= htmlspecialchars(role_display_label($pr['pending_role'], $pr['department'] ?? null)) ?></td>
+                                        <td>
+                                            <div style="display: flex; gap: 10px;">
+                                                <a href="pastor_action.php?action=approve_appointment&id=<?= $pr['id'] ?>" class="btn-action btn-approve" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">Approve</a>
+                                                <a href="pastor_action.php?action=reject_appointment&id=<?= $pr['id'] ?>" class="btn-action btn-reject" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;" onclick="return confirm('Reject this appointment?');">Reject</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <div>
+                    <!-- Assign Role Form -->
+                    <div class="content-card" style="margin-bottom: 20px;">
+                        <h2>Assign to Member</h2>
+
+                        <!-- Popup toast for taken role -->
+                        <div id="headUsherToast" style="display:none; position:fixed; top:30px; left:50%; transform:translateX(-50%); z-index:9999; background:#1e293b; color:#fff; border-radius:14px; padding:18px 28px; box-shadow:0 8px 32px rgba(0,0,0,0.25); max-width:400px; width:90%; text-align:center; animation: fadeInDown 0.3s ease;">
+                            <div style="font-size:2rem; margin-bottom:8px;">🔒</div>
+                            <strong id="toastRoleTitle" style="font-size:1rem; display:block; margin-bottom:6px;">Role Already Assigned</strong>
+                            <p id="toastRoleBody" style="font-size:0.88rem; color:#94a3b8; margin:0 0 14px;">This role is already taken. Remove the current holder first before reassigning.</p>
+                            <button onclick="document.getElementById('headUsherToast').style.display='none'; document.getElementById('assignRoleSelect').value='';" style="background:var(--primary,#2563eb); color:#fff; border:none; border-radius:8px; padding:8px 22px; font-size:0.9rem; cursor:pointer; font-weight:600;">OK, Got It</button>
+                        </div>
+                        <style>@keyframes fadeInDown{from{opacity:0;transform:translateX(-50%) translateY(-18px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}</style>
+
+                        <form method="POST" action="pastor_action.php?action=assign_role">
+                            <div class="form-group">
+                                <label>First Select Role</label>
+                                <select name="role" id="assignRoleSelect" class="form-control" required>
+                                    <option value="">-- Select Role --</option>
+                                    <?php
+                                    foreach ($hierarchy as $dept => $roles) {
+                                        $context_department = $hierarchy_department_names[$dept] ?? '';
+                                        $options_html = '';
+
+                        <form method="POST" action="pastor_action.php?action=assign_role">
+                            <div class="form-group">
+                                <label>First Select Role</label>
+                                <select name="role" id="assignRoleSelect" class="form-control" required>
+                                    <option value="">-- Select Role --</option>
+                                    <?php
+                                    foreach ($hierarchy as $dept => $roles) {
+                                        $context_department = $hierarchy_department_names[$dept] ?? '';
+                                        $options_html = '';
+                                        foreach ($roles as $expected_role) {
+                                            $is_taken = !$role_is_available($expected_role, $context_department);
+                                            $val   = htmlspecialchars($expected_role);
+                                            $allowed = htmlspecialchars(json_encode(role_assignment_departments($expected_role, $context_department)));
+                                            $asgn_dept = htmlspecialchars($context_department);
+                                            $label = htmlspecialchars($expected_role);
+                                            if ($is_taken) {
+                                                // Always show Head Usher (and any taken role) as grayed-out selectable option with data-taken
+                                                $options_html .= "<option value=\"$val\" data-allowed='$allowed' data-assignment-department=\"$asgn_dept\" data-taken=\"1\" style=\"color:#9ca3af;\">$label (Taken)</option>";
+                                            } else {
+                                                $options_html .= "<option value=\"$val\" data-allowed='$allowed' data-assignment-department=\"$asgn_dept\">$label</option>";
+                                            }
+                                        }
+                                        if ($options_html !== '') {
+                                            echo "<optgroup label=\"" . htmlspecialchars($dept) . "\">$options_html</optgroup>";
+                                        }
+                                    }
+                                    ?>
+                                </select>
+                                <input type="hidden" name="assignment_department" id="assignRoleDepartment" value="">
+                                <small id="assignRoleHint" style="display:block; margin-top:6px; color: var(--text-muted);">Choose a role first to open the correct members.</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Then Select Member</label>
+                                <select name="member_id" id="assignMemberSelect" class="form-control" required disabled>
+                                    <option value="">-- Select a role first --</option>
+                                    <?php 
+                                    $approved_members->data_seek(0);
+                                    while($m = $approved_members->fetch_assoc()): ?>
+                                        <option value="<?= $m['id'] ?>" data-department="<?= htmlspecialchars($m['department'] ?? '') ?>">
+                                            <?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?> - <?= htmlspecialchars($m['department'] ?? 'No Department') ?> (Current: <?= htmlspecialchars(role_display_label($m['church_role'] ?? 'Member', $m['department'] ?? null)) ?>)
+                                        </option>
+                                    <?php endwhile; ?>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn-submit">Assign Role</button>
+                        </form>
+                        <script>
+                            (function() {
+                                const roleSelect = document.getElementById('assignRoleSelect');
+                                const memberSelect = document.getElementById('assignMemberSelect');
+                                const departmentInput = document.getElementById('assignRoleDepartment');
+                                const hint = document.getElementById('assignRoleHint');
+                                if (!roleSelect || !memberSelect) return;
+
+                                const originalOptions = Array.from(memberSelect.querySelectorAll('option[data-department]')).map(option => option.cloneNode(true));
+                                const normalize = value => (value || '').toLowerCase().replace(/'/g, '').trim();
+                                const aliases = {
+                                    'womens ministry': ['womens ministry', 'women ministry', 'women'],
+                                    'youths': ['youths', 'youth ministry', 'youth'],
+                                    'elders': ['elders', 'elder ministry'],
+                                    'sunday school': ['sunday school']
+                                };
+                                const matchesDepartment = (memberDepartment, allowedDepartment) => {
+                                    const memberNorm = normalize(memberDepartment);
+                                    const allowedNorm = normalize(allowedDepartment);
+                                    const allowedAliases = aliases[allowedNorm] || [allowedNorm];
+                                    return allowedAliases.includes(memberNorm);
+                                };
+
+                                roleSelect.addEventListener('change', function() {
+                                    const selected = roleSelect.options[roleSelect.selectedIndex];
+
+                                    // If selected role is already taken, show popup and reset
+                                    if (selected && selected.dataset.taken === '1') {
+                                        const roleName = selected.value;
+                                        // Capitalize each word for display
+                                        const roleLabel = roleName.replace(/\b\w/g, c => c.toUpperCase());
+                                        const toastTitle = document.getElementById('toastRoleTitle');
+                                        const toastBody  = document.getElementById('toastRoleBody');
+                                        if (toastTitle) toastTitle.textContent = roleLabel + ' Already Assigned';
+                                        if (toastBody)  toastBody.textContent  = 'Only one ' + roleLabel + ' is allowed. Remove the current ' + roleLabel + ' first before reassigning.';
+                                        const toast = document.getElementById('headUsherToast');
+                                        if (toast) {
+                                            toast.style.display = 'block';
+                                            toast.style.animation = 'none';
+                                            void toast.offsetWidth; // reflow to restart animation
+                                            toast.style.animation = 'fadeInDown 0.3s ease';
+                                        }
+                                        roleSelect.value = '';
+                                        memberSelect.disabled = true;
+                                        memberSelect.innerHTML = '<option value="">-- Select a role first --</option>';
+                                        if (departmentInput) departmentInput.value = '';
+                                        hint.textContent = 'Choose a role first to open the correct members.';
+                                        return;
+                                    }
+
+                                    const allowed = selected && selected.dataset.allowed ? JSON.parse(selected.dataset.allowed) : [];
+                                    const assignmentDepartment = selected && selected.dataset.assignmentDepartment ? selected.dataset.assignmentDepartment : '';
+                                    if (departmentInput) departmentInput.value = assignmentDepartment;
+                                    memberSelect.innerHTML = '<option value="">-- Select Member --</option>';
+
+                                    const filtered = originalOptions.filter(option => {
+                                        if (!allowed.length) return true;
+                                        return allowed.some(department => matchesDepartment(option.dataset.department, department));
+                                    });
+
+                                    filtered.forEach(option => memberSelect.appendChild(option.cloneNode(true)));
+                                    memberSelect.disabled = !roleSelect.value;
+                                    hint.textContent = !roleSelect.value
+                                        ? 'Choose a role first to open the correct members.'
+                                        : (allowed.length ? 'Showing members from: ' + allowed.join(', ') : 'This role can be assigned to members from the entire church.');
+                                });
+                            })();
+                        </script>
+                    </div>
+                    
+                    <!-- Required Leaders Table -->
+                    <div class="content-card">
+                        <h2>Leaders Needed</h2>
+                        <p style="color: var(--text-muted); margin-bottom: 16px;">Required church leadership positions, starting with General Church leaders.</p>
+                        <?php
+                        $assigned_role_rows = [];
+                        $assigned_lookup = $conn->query("SELECT first_name, last_name, department, church_role FROM members WHERE church_role IS NOT NULL AND church_role != ''");
+                        if ($assigned_lookup) {
+                            while ($assigned = $assigned_lookup->fetch_assoc()) {
+                                $assigned_role_rows[] = $assigned;
+                            }
+                        }
+                        ?>
+                        <?php foreach ($hierarchy as $dept => $roles): ?>
+                            <div style="margin-top: 18px;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--border-color);">
+                                    <h3 style="margin:0; color: var(--primary); font-size:1rem;"><?= htmlspecialchars($dept) ?></h3>
+                                    <span class="badge" style="background: var(--bg-main); color: var(--text-muted); border: 1px solid var(--border-color);"><?= count($roles) ?> roles</span>
+                                </div>
+                                <div class="table-responsive">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Leader Role</th>
+                                                <th>Allowed Members</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($roles as $expected_role): ?>
+                                                <?php
+                                                $context_department = $hierarchy_department_names[$dept] ?? '';
+                                                $assigned_names = [];
+                                                foreach ($assigned_role_rows as $assigned_role_row) {
+                                                    $member_roles_arr = array_filter(array_map('trim', explode(',', str_replace('&', ',', $assigned_role_row['church_role'] ?? ''))));
+                                                    $has_expected_role = false;
+                                                    foreach ($member_roles_arr as $m_role) {
+                                                        if (normalize_role_name($m_role) === normalize_role_name($expected_role)) {
+                                                            $has_expected_role = true;
+                                                            break;
+                                                        }
+                                                    }
+                                                    if (!$has_expected_role) {
+                                                        continue;
+                                                    }
+                                                    if (
+                                                        is_subsidiary_department_role($expected_role) &&
+                                                        !empty($context_department) &&
+                                                        !department_matches($assigned_role_row['department'] ?? '', $context_department)
+                                                    ) {
+                                                        continue;
+                                                    }
+                                                    $assigned_names[] = trim($assigned_role_row['first_name'] . ' ' . $assigned_role_row['last_name']);
+                                                }
+                                                $allowed_departments = role_assignment_departments($expected_role);
+                                                $allowed_label = empty($allowed_departments) ? 'Entire Church' : implode(', ', $allowed_departments);
+                                                if (is_subsidiary_department_role($expected_role) && !empty($context_department)) {
+                                                    $allowed_label = $context_department;
+                                                }
+                                                ?>
+                                                <tr>
+                                                    <td style="font-weight: 600; color: var(--text-main);"><?= htmlspecialchars(role_display_label($expected_role)) ?></td>
+                                                    <td style="color: var(--text-muted);"><?= htmlspecialchars($allowed_label) ?></td>
+                                                    <td>
+                                                        <?php if (!empty($assigned_names)): ?>
+                                                            <span class="badge" style="background: rgba(16,185,129,0.12); color: #10b981;">Assigned: <?= htmlspecialchars(implode(', ', $assigned_names)) ?></span>
+                                                        <?php else: ?>
+                                                            <span class="badge" style="background: rgba(245,158,11,0.14); color: var(--warning);">Open</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                    <h2 style="margin-bottom: 20px;">Currently Assigned Roles</h2>
+                    <?php 
+                    $assigned_roles_q = $conn->query("SELECT id, first_name, last_name, department, church_role FROM members WHERE church_role IS NOT NULL AND church_role != ''");
+                    
+                    // Organize fetched members into the hierarchy structure
+                    $categorized_members = [];
+                    $uncategorized = [];
+                    
+                    while($ar = $assigned_roles_q->fetch_assoc()) {
+                        $member_roles = array_filter(array_map('trim', explode(',', str_replace('&', ',', $ar['church_role'] ?? ''))));
+                        foreach ($member_roles as $role_clean) {
+                            $placed = false;
+                            foreach($hierarchy as $dept => $roles) {
+                                $expected_department = $hierarchy_department_names[$dept] ?? '';
+                                $member_department = trim($ar['department'] ?? '');
+                                $is_youth_advisor_for_youth = $dept === 'Youth Ministry' && is_youth_advisor_role($role_clean);
+                                if ($expected_department && !$is_youth_advisor_for_youth) {
+                                    $member_aliases = array_map('strtolower', department_aliases($member_department));
+                                    $expected_aliases = array_map('strtolower', department_aliases($expected_department));
+                            $placed = false;
+                            foreach($hierarchy as $dept => $roles) {
+                                $expected_department = $hierarchy_department_names[$dept] ?? '';
+                                $member_department = trim($ar['department'] ?? '');
+                                $is_youth_advisor_for_youth = $dept === 'Youth Ministry' && is_youth_advisor_role($role_clean);
+                                if ($expected_department && !$is_youth_advisor_for_youth) {
+                                    $member_aliases = array_map('strtolower', department_aliases($member_department));
+                                    $expected_aliases = array_map('strtolower', department_aliases($expected_department));
+                                    if (empty(array_intersect($member_aliases, $expected_aliases))) {
+                                        continue;
+                                    }
+                                }
+                                foreach($roles as $expected_role) {
+                                    if (strtolower($role_clean) === strtolower($expected_role)) {
+                                        $temp_ar = $ar;
+                                        $temp_ar['displayed_role'] = $expected_role;
+                                        $categorized_members[$dept][$expected_role][] = $temp_ar;
+                                        $placed = true;
+                                        break 2;
+                                    }
+                                }
+                            }
+                            if (!$placed) {
+                                $temp_ar = $ar;
+                                $temp_ar['displayed_role'] = $role_clean;
+                                $uncategorized[] = $temp_ar;
+                            echo "<div style='margin-bottom: 30px;'>";
+                            echo "<h3 style='font-size: 1.1rem; color: var(--primary); margin-bottom: 15px; border-bottom: 2px solid var(--border-color); padding-bottom: 5px;'>$dept</h3>";
+                            echo "<div class='table-responsive'><table>";
+                            echo "<thead><tr><th style='width: 40%;'>Assigned Role</th><th>Member</th><th>Action</th></tr></thead><tbody>";
+                            
+                            foreach ($roles as $expected_role) {
+                                if (!empty($categorized_members[$dept][$expected_role])) {
+                                    foreach ($categorized_members[$dept][$expected_role] as $member_data) {
+                                        $role_label = role_display_label($expected_role, $member_data['department'] ?? null);
+                                        echo "<tr>";
+                                        echo "<td><span class='badge' style='background: var(--primary); color: white; font-weight: bold;'>" . htmlspecialchars($role_label) . "</span></td>";
+                                        echo "<td style='font-weight: 500;'>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</td>";
+                                        echo "<td><a href='pastor_action.php?action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($expected_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
+                                        echo "</tr>";
+                                    }
+                                            <td style="font-size: 0.85em; color: var(--text-muted);"><?= htmlspecialchars($af['dm_first'] . ' ' . $af['dm_last']) ?></td>
+                                            <td>
+                                                <?php if ($af['status'] == 'Paid'): ?>
+                                                    <span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;">Paid</span>
+                                                <?php else: ?>
+                                                    <span class="badge" style="background: rgba(239,68,68,0.1); color: #ef4444;">Unpaid</span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                $temp_ar['displayed_role'] = $role_clean;
+                                $uncategorized[] = $temp_ar;
+                            }
+                        }
+                    }
+
+                    $has_any_roles = false;
+                    foreach ($hierarchy as $dept => $roles) {
+                        if (!empty($categorized_members[$dept])) {
+                            $has_any_roles = true;
+                            echo "<div style='margin-bottom: 30px;'>";
+                            echo "<h3 style='font-size: 1.1rem; color: var(--primary); margin-bottom: 15px; border-bottom: 2px solid var(--border-color); padding-bottom: 5px;'>$dept</h3>";
+                            echo "<div class='table-responsive'><table>";
+                            echo "<thead><tr><th style='width: 40%;'>Assigned Role</th><th>Member</th><th>Action</th></tr></thead><tbody>";
+                            
+                            foreach ($roles as $expected_role) {
+                                if (!empty($categorized_members[$dept][$expected_role])) {
+                                    foreach ($categorized_members[$dept][$expected_role] as $member_data) {
+                                        $role_label = role_display_label($expected_role, $member_data['department'] ?? null);
+                                        echo "<tr>";
+                                        echo "<td><span class='badge' style='background: var(--primary); color: white; font-weight: bold;'>" . htmlspecialchars($role_label) . "</span></td>";
+                                        echo "<td style='font-weight: 500;'>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</td>";
+                                        echo "<td><a href='pastor_action.php?action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($expected_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
+                                        echo "</tr>";
+                                    }
+                                }
+                            }
+                            echo "</tbody></table></div></div>";
+                        }
+                    }
+
+                    // Render roles that are not part of the required leadership hierarchy
+                    if (!empty($uncategorized)) {
+                        $has_any_roles = true;
+                        echo "<div style='margin-bottom: 30px;'>";
+                        echo "<h3 style='font-size: 1.1rem; color: var(--text-muted); margin-bottom: 15px; border-bottom: 2px solid var(--border-color); padding-bottom: 5px;'>Other Roles</h3>";
+                        echo "<div class='table-responsive'><table>";
+                        echo "<thead><tr><th style='width: 40%;'>Assigned Role</th><th>Member</th><th>Action</th></tr></thead><tbody>";
+                        foreach ($uncategorized as $member_data) {
+                            $disp_role = $member_data['displayed_role'] ?? $member_data['church_role'];
+                            echo "<tr>";
+                <div class="page-header">
+                    <h1>Global Graduation Info</h1>
+                    <p>View all graduating youths and announcements across the church for <?= $current_year ?>.</p>
+                </div>
+
+                <div class="content-card" style="margin-bottom: 30px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0;">Graduation Roster (<?= $current_year ?>)</h2>
+                        <?php
+                        $count_query = $conn->query("SELECT COUNT(*) as total FROM graduation_list WHERE graduation_year=$current_year");
+                        $total_graduands = $count_query->fetch_assoc()['total'];
+                        ?>
+                        <span class="badge" style="background: var(--primary); color: white; font-size: 14px; padding: 5px 12px;">Total Church-wide: <?= $total_graduands ?></span>
+                    </div>
+
+                    <?php
+                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.graduation_year = $current_year ORDER BY gl.department ASC, m.first_name ASC");
+                    if ($roster && $roster->num_rows > 0):
+                    ?>
+                        <div class="table-responsive">
+                            <table>
+                                <thead><tr><th>Name</th><th>Department</th><th>Added Date</th></tr></thead>
+                                <tbody>
+                                    <?php while($r = $roster->fetch_assoc()): ?>
+                                        <tr>
+                                            <td style="font-weight: 500;"><svg width="18" height="18" fill="none" stroke="var(--primary)" viewBox="0 0 24 24" style="vertical-align: text-bottom; margin-right: 8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
+                                            <td><span class="badge" style="background: rgba(37,99,235,0.1); color: var(--primary);"><?= htmlspecialchars($r['department']) ?></span></td>
+                                            <td style="color: var(--text-muted);"><?= date('M j, Y', strtotime($r['added_at'])) ?></td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <div class="text-center" style="padding: 40px; color: var(--text-muted);">
+                            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin: 0 auto 15px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
+                            <p>No graduands have been registered church-wide for <?= $current_year ?>.</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="content-card">
+                    <h2>Graduation Announcements</h2>
+                    <?php
+                    $grad_ann = $conn->query("SELECT da.*, m.first_name, m.last_name FROM department_announcements da JOIN members m ON da.secretary_id = m.id WHERE da.message LIKE '[GRADUATION UPDATE]%' ORDER BY da.created_at DESC");
+                    if ($grad_ann && $grad_ann->num_rows > 0):
+                    ?>
+                        <?php while($ga = $grad_ann->fetch_assoc()): ?>
+                            <div style="padding: 15px; border-left: 4px solid var(--primary); background: var(--bg-main); margin-bottom: 15px; border-radius: 0 8px 8px 0;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                    <strong style="color: var(--primary);"><?= htmlspecialchars($ga['first_name'] . ' ' . $ga['last_name']) ?> (<?= htmlspecialchars($ga['department']) ?> Graduands Secretary)</strong>
+                                    <small style="color: var(--text-muted);"><?= date('M j, Y', strtotime($ga['created_at'])) ?></small>
+                                </div>
+                                <p style="margin: 0; line-height: 1.5;"><?= nl2br(htmlspecialchars(str_replace('[GRADUATION UPDATE] ', '', $ga['message']))) ?></p>
+                            </div>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <p style="color: var(--text-muted);">No graduation announcements have been made yet.</p>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($tab == 'prayer_board'): ?>
+                <div class="page-header">
+                    <h1>🙏 Global Prayer Board</h1>
+                    <p>All prayer sessions and active prayer items across every department in the church.</p>
+                </div>
+
+                <!-- Upcoming Sessions (all depts) -->
+                <div class="content-card" style="margin-bottom:25px;">
+                    <h2>📅 Upcoming Prayer Sessions (All Departments)</h2>
+                    <?php
+                    $all_schedules = $conn->query("SELECT ps.*, m.first_name, m.last_name FROM prayer_schedules ps JOIN members m ON ps.coordinator_id = m.id WHERE ps.prayer_date >= CURDATE() ORDER BY ps.prayer_date ASC, ps.prayer_time ASC");
+                    if ($all_schedules && $all_schedules->num_rows > 0):
+                    ?>
+                        <div style="display:flex; flex-direction:column; gap:15px;">
+                            <?php while($s = $all_schedules->fetch_assoc()): ?>
+                                <div style="display:flex; gap:20px; align-items:flex-start; padding:18px; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-main);">
+                                    <div style="text-align:center; background:var(--primary); color:white; border-radius:10px; padding:10px 15px; min-width:60px;">
+                                        <div style="font-size:1.5rem; font-weight:700;"><?= date('j', strtotime($s['prayer_date'])) ?></div>
+                                        <div style="font-size:0.75rem; text-transform:uppercase;"><?= date('M', strtotime($s['prayer_date'])) ?></div>
+                                    </div>
+                                    <div style="flex:1;">
+                                        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:5px;">
+                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                <h3 style="margin:0;color:var(--text-main);"><?= htmlspecialchars($s['title']) ?></h3>
+                                                <span class="badge" style="background:rgba(79,70,229,0.1);color:var(--primary);"><?= htmlspecialchars($s['department']) ?></span>
+                                            </div>
+                                            <?php
+                                            $target_datetime = $s['prayer_date'] . ' ' . $s['prayer_time'];
+                                            $end_datetime = !empty($s['end_time']) ? $s['prayer_date'] . ' ' . $s['end_time'] : '';
+                                            ?>
+                                            <span class="badge prayer-countdown" data-target="<?= $target_datetime ?>" <?= $end_datetime ? 'data-end-target="'.$end_datetime.'"' : '' ?> style="background:rgba(245,158,11,0.1);color:var(--warning);font-weight:600;font-family:monospace;font-size:14px;">
+                                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:4px;margin-top:-2px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                Calculating...
+                                            </span>
+                                        </div>
+                                        <?php if($s['description']): ?><p style="color:var(--text-muted);margin:0 0 8px;font-size:0.9rem;"><?= nl2br(htmlspecialchars($s['description'])) ?></p><?php endif; ?>
+                                        <div style="display:flex;gap:15px;flex-wrap:wrap;">
+                                            <span style="color:var(--text-muted);font-size:0.85rem;">⏰ <?= date('g:i A', strtotime($s['prayer_time'])) ?></span>
+                                            <span style="color:var(--text-muted);font-size:0.85rem;">📍 <?= htmlspecialchars($s['location']) ?></span>
+                                            <span style="color:var(--text-muted);font-size:0.85rem;">👤 <?= htmlspecialchars($s['first_name'] . ' ' . $s['last_name']) ?></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endwhile; ?>
+                        </div>
+                    <?php else: ?>
+                        <p style="color:var(--text-muted);">No upcoming prayer sessions have been scheduled across any department.</p>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Active Prayer Items (all depts) -->
+                <div class="content-card">
+                    <h2>🙏 Active Prayer Items (All Departments)</h2>
+                    <?php
+                    $all_items = $conn->query("SELECT pi.*, m.first_name, m.last_name FROM prayer_items pi JOIN members m ON pi.coordinator_id = m.id WHERE pi.status='Active' ORDER BY pi.department ASC, pi.created_at DESC");
+                    if ($all_items && $all_items->num_rows > 0):
+                    ?>
+                        <div style="display:flex; flex-direction:column; gap:12px;">
+                            <?php while($pi = $all_items->fetch_assoc()): ?>
+                                <div style="padding:18px; border-left:4px solid var(--primary); background:var(--bg-main); border-radius:0 10px 10px 0;">
+                                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                                        <div>
+                                            <strong style="font-size:1.05rem;color:var(--text-main);">🙏 <?= htmlspecialchars($pi['title']) ?></strong>
+                                            <span class="badge" style="margin-left:8px;background:rgba(79,70,229,0.1);color:var(--primary);"><?= htmlspecialchars($pi['category']) ?></span>
+                                            <span class="badge" style="margin-left:5px;background:rgba(16,185,129,0.1);color:#10b981;"><?= htmlspecialchars($pi['department']) ?></span>
+                                        </div>
+                                        <small style="color:var(--text-muted);">Added <?= date('M j, Y', strtotime($pi['created_at'])) ?> by <?= htmlspecialchars($pi['first_name'] . ' ' . $pi['last_name']) ?></small>
+                                    </div>
+                                    <?php if($pi['description']): ?><p style="margin:0;color:var(--text-muted);font-size:0.9rem;line-height:1.5;"><?= nl2br(htmlspecialchars($pi['description'])) ?></p><?php endif; ?>
+                                </div>
+                            <?php endwhile; ?>
+                        </div>
+                    <?php else: ?>
+                        <div style="text-align:center;padding:40px;color:var(--text-muted);">
+                            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin:0 auto 15px;display:block;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                            <p>No active prayer items posted across any department.</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($tab == 'sport_board'): ?>
+    <script>
+    const themeToggle = document.getElementById('themeToggle');
+    const moonIcon = document.getElementById('moonIcon');
+    const sunIcon = document.getElementById('sunIcon');
+    const htmlEl = document.documentElement;
+    
+    if (localStorage.getItem('theme') === 'dark') {
+        htmlEl.setAttribute('data-theme', 'dark');
+        moonIcon.style.display = 'none';
+        sunIcon.style.display = 'block';
+    }
+    
+    themeToggle.addEventListener('click', () => {
+        if (htmlEl.getAttribute('data-theme') === 'dark') {
+            htmlEl.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+            moonIcon.style.display = 'block';
+            sunIcon.style.display = 'none';
+        } else {
+            htmlEl.setAttribute('data-theme', 'dark');
+                                        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:5px;">
+                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                <h3 style="margin:0;color:var(--text-main);"><?= htmlspecialchars($sm['title']) ?></h3>
+                                                <span class="badge" style="background:rgba(79,70,229,0.1);color:var(--primary);"><?= htmlspecialchars($sm['department']) ?></span>
+                                            </div>
+                                            <?php
+                                            $target_dt = $sm['match_date'] . ' ' . $sm['match_time'];
+                                            $end_dt = !empty($sm['end_time']) ? $sm['match_date'] . ' ' . $sm['end_time'] : '';
+                                            ?>
+                                            <span class="badge prayer-countdown" data-target="<?= $target_dt ?>" <?= $end_dt ? 'data-end-target="'.$end_dt.'"' : '' ?> style="background:rgba(245,158,11,0.1);color:var(--warning);font-weight:600;font-family:monospace;font-size:13px;">Calculating...</span>
+                                        </div>
+                                        <?php if($sm['description']): ?><p style="color:var(--text-muted);margin:0 0 8px;font-size:0.9rem;"><?= nl2br(htmlspecialchars($sm['description'])) ?></p><?php endif; ?>
+                                        <div style="display:flex;gap:15px;flex-wrap:wrap;">
+                                            <span style="color:var(--text-muted);font-size:0.85rem;">⏰ <?= date('g:i A', strtotime($sm['match_time'])) ?><?= $sm['end_time'] ? ' – '.date('g:i A', strtotime($sm['end_time'])) : '' ?></span>
+                                            <span style="color:var(--text-muted);font-size:0.85rem;">📍 <?= htmlspecialchars($sm['location']) ?></span>
+                                            <span style="color:var(--text-muted);font-size:0.85rem;">👤 <?= htmlspecialchars($sm['first_name'] . ' ' . $sm['last_name']) ?></span>
+                if (endStr) {
+                    const endTime = new Date(endStr.replace(' ', 'T') + '+03:00').getTime();
+                    if (now >= endTime) {
+                        el.innerHTML = '<span style="color:#6b7280;">🏁 Ended</span>';
+                        el.style.background = 'rgba(107,114,128,0.1)';
+                        return;
+                    }
+                }
+                el.innerHTML = '<span style="color:#10b981;">🟢 Live Now</span>';
+                el.style.background = 'rgba(16,185,129,0.1)';
+            } else {
+                const h = Math.floor(diff / (1000 * 60 * 60));
+                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                let timeStr = '';
+                if (h > 0) timeStr += h.toString().padStart(2, '0') + 'h ';
+                timeStr += m.toString().padStart(2, '0') + 'm ';
+                timeStr += s.toString().padStart(2, '0') + 's';
+                                <strong><?= htmlspecialchars($ann['first_name'] . ' ' . $ann['last_name']) ?></strong>
+                                <span style="color: var(--text-muted); font-size: 0.85rem;"> - <?= htmlspecialchars($ann['church_role']) ?> - <?= date('M j, Y g:i A', strtotime($ann['created_at'])) ?></span>
+                                <p style="margin: 8px 0 0; white-space: pre-wrap;"><?= htmlspecialchars($ann['message']) ?></p>
+                                <?= render_announcement_image($ann['image_path'] ?? '') ?>
+                            </div>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <p style="color: var(--text-muted);">No General Church announcements yet.</p>
+                    <?php endif; ?>
+                </div>
+
+                <?php foreach (['general_church' => 'General Leaders Chat'] as $chat_key => $chat_title): ?>
+                    <div class="content-card" style="margin-bottom: 24px;">
+                        <h2><?= htmlspecialchars($chat_title) ?></h2>
+                        <?php
+                        $safe_chat_key = $conn->real_escape_string($chat_key);
+                        $chat_messages = $conn->query("
+                            SELECT lm.*, m.first_name, m.last_name, m.church_role, m.department
+                            FROM leader_messages lm
+                            JOIN members m ON lm.sender_id = m.id
+                            WHERE lm.dept_key = '$safe_chat_key'
+                            ORDER BY lm.created_at DESC
+                            LIMIT 80
+                        ");
+                        ?>
+                        <?php if ($chat_messages && $chat_messages->num_rows > 0): ?>
+                            <?php while ($msg = $chat_messages->fetch_assoc()): ?>
+                                <div style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
+                                    <strong><?= htmlspecialchars($msg['first_name'] . ' ' . $msg['last_name']) ?></strong>
+                                    <span style="color: var(--text-muted); font-size: 0.85rem;"> - <?= htmlspecialchars($msg['church_role']) ?> - <?= htmlspecialchars($msg['department'] ?? 'General Church') ?> - <?= date('M j, Y g:i A', strtotime($msg['created_at'])) ?></span>
+                                    <p style="margin: 8px 0 0; white-space: pre-wrap;"><?= htmlspecialchars($msg['message']) ?></p>
+                                </div>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <p style="color: var(--text-muted);">No messages yet.</p>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+
+                <div class="content-card" style="margin-bottom: 24px;">
+                    <h2>Announcement Queries</h2>
+                    <?php
+                    $announcement_queries = $conn->query("
+                        SELECT q.*, m.first_name, m.last_name, m.church_role
+                        FROM secretary_announcement_queries q
+                        JOIN members m ON q.secretary_id = m.id
+                            <?php while($ca = $all_choir_announcements->fetch_assoc()): ?>
+                                <div style="padding:18px;border-left:4px solid var(--primary);background:var(--bg-main);border-radius:0 10px 10px 0;">
+                                    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+                                        <div>
+                                            <strong style="color:var(--text-main);"><?= htmlspecialchars($ca['first_name'] . ' ' . $ca['last_name']) ?></strong>
+                                            <span class="badge" style="margin-left:8px;background:rgba(37,99,235,0.12);color:var(--primary);"><?= htmlspecialchars($ca['department']) ?></span>
+                                        </div>
+                                        <small style="color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($ca['created_at'])) ?></small>
+                                    </div>
+                                    <p style="margin:0;white-space:pre-wrap;line-height:1.6;"><?= htmlspecialchars($ca['message']) ?></p>
+                                    <?= render_announcement_image($ca['image_path'] ?? '') ?>
+                                </div>
+                            <?php endwhile; ?>
+                        </div>
+                    <?php else: ?>
+                        <p style="color:var(--text-muted);">No choir announcements posted yet.</p>
+                </div>
+            <?php elseif ($tab == 'usher_monitoring'): ?>
+                <div class="page-header">
+                    <h1>📢 Usher Monitoring</h1>
+                    <p>Monitor announcements and chat messages within the Usher department.</p>
+                </div>
+
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <!-- Announcements Column -->
+                    <div style="flex: 1; min-width: 300px;">
+                        <div class="content-card" style="margin-bottom: 24px;">
+                            <h2>📢 Usher Announcements</h2>
+                            <?php
+                            $all_usher_anns = $conn->query("SELECT ua.*, m.first_name, m.last_name, m.department FROM usher_announcements ua JOIN members m ON ua.usher_id = m.id ORDER BY ua.created_at DESC");
+                            if ($all_usher_anns && $all_usher_anns->num_rows > 0): ?>

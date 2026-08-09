@@ -1,0 +1,357 @@
+<?php
+// We append the missing parts to pastor_dashboard.php
+$dash = file_get_contents('pastor_dashboard.php.recovered');
+
+$missing = <<<EOF
+                            <?php
+                            // Usher Announcements Query
+                            \$all_usher_anns = \$conn->query("SELECT ua.*, m.first_name, m.last_name, m.department FROM usher_announcements ua JOIN members m ON ua.usher_id = m.id ORDER BY ua.created_at DESC");
+                            if (\$all_usher_anns && \$all_usher_anns->num_rows > 0): ?>
+                                <div class="message-list">
+                                    <?php while (\$ua = \$all_usher_anns->fetch_assoc()): ?>
+                                        <div class="message-item">
+                                            <div class="message-header">
+                                                <span class="message-author">
+                                                    <?= htmlspecialchars(\$ua['first_name'] . ' ' . \$ua['last_name']) ?>
+                                                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">(<?= htmlspecialchars(\$ua['department']) ?>)</span>
+                                                </span>
+                                                <span><?= date('M j, Y g:i A', strtotime(\$ua['created_at'])) ?></span>
+                                            </div>
+                                            <div class="message-body">
+                                                <?= nl2br(htmlspecialchars(\$ua['message'])) ?>
+                                                <?php if (!empty(\$ua['image_path'])): ?>
+                                                    <div style="margin-top: 10px;">
+                                                        <img src="uploads/<?= htmlspecialchars(\$ua['image_path']) ?>" alt="Announcement Image" style="max-width: 100%; border-radius: 8px;">
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    <?php endwhile; ?>
+                                </div>
+                            <?php else: ?>
+                                <p style="color:var(--text-muted);">No usher announcements posted yet.</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Column -->
+                    <div style="flex: 1; min-width: 300px;">
+                        <div class="content-card" style="margin-bottom: 24px;">
+                            <h2>dY" Usher Chat Logs</h2>
+                            <div class="chat-container" style="max-height: 500px; overflow-y: auto; padding-right: 10px;">
+                                <?php
+                                \$usher_chats = \$conn->query("
+                                    SELECT c.*, m.first_name, m.last_name, m.profile_picture, m.department, m.church_role 
+                                    FROM chats c 
+                                    JOIN members m ON c.sender_id = m.id 
+                                    WHERE c.chat_type = 'usher' 
+                                    ORDER BY c.created_at ASC
+                                ");
+                                if (\$usher_chats && \$usher_chats->num_rows > 0):
+                                    while (\$chat = \$usher_chats->fetch_assoc()):
+                                        \$is_pastor = (\$chat['church_role'] == 'Senior Pastor');
+                                ?>
+                                    <div class="chat-message" style="display: flex; gap: 12px; margin-bottom: 16px; <?= \$is_pastor ? 'flex-direction: row-reverse;' : '' ?>">
+                                        <img src="uploads/<?= htmlspecialchars(\$chat['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+                                        <div style="max-width: 75%; <?= \$is_pastor ? 'text-align: right;' : '' ?>">
+                                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
+                                                <?= htmlspecialchars(\$chat['first_name']) ?> <span style="opacity:0.7;">(<?= htmlspecialchars(\$chat['department']) ?>)</span> • <?= date('M j, g:i A', strtotime(\$chat['created_at'])) ?>
+                                            </div>
+                                            <div style="background: <?= \$is_pastor ? 'var(--primary)' : 'var(--border-color)' ?>; color: <?= \$is_pastor ? 'white' : 'var(--text-main)' ?>; padding: 10px 14px; border-radius: 12px; font-size: 0.95rem;">
+                                                <?= nl2br(htmlspecialchars(\$chat['message'])) ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php 
+                                    endwhile;
+                                else:
+                                ?>
+                                    <p style="color:var(--text-muted); text-align:center;">No usher chat messages yet.</p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            <?php elseif (\$tab == 'building_monitoring'): ?>
+                <div class="page-header">
+                    <h1>dY'7 Building Monitoring</h1>
+                    <p>Monitor announcements and chat messages within the Building & Construction department.</p>
+                </div>
+
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <!-- Announcements Column -->
+                    <div style="flex: 1; min-width: 300px;">
+                        <div class="content-card" style="margin-bottom: 24px;">
+                            <h2>dY'7 Building Announcements</h2>
+                            <?php
+                            \$all_building_anns = \$conn->query("SELECT ba.*, m.first_name, m.last_name, m.department FROM building_announcements ba JOIN members m ON ba.building_id = m.id ORDER BY ba.created_at DESC");
+                            if (\$all_building_anns && \$all_building_anns->num_rows > 0): ?>
+                                <div class="message-list">
+                                    <?php while (\$ba = \$all_building_anns->fetch_assoc()): ?>
+                                        <div class="message-item">
+                                            <div class="message-header">
+                                                <span class="message-author">
+                                                    <?= htmlspecialchars(\$ba['first_name'] . ' ' . \$ba['last_name']) ?>
+                                                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">(<?= htmlspecialchars(\$ba['department']) ?>)</span>
+                                                </span>
+                                                <span><?= date('M j, Y g:i A', strtotime(\$ba['created_at'])) ?></span>
+                                            </div>
+                                            <div class="message-body">
+                                                <?= nl2br(htmlspecialchars(\$ba['message'])) ?>
+                                                <?php if (!empty(\$ba['image_path'])): ?>
+                                                    <div style="margin-top: 10px;">
+                                                        <img src="uploads/<?= htmlspecialchars(\$ba['image_path']) ?>" alt="Announcement Image" style="max-width: 100%; border-radius: 8px;">
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    <?php endwhile; ?>
+                                </div>
+                            <?php else: ?>
+                                <p style="color:var(--text-muted);">No building announcements posted yet.</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Column -->
+                    <div style="flex: 1; min-width: 300px;">
+                        <div class="content-card" style="margin-bottom: 24px;">
+                            <h2>dY'7 Building Chat Logs</h2>
+                            <div class="chat-container" style="max-height: 500px; overflow-y: auto; padding-right: 10px;">
+                                <?php
+                                \$building_chats = \$conn->query("
+                                    SELECT c.*, m.first_name, m.last_name, m.profile_picture, m.department, m.church_role 
+                                    FROM chats c 
+                                    JOIN members m ON c.sender_id = m.id 
+                                    WHERE c.chat_type = 'building' 
+                                    ORDER BY c.created_at ASC
+                                ");
+                                if (\$building_chats && \$building_chats->num_rows > 0):
+                                    while (\$chat = \$building_chats->fetch_assoc()):
+                                        \$is_pastor = (\$chat['church_role'] == 'Senior Pastor');
+                                ?>
+                                    <div class="chat-message" style="display: flex; gap: 12px; margin-bottom: 16px; <?= \$is_pastor ? 'flex-direction: row-reverse;' : '' ?>">
+                                        <img src="uploads/<?= htmlspecialchars(\$chat['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+                                        <div style="max-width: 75%; <?= \$is_pastor ? 'text-align: right;' : '' ?>">
+                                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
+                                                <?= htmlspecialchars(\$chat['first_name']) ?> <span style="opacity:0.7;">(<?= htmlspecialchars(\$chat['department']) ?>)</span> • <?= date('M j, g:i A', strtotime(\$chat['created_at'])) ?>
+                                            </div>
+                                            <div style="background: <?= \$is_pastor ? 'var(--primary)' : 'var(--border-color)' ?>; color: <?= \$is_pastor ? 'white' : 'var(--text-main)' ?>; padding: 10px 14px; border-radius: 12px; font-size: 0.95rem;">
+                                                <?= nl2br(htmlspecialchars(\$chat['message'])) ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php 
+                                    endwhile;
+                                else:
+                                ?>
+                                    <p style="color:var(--text-muted); text-align:center;">No building chat messages yet.</p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            <?php elseif (\$tab == 'appointments'): ?>
+                <div class="page-header">
+                    <h1>Appointments</h1>
+                    <p>Manage appointment requests from members.</p>
+                </div>
+                
+                <div class="content-card">
+                    <h2>Pending Appointments</h2>
+                    <?php
+                    \$pending_appts = \$conn->query("SELECT a.*, m.first_name, m.last_name, m.department FROM appointments a JOIN members m ON a.member_id = m.id WHERE a.pastor_id = \$pastor_id AND a.status = 'Pending' ORDER BY a.appointment_date ASC");
+                    if (\$pending_appts && \$pending_appts->num_rows > 0):
+                    ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>Member</th><th>Department</th><th>Date</th><th>Reason</th><th>Action</th></tr></thead>
+                            <tbody>
+                                <?php while(\$a = \$pending_appts->fetch_assoc()): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars(\$a['first_name'] . ' ' . \$a['last_name']) ?></td>
+                                    <td><?= htmlspecialchars(\$a['department']) ?></td>
+                                    <td><?= date('M j, Y g:i A', strtotime(\$a['appointment_date'])) ?></td>
+                                    <td><?= nl2br(htmlspecialchars(\$a['reason'])) ?></td>
+                                    <td class="action-buttons">
+                                        <a href="pastor_action.php?action=approve_appointment&id=<?= \$a['id'] ?>" class="btn-action btn-approve" onclick="return confirm('Approve this appointment?')">Approve</a>
+                                        <a href="pastor_action.php?action=reject_appointment&id=<?= \$a['id'] ?>" class="btn-action btn-delete" onclick="return confirm('Decline this appointment?')">Decline</a>
+                                    </td>
+                                </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                    <p style="color:var(--text-muted);">No pending appointments.</p>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="content-card">
+                    <h2>Past/Handled Appointments</h2>
+                    <?php
+                    \$handled_appts = \$conn->query("SELECT a.*, m.first_name, m.last_name FROM appointments a JOIN members m ON a.member_id = m.id WHERE a.pastor_id = \$pastor_id AND a.status != 'Pending' ORDER BY a.appointment_date DESC LIMIT 20");
+                    if (\$handled_appts && \$handled_appts->num_rows > 0):
+                    ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>Member</th><th>Date</th><th>Status</th></tr></thead>
+                            <tbody>
+                                <?php while(\$a = \$handled_appts->fetch_assoc()): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars(\$a['first_name'] . ' ' . \$a['last_name']) ?></td>
+                                    <td><?= date('M j, Y g:i A', strtotime(\$a['appointment_date'])) ?></td>
+                                    <td>
+                                        <?php
+                                        \$bg = 'var(--text-muted)';
+                                        if(\$a['status'] == 'Approved') \$bg = 'var(--success)';
+                                        if(\$a['status'] == 'Declined') \$bg = 'var(--danger)';
+                                        ?>
+                                        <span class="badge" style="background: <?= \$bg ?>; color: white;"><?= \$a['status'] ?></span>
+                                    </td>
+                                </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                    <p style="color:var(--text-muted);">No handled appointments yet.</p>
+                    <?php endif; ?>
+                </div>
+                
+            <?php elseif (\$tab == 'messages'): ?>
+                <div class="page-header">
+                    <h1>Direct Messages</h1>
+                    <p>Send a direct message to a member.</p>
+                </div>
+                
+                <div class="content-card" style="max-width: 600px;">
+                    <h2>Send Message</h2>
+                    <form method="POST" action="">
+                        <div class="form-group">
+                            <label>Select Member</label>
+                            <select name="member_id" class="form-control" required>
+                                <option value="">-- Choose Member --</option>
+                                <?php 
+                                \$members = \$conn->query("SELECT id, first_name, last_name, department FROM members WHERE is_approved = 1 ORDER BY first_name");
+                                while(\$m = \$members->fetch_assoc()): ?>
+                                    <option value="<?= \$m['id'] ?>"><?= htmlspecialchars(\$m['first_name'] . ' ' . \$m['last_name'] . ' (' . \$m['department'] . ')') ?></option>
+                                <?php endwhile; ?>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Message</label>
+                            <textarea name="message" class="form-control" rows="5" required></textarea>
+                        </div>
+                        <button type="submit" name="send_message" class="btn-submit">Send Message</button>
+                    </form>
+                    
+                    <?php
+                    if (isset(\$_POST['send_message'])) {
+                        \$m_id = (int)\$_POST['member_id'];
+                        \$msg = \$conn->real_escape_string(trim(\$_POST['message']));
+                        if (!empty(\$msg)) {
+                            \$conn->query("INSERT INTO messages (pastor_id, member_id, message) VALUES (\$pastor_id, \$m_id, '\$msg')");
+                            echo "<div class='alert alert-success' style='margin-top:20px;'>Message sent successfully!</div>";
+                        }
+                    }
+                    ?>
+                </div>
+
+            <?php elseif (\$tab == 'settings'): ?>
+                <div class="page-header">
+                    <h1>Account Settings</h1>
+                    <p>Manage your account credentials.</p>
+                </div>
+                <div class="content-card" style="max-width: 450px;">
+                    <h2>Change Password</h2>
+                    <form method="POST" action="">
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" name="new_password" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm Password</label>
+                            <input type="password" name="confirm_password" class="form-control" required>
+                        </div>
+                        <button type="submit" name="change_password" class="btn-submit">Update Password</button>
+                    </form>
+                    <?php
+                    if (isset(\$_POST['change_password'])) {
+                        \$np = \$_POST['new_password'];
+                        \$cp = \$_POST['confirm_password'];
+                        if (\$np === \$cp) {
+                            \$hash = password_hash(\$np, PASSWORD_DEFAULT);
+                            \$conn->query("UPDATE pastors SET password = '\$hash' WHERE id = \$pastor_id");
+                            echo "<div class='alert alert-success' style='margin-top:20px;'>Password updated successfully.</div>";
+                        } else {
+                            echo "<div class='alert alert-danger' style='margin-top:20px;'>Passwords do not match.</div>";
+                        }
+                    }
+                    ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    
+    <script>
+        // Tab routing is handled purely server-side
+        // Mobile sidebar toggle
+        document.getElementById('mobileMenuBtn').addEventListener('click', function() {
+            var sb = document.querySelector('.sidebar');
+            var overlay = document.getElementById('sidebarOverlay');
+            sb.classList.toggle('active');
+            if (sb.classList.contains('active')) {
+                overlay.classList.add('active');
+            } else {
+                overlay.classList.remove('active');
+            }
+        });
+        
+        document.getElementById('sidebarOverlay').addEventListener('click', function() {
+            document.querySelector('.sidebar').classList.remove('active');
+            this.classList.remove('active');
+        });
+
+        // Theme Toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const moonIcon = document.getElementById('moonIcon');
+        const sunIcon = document.getElementById('sunIcon');
+        const root = document.documentElement;
+
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        if (currentTheme === 'dark') {
+            root.setAttribute('data-theme', 'dark');
+            moonIcon.style.display = 'none';
+            sunIcon.style.display = 'block';
+        }
+
+        themeToggle.addEventListener('click', () => {
+            let theme = 'light';
+            if (!root.hasAttribute('data-theme')) {
+                root.setAttribute('data-theme', 'dark');
+                theme = 'dark';
+                moonIcon.style.display = 'none';
+                sunIcon.style.display = 'block';
+            } else {
+                root.removeAttribute('data-theme');
+                moonIcon.style.display = 'block';
+                sunIcon.style.display = 'none';
+            }
+            localStorage.setItem('theme', theme);
+        });
+    </script>
+</body>
+</html>
+EOF;
+
+// Since the recovered file cuts off at a weird place in usher_monitoring, let's fix it by regex replacing everything after "usher_monitoring" with the new missing chunk.
+$dash = preg_replace('/<\?php\s+elseif\s*\(\$tab\s*==\s*\'usher_monitoring\'\):\s*\?>.*/s', '', $dash);
+$dash .= "\n            <?php elseif (\$tab == 'usher_monitoring'): ?>\n                <div class=\"page-header\">\n                    <h1>dY\" Usher Monitoring</h1>\n                    <p>Monitor announcements and chat messages within the Usher department.</p>\n                </div>\n\n                <div style=\"display: flex; gap: 20px; flex-wrap: wrap;\">\n                    <!-- Announcements Column -->\n                    <div style=\"flex: 1; min-width: 300px;\">\n                        <div class=\"content-card\" style=\"margin-bottom: 24px;\">\n                            <h2>dY\" Usher Announcements</h2>\n";
+$dash .= $missing;
+
+file_put_contents('pastor_dashboard.php', $dash);
+echo "pastor_dashboard.php restored!\n";
+?>
