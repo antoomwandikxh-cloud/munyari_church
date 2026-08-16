@@ -3,11 +3,23 @@ session_start();
 require_once 'db_connect.php';
 require_once 'notification_badges.php';
 require_once 'role_departments.php';
+
+// Strip (subsidiary) for display
+if (!function_exists('clean_role_display')) {
+    function clean_role_display($role) {
+        return trim(preg_replace('/\s*\(subsidiary\)\s*/i', '', $role ?? ''));
+    }
+}
 if (!isset($_SESSION['admin_id'])) { header("Location: login.php"); exit(); }
 
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
 $admin_id = $_SESSION['admin_id'];
 $tab_badges = build_tab_notification_badges($conn, $admin_id, 'admin', $tab);
+$admin_profile_col = $conn->query("SHOW COLUMNS FROM admins LIKE 'profile_picture'");
+if ($admin_profile_col && $admin_profile_col->num_rows == 0) {
+    $conn->query("ALTER TABLE admins ADD COLUMN profile_picture VARCHAR(255) NOT NULL DEFAULT 'default_avatar.png'");
+}
+$admin = $conn->query("SELECT * FROM admins WHERE id = $admin_id")->fetch_assoc();
 $conn->query("
     CREATE TABLE IF NOT EXISTS secretary_announcement_queries (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -84,11 +96,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register_member'])) {
     $ln = $conn->real_escape_string(trim($_POST['last_name']));
     $ph = $conn->real_escape_string(trim($_POST['phone']));
     $ad = $conn->real_escape_string(trim($_POST['address'] ?? ''));
-    $dp = $conn->real_escape_string(trim($_POST['department'] ?? 'None'));
-    $gn = $conn->real_escape_string(trim($_POST['gender'] ?? 'Male'));
+    $dp_raw = trim($_POST['department'] ?? 'None');
+    $dp = $conn->real_escape_string($dp_raw);
+    if ($dp_raw === 'Womens Ministry') {
+        $gn_raw = 'Female';
+    } elseif ($dp_raw === 'Elders') {
+        $gn_raw = 'Male';
+    } else {
+        $gn_raw = trim($_POST['gender'] ?? 'Male');
+    }
+    $gn = $conn->real_escape_string($gn_raw);
     $pw = password_hash(trim($_POST['password']), PASSWORD_DEFAULT);
     if (empty($fn) || empty($ln) || empty($ph) || empty($_POST['password'])) {
         header("Location: admin_dashboard.php?tab=members&error=First name, last name, phone and password are required");
+        exit();
+    }
+    if ($_POST['password'] !== ($_POST['confirm_password'] ?? '')) {
+        header("Location: admin_dashboard.php?tab=members&error=Passwords do not match");
         exit();
     }
     $dup = $conn->query("SELECT id FROM members WHERE phone = '$ph'")->num_rows;
@@ -104,20 +128,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register_member'])) {
     exit();
 }
 
-// Handle Delete Member
-if (isset($_GET['action']) && $_GET['action'] == 'delete_member' && isset($_GET['id'])) {
-    $del_id = (int)$_GET['id'];
-    $conn->query("DELETE FROM members WHERE id = $del_id");
-    header("Location: admin_dashboard.php?tab=members&success=Member deleted successfully");
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['upload_admin_picture'])) {
+    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
+        $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+        $ext = strtolower(pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowed, true)) {
+            header("Location: admin_dashboard.php?tab=settings&error=Invalid image format");
+            exit();
+        }
+        $new_name = 'admin_' . $admin_id . '_' . time() . '.' . $ext;
+        if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], 'uploads/' . $new_name)) {
+            $safe_name = $conn->real_escape_string($new_name);
+            $conn->query("UPDATE admins SET profile_picture = '$safe_name' WHERE id = $admin_id");
+            header("Location: admin_dashboard.php?tab=settings&success=Profile picture updated");
+            exit();
+        }
+    }
+    header("Location: admin_dashboard.php?tab=settings&error=Please choose a valid profile picture");
     exit();
 }
 
-// Assign Role Actions
-if (isset($_GET['action'])) {
-    $action = $_GET['action'];
-    
-    if ($action === 'assign_role' && $_SERVER['REQUEST_METHOD'] == 'POST') {
-        $member_id = (int)$_POST['member_id'];
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_admin_password'])) {
+    $current_password = $_POST['current_password'] ?? '';
+    $new_password = $_POST['new_password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
+    if (!password_verify($current_password, $admin['password'] ?? '')) {
+        header("Location: admin_dashboard.php?tab=settings&error=Current password is incorrect");
+        exit();
+    }
+    if (strlen($new_password) < 6) {
+        header("Location: admin_dashboard.php?tab=settings&error=New password must be at least 6 characters");
+        exit();
+    }
+    if ($new_password !== $confirm_password) {
+        header("Location: admin_dashboard.php?tab=settings&error=Passwords do not match");
+        exit();
+    }
+    $hashed = password_hash($new_password, PASSWORD_DEFAULT);
+    $conn->query("UPDATE admins SET password = '$hashed' WHERE id = $admin_id");
+    header("Location: admin_dashboard.php?tab=settings&success=Password changed successfully");
+    exit();
+}
         $raw_role = trim($_POST['role'] ?? '');
         $assignment_department = trim($_POST['assignment_department'] ?? '');
         $role = $conn->real_escape_string($raw_role);
@@ -291,9 +342,10 @@ if (isset($_GET['action'])) {
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                     Dashboard Overview
                 </a>
-                <a href="?tab=members" class="sidebar-link <?= $tab == 'members' ? 'active' : '' ?>">
+                <a href="?tab=members" class="sidebar-link <?= $tab == 'members' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                     Manage Members
+                    <?php if (!empty($tab_badges['members'])): ?><span style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['members'] ?></span><?php endif; ?>
                 </a>
                 <a href="?tab=departments" class="sidebar-link <?= $tab == 'departments' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
@@ -352,6 +404,29 @@ if (isset($_GET['action'])) {
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                     Usher Monitoring
                 </a>
+                <a href="?tab=manage_sunday_school" class="sidebar-link <?= $tab == 'manage_sunday_school' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    Manage Sunday School
+                </a>
+                <a href="?tab=financials" class="sidebar-link <?= $tab == 'financials' ? 'active' : '' ?>" style="position:relative;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Financial Records
+                    <?php if (!empty($tab_badges['financials'])): ?><span style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['financials'] ?></span><?php endif; ?>
+                </a>
+                <a href="?tab=appointments" class="sidebar-link <?= $tab == 'appointments' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Appointments
+                </a>
+                <a href="?tab=general_announcements" class="sidebar-link <?= $tab == 'general_announcements' ? 'active' : '' ?>" style="position:relative;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
+                    General Announcements
+                    <?php if (!empty($tab_badges['general_announcements'])): ?><span style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['general_announcements'] ?></span><?php endif; ?>
+                </a>
+                <a href="?tab=building_monitoring" class="sidebar-link <?= $tab == 'building_monitoring' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                    Building Monitoring
+                </a>
+
                 <a href="?tab=audit" class="sidebar-link <?= $tab == 'audit' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                     Audit Trail
@@ -364,15 +439,38 @@ if (isset($_GET['action'])) {
         </div>
 
         <div class="main-content">
-            <div class="topbar" style="justify-content: flex-end;">
-                <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="topbar" style="justify-content: space-between;">
+                <!-- Mobile Menu Button -->
+                <button class="icon-btn mobile-menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open'); event.stopPropagation();" title="Toggle Menu">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <script>
+                if (!window.mobileSidebarBound) {
+                    window.mobileSidebarBound = true;
+                    document.addEventListener('click', function(e) {
+                        var sidebar = document.querySelector('.sidebar');
+                        var btn = document.querySelector('.mobile-menu-btn');
+                        if (sidebar && sidebar.classList.contains('open') && !sidebar.contains(e.target) && !(btn && btn.contains(e.target))) {
+                            sidebar.classList.remove('open');
+                        }
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (e.target.closest('.sidebar-link, .sidebar-logout')) {
+                            var sidebar = document.querySelector('.sidebar');
+                            if (sidebar) sidebar.classList.remove('open');
+                        }
+                    });
+                }
+                </script>
+                
+                <div style="display: flex; align-items: center; gap: 12px; margin-left: auto;">
                     <!-- Profile photo + name -->
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <a href="?tab=settings" title="Go to Settings" style="text-decoration: none;">
-                            <img src="uploads/default_avatar.png" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                            <img src="uploads/<?= htmlspecialchars($admin['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
                         </a>
                         <div style="line-height: 1.2;">
-                            <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-main); display: block;">Admin</span>
+                            <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-main); display: block;"><?= htmlspecialchars($admin['username'] ?? 'Admin') ?></span>
                             <span style="font-size: 0.75rem; color: var(--text-muted); background: var(--border-color); padding: 2px 6px; border-radius: 4px;">System</span>
                         </div>
                     </div>
@@ -392,25 +490,11 @@ if (isset($_GET['action'])) {
                     </a>
                 </div>
             </div>
-            
-            <?php if(isset($_GET['success'])): ?>
+                                <?php if(isset($_GET['success'])): ?>
                 <div class="alert alert-success"><?= htmlspecialchars($_GET['success']) ?></div>
             <?php elseif(isset($_GET['error'])): ?>
                 <div class="alert alert-error"><?= htmlspecialchars($_GET['error']) ?></div>
             <?php elseif(isset($_GET['approved'])): ?>
-                <div class="alert alert-success">Account approved successfully!</div>
-            <?php elseif(isset($_GET['deactivated'])): ?>
-                <div class="alert alert-error" style="background: rgba(245, 158, 11, 0.1); color: #d97706; border-color: rgba(245, 158, 11, 0.2);">Account deactivated successfully.</div>
-            <?php elseif(isset($_GET['removed'])): ?>
-                <div class="alert alert-error">Account removed permanently.</div>
-            <?php endif; ?>
-
-            <?php if ($tab == 'dashboard'): ?>
-                <div class="page-header">
-                    <h1>Dashboard Overview</h1>
-                    <p>Welcome back! Here is what's happening today.</p>
-                </div>
-                
                 <div class="dashboard-grid">
                     <div class="stat-card">
                         <h3>Approved Members</h3>
@@ -437,7 +521,9 @@ if (isset($_GET['action'])) {
                     <p>Register new congregation members or remove existing ones.</p>
                 </div>
 
-                <!-- Register New Member Form -->
+
+
+<!-- Register New Member Form -->
                 <div class="content-card" style="margin-bottom: 30px;">
                     <div style="display:flex; align-items:center; gap:14px; margin-bottom:24px;">
                         <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--primary),#6366f1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -453,40 +539,49 @@ if (isset($_GET['action'])) {
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                             <div class="form-group">
                                 <label>First Name <span style="color:var(--danger);">*</span></label>
-                                <input type="text" name="first_name" class="form-control" placeholder="e.g. John" required>
+                                <input type="text" id="a_first_name" name="first_name" class="form-control" placeholder="e.g. Peter" pattern="[A-Za-z\s]+" oninput="validateInput(this,'name'); seqUnlock('a_first_name','a_last_name')" required>
                             </div>
                             <div class="form-group">
                                 <label>Last Name <span style="color:var(--danger);">*</span></label>
-                                <input type="text" name="last_name" class="form-control" placeholder="e.g. Doe" required>
+                                <input type="text" id="a_last_name" name="last_name" class="form-control" placeholder="e.g. Ntoiti" pattern="[A-Za-z\s]+" oninput="validateInput(this,'name'); seqUnlock('a_last_name','a_phone')" disabled required>
                             </div>
+
                             <div class="form-group">
                                 <label>Phone Number <span style="color:var(--danger);">*</span></label>
-                                <input type="tel" name="phone" class="form-control" placeholder="e.g. 0771234567" required>
+                                <input type="tel" id="a_phone" name="phone" class="form-control" placeholder="10-digit number" pattern="\d{10}" maxlength="10" oninput="validateInput(this,'phone'); checkPhoneAsync(this,'a_dept')" disabled required>
                             </div>
                             <div class="form-group">
-                                <label>Gender <span style="color:var(--danger);">*</span></label>
-                                <select name="gender" class="form-control" required>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Department</label>
-                                <select name="department" class="form-control">
+                                <label>Department <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #8b5cf6; pointer-events: none; z-index:1;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg></span>
+                                    <select name="department" id="a_dept" class="form-control" style="padding-left:36px;" disabled required>
+                                    <option value="">Select department...</option>
                                     <option value="Youths">Youths</option>
                                     <option value="Elders">Elders</option>
                                     <option value="Sunday School">Sunday School</option>
                                     <option value="Womens Ministry">Women's Ministry</option>
                                 </select>
+                                    </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Gender <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #ec4899; pointer-events: none; z-index:1;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="9" r="5" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 14v7m-3-3h6"/><circle cx="17.5" cy="5.5" r="3.5" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 2l-3.5 3.5M21 2h-3m0 0v3"/></svg></span>
+                                    <select name="gender" id="a_gender" class="form-control" style="padding-left:36px;" onchange="seqUnlock('a_gender','a_address')" disabled required>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                                </div>
+                                <small id="a_gender_hint" style="color:var(--text-muted);font-size:0.78rem;">Select department first. Women auto-fill Female; Elders auto-fill Male.</small>
                             </div>
                             <div class="form-group" style="grid-column:1/-1;">
                                 <label>Residential Address</label>
-                                <input type="text" name="address" class="form-control" placeholder="e.g. 23 Borrowdale Road, Harare">
+                                <input type="text" id="a_address" name="address" class="form-control" placeholder="e.g. Mugui" pattern="[A-Za-z\s,]+" oninput="validateInput(this,'name'); seqUnlock('a_address','adminRegPwd')" disabled>
                             </div>
                             <div class="form-group">
                                 <label>Login Password <span style="color:var(--danger);">*</span></label>
                                 <div style="position:relative;">
-                                    <input type="password" name="password" id="adminRegPwd" class="form-control" placeholder="Set a secure login password" required style="padding-right:46px;">
+                                    <input type="password" name="password" id="adminRegPwd" class="form-control" placeholder="At least 6 characters" minlength="6" oninput="seqUnlock('adminRegPwd','adminRegPwdConfirm')" disabled required style="padding-right:46px;">
                                     <span onclick="var i=document.getElementById('adminRegPwd');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);">
                                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </span>
@@ -495,7 +590,7 @@ if (isset($_GET['action'])) {
                             <div class="form-group">
                                 <label>Confirm Password <span style="color:var(--danger);">*</span></label>
                                 <div style="position:relative;">
-                                    <input type="password" name="confirm_password" id="adminRegPwdConfirm" class="form-control" placeholder="Re-enter password" required style="padding-right:46px;" oninput="checkAdminPwd()">
+                                    <input type="password" name="confirm_password" id="adminRegPwdConfirm" class="form-control" placeholder="Re-enter password" required disabled style="padding-right:46px;" oninput="checkAdminPwd()">
                                     <span onclick="var i=document.getElementById('adminRegPwdConfirm');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);">
                                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </span>
@@ -546,13 +641,14 @@ if (isset($_GET['action'])) {
                     <div class="table-responsive">
                         <table>
                             <thead>
-                                <tr><th>Profile</th><th>Name</th><th>Phone</th><th>Area</th><th>Department</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+                                <tr><th>Profile</th><th>Name</th><th>Username</th><th>Phone</th><th>Area</th><th>Department</th><th>Role</th><th>Status</th><th>Actions</th></tr>
                             </thead>
                             <tbody>
                                 <?php while($m = $members->fetch_assoc()): ?>
                                 <tr>
-                                    <td><img src="uploads/<?= htmlspecialchars($m['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);"></td>
+                                    <td><img src="uploads/<?= htmlspecialchars($m['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); cursor: zoom-in;" onclick="viewProfileImage(this.src);"></td>
                                     <td style="font-weight: 500;"><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?></td>
+                                    <td><?= htmlspecialchars($m['username'] ?? '-') ?></td>
                                     <td><?= htmlspecialchars($m['phone']) ?></td>
                                     <td><?= htmlspecialchars($m['address']) ?></td>
                                     <td><span class="badge" style="background:var(--border-color);color:var(--text-main);"><?= htmlspecialchars($m['department'] ?? 'General Church') ?></span></td>
@@ -791,7 +887,7 @@ if (isset($_GET['action'])) {
                 </div>
                 <?php endif; ?>
 
-                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div>
                     <!-- Assign Role Form -->
                     <div class="content-card" style="flex: 1; min-width: 300px;">
                         <h2>Assign to Member</h2>
@@ -830,7 +926,7 @@ if (isset($_GET['action'])) {
                                     if ($approved_members) {
                                         $approved_members->data_seek(0);
                                         while($m = $approved_members->fetch_assoc()): ?>
-                                            <option value="<?= $m['id'] ?>" data-department="<?= htmlspecialchars($m['department'] ?? '') ?>">
+                                            <option value="<?= $m['id'] ?>" data-department="<?= htmlspecialchars($m['department'] ?? '') ?>" data-churchrole="<?= htmlspecialchars($m['church_role'] ?? '') ?>" data-desiredrolepref="<?= htmlspecialchars($m['desired_role_pref'] ?? '') ?>">
                                                 <?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?> - <?= htmlspecialchars($m['department'] ?? 'No Department') ?> (Current: <?= htmlspecialchars(role_display_label($m['church_role'] ?? 'Member', $m['department'] ?? null)) ?>)
                                             </option>
                                         <?php endwhile; 
@@ -864,97 +960,43 @@ if (isset($_GET['action'])) {
 
                                 roleSelect.addEventListener('change', function() {
                                     const selected = roleSelect.options[roleSelect.selectedIndex];
+                                    const selectedVal = roleSelect.value.toLowerCase();
                                     const allowed = selected && selected.dataset.allowed ? JSON.parse(selected.dataset.allowed) : [];
                                     const assignmentDepartment = selected && selected.dataset.assignmentDepartment ? selected.dataset.assignmentDepartment : '';
                                     if (departmentInput) departmentInput.value = assignmentDepartment;
                                     memberSelect.innerHTML = '<option value="">-- Select Member --</option>';
+                                    
+                                    const isWorshipLeadership = selectedVal.includes('worship leader');
 
                                     const filtered = originalOptions.filter(option => {
+                                        if (isWorshipLeadership) {
+                                            const pref = normalize(option.dataset.desiredrolepref);
+                                            
+                                            const isWorshiper = pref.includes('worshiper') || pref.includes('worshipper');
+                                            
+                                            if (!isWorshiper) {
+                                                return false;
+                                            }
+                                        }
                                         if (!allowed.length) return true;
                                         return allowed.some(department => matchesDepartment(option.dataset.department, department));
                                     });
 
                                     filtered.forEach(option => memberSelect.appendChild(option.cloneNode(true)));
                                     memberSelect.disabled = !roleSelect.value;
-                                    hint.textContent = !roleSelect.value
-                                        ? 'Choose a role first to open the correct members.'
-                                        : (allowed.length ? 'Showing members from: ' + allowed.join(', ') : 'This role can be assigned to members from the entire church.');
+                                    
+                                    if (!roleSelect.value) {
+                                        hint.textContent = 'Choose a role first to open the correct members.';
+                                    } else if (isWorshipLeadership) {
+                                        hint.textContent = 'Showing only members who chose "Worshiper" as their role.';
+                                    } else {
+                                        hint.textContent = allowed.length ? 'Showing members from: ' + allowed.join(', ') : 'This role can be assigned to members from the entire church.';
+                                    }
                                 });
                             })();
                         </script>
                     </div>
                     
-                    <!-- Create Custom Role Form -->
-                    <div class="content-card" style="flex: 1; min-width: 300px;">
-                        <h2>Manage Roles</h2>
-                        <form method="POST" action="admin_dashboard.php?tab=assign_roles&action=create_role" style="margin-bottom: 20px;">
-                            <div class="form-group">
-                                <label>New Role Name</label>
-                                <div style="display:flex; gap:10px;">
-                                    <input type="text" name="new_role" class="form-control" placeholder="e.g. Vice Youth Chairman" required style="margin-bottom:0;">
-                                    <button type="submit" class="btn" style="background:var(--secondary); color:white; border:none; border-radius:var(--radius-md); font-weight:600; cursor:pointer; padding: 0 20px;">Save</button>
-                                </div>
-                            </div>
-                        </form>
-                        
-                        <div style="border-top: 1px solid var(--border-color); padding-top: 15px;">
-                            <h3 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 15px;">All Roles Overview</h3>
-                            <?php 
-                            // Organize all roles into hierarchy
-                            $all_categorized = [];
-                            $all_uncategorized = [];
-                            while($r = $all_roles_list->fetch_assoc()) {
-                                $r_name = trim($r['role_name']);
-                                $placed = false;
-                                foreach($hierarchy as $dept => $roles) {
-                                    foreach($roles as $expected_role) {
-                                        if (strtolower($r_name) === strtolower($expected_role)) {
-                                            $all_categorized[$dept][$expected_role] = $r;
-                                            $placed = true;
-                                            break 2;
-                                        }
-                                    }
-                                }
-                                if (!$placed) {
-                                    $all_uncategorized[] = $r;
-                                }
-                            }
-
-                            foreach ($hierarchy as $dept => $roles) {
-                                if (!empty($all_categorized[$dept])) {
-                                    echo "<div style='margin-bottom: 15px;'>";
-                                    echo "<div style='font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;'>$dept</div>";
-                                    echo "<div style='display: flex; flex-wrap: wrap; gap: 8px;'>";
-                                    foreach ($roles as $expected_role) {
-                                        if (isset($all_categorized[$dept][$expected_role])) {
-                                            $r = $all_categorized[$dept][$expected_role];
-                                            echo "<div style='background: var(--bg-main); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-main);'>";
-                                        echo htmlspecialchars(role_display_label($r['role_name']));
-                                            echo "<a href='admin_dashboard.php?tab=assign_roles&action=delete_role&role_id=" . $r['id'] . "' onclick=\"return confirm('Are you sure you want to remove this role from the system?');\" style='color: var(--danger); text-decoration: none; font-weight: bold; font-size: 1rem; line-height: 1;'>&times;</a>";
-                                            echo "</div>";
-                                        }
-                                    }
-                                    echo "</div></div>";
-                                }
-                            }
-
-                            if (!empty($all_uncategorized)) {
-                                echo "<div style='margin-bottom: 15px;'>";
-                                echo "<div style='font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;'>Other Roles</div>";
-                                echo "<div style='display: flex; flex-wrap: wrap; gap: 8px;'>";
-                                foreach ($all_uncategorized as $r) {
-                                    echo "<div style='background: var(--bg-main); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-main);'>";
-                                    echo htmlspecialchars(role_display_label($r['role_name']));
-                                    echo "<a href='admin_dashboard.php?tab=assign_roles&action=delete_role&role_id=" . $r['id'] . "' onclick=\"return confirm('Are you sure you want to remove this role from the system?');\" style='color: var(--danger); text-decoration: none; font-weight: bold; font-size: 1rem; line-height: 1;'>&times;</a>";
-                                    echo "</div>";
-                                }
-                                echo "</div></div>";
-                            }
-                            ?>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Currently Assigned Roles (Hierarchical) -->
                 <div class="content-card" style="margin-top: 20px;">
                     <h2 style="margin-bottom: 20px;">Currently Assigned Roles</h2>
@@ -1157,139 +1199,178 @@ if (isset($_GET['action'])) {
                 </div>
 
             <?php elseif ($tab == 'general_leadership'): ?>
+                <?php
+                // Department groups and their leader chat dept_keys
+                $dept_groups = [
+                    'youths'          => ['label' => '🎓 Youth Department',       'dept_key' => 'youths',          'color' => '#3b82f6'],
+                    'womens_ministry' => ['label' => '👩 Women\'s Ministry',       'dept_key' => 'womens_ministry', 'color' => '#ec4899'],
+                    'elders'          => ['label' => '🕊️ Elders',                 'dept_key' => 'elders',          'color' => '#8b5cf6'],
+                    'sunday_school'   => ['label' => '📚 Sunday School',           'dept_key' => 'sunday_school',   'color' => '#f59e0b'],
+                    'general_church'  => ['label' => '⛪ General Church Leaders',  'dept_key' => 'general_church',  'color' => '#10b981'],
+                    'building_construction' => ['label' => '🏗️ Building Dept',    'dept_key' => 'building_construction', 'color' => '#ef4444'],
+                    'worship_leaders' => ['label' => '🎶 Worship Dept',           'dept_key' => 'worship_leaders', 'color' => '#d946ef'],
+                ];
+                $active_group = $_GET['leader_group'] ?? 'general_church';
+                if (!array_key_exists($active_group, $dept_groups)) $active_group = 'general_church';
+                $active_dept_key = $dept_groups[$active_group]['dept_key'];
+                $active_color    = $dept_groups[$active_group]['color'];
+                $active_label    = $dept_groups[$active_group]['label'];
+                ?>
                 <div class="page-header">
-                    <h1>General Leadership</h1>
-                    <p>Monitor General Church announcements and leadership communication.</p>
+                    <h1>General Leadership Chats</h1>
+                    <p>Monitor and participate in leadership conversations across all departments.</p>
                 </div>
 
-                <div class="content-card" style="margin-bottom: 24px;">
-                    <h2>General Church Announcements</h2>
+                <!-- Department Group Tabs -->
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">
+                    <?php foreach ($dept_groups as $key => $grp): ?>
+                        <a href="?tab=general_leadership&leader_group=<?= $key ?>"
+                           style="padding:8px 16px;border-radius:30px;font-size:0.85rem;font-weight:600;text-decoration:none;
+                                  background:<?= $active_group === $key ? $grp['color'] : 'var(--bg-card)' ?>;
+                                  color:<?= $active_group === $key ? '#fff' : 'var(--text-muted)' ?>;
+                                  border:1.5px solid <?= $active_group === $key ? $grp['color'] : 'var(--border-color)' ?>;
+                                  transition:all 0.2s;">
+                            <?= $grp['label'] ?>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+
+                <!-- Chat view for active group -->
+                <div class="content-card" style="margin-bottom:24px;border-left:4px solid <?= $active_color ?>;">
+                    <h2 style="font-size:1.05rem;margin-top:0;color:<?= $active_color ?>;"><?= $active_label ?> — Leadership Chat</h2>
                     <?php
-                    $general_announcements = $conn->query("
-                        SELECT da.*, m.first_name, m.last_name, m.church_role
-                        FROM department_announcements da
-                        JOIN members m ON da.secretary_id = m.id
-                        WHERE da.department = 'General Church'
-                        ORDER BY da.created_at DESC
-                        LIMIT 50
-                    ");
-                    ?>
-                    <?php if ($general_announcements && $general_announcements->num_rows > 0): ?>
-                        <?php while ($ann = $general_announcements->fetch_assoc()): ?>
-                            <div style="padding: 14px 0; border-bottom: 1px solid var(--border-color);">
-                                <strong><?= htmlspecialchars($ann['first_name'] . ' ' . $ann['last_name']) ?></strong>
-                                <span style="color: var(--text-muted); font-size: 0.85rem;"> - <?= htmlspecialchars($ann['church_role']) ?> - <?= date('M j, Y g:i A', strtotime($ann['created_at'])) ?></span>
-                                <p style="margin: 8px 0 0; white-space: pre-wrap;"><?= htmlspecialchars($ann['message']) ?></p>
-                                <?= render_announcement_image($ann['image_path'] ?? '') ?>
-                            </div>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <p style="color: var(--text-muted);">No General Church announcements yet.</p>
-                    <?php endif; ?>
-                </div>
-
-                <?php foreach (['general_church' => 'General Leaders Chat'] as $chat_key => $chat_title): ?>
-                    <div class="content-card" style="margin-bottom: 24px;">
-                        <h2><?= htmlspecialchars($chat_title) ?></h2>
-                        <?php
-                        $safe_chat_key = $conn->real_escape_string($chat_key);
-                        $chat_messages = $conn->query("
-                            SELECT lm.*, m.first_name, m.last_name, m.church_role, m.department
+                    $esc_dept_key = $conn->real_escape_string($active_dept_key);
+                    if ($esc_dept_key === 'building_construction') {
+                        $chat_msgs = $conn->query("
+                            SELECT blc.id, 'building_construction' as dept_key, blc.sender_id, blc.message, blc.created_at, m.first_name, m.last_name, m.church_role, 'Building & Construction' as department, NULL as is_pastor 
+                            FROM building_leadership_chat blc 
+                            JOIN members m ON blc.sender_id = m.id 
+                            UNION ALL 
+                            SELECT plm.id, plm.dept_key, plm.pastor_id as sender_id, plm.message, plm.created_at, p.first_name, p.last_name, p.role as church_role, 'Pastoral Office' as department, 1 as is_pastor 
+                            FROM pastor_leader_messages plm 
+                            JOIN pastors p ON plm.pastor_id = p.id 
+                            WHERE plm.dept_key = 'building_construction' 
+                            ORDER BY created_at ASC
+                        ");
+                    } elseif ($esc_dept_key === 'worship_leaders') {
+                        $chat_msgs = $conn->query("
+                            SELECT wlc.id, 'worship_leaders' as dept_key, wlc.sender_id, wlc.message, wlc.created_at, m.first_name, m.last_name, m.church_role, 'Worship Dept' as department, NULL as is_pastor 
+                            FROM worship_leadership_chat wlc 
+                            JOIN members m ON wlc.sender_id = m.id 
+                            UNION ALL 
+                            SELECT plm.id, plm.dept_key, plm.pastor_id as sender_id, plm.message, plm.created_at, p.first_name, p.last_name, p.role as church_role, 'Pastoral Office' as department, 1 as is_pastor 
+                            FROM pastor_leader_messages plm 
+                            JOIN pastors p ON plm.pastor_id = p.id 
+                            WHERE plm.dept_key = 'worship_leaders' 
+                            ORDER BY created_at ASC
+                        ");
+                    } else {
+                        $chat_msgs = $conn->query("
+                            SELECT lm.*, m.first_name, m.last_name, m.church_role, m.department,
+                                   NULL as is_pastor
                             FROM leader_messages lm
                             JOIN members m ON lm.sender_id = m.id
-                            WHERE lm.dept_key = '$safe_chat_key'
-                            ORDER BY lm.created_at DESC
-                            LIMIT 80
+                            WHERE lm.dept_key = '$esc_dept_key'
+                            UNION ALL
+                            SELECT plm.id, plm.dept_key, plm.pastor_id as sender_id, plm.message, plm.created_at,
+                                   p.first_name, p.last_name, p.role as church_role, 'Pastoral Office' as department,
+                                   1 as is_pastor
+                            FROM pastor_leader_messages plm
+                            JOIN pastors p ON plm.pastor_id = p.id
+                            WHERE plm.dept_key = '$esc_dept_key'
+                            ORDER BY created_at ASC
                         ");
+                        if (!$chat_msgs) {
+                            // table may not exist yet — only show member messages
+                            $chat_msgs = $conn->query("
+                                SELECT lm.*, m.first_name, m.last_name, m.church_role, m.department, 0 as is_pastor
+                                FROM leader_messages lm
+                                JOIN members m ON lm.sender_id = m.id
+                                WHERE lm.dept_key = '$esc_dept_key'
+                                ORDER BY lm.created_at ASC
+                            ");
+                        }
+                    }
+                    if ($chat_msgs && $chat_msgs->num_rows > 0):
+                    ?>
+                    <div style="max-height:420px;overflow-y:auto;padding-right:6px;margin-bottom:16px;" id="leaderChatScroll">
+                        <?php while ($msg = $chat_msgs->fetch_assoc()):
+                            $is_pastor_msg = !empty($msg['is_pastor']);
+                            $bg = $is_pastor_msg ? 'rgba(16,185,129,0.08)' : 'var(--bg-main)';
+                            $border = $is_pastor_msg ? '#10b981' : $active_color;
                         ?>
-                        <?php if ($chat_messages && $chat_messages->num_rows > 0): ?>
-                            <?php while ($msg = $chat_messages->fetch_assoc()): ?>
-                                <div style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
-                                    <strong><?= htmlspecialchars($msg['first_name'] . ' ' . $msg['last_name']) ?></strong>
-                                    <span style="color: var(--text-muted); font-size: 0.85rem;"> - <?= htmlspecialchars($msg['church_role']) ?> - <?= htmlspecialchars($msg['department'] ?? 'General Church') ?> - <?= date('M j, Y g:i A', strtotime($msg['created_at'])) ?></span>
-                                    <p style="margin: 8px 0 0; white-space: pre-wrap;"><?= htmlspecialchars($msg['message']) ?></p>
-                                </div>
-                            <?php endwhile; ?>
-                        <?php else: ?>
-                            <p style="color: var(--text-muted);">No messages yet.</p>
-                        <?php endif; ?>
+                        <div style="margin-bottom:12px;padding:12px 14px;border-radius:10px;background:<?= $bg ?>;border-left:3px solid <?= $border ?>;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                                <span style="font-weight:600;font-size:0.9rem;color:var(--text-main);">
+                                    <?= $is_pastor_msg ? '⛪ ' : '' ?><?= htmlspecialchars($msg['first_name'] . ' ' . $msg['last_name']) ?>
+                                    <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400;"> — <?= htmlspecialchars($msg['church_role']) ?></span>
+                                </span>
+                                <small style="color:var(--text-muted);font-size:0.72rem;"><?= date('M j, g:i A', strtotime($msg['created_at'])) ?></small>
+                            </div>
+                            <p style="margin:0;font-size:0.9rem;white-space:pre-wrap;line-height:1.5;"><?= htmlspecialchars($msg['message']) ?></p>
+                        </div>
+                        <?php endwhile; ?>
                     </div>
-                <?php endforeach; ?>
-
-                <div class="content-card" style="margin-bottom: 24px;">
-                    <h2>Announcement Queries</h2>
-                    <?php
-                    $announcement_queries = $conn->query("
-                        SELECT q.*, m.first_name, m.last_name, m.church_role
-                        FROM secretary_announcement_queries q
-                        JOIN members m ON q.secretary_id = m.id
-                        ORDER BY q.created_at DESC
-                        LIMIT 80
-                    ");
-                    ?>
-                    <?php if ($announcement_queries && $announcement_queries->num_rows > 0): ?>
-                        <?php while ($q = $announcement_queries->fetch_assoc()): ?>
-                            <div style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
-                                <strong><?= htmlspecialchars($q['first_name'] . ' ' . $q['last_name']) ?></strong>
-                                <span style="color: var(--text-muted); font-size: 0.85rem;"> - <?= htmlspecialchars($q['department']) ?> - <?= htmlspecialchars($q['status']) ?> - <?= date('M j, Y g:i A', strtotime($q['created_at'])) ?></span>
-                                <p style="margin: 8px 0 0; white-space: pre-wrap;"><?= htmlspecialchars($q['message']) ?></p>
-                                <?php
-                                $query_reply_id = (int)$q['id'];
-                                $query_replies = $conn->query("
-                                    SELECT dm.*, sender.first_name, sender.last_name, sender.church_role
-                                    FROM secretary_direct_messages dm
-                                    JOIN members sender ON dm.sender_id = sender.id
-                                    WHERE dm.query_id = $query_reply_id
-                                    ORDER BY dm.created_at ASC
-                                ");
-                                ?>
-                                <?php if ($query_replies && $query_replies->num_rows > 0): ?>
-                                    <div style="margin-top: 12px; padding: 12px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
-                                        <?php while ($reply = $query_replies->fetch_assoc()): ?>
-                                            <p style="margin: 0 0 8px; white-space: pre-wrap;"><strong><?= htmlspecialchars($reply['first_name'] . ' ' . $reply['last_name']) ?>:</strong> <?= htmlspecialchars($reply['message']) ?></p>
-                                        <?php endwhile; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        <?php endwhile; ?>
                     <?php else: ?>
-                        <p style="color: var(--text-muted);">No announcement queries yet.</p>
+                        <p style="color:var(--text-muted);font-style:italic;margin-bottom:16px;">No messages in this chat group yet.</p>
                     <?php endif; ?>
+
+                    <!-- Pastor reply form -->
+                    <form method="POST" action="admin_dashboard.php?tab=general_leadership&leader_group=<?= htmlspecialchars($active_group) ?>" style="margin-top:8px;">
+                        <input type="hidden" name="pastor_leader_chat" value="1">
+                        <input type="hidden" name="dept_key" value="<?= htmlspecialchars($active_dept_key) ?>">
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <textarea name="pastor_leader_message" class="form-control" rows="6" placeholder="Type your message to <?= htmlspecialchars($active_label) ?> leaders..." required style="width:100%; resize:vertical; padding: 16px; border-radius: 12px; border: 2px solid var(--border-color); font-size: 1.05rem; transition: border-color 0.2s, box-shadow 0.2s;" onfocus="this.style.borderColor='<?= $active_color ?>'; this.style.boxShadow='0 0 0 3px <?= $active_color ?>33';" onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';"></textarea>
+                            <button type="submit" class="btn-submit" style="background:<?= $active_color ?>;align-self:flex-end;padding:10px 24px;">Send Message</button>
+                        </div>
+                    </form>
                 </div>
 
-                <div class="content-card" style="margin-bottom: 24px;">
-                    <h2>General Secretary Messages</h2>
-                    <?php
-                    $secretary_direct_messages = $conn->query("
-                        SELECT dm.*, sender.first_name AS sender_first_name, sender.last_name AS sender_last_name, sender.church_role AS sender_role,
-                               recipient.first_name AS recipient_first_name, recipient.last_name AS recipient_last_name, recipient.church_role AS recipient_role, recipient.department AS recipient_department
-                        FROM secretary_direct_messages dm
-                        JOIN members sender ON dm.sender_id = sender.id
-                        JOIN members recipient ON dm.recipient_id = recipient.id
-                        ORDER BY dm.created_at DESC
-                        LIMIT 80
-                    ");
-                    ?>
-                    <?php if ($secretary_direct_messages && $secretary_direct_messages->num_rows > 0): ?>
-                        <?php while ($msg = $secretary_direct_messages->fetch_assoc()): ?>
-                            <div style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
-                                <strong><?= htmlspecialchars($msg['sender_first_name'] . ' ' . $msg['sender_last_name']) ?></strong>
-                                <span style="color: var(--text-muted); font-size: 0.85rem;"> to <?= htmlspecialchars($msg['recipient_first_name'] . ' ' . $msg['recipient_last_name']) ?> - <?= htmlspecialchars($msg['recipient_department'] ?? 'No Department') ?> - <?= date('M j, Y g:i A', strtotime($msg['created_at'])) ?></span>
-                                <p style="margin: 8px 0 0; white-space: pre-wrap;"><?= htmlspecialchars($msg['message']) ?></p>
-                            </div>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <p style="color: var(--text-muted);">No General Secretary messages yet.</p>
-                    <?php endif; ?>
-                </div>
 
             <?php elseif ($tab == 'settings'): ?>
                 <div class="page-header">
                     <h1>System Settings</h1>
-                    <p>Global configurations.</p>
+                    <p>Manage your admin profile and account security.</p>
                 </div>
-                <div class="content-card">
-                    <p style="color: var(--text-muted);">More configuration options coming soon.</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
+                    <div class="content-card">
+                        <h2>Admin Profile</h2>
+                        <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;">
+                            <img src="uploads/<?= htmlspecialchars($admin['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width:82px;height:82px;border-radius:50%;object-fit:cover;border:3px solid var(--primary);cursor:zoom-in;" onclick="viewProfileImage(this.src);">
+                            <div>
+                                <strong style="display:block;color:var(--text-main);font-size:1.05rem;"><?= htmlspecialchars($admin['username'] ?? 'Admin') ?></strong>
+                                <span style="color:var(--text-muted);font-size:0.9rem;">System administrator</span>
+                            </div>
+                        </div>
+                        <form method="POST" action="?tab=settings" enctype="multipart/form-data">
+                            <input type="hidden" name="upload_admin_picture" value="1">
+                            <div class="form-group">
+                                <label>Upload Profile Picture</label>
+                                <input type="file" name="profile_picture" class="form-control" accept="image/*" required>
+                            </div>
+                            <button type="submit" class="btn-submit">Upload Picture</button>
+                        </form>
+                    </div>
+
+                    <div class="content-card">
+                        <h2>Change Password</h2>
+                        <form method="POST" action="?tab=settings">
+                            <input type="hidden" name="change_admin_password" value="1">
+                            <div class="form-group">
+                                <label>Current Password</label>
+                                <input type="password" name="current_password" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" name="new_password" class="form-control" minlength="6" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm New Password</label>
+                                <input type="password" name="confirm_password" class="form-control" minlength="6" required>
+                            </div>
+                            <button type="submit" class="btn-submit">Change Password</button>
+                        </form>
+                    </div>
                 </div>
             <?php elseif ($tab == 'organized_events'): ?>
                 <div class="page-header">
@@ -1659,8 +1740,6 @@ if (isset($_GET['action'])) {
                         <p style="color:var(--text-muted);margin-top:15px;">No sport announcements posted yet.</p>
                     <?php endif; ?>
                 </div>
-            <?php endif; ?>
-
             <?php elseif ($tab == 'desired_roles'): ?>
                 <div class="page-header">
                     <h1>Village & Desired Roles</h1>
@@ -1669,64 +1748,156 @@ if (isset($_GET['action'])) {
                 
                 <?php
                 $villages = ['Akoritho', 'Philadelphia', 'Bethsaida'];
-                $roles = ['Worshipper', 'Church Cleaner', 'Church Cooker'];
-                
-                foreach ($villages as $v):
-                    // Count total in village
-                    $v_count = $conn->query("SELECT COUNT(*) as c FROM members WHERE church_village = '$v'")->fetch_assoc()['c'];
+                $village_colors = ['Akoritho' => '#6366f1', 'Philadelphia' => '#0ea5e9', 'Bethsaida' => '#10b981'];
                 ?>
-                <div class="content-card" style="margin-bottom:30px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-color); padding-bottom:15px; margin-bottom:20px;">
-                        <h2 style="margin:0; color:var(--primary); display:flex; align-items:center; gap:10px;">
-                            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                
+                <!-- ═══ SECTION 1: Members by Village + Department ═══ -->
+                <h2 style="font-size:1.1rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                    Church Villages — Members & Departments
+                </h2>
+                
+                <?php foreach ($villages as $v): 
+                    $v_color = $village_colors[$v];
+                    $v_members = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref FROM members WHERE church_village='$v' ORDER BY department, first_name");
+                    $v_count = $v_members ? $v_members->num_rows : 0;
+                ?>
+                <div class="content-card" style="margin-bottom:28px; border-top:4px solid <?= $v_color ?>;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h2 style="margin:0; color:<?= $v_color ?>; display:flex; align-items:center; gap:10px; font-size:1.2rem;">
+                            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
                             <?= $v ?> Village
                         </h2>
-                        <span class="badge" style="background:var(--bg-lighter); font-size:1rem; padding:6px 12px;"><?= $v_count ?> Members</span>
+                        <span class="badge" style="background:<?= $v_color ?>22; color:<?= $v_color ?>; font-weight:700; font-size:1rem; padding:6px 14px;"><?= $v_count ?> Members</span>
                     </div>
                     
-                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
-                        <?php 
-                        // Loop roles + none
-                        $role_groups = $roles;
-                        $role_groups[] = 'No Preference';
-                        
-                        foreach ($role_groups as $rg): 
-                            if ($rg === 'No Preference') {
-                                $rg_members = $conn->query("SELECT * FROM members WHERE church_village = '$v' AND (desired_role_pref IS NULL OR desired_role_pref = '') ORDER BY first_name");
-                            } else {
-                                $rg_members = $conn->query("SELECT * FROM members WHERE church_village = '$v' AND desired_role_pref = '$rg' ORDER BY first_name");
-                            }
-                            $c = $rg_members->num_rows;
-                        ?>
-                        <div style="background:var(--bg-lighter); border:1px solid var(--border-color); border-radius:12px; overflow:hidden;">
-                            <div style="padding:12px 16px; background:rgba(37,99,235,0.05); border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
-                                <h3 style="margin:0; font-size:1rem; color:var(--text-main);"><?= $rg ?></h3>
-                                <span class="badge" style="background:white;"><?= $c ?></span>
-                            </div>
-                            <div style="padding:16px; max-height:250px; overflow-y:auto;">
-                                <?php if ($c > 0): ?>
-                                    <ul style="list-style:none; padding:0; margin:0;">
-                                        <?php while($m = $rg_members->fetch_assoc()): ?>
-                                        <li style="padding:8px 0; border-bottom:1px dashed var(--border-color); display:flex; align-items:center; gap:10px;">
-                                            <div style="width:30px; height:30px; border-radius:50%; background:var(--primary); color:white; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:600;">
-                                                <?= strtoupper(substr($m['first_name'],0,1) . substr($m['last_name'],0,1)) ?>
-                                            </div>
-                                            <div>
-                                                <div style="font-weight:600; font-size:0.9rem;"><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?></div>
-                                                <div style="font-size:0.75rem; color:var(--text-muted);"><?= htmlspecialchars($m['phone']) ?></div>
-                                            </div>
-                                        </li>
-                                        <?php endwhile; ?>
-                                    </ul>
-                                <?php else: ?>
-                                    <p style="color:var(--text-muted); font-size:0.85rem; margin:0; text-align:center; padding:10px 0;">No members in this group.</p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <?php endforeach; ?>
+                    <?php if ($v_count > 0): ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Full Name</th>
+                                    <th>Department</th>
+                                    <th>Church Role</th>
+                                    <th>Desired Service</th>
+                                    <th>Phone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php $i = 1; while($vm = $v_members->fetch_assoc()): 
+                                $dsr = $vm['desired_role_pref'] ?? '';
+                                $dsr_color = $dsr === 'Worshipper' ? '#8b5cf6' : ($dsr === 'Church Cleaner' ? '#0ea5e9' : ($dsr === 'Church Cooker' ? '#f59e0b' : '#94a3b8'));
+                            ?>
+                            <tr>
+                                <td style="color:var(--text-muted);"><?= $i++ ?></td>
+                                <td style="font-weight:600;"><?= htmlspecialchars($vm['first_name'] . ' ' . $vm['last_name']) ?></td>
+                                <td><?= htmlspecialchars($vm['department'] ?: 'General Church') ?></td>
+                                <td><span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary);"><?= htmlspecialchars($vm['church_role'] ?: 'Member') ?></span></td>
+                                <td><?php if ($dsr): ?><span class="badge" style="background:<?= $dsr_color ?>22; color:<?= $dsr_color ?>;"><?= htmlspecialchars($dsr) ?></span><?php else: ?><span style="color:var(--text-muted); font-size:0.85rem;">—</span><?php endif; ?></td>
+                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($vm['phone'] ?? '—') ?></td>
+                            </tr>
+                            <?php endwhile; ?>
+                            </tbody>
+                        </table>
                     </div>
+                    <?php else: ?>
+                    <p style="color:var(--text-muted); text-align:center; padding:20px 0;">No members have selected <?= $v ?> as their village yet.</p>
+                    <?php endif; ?>
                 </div>
                 <?php endforeach; ?>
+                
+                <hr style="border:0; border-top:2px solid var(--border-color); margin:30px 0;">
+                
+                <!-- ═══ SECTION 2: Church Cleaners ═══ -->
+                <h2 style="font-size:1.1rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.3rem;">🧹</span> Church Cleaners — All Villages
+                </h2>
+                <div class="content-card" style="margin-bottom:28px; border-top:4px solid #0ea5e9;">
+                    <?php
+                    $cleaners = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone FROM members WHERE desired_role_pref='Church Cleaner' ORDER BY church_village, first_name");
+                    $cleaners_count = $cleaners ? $cleaners->num_rows : 0;
+                    ?>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h3 style="margin:0; color:#0ea5e9;">🧹 Church Cleaners</h3>
+                        <span class="badge" style="background:#0ea5e922; color:#0ea5e9; font-size:1rem; padding:6px 14px;"><?= $cleaners_count ?> Volunteers</span>
+                    </div>
+                    <?php if ($cleaners_count > 0): ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Full Name</th>
+                                    <th>Village</th>
+                                    <th>Department</th>
+                                    <th>Phone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php $i = 1; while($cl = $cleaners->fetch_assoc()): 
+                                $vc = $village_colors[$cl['church_village']] ?? '#94a3b8';
+                            ?>
+                            <tr>
+                                <td style="color:var(--text-muted);"><?= $i++ ?></td>
+                                <td style="font-weight:600;"><?= htmlspecialchars($cl['first_name'] . ' ' . $cl['last_name']) ?></td>
+                                <td><span class="badge" style="background:<?= $vc ?>22; color:<?= $vc ?>;"><?= htmlspecialchars($cl['church_village'] ?: '—') ?></span></td>
+                                <td><?= htmlspecialchars($cl['department'] ?: 'General Church') ?></td>
+                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($cl['phone'] ?? '—') ?></td>
+                            </tr>
+                            <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                    <p style="color:var(--text-muted); text-align:center; padding:20px 0;">No members have volunteered as Church Cleaners yet.</p>
+                    <?php endif; ?>
+                </div>
+                
+                <!-- ═══ SECTION 3: Church Cookers ═══ -->
+                <h2 style="font-size:1.1rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.3rem;">🍳</span> Church Cookers — All Villages
+                </h2>
+                <div class="content-card" style="margin-bottom:28px; border-top:4px solid #f59e0b;">
+                    <?php
+                    $cookers = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone FROM members WHERE desired_role_pref='Church Cooker' ORDER BY church_village, first_name");
+                    $cookers_count = $cookers ? $cookers->num_rows : 0;
+                    ?>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h3 style="margin:0; color:#f59e0b;">🍳 Church Cookers</h3>
+                        <span class="badge" style="background:#f59e0b22; color:#f59e0b; font-size:1rem; padding:6px 14px;"><?= $cookers_count ?> Volunteers</span>
+                    </div>
+                    <?php if ($cookers_count > 0): ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Full Name</th>
+                                    <th>Village</th>
+                                    <th>Department</th>
+                                    <th>Phone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php $i = 1; while($ck = $cookers->fetch_assoc()): 
+                                $vc = $village_colors[$ck['church_village']] ?? '#94a3b8';
+                            ?>
+                            <tr>
+                                <td style="color:var(--text-muted);"><?= $i++ ?></td>
+                                <td style="font-weight:600;"><?= htmlspecialchars($ck['first_name'] . ' ' . $ck['last_name']) ?></td>
+                                <td><span class="badge" style="background:<?= $vc ?>22; color:<?= $vc ?>;"><?= htmlspecialchars($ck['church_village'] ?: '—') ?></span></td>
+                                <td><?= htmlspecialchars($ck['department'] ?: 'General Church') ?></td>
+                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($ck['phone'] ?? '—') ?></td>
+                            </tr>
+                            <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                    <p style="color:var(--text-muted); text-align:center; padding:20px 0;">No members have volunteered as Church Cookers yet.</p>
+                    <?php endif; ?>
+                </div>
 
             <?php elseif ($tab == 'manage_worshippers'): ?>
                 <div class="page-header">
@@ -1872,7 +2043,7 @@ if (isset($_GET['action'])) {
                     <p>Monitor announcements and chat messages within the Usher department.</p>
                 </div>
 
-                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div>
                     <!-- Announcements Column -->
                     <div style="flex: 1; min-width: 300px;">
                         <div class="content-card" style="margin-bottom: 24px;">
@@ -1919,6 +2090,615 @@ if (isset($_GET['action'])) {
                         </div>
                     </div>
                 </div>
+            <?php elseif ($tab == 'general_announcements'): ?>
+                <div class="page-header">
+                    <h1>General Church Announcements</h1>
+                    <p>All announcements from secretaries, elders, building leaders, queries, and pastoral messages.</p>
+                </div>
+
+                <!-- Pastor Post Announcement Form -->
+                <div class="content-card" style="margin-bottom:28px;border-left:4px solid var(--primary);">
+                    <h2 style="font-size:1.1rem;margin-top:0;color:var(--primary);">📢 Post Announcement to Entire Church</h2>
+                    <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:15px;">This will be sent to every member's Announcements tab and they will receive a notification.</p>
+                    <form method="POST" action="admin_dashboard.php?tab=general_announcements" enctype="multipart/form-data" onsubmit="this.querySelector('button[type=submit]').disabled=true; this.querySelector('button[type=submit]').innerHTML='Posting...';">
+                        <input type="hidden" name="post_pastor_announcement" value="1">
+                        <div class="form-group">
+                            <textarea name="pastor_announcement_message" class="form-control" rows="4" placeholder="Write your announcement to the entire church..." required style="margin-bottom:10px;"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size:0.85rem;color:var(--text-muted);display:block;margin-bottom:8px;">Attach Image (optional)</label>
+                            <input type="file" name="pastor_ann_image" accept="image/*" class="form-control" style="font-size:0.85rem;">
+                        </div>
+                        <button type="submit" class="btn-submit" style="background:var(--primary);">Send to Entire Church</button>
+                    </form>
+                </div>
+
+                <!-- Announcement Queries from Secretaries -->
+                <div class="content-card" style="margin-bottom:24px;border-left:4px solid #f59e0b;">
+                    <h2 style="font-size:1.05rem;margin-top:0;color:#f59e0b;">📬 Announcement Queries (from Secretaries)</h2>
+                    <?php
+                    $ann_queries = $conn->query("
+                        SELECT q.*, m.first_name, m.last_name, m.church_role
+                        FROM secretary_announcement_queries q
+                        JOIN members m ON q.secretary_id = m.id
+                        ORDER BY q.created_at DESC LIMIT 50
+                    ");
+                    if ($ann_queries && $ann_queries->num_rows > 0):
+                        while ($q = $ann_queries->fetch_assoc()):
+                    ?>
+                        <div style="padding:12px 0;border-bottom:1px solid var(--border-color);">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
+                                <div>
+                                    <strong style="color:var(--text-main);"><?= htmlspecialchars($q['first_name'] . ' ' . $q['last_name']) ?></strong>
+                                    <span style="font-size:0.8rem;color:var(--text-muted);"> — <?= htmlspecialchars(clean_role_display($q['church_role'])) ?> · <?= htmlspecialchars($q['department']) ?></span>
+                                    <span style="font-size:0.75rem;background:rgba(245,158,11,0.12);color:#f59e0b;padding:2px 8px;border-radius:20px;margin-left:6px;"><?= htmlspecialchars($q['status']) ?></span>
+                                </div>
+                                <small style="color:var(--text-muted);font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($q['created_at'])) ?></small>
+                            </div>
+                            <p style="margin:8px 0 0;white-space:pre-wrap;font-size:0.9rem;"><?= htmlspecialchars($q['message']) ?></p>
+                        </div>
+                    <?php endwhile; else: ?>
+                        <p style="color:var(--text-muted);margin:0;">No announcement queries yet.</p>
+                    <?php endif; ?>
+                </div>
+
+                <!-- All Department & Secretary Announcements -->
+                <div class="content-card" style="margin-bottom:24px;border-left:4px solid var(--secondary);">
+                    <h2 style="font-size:1.05rem;margin-top:0;color:var(--secondary);">📋 Department Announcements (All Secretaries & Elders)</h2>
+                    <?php
+                    $dept_anns = $conn->query("
+                        SELECT da.*, m.first_name, m.last_name, m.church_role
+                        FROM department_announcements da
+                        JOIN members m ON da.secretary_id = m.id
+                        ORDER BY da.created_at DESC
+                        LIMIT 80
+                    ");
+                    if ($dept_anns && $dept_anns->num_rows > 0):
+                        while ($dann = $dept_anns->fetch_assoc()):
+                    ?>
+                        <div style="padding:14px 0;border-bottom:1px solid var(--border-color);">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
+                                <div>
+                                    <strong style="color:var(--text-main);"><?= htmlspecialchars($dann['first_name'] . ' ' . $dann['last_name']) ?></strong>
+                                    <span style="font-size:0.8rem;color:var(--text-muted);"> — <?= htmlspecialchars(clean_role_display($dann['church_role'])) ?></span>
+                                    <span style="font-size:0.75rem;background:rgba(37,99,235,0.1);color:var(--primary);padding:2px 8px;border-radius:20px;margin-left:6px;"><?= htmlspecialchars($dann['department']) ?></span>
+                                </div>
+                                <small style="color:var(--text-muted);font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($dann['created_at'])) ?></small>
+                            </div>
+                            <p style="margin:8px 0 0;white-space:pre-wrap;font-size:0.9rem;"><?= htmlspecialchars($dann['message']) ?></p>
+                            <?php if (!empty($dann['image_path'])): ?>
+                                <a href="<?= htmlspecialchars($dann['image_path']) ?>" target="_blank" style="display:block;margin-top:10px;">
+                                    <img src="<?= htmlspecialchars($dann['image_path']) ?>" alt="Announcement" style="width:100%;max-height:320px;object-fit:cover;border-radius:10px;border:1px solid var(--border-color);">
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    <?php endwhile; else: ?>
+                        <p style="color:var(--text-muted);margin:0;">No department announcements yet.</p>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Past Pastor Announcements -->
+                <div class="content-card" style="border-left:4px solid #10b981;">
+                    <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">✉️ Your Past Announcements</h2>
+                    <?php
+                    $pastor_anns = $conn->query("
+                        SELECT pa.*, p.first_name, p.last_name
+                        FROM pastor_announcements pa
+                        JOIN pastors p ON pa.pastor_id = p.id
+                        ORDER BY pa.created_at DESC LIMIT 30
+                    ");
+                    if ($pastor_anns && $pastor_anns->num_rows > 0):
+                        while ($pa = $pastor_anns->fetch_assoc()):
+                    ?>
+                        <div style="padding:12px 0;border-bottom:1px solid var(--border-color);">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
+                                <div>
+                                    <strong>Pastor <?= htmlspecialchars($pa['first_name'] . ' ' . $pa['last_name']) ?></strong>
+                                    <span style="font-size:0.75rem;background:rgba(16,185,129,0.12);color:#10b981;padding:2px 8px;border-radius:20px;margin-left:6px;">General Church</span>
+                                </div>
+                                <small style="color:var(--text-muted);font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($pa['created_at'])) ?></small>
+                            </div>
+                            <p style="margin:8px 0 0;white-space:pre-wrap;font-size:0.9rem;"><?= htmlspecialchars($pa['message']) ?></p>
+                            <?php if (!empty($pa['image_path'])): ?>
+                                <a href="<?= htmlspecialchars($pa['image_path']) ?>" target="_blank" style="display:block;margin-top:10px;">
+                                    <img src="<?= htmlspecialchars($pa['image_path']) ?>" alt="Announcement" style="width:100%;max-height:320px;object-fit:cover;border-radius:10px;border:1px solid var(--border-color);">
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    <?php endwhile; else: ?>
+                        <p style="color:var(--text-muted);margin:0;">No pastoral announcements posted yet.</p>
+                    <?php endif; ?>
+                </div>
+
+
+            
+<?php elseif ($tab == 'financials'): ?>
+                <div class="page-header">
+                    <h1>Financial Records Tracking</h1>
+                    <p>Overview of all monies collected by department treasurers.</p>
+                </div>
+
+                <!-- Financial Summaries -->
+                <?php
+                // Fetch totals per department
+                $dept_totals = [];
+                $totals_query = $conn->query("SELECT department, COALESCE(SUM(amount), 0) as total FROM financial_records GROUP BY department");
+                if ($totals_query) {
+                    while ($row = $totals_query->fetch_assoc()) {
+                        $dept_totals[$row['department']] = $row['total'];
+                    }
+                }
+                
+                $overall_total = array_sum($dept_totals);
+                ?>
+                <div class="content-card" style="margin-bottom: 30px;">
+                    <h2 style="margin-bottom: 15px;">Department Summaries</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                            <div style="font-size: 0.9rem; opacity: 0.9;">Overall Total</div>
+                            <div style="font-size: 1.8rem; font-weight: 700;">KSh <?= number_format($overall_total, 2) ?></div>
+                        </div>
+                        <?php
+                        $target_depts = [
+                            'General Church' => 'General Church',
+                            'Youths' => 'Youth Ministry',
+                            'Womens Ministry' => "Women's Ministry",
+                            'Elders' => 'Elders',
+                            'Sunday School' => 'Sunday School'
+                        ];
+                        $all_totals = array_sum($dept_totals);
+                        $overall_total = $all_totals;
+                        foreach ($target_depts as $key => $label):
+                            $amt = $dept_totals[$key] ?? 0;
+                        ?>
+                        <div style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px;">
+                            <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 500;"><?= htmlspecialchars($label) ?></div>
+                            <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin-top: 5px;">KSh <?= number_format($amt, 2) ?></div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div class="content-card">
+                    <h2 style="margin-bottom: 15px;">Financial Records</h2>
+                    <?php
+                    $fin_records = $conn->query("SELECT fr.*, m.first_name, m.last_name FROM financial_records fr JOIN members m ON fr.recorded_by = m.id ORDER BY fr.recorded_at DESC LIMIT 50");
+                    if ($fin_records && $fin_records->num_rows > 0):
+                    ?>
+                    <div class="table-responsive"><table>
+                        <thead><tr><th>Recorded By</th><th>Department</th><th>Amount (KSh)</th><th>Description</th><th>Date</th></tr></thead>
+                        <tbody>
+                            <?php while($fr = $fin_records->fetch_assoc()): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($fr['first_name'] . ' ' . $fr['last_name']) ?></td>
+                                <td><span class="badge" style="background:rgba(99,102,241,0.12);color:#6366f1;"><?= htmlspecialchars($fr['department'] ?? '-') ?></span></td>
+                                <td style="font-weight:600;color:#10b981;">KSh <?= number_format($fr['amount'], 2) ?></td>
+                                <td><?= htmlspecialchars($fr['description'] ?? '-') ?></td>
+                                <td style="font-size:0.85em;color:var(--text-muted);"><?= date('M j, Y', strtotime($fr['record_date'] ?: $fr['recorded_at'])) ?></td>
+                            </tr>
+                            <?php endwhile; ?>
+                        </tbody>
+                    </table></div>
+                    <?php else: ?>
+                        <p style="color:var(--text-muted);">No financial records yet.</p>
+                    <?php endif; ?>
+                </div>
+            
+<?php elseif ($tab == 'building_monitoring'): ?>
+                <div class="page-header">
+                    <h1>🏗️ Building Monitoring</h1>
+                    <p>Monitor and participate in Building & Construction department activities.</p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; flex-wrap: wrap;">
+
+                    <!-- Construction Progress Log -->
+                    <div class="content-card">
+                        <h2>📋 Construction Progress Log</h2>
+                        <?php
+                        $progress_log = $conn->query("
+                            SELECT bp.*, m.first_name, m.last_name, m.church_role, m.gender
+                            FROM building_progress bp
+                            JOIN members m ON bp.chairperson_id = m.id
+                            ORDER BY bp.created_at DESC
+                        ");
+                        if ($progress_log && $progress_log->num_rows > 0):
+                            while ($prog = $progress_log->fetch_assoc()):
+                                $author_title = get_building_chairperson_title($prog['gender'], $prog['church_role']);
+                        ?>
+                            <div style="border:1px solid var(--border-color); border-radius:10px; padding:15px; margin-bottom:15px; background:var(--bg-main);">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                    <div>
+                                        <span style="font-weight:bold; color:var(--primary);"><?= htmlspecialchars($prog['progress_status']) ?></span>
+                                        <div style="font-size:0.8rem; color:var(--text-muted);"><?= htmlspecialchars($prog['first_name'] . ' ' . $prog['last_name']) ?> · <?= htmlspecialchars($author_title) ?></div>
+                                    </div>
+                                    <span style="font-size:0.8rem; color:var(--text-muted);"><?= date('M j, Y', strtotime($prog['date_scheduled'])) ?></span>
+                                </div>
+                                <p style="margin:0; font-size:0.9rem; color:var(--text-main);"><strong>Materials:</strong> <?= nl2br(htmlspecialchars($prog['materials_needed'])) ?></p>
+                            </div>
+                        <?php endwhile; else: ?>
+                            <p style="color:var(--text-muted);">No progress logs yet.</p>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Building Leadership Chat -->
+                    <div class="content-card" style="display:flex; flex-direction:column;">
+                        <h2>💬 Building Leadership Chat</h2>
+                        <div style="flex:1; max-height:400px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; margin-bottom:15px;" id="bldChatPastor">
+                        <?php
+                        $blc = $conn->query("
+                            SELECT c.*,
+                                   COALESCE(m.first_name, p.first_name) as fname,
+                                   COALESCE(m.last_name, p.last_name) as lname,
+                                   COALESCE(m.church_role, 'Pastor') as crole
+                            FROM building_leadership_chat c
+                            LEFT JOIN members m ON c.sender_id = m.id AND c.sender_type = 'member'
+                            LEFT JOIN pastors p ON c.sender_id = p.id AND c.sender_type = 'pastor'
+                            ORDER BY c.created_at ASC
+                        ");
+                        if ($blc && $blc->num_rows > 0):
+                            while ($blmsg = $blc->fetch_assoc()):
+                                $is_pastor_msg = ($blmsg['sender_type'] == 'pastor');
+                        ?>
+                            <div style="display:flex; flex-direction:column; align-items:<?= $is_pastor_msg ? 'flex-end' : 'flex-start' ?>;">
+                                <span style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">
+                                    <?= htmlspecialchars($blmsg['fname'] . ' ' . $blmsg['lname']) ?>
+                                    <span style="background:var(--border-color); padding:2px 6px; border-radius:4px;"><?= htmlspecialchars($blmsg['crole']) ?></span>
+                                </span>
+                                <div style="background:<?= $is_pastor_msg ? 'var(--primary)' : 'var(--bg-main)' ?>; color:<?= $is_pastor_msg ? 'white' : 'var(--text-main)' ?>; padding:10px 15px; border-radius:<?= $is_pastor_msg ? '18px 18px 4px 18px' : '18px 18px 18px 4px' ?>; max-width:80%; border:1px solid var(--border-color);">
+                                    <?= nl2br(htmlspecialchars($blmsg['message'])) ?>
+                                </div>
+                                <span style="font-size:0.7rem; color:var(--text-muted); margin-top:3px;"><?= date('M j, g:i A', strtotime($blmsg['created_at'])) ?></span>
+                            </div>
+                        <?php endwhile; else: ?>
+                            <p style="color:var(--text-muted); text-align:center;">No messages yet.</p>
+                        <?php endif; ?>
+                        </div>
+                        <script>const bpc = document.getElementById('bldChatPastor'); if(bpc) bpc.scrollTop = bpc.scrollHeight;</script>
+                        <form method="POST" style="display:flex; gap:10px;">
+                            <input type="hidden" name="pastor_building_chat" value="1">
+                            <input type="text" name="pastor_chat_message" class="form-control" placeholder="Send a message to building leaders..." required style="margin-bottom:0;">
+                            <button type="submit" class="btn btn-primary" style="white-space:nowrap; padding:0 20px;">Send</button>
+                        </form>
+                    </div>
+
+                    <!-- Building Public Posts (member-facing posts) -->
+                    <div class="content-card" style="grid-column: 1 / -1;">
+                        <h2>📢 Church Building Public Posts</h2>
+                        <?php
+                        $public_posts = $conn->query("
+                            SELECT bp.*, m.first_name, m.last_name, m.church_role, m.gender
+                            FROM building_posts bp
+                            JOIN members m ON bp.author_id = m.id
+                            ORDER BY bp.created_at DESC
+                        ");
+                        if ($public_posts && $public_posts->num_rows > 0):
+                            while ($post = $public_posts->fetch_assoc()):
+                                $author_title = get_building_chairperson_title($post['gender'], $post['church_role']);
+                        ?>
+                            <div style="border:1px solid var(--border-color); border-radius:10px; padding:15px; margin-bottom:15px; background:var(--bg-main);">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                                    <div>
+                                        <span style="font-weight:bold;"><?= htmlspecialchars($post['first_name'] . ' ' . $post['last_name']) ?></span>
+                                        <span style="font-size:0.85rem; color:var(--primary); margin-left:8px;"><?= htmlspecialchars($author_title) ?></span>
+                                    </div>
+                                    <span style="font-size:0.8rem; color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($post['created_at'])) ?></span>
+                                </div>
+                                <p style="margin:0; color:var(--text-main); white-space:pre-wrap;"><?= htmlspecialchars($post['post_content']) ?></p>
+                                <?php if (!empty($post['image_path'])): ?>
+                                    <div style="margin-top:12px;">
+                                        <img src="<?= htmlspecialchars($post['image_path']) ?>" alt="Building Post Image" style="max-width:100%; max-height:360px; border-radius:8px; border:1px solid var(--border-color); object-fit:contain;">
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endwhile; else: ?>
+                            <p style="color:var(--text-muted);">No public building updates posted yet.</p>
+                        <?php endif; ?>
+                    </div>
+
+                </div>
+
+
+            
+<?php elseif ($tab == 'appointments'): ?>
+                <div class="page-header">
+                    <h1>Appointments</h1>
+                    <p>Manage appointment requests from members.</p>
+                </div>
+                
+                <div class="content-card">
+                    <h2>Pending Appointments</h2>
+                    <?php
+                    $pending_appts = $conn->query("SELECT a.*, m.first_name, m.last_name, m.department FROM appointments a JOIN members m ON a.member_id = m.id WHERE a.pastor_id = $pastor_id AND a.status = 'Pending' ORDER BY a.appointment_date ASC");
+                    if ($pending_appts && $pending_appts->num_rows > 0):
+                    ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>Member</th><th>Department</th><th>Date</th><th>Reason</th><th>Action</th></tr></thead>
+                            <tbody>
+                                <?php while($a = $pending_appts->fetch_assoc()): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></td>
+                                    <td><?= htmlspecialchars($a['department']) ?></td>
+                                    <td><?= date('M j, Y g:i A', strtotime($a['appointment_date'])) ?></td>
+                                    <td><?= nl2br(htmlspecialchars($a['reason'])) ?></td>
+                                    <td class="action-buttons">
+                                        <a href="pastor_action.php?action=approve_subsidiary&id=<?= $a['id'] ?>" class="btn-action btn-approve" onclick="return confirm('Approve this appointment?')">Approve</a>
+                                        <a href="pastor_action.php?action=reject_subsidiary&id=<?= $a['id'] ?>" class="btn-action btn-delete" onclick="return confirm('Decline this appointment?')">Decline</a>
+                                    </td>
+                                </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                    <p style="color:var(--text-muted);">No pending appointments.</p>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="content-card">
+                    <h2>Past/Handled Appointments</h2>
+                    <?php
+                    $handled_appts = $conn->query("SELECT a.*, m.first_name, m.last_name FROM appointments a JOIN members m ON a.member_id = m.id WHERE a.pastor_id = $pastor_id AND a.status != 'Pending' ORDER BY a.appointment_date DESC LIMIT 20");
+                    if ($handled_appts && $handled_appts->num_rows > 0):
+                    ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>Member</th><th>Date</th><th>Status</th></tr></thead>
+                            <tbody>
+                                <?php while($a = $handled_appts->fetch_assoc()): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></td>
+                                    <td><?= date('M j, Y', strtotime($a['appointment_date'])) ?></td>
+                                    <td><span class="badge" style="background:<?= $a['status'] == 'Approved' ? 'rgba(16,185,129,0.1);color:#10b981;' : 'rgba(239,68,68,0.1);color:#ef4444;' ?>"><?= $a['status'] ?></span></td>
+                                </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                    <p style="color:var(--text-muted);">No past appointments.</p>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Embedded Messages Tab -->
+                <div class="content-card" style="margin-top: 30px; max-width: 600px;">
+                    <h2>Send Direct Message</h2>
+                    <form method="POST" action="">
+                        <div class="form-group">
+                            <label>Select Member</label>
+                            <select name="member_id" class="form-control" required>
+                                <option value="">-- Choose Member --</option>
+                                <?php 
+                                $members_query = $conn->query("SELECT id, first_name, last_name, department FROM members WHERE is_approved = 1 ORDER BY first_name");
+                                while($m = $members_query->fetch_assoc()): ?>
+                                    <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name'] . ' (' . $m['department'] . ')') ?></option>
+                                <?php endwhile; ?>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Message</label>
+                            <textarea name="message" class="form-control" rows="5" required></textarea>
+                        </div>
+                        <button type="submit" name="send_message" class="btn-submit">Send Message</button>
+                    </form>
+                    
+                    <?php
+                    if (isset($_POST['send_message'])) {
+                        $m_id = (int)$_POST['member_id'];
+                        $msg = $conn->real_escape_string(trim($_POST['message']));
+                        if (!empty($msg)) {
+                            $conn->query("INSERT INTO messages (pastor_id, member_id, message) VALUES ($pastor_id, $m_id, '$msg')");
+                            echo "<div class='alert alert-success' style='margin-top:20px;'>Message sent successfully!</div>";
+                        }
+                    }
+                    ?>
+                </div>
+
+            
+            
+            <?php elseif ($tab == 'manage_sunday_school'): ?>
+                <?php
+                $classes = ['Battalion', 'Conquerors', 'Little Angels'];
+                $class_counts = [];
+                foreach ($classes as $cl) {
+                    $cl_safe = $conn->real_escape_string($cl);
+                    $res = $conn->query("SELECT COUNT(*) as cnt FROM members WHERE department = 'Sunday School' AND sunday_school_class = '$cl_safe' AND is_approved = 1");
+                    $class_counts[$cl] = $res ? $res->fetch_assoc()['cnt'] : 0;
+                }
+                $total_ss = $conn->query("SELECT COUNT(*) as cnt FROM members WHERE department = 'Sunday School' AND is_approved = 1")->fetch_assoc()['cnt'];
+                ?>
+                <div class="page-header">
+                    <h1>Manage Sunday School</h1>
+                    <p>Overview of Sunday School classes and member registration.</p>
+                </div>
+
+                <!-- Stats row -->
+                <div class="dashboard-grid" style="margin-bottom:30px;">
+                    <div class="stat-card">
+                        <h3>Total Sunday School</h3>
+                        <div class="value" style="color: var(--primary);"><?= $total_ss ?></div>
+                    </div>
+                    <?php foreach ($classes as $cl): ?>
+                    <div class="stat-card">
+                        <h3><?= htmlspecialchars($cl) ?></h3>
+                        <div class="value" style="color: <?= $cl === 'Battalion' ? '#f59e0b' : ($cl === 'Conquerors' ? '#10b981' : '#6366f1') ?>;"><?= $class_counts[$cl] ?></div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <!-- Register New Sunday School Member -->
+                <div class="content-card" style="margin-bottom:30px;">
+                    <div style="display:flex; align-items:center; gap:14px; margin-bottom:20px;">
+                        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <svg width="22" height="22" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                        </div>
+                        <div>
+                            <h2 style="margin:0;">Register New Sunday School Member</h2>
+                            <p style="margin:0;font-size:0.85rem;color:var(--text-muted);">Account will be immediately active and placed in the selected class.</p>
+                        </div>
+                    </div>
+                                    <script>
+                function seqUnlock(currentId, nextId) {
+                    const current = document.getElementById(currentId);
+                    const next    = document.getElementById(nextId);
+                    if (!current || !next) return;
+                    const filled = current.tagName === 'SELECT'
+                        ? current.value !== ''
+                        : current.value.trim().length > 0 && current.checkValidity();
+                    next.disabled = !filled;
+                    if (!filled && next.tagName !== 'SELECT') next.value = '';
+                }
+                function validateInput(input, type) {
+                    let errorMsg = input.parentNode.querySelector('.err-msg');
+                    if (!errorMsg) {
+                        errorMsg = document.createElement('span');
+                        errorMsg.className = 'err-msg';
+                        errorMsg.style.color = '#ef4444';
+                        errorMsg.style.fontSize = '0.8rem';
+                        errorMsg.style.display = 'block';
+                        errorMsg.style.marginTop = '4px';
+                        input.parentNode.appendChild(errorMsg);
+                    }
+                    if (type === 'name') {
+                        if (/[^A-Za-z\s,.-]/.test(input.value)) {
+                            errorMsg.innerText = 'Only letters allowed.';
+                            input.setCustomValidity('Invalid');
+                            setTimeout(() => { input.value = input.value.replace(/[^A-Za-z\s,.-]/g, ''); }, 300);
+                        } else {
+                            errorMsg.innerText = '';
+                            input.setCustomValidity('');
+                        }
+                    } else if (type === 'phone') {
+                        if (/[^\d]/.test(input.value)) {
+                            errorMsg.innerText = 'Only digits allowed.';
+                            input.setCustomValidity('Invalid');
+                            setTimeout(() => { input.value = input.value.replace(/[^\d]/g, ''); }, 300);
+                        } else {
+                            errorMsg.innerText = '';
+                            input.setCustomValidity('');
+                        }
+                    }
+                }
+                </script>
+<form method="POST" action="?tab=manage_sunday_school" id="ssRegForm" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
+                        <input type="hidden" name="register_ss_member" value="1">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                            <div class="form-group">
+                                <label>First Name <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#10b981; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span>
+                                    <input type="text" id="ss_first_name" name="first_name" class="form-control" placeholder="e.g. John" pattern="[A-Za-z\s]+" oninput="validateInput(this,'name'); seqUnlock('ss_first_name','ss_last_name')" style="padding-left:36px;" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Last Name <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#10b981; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span>
+                                    <input type="text" id="ss_last_name" name="last_name" class="form-control" placeholder="e.g. Kamau" pattern="[A-Za-z\s]+" oninput="validateInput(this,'name'); seqUnlock('ss_last_name','ss_class'); document.getElementById('ss_phone').disabled=false;" style="padding-left:36px;" disabled required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Phone Number <span style="color:var(--text-muted); font-weight:normal; font-size:0.8rem;">(Optional)</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#f59e0b; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg></span>
+                                    <input type="tel" id="ss_phone" name="phone" class="form-control" placeholder="10-digit number (Optional)" pattern="\d{10}" maxlength="10" oninput="validateInput(this,'phone');" style="padding-left:36px;" disabled>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Sunday School Class <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#8b5cf6; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></span>
+                                    <select name="ss_class" id="ss_class" class="form-control" required onchange="seqUnlock('ss_class','ss_gender')" style="padding-left:36px;" disabled>
+                                        <option value="">-- Select Class --</option>
+                                        <option value="Battalion">Battalion</option>
+                                        <option value="Conquerors">Conquerors</option>
+                                        <option value="Little Angels">Little Angels</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Gender <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#ec4899; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg></span>
+                                    <select name="gender" id="ss_gender" class="form-control" required onchange="seqUnlock('ss_gender','ss_address')" style="padding-left:36px;" disabled>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Residential Area <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#3b82f6; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span>
+                                    <input type="text" id="ss_address" name="address" class="form-control" placeholder="e.g. Mugui" pattern="[A-Za-z0-9\s,.-]+" oninput="validateInput(this,'name'); seqUnlock('ss_address','ss_password')" style="padding-left:36px;" required disabled>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Login Password <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#ef4444; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>
+                                    <input type="password" name="password" id="ss_password" class="form-control" placeholder="At least 6 characters" required style="padding-left:36px; padding-right:46px;" minlength="6" oninput="seqUnlock('ss_password','ss_confirm_password')" disabled>
+                                    <span onclick="var i=document.getElementById('ss_password');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);">
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm Password <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#ef4444; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>
+                                    <input type="password" name="confirm_password" id="ss_confirm_password" class="form-control" placeholder="Re-enter password" required style="padding-left:36px; padding-right:46px;" oninput="var m=document.getElementById('ssPwdHint');if(this.value===document.getElementById('ss_password').value){m.style.display='block';m.style.color='var(--success)';m.textContent='Passwords match';}else{m.style.display='block';m.style.color='var(--danger)';m.textContent='Passwords do not match';}" disabled>
+                                    <span onclick="var i=document.getElementById('ss_confirm_password');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);">
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    </span>
+                                </div>
+                                <small id="ssPwdHint" style="font-size:0.8rem;margin-top:4px;display:none;"></small>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-submit" style="margin-top:10px; display:flex; align-items:center; gap:8px; width:auto; padding:0 28px;">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                            Register Member
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Class Sections -->
+                <?php foreach ($classes as $cl):
+                    $cl_safe = $conn->real_escape_string($cl);
+                    $cl_color = $cl === 'Battalion' ? '#f59e0b' : ($cl === 'Conquerors' ? '#10b981' : '#6366f1');
+                    $cl_members = $conn->query("SELECT id, first_name, last_name, phone, gender FROM members WHERE department = 'Sunday School' AND sunday_school_class = '$cl_safe' AND is_approved = 1 ORDER BY first_name ASC");
+                ?>
+                <div class="content-card" style="margin-bottom:24px; border-left: 4px solid <?= $cl_color ?>;">
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+                        <div style="width:38px;height:38px;border-radius:10px;background:<?= $cl_color ?>;display:flex;align-items:center;justify-content:center;">
+                            <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        </div>
+                        <div>
+                            <h2 style="margin:0; color:<?= $cl_color ?>;"><?= htmlspecialchars($cl) ?></h2>
+                            <span style="font-size:0.82rem;color:var(--text-muted);"><?= $class_counts[$cl] ?> member<?= $class_counts[$cl] != 1 ? 's' : '' ?></span>
+                        </div>
+                    </div>
+                    <?php if ($cl_members && $cl_members->num_rows > 0): ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Gender</th></tr></thead>
+                            <tbody>
+                            <?php $i=1; while($sm = $cl_members->fetch_assoc()): ?>
+                                <tr>
+                                    <td><?= $i++ ?></td>
+                                    <td style="font-weight:500;"><?= htmlspecialchars($sm['first_name'].' '.$sm['last_name']) ?></td>
+                                    <td><?= htmlspecialchars($sm['phone']) ?></td>
+                                    <td><span class="badge" style="background:rgba(99,102,241,0.1);color:#6366f1;"><?= htmlspecialchars($sm['gender']) ?></span></td>
+                                </tr>
+                            <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                        <p style="color:var(--text-muted); font-style:italic; text-align:center; padding:20px 0;">No members in <?= htmlspecialchars($cl) ?> yet.</p>
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
             <?php endif; ?>
         </div>
     </div>
@@ -1987,5 +2767,187 @@ if (isset($_GET['action'])) {
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
     <script src="script.js"></script>
+    <script>
+    function validateInput(input, type) {
+        let errorMsg = input.nextElementSibling;
+        if (!errorMsg || !errorMsg.classList.contains('err-msg')) {
+            errorMsg = document.createElement('span');
+            errorMsg.className = 'err-msg';
+            errorMsg.style.color = '#ef4444';
+            errorMsg.style.fontSize = '0.8rem';
+            errorMsg.style.display = 'block';
+            errorMsg.style.marginTop = '4px';
+            input.parentNode.appendChild(errorMsg);
+        }
+        if (type === 'name') {
+            if (/[^A-Za-z\s,.-]/.test(input.value)) {
+                errorMsg.innerText = 'Only characters allowed - numbers are not permitted.';
+                errorMsg.style.color = '#ef4444';
+                input.setCustomValidity('Invalid');
+                setTimeout(() => { input.value = input.value.replace(/[^A-Za-z\s,.-]/g, ''); }, 800);
+            } else {
+                errorMsg.innerText = '';
+                input.setCustomValidity('');
+            }
+        } else if (type === 'username') {
+            if (/[^A-Za-z0-9_]/.test(input.value)) {
+                errorMsg.innerText = 'Only letters, numbers, and underscores are allowed.';
+                errorMsg.style.color = '#ef4444';
+                input.setCustomValidity('Invalid');
+                setTimeout(() => { input.value = input.value.replace(/[^A-Za-z0-9_]/g, ''); }, 800);
+            } else {
+                if(input.value.length > 0 && input.value.length < 3) {
+                    errorMsg.innerText = 'Username must be at least 3 characters.';
+                    errorMsg.style.color = '#ef4444';
+                    input.setCustomValidity('Invalid');
+                } else if (!input.validity.customError || input.validationMessage === 'Too short' || input.validationMessage === 'Taken') {
+                    if (errorMsg.innerText === 'Username must be at least 3 characters.') errorMsg.innerText = '';
+                }
+            }
+        } else if (type === 'phone') {
+            if (/[^0-9]/.test(input.value)) {
+                errorMsg.innerText = 'Only numbers allowed — characters are not permitted.';
+                input.setCustomValidity('Invalid');
+                setTimeout(() => { input.value = input.value.replace(/[^0-9]/g, ''); }, 800);
+            } else if (input.value.length > 0 && input.value.length !== 10) {
+                errorMsg.innerText = 'Phone number must be exactly 10 digits.';
+                input.setCustomValidity('Invalid');
+            } else {
+                errorMsg.innerText = '';
+                input.setCustomValidity('');
+            }
+        }
+    }
+    </script>
 </body>
+    <script>
+    async function checkUsernameAsync(input, nextId) {
+        if(input.value.length >= 3) {
+            try {
+                let res = await fetch('check_username.php?username=' + input.value);
+                let data = await res.json();
+                let errorMsg = input.nextElementSibling;
+                if (!errorMsg || !errorMsg.classList.contains('err-msg')) {
+                    errorMsg = document.createElement('span');
+                    errorMsg.className = 'err-msg';
+                    errorMsg.style.color = '#ef4444';
+                    errorMsg.style.fontSize = '0.85rem';
+                    errorMsg.style.display = 'block';
+                    errorMsg.style.marginTop = '4px';
+                    errorMsg.style.fontWeight = 'bold';
+                    input.parentNode.appendChild(errorMsg);
+                }
+                
+                if(data.exists) {
+                    errorMsg.innerText = 'This username is already taken!';
+                    input.setCustomValidity('Taken');
+                } else {
+                    errorMsg.innerText = 'Username is available!';
+                    errorMsg.style.color = '#10b981';
+                    input.setCustomValidity('');
+                    setTimeout(() => { if(errorMsg.innerText === 'Username is available!') errorMsg.innerText = ''; }, 3000);
+                }
+            } catch(e) {}
+        } else {
+            input.setCustomValidity(input.value.length > 0 ? 'Too short' : '');
+            let errorMsg = input.nextElementSibling;
+            if(errorMsg && errorMsg.classList.contains('err-msg')) errorMsg.innerText = '';
+        }
+        seqUnlock(input.id, nextId);
+    }
+
+    async function checkPhoneAsync(input, nextId) {
+        if(input.value.length === 10) {
+            try {
+                let res = await fetch('check_phone.php?phone=' + input.value);
+                let data = await res.json();
+                if(data.exists) {
+                    let errorMsg = input.nextElementSibling;
+                    if (!errorMsg || !errorMsg.classList.contains('err-msg')) {
+                        errorMsg = document.createElement('span');
+                        errorMsg.className = 'err-msg';
+                        errorMsg.style.color = '#ef4444';
+                        errorMsg.style.fontSize = '0.85rem';
+                        errorMsg.style.display = 'block';
+                        errorMsg.style.marginTop = '4px';
+                        errorMsg.style.fontWeight = 'bold';
+                        input.parentNode.appendChild(errorMsg);
+                    }
+                    errorMsg.innerText = 'This number is already registered!';
+                    input.setCustomValidity('Invalid');
+                    input.value = '';
+                    setTimeout(() => errorMsg.innerText = '', 4000);
+                    return;
+                }
+            } catch(e) {}
+        }
+        seqUnlock(input.id, nextId);
+    }
+
+    function seqUnlock(currentId, nextId) {
+        const current = document.getElementById(currentId);
+        const next    = document.getElementById(nextId);
+        if (!current || !next) return;
+        const filled = current.tagName === 'SELECT'
+            ? current.value !== ''
+            : current.value.trim().length > 0 && current.checkValidity();
+        next.disabled = !filled;
+        if (!filled) next.value = '';
+    }
+
+    function enforceAdminGender(deptSelect, genderSelectId) {
+        const deptValue = deptSelect.value;
+        const genderSelect = document.getElementById(genderSelectId);
+        const hint = document.getElementById('a_gender_hint');
+        if (!genderSelect) return;
+        
+        if (deptValue === "Womens Ministry") {
+            genderSelect.value = "Female";
+            Array.from(genderSelect.options).forEach(opt => {
+                opt.disabled = (opt.value !== "Female");
+            });
+            if (hint) hint.textContent = "Women Ministry members are registered as Female.";
+        } else if (deptValue === "Elders") {
+            genderSelect.value = "Male";
+            Array.from(genderSelect.options).forEach(opt => {
+                opt.disabled = (opt.value !== "Male");
+            });
+            if (hint) hint.textContent = "Elders members are registered as Male.";
+        } else {
+            Array.from(genderSelect.options).forEach(opt => {
+                opt.disabled = false;
+            });
+            if (hint) hint.textContent = "Select the member's gender.";
+        }
+    }
+    
+    // Attach listener if elements exist
+    const aDept = document.getElementById('a_dept');
+    if (aDept) {
+        aDept.addEventListener('change', function() {
+            seqUnlock('a_dept', 'a_gender');
+            enforceAdminGender(this, 'a_gender');
+            seqUnlock('a_gender', 'a_address');
+        });
+    }
+    </script>
+<!-- Image Viewer Modal -->
+<div id="imageViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; flex-direction:column;">
+    <span onclick="document.getElementById('imageViewerModal').style.display='none'" style="position:absolute; top:20px; right:30px; font-size:40px; color:white; cursor:pointer; font-weight:bold; transition:color 0.2s;" onmouseover="this.style.color='#ff4444'" onmouseout="this.style.color='white'">&times;</span>
+    <img id="imageViewerImg" src="" style="max-width:90%; max-height:90%; border-radius:8px; border:4px solid white; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+</div>
+<script>
+function viewProfileImage(src) {
+    const modal = document.getElementById('imageViewerModal');
+    const img = document.getElementById('imageViewerImg');
+    img.src = src;
+    modal.style.display = 'flex';
+}
+// Close on click outside image
+document.getElementById('imageViewerModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.style.display = 'none';
+    }
+});
+</script>
 </html>

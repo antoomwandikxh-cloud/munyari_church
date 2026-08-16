@@ -3,6 +3,11 @@ session_start();
 require_once 'db_connect.php';
 require_once 'role_departments.php';
 
+// Strip "(subsidiary)" and extra whitespace from any role name for display
+function clean_role_label($role) {
+    return trim(preg_replace('/\s*\(subsidiary\)\s*/i', '', $role ?? ''));
+}
+
 if (!isset($_SESSION['pastor_id'])) {
     header("Location: login.php");
     exit();
@@ -168,7 +173,8 @@ if (isset($_GET['action'])) {
             $gendered_title = get_building_chairperson_title($member_gender, $raw_role);
             $msg = $conn->real_escape_string("Welcome $member_first_name as $gendered_title in the Building & Construction Department");
         } else {
-            $msg = $conn->real_escape_string("You have been assigned a new role: $raw_role$scope_text.");
+            $display_role = clean_role_label($raw_role);
+            $msg = $conn->real_escape_string("Congratulations! You have been appointed as $display_role$scope_text. Welcome to your new role!");
         }
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
 
@@ -196,7 +202,8 @@ if (isset($_GET['action'])) {
             $conn->query("UPDATE members SET church_role = '$combined' WHERE id = $member_id");
         }
         
-        $msg = $conn->real_escape_string("Your role '$role_to_remove' has been removed.");
+        $display_role_removed = clean_role_label($role_to_remove);
+        $msg = $conn->real_escape_string("Your role '$display_role_removed' has been removed.");
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
         
         header("Location: pastor_dashboard.php?tab=assign_roles&success=Role removed from member");
@@ -237,15 +244,26 @@ if (isset($_GET['action'])) {
     // Handle subsidiary appointments
     elseif ($action === 'approve_subsidiary' && isset($_GET['id'])) {
         $id = (int)$_GET['id'];
-        $member = $conn->query("SELECT * FROM members WHERE id = $id AND pending_role IS NOT NULL AND pending_role != ''")->fetch_assoc();
+        $member = $conn->query("SELECT m.*, c.first_name AS c_fn, c.last_name AS c_ln FROM members m LEFT JOIN members c ON c.id = m.pending_proposed_by WHERE m.id = $id AND m.pending_role IS NOT NULL AND m.pending_role != ''")->fetch_assoc();
         if ($member) {
             $new_role = $conn->real_escape_string($member['pending_role']);
             $dept_sql = role_department_sql($conn, $new_role);
-            $conn->query("UPDATE members SET church_role = '$new_role', pending_role = NULL$dept_sql WHERE id = $id");
+            $conn->query("UPDATE members SET church_role = '$new_role', pending_role = NULL, pending_proposed_by = NULL$dept_sql WHERE id = $id");
             
-            $msg = $conn->real_escape_string("Your leadership appointment to '$new_role' has been approved.");
-            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($id, 'member', '$msg')");
-            header("Location: pastor_dashboard.php?tab=assign_roles&success=Appointment approved successfully");
+            // Notify the member
+            $member_name = $conn->real_escape_string($member['first_name'] . ' ' . $member['last_name']);
+            $display_new_role = clean_role_label($new_role);
+            $msg_member = $conn->real_escape_string("Congratulations {$member['first_name']}! You have been appointed as $display_new_role. Welcome to your new role!");
+            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($id, 'member', '$msg_member')");
+            
+            // Notify the chairman who proposed - routes to 'appoint_leaders' tab
+            if (!empty($member['pending_proposed_by'])) {
+                $proposer_id = (int)$member['pending_proposed_by'];
+                $role_approval_msg = $conn->real_escape_string("The Pastor has approved your request: {$member['first_name']} {$member['last_name']} has been officially appointed as $display_new_role.");
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($proposer_id, 'member', '$role_approval_msg')");
+            }
+            
+            header("Location: pastor_dashboard.php?tab=assign_roles&success=Role approved successfully");
             exit();
         }
         header("Location: pastor_dashboard.php?tab=assign_roles&error=Appointment not found");
@@ -253,10 +271,22 @@ if (isset($_GET['action'])) {
     }
     elseif ($action === 'reject_subsidiary' && isset($_GET['id'])) {
         $id = (int)$_GET['id'];
-        $conn->query("UPDATE members SET pending_role = NULL WHERE id = $id");
+        $member = $conn->query("SELECT id, first_name, last_name, pending_role, pending_proposed_by FROM members WHERE id = $id")->fetch_assoc();
+        $rejected_role = $member['pending_role'] ?? 'the proposed role';
+        $conn->query("UPDATE members SET pending_role = NULL, pending_proposed_by = NULL WHERE id = $id");
         
-        $msg = $conn->real_escape_string("Your leadership appointment was rejected.");
+        // Notify the member
+        $display_rejected_role = clean_role_label($rejected_role);
+        $msg = $conn->real_escape_string("We are sorry, your proposed role '$display_rejected_role' was not approved by the Pastor.");
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($id, 'member', '$msg')");
+        
+        // Notify the chairman who proposed
+        if (!empty($member['pending_proposed_by'])) {
+            $proposer_id = (int)$member['pending_proposed_by'];
+            $reject_msg = $conn->real_escape_string("The Pastor has declined your request: {$member['first_name']} {$member['last_name']} for the role of $display_rejected_role was not approved.");
+            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($proposer_id, 'member', '$reject_msg')");
+        }
+        
         header("Location: pastor_dashboard.php?tab=assign_roles&success=Appointment rejected");
         exit();
     }

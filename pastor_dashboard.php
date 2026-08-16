@@ -2,6 +2,11 @@
 session_start();
 require_once 'db_connect.php';
 require_once 'role_departments.php';
+
+// Strip (subsidiary) for display
+function clean_role_display($role) {
+    return trim(preg_replace('/\s*\(subsidiary\)\s*/i', '', $role ?? ''));
+}
 require_once 'notification_badges.php';
 if (!isset($_SESSION['pastor_id'])) { header("Location: login.php"); exit(); }
 
@@ -74,32 +79,155 @@ $appointments = $conn->query("
 $current_daily_message = $conn->query("SELECT * FROM daily_messages WHERE pastor_id = $pastor_id ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
 $highlights = $conn->query("SELECT * FROM church_highlights WHERE pastor_id = $pastor_id ORDER BY created_at DESC");
 
+$has_username = !empty($pastor['username']);
+$has_profile_pic = ($pastor['profile_picture'] !== 'default_avatar.png' && !empty($pastor['profile_picture']));
+$has_village = !empty($pastor['church_village']);
+$setup_completed = ($pastor['setup_completed'] == 1);
+
+if (!$setup_completed && $has_username && $has_profile_pic && $has_village) {
+    $conn->query("UPDATE pastors SET setup_completed = 1 WHERE id = $pastor_id");
+    $pastor['setup_completed'] = 1;
+    $setup_completed = true;
+}
+if (!$setup_completed && $tab !== 'settings') {
+    header("Location: ?tab=settings");
+    exit();
+}
+
+// Handle Username Update
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_username'])) {
+    $nu = $conn->real_escape_string(trim($_POST['new_username']));
+    if (strlen($nu) < 3) {
+        header("Location: ?tab=settings&error=Username must be at least 3 characters"); exit();
+    }
+    // Check if taken
+    $taken1 = $conn->query("SELECT id FROM members WHERE BINARY username = '$nu'")->num_rows;
+    $taken2 = $conn->query("SELECT id FROM pastors WHERE BINARY username = '$nu' AND id != $pastor_id")->num_rows;
+    if ($taken1 > 0 || $taken2 > 0) {
+        header("Location: ?tab=settings&error=Username already taken"); exit();
+    }
+    $conn->query("UPDATE pastors SET username = '$nu' WHERE id = $pastor_id");
+    header("Location: ?tab=settings&success=Username updated"); exit();
+}
+
+// Handle Profile Picture
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['upload_picture'])) {
+    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
+        $allowed = ['jpg','jpeg','png','gif'];
+        $ext = strtolower(pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION));
+        if (in_array($ext, $allowed)) {
+            $new_name = 'pastor_' . $pastor_id . '_' . time() . '.' . $ext;
+            if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], 'uploads/' . $new_name)) {
+                $conn->query("UPDATE pastors SET profile_picture = '$new_name' WHERE id = $pastor_id");
+                header("Location: ?tab=settings&success=Profile picture updated"); exit();
+            }
+        } else {
+            header("Location: ?tab=settings&error=Invalid image format"); exit();
+        }
+    }
+}
+
+// Handle Church Village & Desired Role
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])) {
+    $cv  = $conn->real_escape_string(trim($_POST['church_village'] ?? ''));
+    $drp = $conn->real_escape_string(trim($_POST['desired_role_pref'] ?? ''));
+    $valid_villages = ['Akoritho', 'Philadelphia', 'Bethsaida'];
+    if (!in_array($cv, $valid_villages)) {
+        header("Location: ?tab=settings&error=Please select a valid church village");
+        exit();
+    }
+    $valid_roles = ['Worshipper', 'Church Cleaner', 'Church Cooker', ''];
+    if (!in_array($drp, $valid_roles)) { $drp = ''; }
+    $conn->query("UPDATE pastors SET church_village = '$cv', desired_role_pref = '$drp' WHERE id = $pastor_id");
+    header("Location: ?tab=settings&success=Village and Role saved");
+    exit();
+}
+
+// Handle Sunday School member registration (must be before HTML output)
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register_ss_member'])) {
+    $fn       = $conn->real_escape_string(trim($_POST['first_name'] ?? ''));
+    $ln       = $conn->real_escape_string(trim($_POST['last_name'] ?? ''));
+    $ph       = $conn->real_escape_string(trim($_POST['phone'] ?? ''));
+    $gn       = in_array($_POST['gender'] ?? '', ['Male','Female']) ? $_POST['gender'] : 'Male';
+    $ad       = $conn->real_escape_string(trim($_POST['address'] ?? ''));
+    $cl       = in_array($_POST['ss_class'] ?? '', ['Battalion','Conquerors','Little Angels']) ? $_POST['ss_class'] : '';
+    $pw_plain = trim($_POST['password'] ?? '');
+    $pw_conf  = trim($_POST['confirm_password'] ?? '');
+    if (empty($fn) || empty($ln) || empty($cl) || empty($pw_plain) || empty($ad)) {
+        header("Location: ?tab=manage_sunday_school&error=" . urlencode("First name, last name, address, class and password are required."));
+        exit();
+    }
+    if ($pw_plain !== $pw_conf) {
+        header("Location: ?tab=manage_sunday_school&error=" . urlencode("Passwords do not match."));
+        exit();
+    }
+    if (!empty($ph)) {
+        $dup = $conn->query("SELECT id FROM members WHERE phone = '$ph'")->num_rows;
+        if ($dup > 0) {
+            header("Location: ?tab=manage_sunday_school&error=" . urlencode("A member with that phone number already exists."));
+            exit();
+        }
+    }
+    $pw      = password_hash($pw_plain, PASSWORD_DEFAULT);
+    $cl_safe = $conn->real_escape_string($cl);
+    $conn->query("INSERT INTO members (first_name, last_name, phone, address, department, gender, password, sunday_school_class, is_approved, reg_date) VALUES ('$fn','$ln','$ph','$ad','Sunday School','$gn','$pw','$cl_safe',1,NOW())");
+    $new_mid = $conn->insert_id;
+    if ($new_mid) {
+        $welcome = $conn->real_escape_string("Welcome to Sunday School! You have been registered in the $cl class.");
+        $conn->query("INSERT INTO notifications (user_id, user_type, message, is_read, created_at) VALUES ($new_mid, 'member', '$welcome', 0, NOW())");
+        $nmsg = $conn->real_escape_string("$fn $ln has been registered as a new Sunday School member in the $cl class.");
+        $ar = $conn->query("SELECT id FROM admins");
+        while ($a = $ar->fetch_assoc()) { $aid=(int)$a['id']; $conn->query("INSERT INTO notifications (user_id, user_type, message, is_read, created_at) VALUES ($aid,'admin','$nmsg',0,NOW())"); }
+        $pr = $conn->query("SELECT id FROM pastors");
+        while ($p = $pr->fetch_assoc()) { $pid=(int)$p['id']; $conn->query("INSERT INTO notifications (user_id, user_type, message, is_read, created_at) VALUES ($pid,'pastor','$nmsg',0,NOW())"); }
+    }
+    header("Location: ?tab=manage_sunday_school&success=" . urlencode("Sunday School member $fn $ln registered successfully!"));
+    exit();
+}
 
 // Handle Register Member
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register_member'])) {
+
     $fn  = $conn->real_escape_string(trim($_POST['first_name']));
     $ln  = $conn->real_escape_string(trim($_POST['last_name']));
     $ph  = $conn->real_escape_string(trim($_POST['phone']));
     $ad  = $conn->real_escape_string(trim($_POST['address'] ?? ''));
-    $dp  = $conn->real_escape_string(trim($_POST['department'] ?? 'None'));
-    $gn  = $conn->real_escape_string(trim($_POST['gender'] ?? 'Male'));
+    $dp_raw = trim($_POST['department'] ?? 'Youths');
+    $dp  = $conn->real_escape_string($dp_raw);
+    // Auto-derive mandatory gender from department where required.
+    if ($dp_raw === 'Womens Ministry') {
+        $gn = 'Female';
+    } elseif ($dp_raw === 'Elders') {
+        $gn = 'Male';
+    } else {
+        $gn = $conn->real_escape_string(trim($_POST['gender'] ?? 'Male'));
+    }
     $pw  = password_hash(trim($_POST['password']), PASSWORD_DEFAULT);
     // Validate required fields
     if (empty($fn) || empty($ln) || empty($ph) || empty($_POST['password'])) {
         header("Location: pastor_dashboard.php?tab=manage_members&error=First name, last name, phone and password are required");
         exit();
     }
-    // Check duplicate phone
-    $dup = $conn->query("SELECT id FROM members WHERE phone = '$ph'")->num_rows;
-    if ($dup > 0) {
-        header("Location: pastor_dashboard.php?tab=manage_members&error=A member with that phone number already exists");
+    if ($_POST['password'] !== ($_POST['confirm_password'] ?? '')) {
+        header("Location: pastor_dashboard.php?tab=manage_members&error=Passwords do not match");
         exit();
     }
+    
+    // Check duplicate phone in both members and pastors
+    $dup_member = $conn->query("SELECT id FROM members WHERE phone = '$ph'")->num_rows;
+    $dup_pastor = $conn->query("SELECT id FROM pastors WHERE phone = '$ph'")->num_rows;
+    if ($dup_member > 0 || $dup_pastor > 0) {
+        header("Location: pastor_dashboard.php?tab=manage_members&error=" . urlencode("That number is already registered. Please use a different number."));
+        exit();
+    }
+    
     $conn->query("INSERT INTO members (first_name, last_name, phone, address, department, gender, password, is_approved, reg_date) VALUES ('$fn','$ln','$ph','$ad','$dp','$gn','$pw',1,NOW())");
     $new_id = $conn->insert_id;
+    
     // Send welcome notification to the new member
     $welcome_msg = $conn->real_escape_string("Welcome to Munyari Church, $fn $ln! Your account has been created and approved by the Pastor.");
     $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($new_id, 'member', '$welcome_msg')");
+    
     header("Location: pastor_dashboard.php?tab=manage_members&success=Member $fn $ln registered successfully");
     exit();
 }
@@ -124,6 +252,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'deactivate_member' && isset($_
 if (isset($_GET['action']) && $_GET['action'] == 'activate_member' && isset($_GET['id'])) {
     $act_id = (int)$_GET['id'];
     $conn->query("UPDATE members SET is_approved = 1 WHERE id = $act_id");
+    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($act_id, 'member', 'Your account has been approved by the pastor. Welcome to Munyari Church!')");
     header("Location: pastor_dashboard.php?tab=manage_members&success=Member activated");
     exit();
 }
@@ -163,10 +292,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['handle_transfer'])) {
     
     if ($action === 'approve') {
         // We get the requested department from the DB to be safe
-        $mem = $conn->query("SELECT pending_department FROM members WHERE id = $member_id")->fetch_assoc();
+        $mem = $conn->query("SELECT pending_department, church_role FROM members WHERE id = $member_id")->fetch_assoc();
         if ($mem && $mem['pending_department']) {
             $new_dept = $conn->real_escape_string($mem['pending_department']);
-            $conn->query("UPDATE members SET department = '$new_dept', pending_department = NULL WHERE id = $member_id");
+            
+            $current_role = $mem['church_role'];
+            $role_update_sql = "";
+            if (!empty($current_role) && $current_role !== 'Member') {
+                if (!is_general_church_role($current_role)) {
+                    // Reset to Member if it was a department-specific role
+                    $role_update_sql = ", church_role = 'Member'";
+                }
+            }
+            
+            $conn->query("UPDATE members SET department = '$new_dept', pending_department = NULL $role_update_sql WHERE id = $member_id");
             header("Location: pastor_dashboard.php?tab=departments&success=Transfer approved successfully");
             exit();
         }
@@ -364,29 +503,31 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                     Dashboard
                 </a>
-
-                <a href="?tab=manage_members" class="sidebar-link <?= $tab == 'manage_members' ? 'active' : '' ?>">
+                <a href="?tab=manage_members" class="sidebar-link <?= $tab == 'manage_members' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                     Manage Members
+                    <?php if (!empty($tab_badges['manage_members'])): ?><span style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['manage_members'] ?></span><?php endif; ?>
                 </a>
                 <a href="?tab=departments" class="sidebar-link <?= $tab == 'departments' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                     Departments
                 </a>
-                <a href="?tab=assign_roles" class="sidebar-link <?= $tab == 'assign_roles' ? 'active' : '' ?>">
+                <a href="?tab=assign_roles" class="sidebar-link <?= $tab == 'assign_roles' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
                     Assign Roles
+                    <?php $_prc = (int)$conn->query("SELECT COUNT(*) as cnt FROM members WHERE pending_role IS NOT NULL AND pending_role != ''")->fetch_assoc()['cnt']; if ($_prc > 0): ?><span style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $_prc ?></span><?php endif; ?>
+                    <?php if (!empty($tab_badges['assign_roles'])): ?><span style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:4px;"><?= $tab_badges['assign_roles'] ?></span><?php endif; ?>
                 </a>
                 <a href="?tab=financials" class="sidebar-link <?= $tab == 'financials' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Financial Records
                     <?php if (!empty($tab_badges['financials'])): ?><span style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['financials'] ?></span><?php endif; ?>
                 </a>
-                
                 <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: var(--text-muted); margin-top: 10px;">Membership</div>
-                <a href="?tab=desired_roles" class="sidebar-link <?= $tab == 'desired_roles' ? 'active' : '' ?>">
+                <a href="?tab=desired_roles" class="sidebar-link <?= $tab == 'desired_roles' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    Village & Desired Roles
+                    Village &amp; Desired Roles
+                    <?php if (!empty($tab_badges['desired_roles'])): ?><span style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['desired_roles'] ?></span><?php endif; ?>
                 </a>
                 <a href="?tab=manage_worshippers" class="sidebar-link <?= $tab == 'manage_worshippers' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -422,6 +563,10 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
                     Usher Monitoring
                 </a>
+                <a href="?tab=manage_sunday_school" class="sidebar-link <?= $tab == 'manage_sunday_school' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    Manage Sunday School
+                </a>
                 <a href="?tab=building_monitoring" class="sidebar-link <?= $tab == 'building_monitoring' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                     Building Monitoring
@@ -454,7 +599,39 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
             </div>
         </div>
         <div class="main-content">
+            <?php if (!$setup_completed): ?>
+            <div style="background: linear-gradient(90deg, #6366f1, #8b5cf6); color:#fff; padding: 16px 40px 20px 40px; margin: -40px -40px 30px -40px; display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; align-items:flex-start; gap:12px;">
+                    <span style="font-size:1.4rem; flex-shrink:0;">&#128272;</span>
+                    <span style="font-size:0.95rem; font-weight:700; line-height:1.6;"><strong>Action Required:</strong> Please go to <strong>Account Settings</strong> to create your unique username, upload a profile picture, and select your village & desired roles to unlock all tabs.</span>
+                </div>
+                <div style="padding-left: 36px;">
+                    <a href="?tab=settings" style="display:inline-block; background:rgba(255,255,255,0.25); color:#fff; border:1px solid rgba(255,255,255,0.6); padding: 8px 22px; border-radius: 8px; text-decoration:none; font-weight:700; font-size:0.9rem;">Go to Setup &rarr;</a>
+                </div>
+            </div>
+            <?php endif; ?>
             <div class="topbar" style="justify-content: flex-end;">
+                <button class="icon-btn mobile-menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open'); event.stopPropagation();" title="Toggle Menu">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <script>
+                if (!window.mobileSidebarBound) {
+                    window.mobileSidebarBound = true;
+                    document.addEventListener('click', function(e) {
+                        var sidebar = document.querySelector('.sidebar');
+                        var btn = document.querySelector('.mobile-menu-btn');
+                        if (sidebar && sidebar.classList.contains('open') && !sidebar.contains(e.target) && !(btn && btn.contains(e.target))) {
+                            sidebar.classList.remove('open');
+                        }
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (e.target.closest('.sidebar-link, .sidebar-logout')) {
+                            var sidebar = document.querySelector('.sidebar');
+                            if (sidebar) sidebar.classList.remove('open');
+                        }
+                    });
+                }
+                </script>
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <!-- Profile photo + name -->
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -485,7 +662,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <?php endif; ?>
                         </button>
                         <!-- Dropdown -->
-                        <div id="notifDropdown" style="display:none; position:absolute; top:calc(100% + 10px); right:0; width:340px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.18); z-index:9999; overflow:hidden;">
+                        <div id="notifDropdown" style="display:none; position:absolute; top:calc(100% + 10px); right:-10px; width:340px; max-width:calc(100vw - 32px); background:var(--bg-card); border:1px solid var(--border-color); border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.18); z-index:9999; overflow:hidden;">
                             <div style="padding:14px 18px; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
                                 <strong style="color:var(--text-main); font-size:0.95rem;">Notifications</strong>
                                 <?php if($unread_notifs > 0): ?>
@@ -548,7 +725,8 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                 <div class="alert alert-error"><?= htmlspecialchars($_GET['error']) ?></div>
             <?php endif; ?>
 
-            <?php if ($tab == 'dashboard'): ?>
+
+<?php if ($tab == 'dashboard'): ?>
                 <div class="page-header">
                     <h1>Welcome, Pastor <?= htmlspecialchars($pastor['first_name']) ?></h1>
                     <p>Your pastoral management dashboard.</p>
@@ -607,7 +785,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
                                 <div>
                                     <strong style="color:var(--text-main);"><?= htmlspecialchars($q['first_name'] . ' ' . $q['last_name']) ?></strong>
-                                    <span style="font-size:0.8rem;color:var(--text-muted);"> — <?= htmlspecialchars($q['church_role']) ?> · <?= htmlspecialchars($q['department']) ?></span>
+                                    <span style="font-size:0.8rem;color:var(--text-muted);"> — <?= htmlspecialchars(clean_role_display($q['church_role'])) ?> · <?= htmlspecialchars($q['department']) ?></span>
                                     <span style="font-size:0.75rem;background:rgba(245,158,11,0.12);color:#f59e0b;padding:2px 8px;border-radius:20px;margin-left:6px;"><?= htmlspecialchars($q['status']) ?></span>
                                 </div>
                                 <small style="color:var(--text-muted);font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($q['created_at'])) ?></small>
@@ -637,7 +815,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
                                 <div>
                                     <strong style="color:var(--text-main);"><?= htmlspecialchars($dann['first_name'] . ' ' . $dann['last_name']) ?></strong>
-                                    <span style="font-size:0.8rem;color:var(--text-muted);"> — <?= htmlspecialchars($dann['church_role']) ?></span>
+                                    <span style="font-size:0.8rem;color:var(--text-muted);"> — <?= htmlspecialchars(clean_role_display($dann['church_role'])) ?></span>
                                     <span style="font-size:0.75rem;background:rgba(37,99,235,0.1);color:var(--primary);padding:2px 8px;border-radius:20px;margin-left:6px;"><?= htmlspecialchars($dann['department']) ?></span>
                                 </div>
                                 <small style="color:var(--text-muted);font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($dann['created_at'])) ?></small>
@@ -717,41 +895,46 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <!-- Personal Details -->
                             <div class="form-group">
                                 <label>First Name <span style="color:var(--danger);">*</span></label>
-                                <input type="text" name="first_name" class="form-control" placeholder="e.g. Chipo" required>
+                                <input type="text" id="p_first_name" name="first_name" class="form-control" placeholder="e.g. Peter" pattern="[A-Za-z\s]+" oninput="validateInput(this,'name'); seqUnlock('p_first_name','p_last_name')" required>
                             </div>
                             <div class="form-group">
                                 <label>Last Name <span style="color:var(--danger);">*</span></label>
-                                <input type="text" name="last_name" class="form-control" placeholder="e.g. Moyo" required>
+                                <input type="text" id="p_last_name" name="last_name" class="form-control" placeholder="e.g. Ntoiti" pattern="[A-Za-z\s]+" oninput="validateInput(this,'name'); seqUnlock('p_last_name','p_phone')" disabled required>
                             </div>
+
                             <div class="form-group">
                                 <label>Phone Number <span style="color:var(--danger);">*</span></label>
-                                <input type="tel" name="phone" class="form-control" placeholder="e.g. 0771234567" required>
+                                <input type="tel" id="p_phone" name="phone" class="form-control" placeholder="10-digit number" pattern="\d{10}" maxlength="10" oninput="validateInput(this,'phone'); checkPhoneAsync(this,'pRegDept')" disabled required>
                             </div>
                             <div class="form-group">
-                                <label>Gender <span style="color:var(--danger);">*</span></label>
-                                <select name="gender" class="form-control" required>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Department</label>
-                                <select name="department" class="form-control">
+                                <label>Department <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                 <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #8b5cf6; pointer-events: none; z-index:1;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg></span>
+                                 <select name="department" id="pRegDept" class="form-control" style="padding-left:36px;" required onchange="pRegAutoGender(); seqUnlock('pRegDept','pRegGender')" disabled>
+                                    <option value="">Select department...</option>
                                     <option value="Youths">Youths</option>
                                     <option value="Elders">Elders</option>
                                     <option value="Sunday School">Sunday School</option>
                                     <option value="Womens Ministry">Women's Ministry</option>
                                 </select>
                             </div>
+                            <div class="form-group">
+                                <label>Gender <span style="color:var(--danger);">*</span></label>
+                                <select name="gender" id="pRegGender" class="form-control" style="padding-left:36px;" required onchange="seqUnlock('pRegGender','p_address')" disabled>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                                <small id="pRegGenderHint" style="color:var(--text-muted);font-size:0.78rem;">Select department first. Women auto-fill Female; Elders auto-fill Male.</small>
+                            </div>
                             <div class="form-group" style="grid-column:1/-1;">
                                 <label>Residential Address</label>
-                                <input type="text" name="address" class="form-control" placeholder="e.g. 23 Borrowdale Road, Harare">
+                                <input type="text" id="p_address" name="address" class="form-control" placeholder="e.g. Mugui" pattern="[A-Za-z0-9\s,.-]+" oninput="validateInput(this,'name'); seqUnlock('p_address','pastorRegPwd')" disabled>
                             </div>
                             <!-- Login Credentials -->
                             <div class="form-group">
                                 <label>Login Password <span style="color:var(--danger);">*</span></label>
                                 <div style="position:relative;">
-                                    <input type="password" name="password" id="pastorRegPwd" class="form-control" placeholder="Set a secure login password" required style="padding-right:46px;">
+                                    <input type="password" name="password" id="pastorRegPwd" class="form-control" placeholder="At least 6 characters" required style="padding-right:46px;" minlength="6" oninput="seqUnlock('pastorRegPwd','pastorRegPwdConfirm')" disabled>
                                     <span onclick="var i=document.getElementById('pastorRegPwd');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);">
                                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </span>
@@ -760,7 +943,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <div class="form-group">
                                 <label>Confirm Password <span style="color:var(--danger);">*</span></label>
                                 <div style="position:relative;">
-                                    <input type="password" name="confirm_password" id="pastorRegPwdConfirm" class="form-control" placeholder="Re-enter password" required style="padding-right:46px;" oninput="checkPastorPwd()">
+                                    <input type="password" name="confirm_password" id="pastorRegPwdConfirm" class="form-control" placeholder="Re-enter password" required style="padding-right:46px;" oninput="checkPastorPwd()" disabled>
                                     <span onclick="var i=document.getElementById('pastorRegPwdConfirm');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);">
                                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </span>
@@ -774,6 +957,151 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         </div>
                     </form>
                     <script>
+                    async function checkUsernameAsync(input, nextId) {
+                        if(input.value.length >= 3) {
+                            try {
+                                let res = await fetch('check_username.php?username=' + input.value);
+                                let data = await res.json();
+                                let errorMsg = input.nextElementSibling;
+                                if (!errorMsg || !errorMsg.classList.contains('err-msg')) {
+                                    errorMsg = document.createElement('span');
+                                    errorMsg.className = 'err-msg';
+                                    errorMsg.style.color = '#ef4444';
+                                    errorMsg.style.fontSize = '0.85rem';
+                                    errorMsg.style.display = 'block';
+                                    errorMsg.style.marginTop = '4px';
+                                    errorMsg.style.fontWeight = 'bold';
+                                    input.parentNode.appendChild(errorMsg);
+                                }
+                                
+                                if(data.exists) {
+                                    errorMsg.innerText = 'This username is already taken!';
+                                    input.setCustomValidity('Taken');
+                                } else {
+                                    errorMsg.innerText = 'Username is available!';
+                                    errorMsg.style.color = '#10b981';
+                                    input.setCustomValidity('');
+                                    setTimeout(() => { if(errorMsg.innerText === 'Username is available!') errorMsg.innerText = ''; }, 3000);
+                                }
+                            } catch(e) {}
+                        } else {
+                            input.setCustomValidity(input.value.length > 0 ? 'Too short' : '');
+                            let errorMsg = input.nextElementSibling;
+                            if(errorMsg && errorMsg.classList.contains('err-msg')) errorMsg.innerText = '';
+                        }
+                        seqUnlock(input.id, nextId);
+                    }
+
+                    async function checkPhoneAsync(input, nextId) {
+                        if(input.value.length === 10) {
+                            try {
+                                let res = await fetch('check_phone.php?phone=' + input.value);
+                                let data = await res.json();
+                                if(data.exists) {
+                                    let errorMsg = input.nextElementSibling;
+                                    if (!errorMsg || !errorMsg.classList.contains('err-msg')) {
+                                        errorMsg = document.createElement('span');
+                                        errorMsg.className = 'err-msg';
+                                        errorMsg.style.color = '#ef4444';
+                                        errorMsg.style.fontSize = '0.85rem';
+                                        errorMsg.style.display = 'block';
+                                        errorMsg.style.marginTop = '4px';
+                                        errorMsg.style.fontWeight = 'bold';
+                                        input.parentNode.appendChild(errorMsg);
+                                    }
+                                    errorMsg.innerText = 'This number is already registered!';
+                                    input.setCustomValidity('Invalid');
+                                    input.value = '';
+                                    setTimeout(() => errorMsg.innerText = '', 4000);
+                                    return;
+                                }
+                            } catch(e) {}
+                        }
+                        seqUnlock(input.id, nextId);
+                    }
+
+                    function seqUnlock(currentId, nextId) {
+                        const current = document.getElementById(currentId);
+                        const next    = document.getElementById(nextId);
+                        if (!current || !next) return;
+                        const filled = current.tagName === 'SELECT'
+                            ? current.value !== ''
+                            : current.value.trim().length > 0 && current.checkValidity();
+                        next.disabled = !filled;
+                        if (!filled) next.value = '';
+                    }
+
+                    function validateInput(input, type) {
+                        let errorMsg = input.nextElementSibling;
+                        if (!errorMsg || !errorMsg.classList.contains('err-msg')) {
+                            errorMsg = document.createElement('span');
+                            errorMsg.className = 'err-msg';
+                            errorMsg.style.color = '#ef4444';
+                            errorMsg.style.fontSize = '0.8rem';
+                            errorMsg.style.display = 'block';
+                            errorMsg.style.marginTop = '4px';
+                            input.parentNode.appendChild(errorMsg);
+                        }
+                        if (type === 'name') {
+                            if (/[^A-Za-z\s,.-]/.test(input.value)) {
+                                errorMsg.innerText = 'Only characters allowed - numbers are not permitted.';
+                                errorMsg.style.color = '#ef4444';
+                                input.setCustomValidity('Invalid');
+                                setTimeout(() => { input.value = input.value.replace(/[^A-Za-z\s,.-]/g, ''); }, 800);
+                            } else {
+                                errorMsg.innerText = '';
+                                input.setCustomValidity('');
+                            }
+                        } else if (type === 'username') {
+                            if (/[^A-Za-z0-9_]/.test(input.value)) {
+                                errorMsg.innerText = 'Only letters, numbers, and underscores are allowed.';
+                                errorMsg.style.color = '#ef4444';
+                                input.setCustomValidity('Invalid');
+                                setTimeout(() => { input.value = input.value.replace(/[^A-Za-z0-9_]/g, ''); }, 800);
+                            } else {
+                                if(input.value.length > 0 && input.value.length < 3) {
+                                    errorMsg.innerText = 'Username must be at least 3 characters.';
+                                    errorMsg.style.color = '#ef4444';
+                                    input.setCustomValidity('Invalid');
+                                } else if (!input.validity.customError || input.validationMessage === 'Too short' || input.validationMessage === 'Taken') {
+                                    if (errorMsg.innerText === 'Username must be at least 3 characters.') errorMsg.innerText = '';
+                                }
+                            }
+                        } else if (type === 'phone') {
+                            if (/[^0-9]/.test(input.value)) {
+                                errorMsg.innerText = 'Only numbers allowed - characters are not permitted.';
+                                input.setCustomValidity('Invalid');
+                                setTimeout(() => { input.value = input.value.replace(/[^0-9]/g, ''); }, 800);
+                            } else if (input.value.length > 0 && input.value.length !== 10) {
+                                errorMsg.innerText = 'Phone number must be exactly 10 digits.';
+                                input.setCustomValidity('Invalid');
+                            } else {
+                                errorMsg.innerText = '';
+                                input.setCustomValidity('');
+                            }
+                        }
+                    }
+
+                    function pRegAutoGender() {
+                        var dept = document.getElementById('pRegDept').value;
+                        var gender = document.getElementById('pRegGender');
+                        var hint = document.getElementById('pRegGenderHint');
+                        if (dept === 'Womens Ministry') {
+                            gender.value = 'Female';
+                            Array.from(gender.options).forEach(function(opt) { opt.disabled = opt.value !== 'Female'; });
+                            if (hint) hint.textContent = 'Women Ministry members are registered as Female.';
+                        } else if (dept === 'Elders') {
+                            gender.value = 'Male';
+                            Array.from(gender.options).forEach(function(opt) { opt.disabled = opt.value !== 'Male'; });
+                            if (hint) hint.textContent = 'Elders members are registered as Male.';
+                        } else if (dept === 'Youths' || dept === 'Sunday School') {
+                            // Don't force — keep current or default Male
+                            Array.from(gender.options).forEach(function(opt) { opt.disabled = false; });
+                            if (!gender.value) gender.value = 'Male';
+                            if (hint) hint.textContent = "Select the member's gender.";
+                        }
+                    }
+                    pRegAutoGender();
                     function checkPastorPwd() {
                         var p1 = document.getElementById('pastorRegPwd').value;
                         var p2 = document.getElementById('pastorRegPwdConfirm').value;
@@ -804,11 +1132,12 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                 <div class="content-card">
                     <h2 style="margin-bottom: 20px;">Member Directory</h2>
                     <div class="table-responsive"><table>
-                        <thead><tr><th>Name</th><th>Phone</th><th>Address</th><th>Status</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Name</th><th>Username</th><th>Phone</th><th>Address</th><th>Status</th><th>Actions</th></tr></thead>
                         <tbody>
                             <?php $members->data_seek(0); while($m = $members->fetch_assoc()): ?>
                             <tr>
                                 <td><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?></td>
+                                <td><?= htmlspecialchars($m['username'] ?? '-') ?></td>
                                 <td><?= htmlspecialchars($m['phone']) ?></td>
                                 <td><?= htmlspecialchars($m['address'] ?? '-') ?></td>
                                 <td>
@@ -821,8 +1150,10 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if ($m['is_approved'] != -1): ?>
+                                    <?php if ($m['is_approved'] == 1): ?>
                                     <a href="?tab=manage_members&action=deactivate_member&id=<?= $m['id'] ?>" onclick="return confirm('Deactivate this member? They will not be able to log in.')" style="background:#f59e0b;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;margin-right:5px;">Deactivate</a>
+                                    <?php elseif ($m['is_approved'] == 0): ?>
+                                    <a href="?tab=manage_members&action=activate_member&id=<?= $m['id'] ?>" onclick="return confirm('Approve this member?')" style="background:var(--success);color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;margin-right:5px;">Approve</a>
                                     <?php else: ?>
                                     <a href="?tab=manage_members&action=activate_member&id=<?= $m['id'] ?>" onclick="return confirm('Activate this member?')" style="background:var(--success);color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;margin-right:5px;">Activate</a>
                                     <?php endif; ?>
@@ -921,6 +1252,69 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     <p>Members categorized by church village, department, and chosen service roles.</p>
                 </div>
                 
+                <?php
+                // Handle Approval/Rejection of Village Updates
+                if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['handle_village_update'])) {
+                    $update_id = (int)$_POST['member_id'];
+                    $action = $_POST['action'];
+                    $mem = $conn->query("SELECT pending_church_village, pending_desired_role_pref FROM members WHERE id = $update_id")->fetch_assoc();
+                    if ($mem && $mem['pending_church_village']) {
+                        if ($action === 'approve') {
+                            $new_v = $conn->real_escape_string($mem['pending_church_village']);
+                            $new_drp = $mem['pending_desired_role_pref'] ? "'" . $conn->real_escape_string($mem['pending_desired_role_pref']) . "'" : "NULL";
+                            $conn->query("UPDATE members SET church_village = '$new_v', desired_role_pref = $new_drp, pending_church_village = NULL, pending_desired_role_pref = NULL WHERE id = $update_id");
+                            
+                            $msg = $conn->real_escape_string("Your request to update your church village to $new_v has been approved.");
+                            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($update_id, 'member', '$msg')");
+                            echo "<div style='background:rgba(16,185,129,0.1);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>Update approved!</div>";
+                        } else if ($action === 'reject') {
+                            $conn->query("UPDATE members SET pending_church_village = NULL, pending_desired_role_pref = NULL WHERE id = $update_id");
+                            $msg = $conn->real_escape_string("Your request to update your church village was rejected by the Pastor.");
+                            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($update_id, 'member', '$msg')");
+                            echo "<div style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>Update rejected.</div>";
+                        }
+                    }
+                }
+
+                // Fetch Pending Updates
+                $pending_updates = $conn->query("SELECT id, first_name, last_name, church_village, pending_church_village, desired_role_pref, pending_desired_role_pref FROM members WHERE pending_church_village IS NOT NULL ORDER BY first_name ASC");
+                if ($pending_updates && $pending_updates->num_rows > 0):
+                ?>
+                <div class="content-card" style="margin-bottom: 30px; border-left: 4px solid var(--warning);">
+                    <h2 style="margin-bottom: 15px; color: var(--warning); display:flex; align-items:center; gap:8px;">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Pending Village Updates
+                    </h2>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>Member</th><th>Current</th><th>Requested Update</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                <?php while($pu = $pending_updates->fetch_assoc()): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($pu['first_name'] . ' ' . $pu['last_name']) ?></td>
+                                    <td>
+                                        <span style="display:block;font-size:0.9rem;"><?= htmlspecialchars($pu['church_village'] ?? 'None') ?></span>
+                                        <span style="font-size:0.75rem;color:var(--text-muted);"><?= htmlspecialchars($pu['desired_role_pref'] ?? 'No role') ?></span>
+                                    </td>
+                                    <td>
+                                        <span style="display:block;font-size:0.9rem;font-weight:600;color:var(--primary);">&rarr; <?= htmlspecialchars($pu['pending_church_village']) ?></span>
+                                        <span style="font-size:0.75rem;color:var(--text-muted);">&rarr; <?= htmlspecialchars($pu['pending_desired_role_pref'] ?? 'No role') ?></span>
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="?tab=desired_roles" style="display:inline-flex; gap:8px;">
+                                            <input type="hidden" name="handle_village_update" value="1">
+                                            <input type="hidden" name="member_id" value="<?= $pu['id'] ?>">
+                                            <button type="submit" name="action" value="approve" class="btn-sm btn-success" style="border:none; cursor:pointer;">Approve</button>
+                                            <button type="submit" name="action" value="reject" class="btn-sm" style="border:none; background:var(--danger); color:white; cursor:pointer;">Reject</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <?php endif; ?>
                 <?php
                 $villages = ['Akoritho', 'Philadelphia', 'Bethsaida'];
                 $village_colors = ['Akoritho' => '#6366f1', 'Philadelphia' => '#0ea5e9', 'Bethsaida' => '#10b981'];
@@ -1356,8 +1750,8 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                         <td style="font-weight: 600; color: var(--text-main);"><?= htmlspecialchars($pr['pending_role']) ?></td>
                                         <td>
                                             <div style="display: flex; gap: 10px;">
-                                                <a href="pastor_action.php?action=approve_appointment&id=<?= $pr['id'] ?>" class="btn-action btn-approve" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">Approve</a>
-                                                <a href="pastor_action.php?action=reject_appointment&id=<?= $pr['id'] ?>" class="btn-action btn-reject" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;" onclick="return confirm('Reject this appointment?');">Reject</a>
+                                                <a href="pastor_action.php?action=approve_subsidiary&id=<?= $pr['id'] ?>" class="btn-action btn-approve" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">Approve</a>
+                                                <a href="pastor_action.php?action=reject_subsidiary&id=<?= $pr['id'] ?>" class="btn-action btn-reject" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;" onclick="return confirm('Reject this appointment?');">Reject</a>
                                             </div>
                                         </td>
                                     </tr>
@@ -2282,8 +2676,8 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                     <td><?= date('M j, Y g:i A', strtotime($a['appointment_date'])) ?></td>
                                     <td><?= nl2br(htmlspecialchars($a['reason'])) ?></td>
                                     <td class="action-buttons">
-                                        <a href="pastor_action.php?action=approve_appointment&id=<?= $a['id'] ?>" class="btn-action btn-approve" onclick="return confirm('Approve this appointment?')">Approve</a>
-                                        <a href="pastor_action.php?action=reject_appointment&id=<?= $a['id'] ?>" class="btn-action btn-delete" onclick="return confirm('Decline this appointment?')">Decline</a>
+                                        <a href="pastor_action.php?action=approve_subsidiary&id=<?= $a['id'] ?>" class="btn-action btn-approve" onclick="return confirm('Approve this appointment?')">Approve</a>
+                                        <a href="pastor_action.php?action=reject_subsidiary&id=<?= $a['id'] ?>" class="btn-action btn-delete" onclick="return confirm('Decline this appointment?')">Decline</a>
                                     </td>
                                 </tr>
                                 <?php endwhile; ?>
@@ -2678,8 +3072,146 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
             <?php elseif ($tab == 'settings'): ?>
                 <div class="page-header">
                     <h1>Account Settings</h1>
-                    <p>Manage your account credentials.</p>
+                    <p>Manage your profile, credentials and preferences.</p>
+    
+                <?php if (!$setup_completed): ?>
+                <!-- --- MANDATORY FIRST-TIME SETUP --- -->
+                <!-- STEP 1: Username -->
+                <div class="content-card" style="max-width: 480px; margin-bottom: 24px; border: 2px solid <?= $has_username ? '#10b981' : '#6366f1' ?>; position:relative;">
+                    <div style="position:absolute; top:16px; right:16px; width:28px; height:28px; border-radius:50%; background:<?= $has_username ? '#10b981' : '#e2e8f0' ?>; display:flex; align-items:center; justify-content:center; font-size:1rem;"><?= $has_username ? '&#10003;' : '1' ?></div>
+                    <h2 style="color:<?= $has_username ? '#10b981' : 'var(--primary)' ?>;">Step 1 � Create Your Username</h2>
+                    <?php if ($has_username): ?>
+                        <div class="alert alert-success" style="margin-top:10px;">Username set: <strong><?= htmlspecialchars($pastor['username']) ?></strong> � you can change it below if needed.</div>
+                    <?php else: ?>
+                        <p style="color:var(--text-muted); font-size:0.9rem;">Your username will be used to log in and recover your password.</p>
+                    <?php endif; ?>
+                    <form method="POST" action="?tab=settings" style="margin-top:14px;">
+                        <input type="hidden" name="save_username" value="1">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" name="new_username" class="form-control" value="<?= htmlspecialchars($pastor['username'] ?? strtolower($pastor['first_name'])) ?>" placeholder="e.g. pastor_john" pattern="[a-zA-Z0-9_.]+" minlength="3" required>
+                        </div>
+                        <button type="submit" class="btn-submit" style="<?= $has_username ? 'background:var(--bg-lighter);color:var(--text-main);border:1px solid var(--border-color);' : '' ?>"><?= $has_username ? 'Change Username' : 'Save Username' ?></button>
+                    </form>
                 </div>
+
+                <!-- STEP 2: Profile Picture -->
+                <div class="content-card" style="max-width: 480px; margin-bottom: 24px; border: 2px solid <?= $has_profile_pic ? '#10b981' : '#6366f1' ?>; position:relative;">
+                    <div style="position:absolute; top:16px; right:16px; width:28px; height:28px; border-radius:50%; background:<?= $has_profile_pic ? '#10b981' : '#e2e8f0' ?>; display:flex; align-items:center; justify-content:center; font-size:1rem;"><?= $has_profile_pic ? '&#10003;' : '2' ?></div>
+                    <h2 style="color:<?= $has_profile_pic ? '#10b981' : 'var(--primary)' ?>;">Step 2 � Upload a Profile Picture</h2>
+                    <div style="display: flex; align-items: center; gap: 20px; margin: 14px 0;">
+                        <img src="uploads/<?= htmlspecialchars($pastor['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 3px solid <?= $has_profile_pic ? '#10b981' : 'var(--border-color)' ?>; cursor: zoom-in;" onclick="viewProfileImage(this.src);">
+                        <div>
+                            <?php if ($has_profile_pic): ?>
+                                <p style="font-weight:600; color:#10b981;">&#10003; Picture uploaded!</p>
+                            <?php else: ?>
+                                <p style="font-weight:500;">No picture yet</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <form method="POST" action="?tab=settings" enctype="multipart/form-data">
+                        <input type="hidden" name="upload_picture" value="1">
+                        <div class="form-group">
+                            <input type="file" name="profile_picture" class="form-control" accept="image/*" required>
+                        </div>
+                        <button type="submit" class="btn-submit" style="<?= $has_profile_pic ? 'background:var(--bg-lighter);color:var(--text-main);border:1px solid var(--border-color);' : '' ?>"><?= $has_profile_pic ? 'Replace Picture' : 'Upload Picture' ?></button>
+                    </form>
+                </div>
+
+                <!-- STEP 3: Village & Roles -->
+                <div class="content-card" style="max-width: 480px; margin-bottom: 30px; border: 2px solid <?= $has_village ? '#10b981' : '#6366f1' ?>; position:relative;">
+                    <div style="position:absolute; top:16px; right:16px; width:28px; height:28px; border-radius:50%; background:<?= $has_village ? '#10b981' : '#e2e8f0' ?>; display:flex; align-items:center; justify-content:center; font-size:1rem;"><?= $has_village ? '✓' : '3' ?></div>
+                    <h2 style="color:<?= $has_village ? '#10b981' : 'var(--primary)' ?>;">Step 3 — Select Your Church Village</h2>
+                    <form method="POST" action="?tab=settings" style="margin-top:14px;">
+                        <input type="hidden" name="save_church_village" value="1">
+                        <div class="form-group">
+                            <label>Church Village</label>
+                            <select name="church_village" class="form-control" required>
+                                <option value="" disabled <?= empty($pastor['church_village']) ? 'selected' : '' ?>>-- Select Village --</option>
+                                <option value="Akoritho" <?= ($pastor['church_village']=='Akoritho') ? 'selected' : '' ?>>Akoritho</option>
+                                <option value="Philadelphia" <?= ($pastor['church_village']=='Philadelphia') ? 'selected' : '' ?>>Philadelphia</option>
+                                <option value="Bethsaida" <?= ($pastor['church_village']=='Bethsaida') ? 'selected' : '' ?>>Bethsaida</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Desired Role (Optional)</label>
+                            <select name="desired_role_pref" class="form-control">
+                                <option value="">-- No specific role --</option>
+                                <option value="Worshipper" <?= ($pastor['desired_role_pref']=='Worshipper') ? 'selected' : '' ?>>Worshipper</option>
+                                <option value="Church Cleaner" <?= ($pastor['desired_role_pref']=='Church Cleaner') ? 'selected' : '' ?>>Church Cleaner</option>
+                                <option value="Church Cooker" <?= ($pastor['desired_role_pref']=='Church Cooker') ? 'selected' : '' ?>>Church Cooker</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-submit" style="<?= $has_village ? 'background:var(--bg-lighter);color:var(--text-main);border:1px solid var(--border-color);' : '' ?>"><?= $has_village ? 'Update Selection' : 'Save Selection' ?></button>
+                    </form>
+                </div>
+
+                <?php if ($has_username && $has_profile_pic && $has_village): ?>
+                <div class="alert alert-success" style="max-width:480px; margin-bottom:20px;">
+                    🎉 Setup complete! Refresh the page to unlock all tabs.
+                    <a href="pastor_dashboard.php" style="margin-left:12px; font-weight:600;">Unlock Now &rarr;</a>
+                </div>
+                <?php endif; ?>
+
+                <hr style="border:none; border-top: 1px solid var(--border-color); max-width:480px; margin: 10px 0 28px;">
+                <?php endif; // end !setup_completed ?>
+
+
+                <?php if ($setup_completed): ?>
+                <!-- PROFILE SETTINGS -->
+                <div class="content-card" style="max-width: 450px; margin-bottom: 30px;">
+                    <h2>Your Username</h2>
+                    <p style="color:var(--text-muted); margin-bottom:14px;">Your current username: <strong><?= htmlspecialchars($pastor['username'] ?? '-') ?></strong>.</p>
+                    <form method="POST" action="?tab=settings">
+                        <input type="hidden" name="save_username" value="1">
+                        <div class="form-group">
+                            <label>New Username</label>
+                            <input type="text" name="new_username" class="form-control" value="<?= htmlspecialchars($pastor['username'] ?? '') ?>" placeholder="e.g. pastor_john" pattern="[a-zA-Z0-9_.]+" minlength="3" required>
+                        </div>
+                        <button type="submit" class="btn-submit">Update Username</button>
+                    </form>
+                </div>
+
+                <div class="content-card" style="max-width: 450px; margin-bottom: 30px;">
+                    <h2>Profile Picture</h2>
+                    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+                        <img src="uploads/<?= htmlspecialchars($pastor['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); cursor: zoom-in;" onclick="viewProfileImage(this.src);">
+                    </div>
+                    <form method="POST" action="?tab=settings" enctype="multipart/form-data">
+                        <input type="hidden" name="upload_picture" value="1">
+                        <div class="form-group">
+                            <input type="file" name="profile_picture" class="form-control" accept="image/*" required>
+                        </div>
+                        <button type="submit" class="btn-submit">Replace Picture</button>
+                    </form>
+                </div>
+
+                <div class="content-card" style="max-width: 450px; margin-bottom: 30px;">
+                    <h2>Church Village & Role</h2>
+                    <form method="POST" action="?tab=settings" style="margin-top:14px;">
+                        <input type="hidden" name="save_church_village" value="1">
+                        <div class="form-group">
+                            <label>Church Village</label>
+                            <select name="church_village" class="form-control" required>
+                                <option value="Akoritho" <?= ($pastor['church_village']=='Akoritho') ? 'selected' : '' ?>>Akoritho</option>
+                                <option value="Philadelphia" <?= ($pastor['church_village']=='Philadelphia') ? 'selected' : '' ?>>Philadelphia</option>
+                                <option value="Bethsaida" <?= ($pastor['church_village']=='Bethsaida') ? 'selected' : '' ?>>Bethsaida</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Desired Role (Optional)</label>
+                            <select name="desired_role_pref" class="form-control">
+                                <option value="">-- No specific role --</option>
+                                <option value="Worshipper" <?= ($pastor['desired_role_pref']=='Worshipper') ? 'selected' : '' ?>>Worshipper</option>
+                                <option value="Church Cleaner" <?= ($pastor['desired_role_pref']=='Church Cleaner') ? 'selected' : '' ?>>Church Cleaner</option>
+                                <option value="Church Cooker" <?= ($pastor['desired_role_pref']=='Church Cooker') ? 'selected' : '' ?>>Church Cooker</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-submit">Update Selection</button>
+                    </form>
+                </div>
+                <?php endif; ?>
+
                 <div class="content-card" style="max-width: 450px;">
                     <h2>Change Password</h2>
                     <form method="POST" action="">
@@ -2707,6 +3239,210 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     }
                     ?>
                 </div>
+            
+            <?php elseif ($tab == 'manage_sunday_school'): ?>
+                <?php
+                $classes = ['Battalion', 'Conquerors', 'Little Angels'];
+                $class_counts = [];
+                foreach ($classes as $cl) {
+                    $cl_safe = $conn->real_escape_string($cl);
+                    $res = $conn->query("SELECT COUNT(*) as cnt FROM members WHERE department = 'Sunday School' AND sunday_school_class = '$cl_safe' AND is_approved = 1");
+                    $class_counts[$cl] = $res ? $res->fetch_assoc()['cnt'] : 0;
+                }
+                $total_ss = $conn->query("SELECT COUNT(*) as cnt FROM members WHERE department = 'Sunday School' AND is_approved = 1")->fetch_assoc()['cnt'];
+                ?>
+                <div class="page-header">
+                    <h1>Manage Sunday School</h1>
+                    <p>Overview of Sunday School classes and member registration.</p>
+                </div>
+
+                <!-- Stats row -->
+                <div class="dashboard-grid" style="margin-bottom:30px;">
+                    <div class="stat-card">
+                        <h3>Total Sunday School</h3>
+                        <div class="value" style="color: var(--primary);"><?= $total_ss ?></div>
+                    </div>
+                    <?php foreach ($classes as $cl): ?>
+                    <div class="stat-card">
+                        <h3><?= htmlspecialchars($cl) ?></h3>
+                        <div class="value" style="color: <?= $cl === 'Battalion' ? '#f59e0b' : ($cl === 'Conquerors' ? '#10b981' : '#6366f1') ?>;"><?= $class_counts[$cl] ?></div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <!-- Register New Sunday School Member -->
+                <div class="content-card" style="margin-bottom:30px;">
+                    <div style="display:flex; align-items:center; gap:14px; margin-bottom:20px;">
+                        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <svg width="22" height="22" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                        </div>
+                        <div>
+                            <h2 style="margin:0;">Register New Sunday School Member</h2>
+                            <p style="margin:0;font-size:0.85rem;color:var(--text-muted);">Account will be immediately active and placed in the selected class.</p>
+                        </div>
+                    </div>
+                                    <script>
+                function seqUnlock(currentId, nextId) {
+                    const current = document.getElementById(currentId);
+                    const next    = document.getElementById(nextId);
+                    if (!current || !next) return;
+                    const filled = current.tagName === 'SELECT'
+                        ? current.value !== ''
+                        : current.value.trim().length > 0 && current.checkValidity();
+                    next.disabled = !filled;
+                    if (!filled && next.tagName !== 'SELECT') next.value = '';
+                }
+                function validateInput(input, type) {
+                    let errorMsg = input.parentNode.querySelector('.err-msg');
+                    if (!errorMsg) {
+                        errorMsg = document.createElement('span');
+                        errorMsg.className = 'err-msg';
+                        errorMsg.style.color = '#ef4444';
+                        errorMsg.style.fontSize = '0.8rem';
+                        errorMsg.style.display = 'block';
+                        errorMsg.style.marginTop = '4px';
+                        input.parentNode.appendChild(errorMsg);
+                    }
+                    if (type === 'name') {
+                        if (/[^A-Za-z\s,.-]/.test(input.value)) {
+                            errorMsg.innerText = 'Only letters allowed.';
+                            input.setCustomValidity('Invalid');
+                            setTimeout(() => { input.value = input.value.replace(/[^A-Za-z\s,.-]/g, ''); }, 300);
+                        } else {
+                            errorMsg.innerText = '';
+                            input.setCustomValidity('');
+                        }
+                    } else if (type === 'phone') {
+                        if (/[^\d]/.test(input.value)) {
+                            errorMsg.innerText = 'Only digits allowed.';
+                            input.setCustomValidity('Invalid');
+                            setTimeout(() => { input.value = input.value.replace(/[^\d]/g, ''); }, 300);
+                        } else {
+                            errorMsg.innerText = '';
+                            input.setCustomValidity('');
+                        }
+                    }
+                }
+                </script>
+<form method="POST" action="?tab=manage_sunday_school" id="ssRegForm" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
+                        <input type="hidden" name="register_ss_member" value="1">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                            <div class="form-group">
+                                <label>First Name <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#10b981; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span>
+                                    <input type="text" id="ss_first_name" name="first_name" class="form-control" placeholder="e.g. John" pattern="[A-Za-z\s]+" oninput="validateInput(this,'name'); seqUnlock('ss_first_name','ss_last_name')" style="padding-left:36px;" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Last Name <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#10b981; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span>
+                                    <input type="text" id="ss_last_name" name="last_name" class="form-control" placeholder="e.g. Kamau" pattern="[A-Za-z\s]+" oninput="validateInput(this,'name'); seqUnlock('ss_last_name','ss_class'); document.getElementById('ss_phone').disabled=false;" style="padding-left:36px;" disabled required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Phone Number <span style="color:var(--text-muted); font-weight:normal; font-size:0.8rem;">(Optional)</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#f59e0b; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg></span>
+                                    <input type="tel" id="ss_phone" name="phone" class="form-control" placeholder="10-digit number (Optional)" pattern="\d{10}" maxlength="10" oninput="validateInput(this,'phone');" style="padding-left:36px;" disabled>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Sunday School Class <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#8b5cf6; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></span>
+                                    <select name="ss_class" id="ss_class" class="form-control" required onchange="seqUnlock('ss_class','ss_gender')" style="padding-left:36px;" disabled>
+                                        <option value="">-- Select Class --</option>
+                                        <option value="Battalion">Battalion</option>
+                                        <option value="Conquerors">Conquerors</option>
+                                        <option value="Little Angels">Little Angels</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Gender <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#ec4899; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg></span>
+                                    <select name="gender" id="ss_gender" class="form-control" required onchange="seqUnlock('ss_gender','ss_address')" style="padding-left:36px;" disabled>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Residential Area <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#3b82f6; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span>
+                                    <input type="text" id="ss_address" name="address" class="form-control" placeholder="e.g. Mugui" pattern="[A-Za-z0-9\s,.-]+" oninput="validateInput(this,'name'); seqUnlock('ss_address','ss_password')" style="padding-left:36px;" required disabled>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Login Password <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#ef4444; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>
+                                    <input type="password" name="password" id="ss_password" class="form-control" placeholder="At least 6 characters" required style="padding-left:36px; padding-right:46px;" minlength="6" oninput="seqUnlock('ss_password','ss_confirm_password')" disabled>
+                                    <span onclick="var i=document.getElementById('ss_password');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);">
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm Password <span style="color:var(--danger);">*</span></label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#ef4444; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>
+                                    <input type="password" name="confirm_password" id="ss_confirm_password" class="form-control" placeholder="Re-enter password" required style="padding-left:36px; padding-right:46px;" oninput="var m=document.getElementById('ssPwdHint');if(this.value===document.getElementById('ss_password').value){m.style.display='block';m.style.color='var(--success)';m.textContent='Passwords match';}else{m.style.display='block';m.style.color='var(--danger)';m.textContent='Passwords do not match';}" disabled>
+                                    <span onclick="var i=document.getElementById('ss_confirm_password');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);">
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    </span>
+                                </div>
+                                <small id="ssPwdHint" style="font-size:0.8rem;margin-top:4px;display:none;"></small>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-submit" style="margin-top:10px; display:flex; align-items:center; gap:8px; width:auto; padding:0 28px;">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                            Register Member
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Class Sections -->
+                <?php foreach ($classes as $cl):
+                    $cl_safe = $conn->real_escape_string($cl);
+                    $cl_color = $cl === 'Battalion' ? '#f59e0b' : ($cl === 'Conquerors' ? '#10b981' : '#6366f1');
+                    $cl_members = $conn->query("SELECT id, first_name, last_name, phone, gender FROM members WHERE department = 'Sunday School' AND sunday_school_class = '$cl_safe' AND is_approved = 1 ORDER BY first_name ASC");
+                ?>
+                <div class="content-card" style="margin-bottom:24px; border-left: 4px solid <?= $cl_color ?>;">
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+                        <div style="width:38px;height:38px;border-radius:10px;background:<?= $cl_color ?>;display:flex;align-items:center;justify-content:center;">
+                            <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        </div>
+                        <div>
+                            <h2 style="margin:0; color:<?= $cl_color ?>;"><?= htmlspecialchars($cl) ?></h2>
+                            <span style="font-size:0.82rem;color:var(--text-muted);"><?= $class_counts[$cl] ?> member<?= $class_counts[$cl] != 1 ? 's' : '' ?></span>
+                        </div>
+                    </div>
+                    <?php if ($cl_members && $cl_members->num_rows > 0): ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Gender</th></tr></thead>
+                            <tbody>
+                            <?php $i=1; while($sm = $cl_members->fetch_assoc()): ?>
+                                <tr>
+                                    <td><?= $i++ ?></td>
+                                    <td style="font-weight:500;"><?= htmlspecialchars($sm['first_name'].' '.$sm['last_name']) ?></td>
+                                    <td><?= htmlspecialchars($sm['phone']) ?></td>
+                                    <td><span class="badge" style="background:rgba(99,102,241,0.1);color:#6366f1;"><?= htmlspecialchars($sm['gender']) ?></span></td>
+                                </tr>
+                            <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                        <p style="color:var(--text-muted); font-style:italic; text-align:center; padding:20px 0;">No members in <?= htmlspecialchars($cl) ?> yet.</p>
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
             <?php endif; ?>
         </div>
     </div>
@@ -2762,3 +3498,9 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
     </script>
 </body>
 </html>
+
+
+
+
+
+

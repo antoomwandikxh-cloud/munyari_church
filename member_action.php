@@ -131,15 +131,38 @@ if (isset($_GET['action'])) {
         $member_roles_list = get_member_roles($member_query['church_role'] ?? '');
         
         $leader_departments = [
-            'youth chairman' => 'Youths',
-            'vice youth chairman' => 'Youths',
-            'women chairlady' => 'Womens Ministry',
-            'vice women chairlady' => 'Womens Ministry',
-            'elder chairman' => 'Elders',
-            'vice elder chairman' => 'Elders',
-            'sunday school patron' => 'Sunday School',
-            'vice sunday school patron' => 'Sunday School'
+            // Youths - all variants
+            'youth chairman'           => 'Youths',
+            'youth chairlady'          => 'Youths',
+            'youth chairperson'        => 'Youths',
+            'vice youth chairman'      => 'Youths',
+            'vice youth chairlady'     => 'Youths',
+            'vice youth chairperson'   => 'Youths',
+            // Womens Ministry - all variants
+            'women chairman'           => 'Womens Ministry',
+            'women chairlady'          => 'Womens Ministry',
+            'women chairperson'        => 'Womens Ministry',
+            'vice women chairman'      => 'Womens Ministry',
+            'vice women chairlady'     => 'Womens Ministry',
+            'vice women chairperson'   => 'Womens Ministry',
+            // Elders - all variants
+            'elder chairman'           => 'Elders',
+            'elder chairlady'          => 'Elders',
+            'elder chairperson'        => 'Elders',
+            'vice elder chairman'      => 'Elders',
+            'vice elder chairlady'     => 'Elders',
+            'vice elder chairperson'   => 'Elders',
+            // Sunday School - all variants
+            'sunday school patron'     => 'Sunday School',
+            'sunday school chairman'   => 'Sunday School',
+            'sunday school chairlady'  => 'Sunday School',
+            'sunday school chairperson'=> 'Sunday School',
+            'vice sunday school patron'=> 'Sunday School',
+            'vice sunday school chairman'  => 'Sunday School',
+            'vice sunday school chairlady' => 'Sunday School',
+            'vice sunday school chairperson' => 'Sunday School',
         ];
+
         
         $managed_dept = null;
         foreach ($member_roles_list as $r) {
@@ -162,18 +185,18 @@ if (isset($_GET['action'])) {
                 exit();
             }
             
-            // Set pending role for target member
-            $conn->query("UPDATE members SET pending_role = '$proposed_role' WHERE id = $target_member_id");
+            // Set pending role for target member, tracking who proposed it
+            $conn->query("UPDATE members SET pending_role = '$proposed_role', pending_proposed_by = $member_id WHERE id = $target_member_id");
             
             // Get target member name
             $target_name = $target_check['first_name'] . ' ' . $target_check['last_name'];
             
-            // Notify pastors
-            $chairman_name = htmlspecialchars($member_query['first_name'] . ' ' . $member_query['last_name']);
+            // Notify pastors — use 'pending role approval' keyword so badge routes to assign_roles
+            $chairman_name = $conn->real_escape_string($member_query['first_name'] . ' ' . $member_query['last_name']);
             $pastors_q = $conn->query("SELECT id FROM pastors");
             while($p = $pastors_q->fetch_assoc()) {
                 $pid = $p['id'];
-                $notif_msg = $conn->real_escape_string("$chairman_name ($managed_dept) proposed $target_name for the role of $proposed_role. Pending approval.");
+                $notif_msg = $conn->real_escape_string("$chairman_name ($managed_dept) has submitted a pending role approval request: $target_name → $proposed_role. Please review under Assign Roles.");
                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pid, 'pastor', '$notif_msg')");
             }
             

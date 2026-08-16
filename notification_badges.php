@@ -41,6 +41,11 @@ function notification_badge_tabs($message, $user_type) {
     }
 
     // ─── 4. ACCOUNT / REGISTRATION ──────────────────────────────────────────
+    if (strpos($msg, 'update their church village') !== false) {
+        $tabs[] = 'desired_roles';
+        return array_values(array_unique($tabs)); // early exit
+    }
+
     if (strpos($msg, 'account') !== false && (strpos($msg, 'approved') !== false || strpos($msg, 'created') !== false)) {
         $tabs[] = 'dashboard';
         $tabs[] = 'settings';
@@ -50,7 +55,7 @@ function notification_badge_tabs($message, $user_type) {
     }
     if ((strpos($msg, 'member') !== false && strpos($msg, 'worship') === false) || 
         (strpos($msg, 'registration') !== false && strpos($msg, 'pastor') === false)) {
-        $tabs[] = $user_type === 'pastor' ? 'manage_members' : 'members';
+        $tabs[] = $user_type === 'admin' ? 'members' : 'manage_members';
     }
 
     // ─── 5. ROLE / APPOINTMENT ──────────────────────────────────────────────

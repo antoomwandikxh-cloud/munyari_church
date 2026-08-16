@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 require_once 'db_connect.php';
 require_once 'notification_badges.php';
@@ -18,6 +18,13 @@ if ($role_department && ($member['department'] ?? '') !== $role_department) {
 // Build per-role welcome lines in the new format
 $member_home_department = $member['department'] ?? 'None';
 $raw_roles_welcome = array_filter(array_map('trim', explode(',', str_replace('&', ',', $member['church_role'] ?? ''))));
+
+// Helper: strip "(subsidiary)" for display purposes only
+function clean_role_display($role) {
+    return trim(preg_replace('/\s*\(subsidiary\)\s*/i', '', $role ?? ''));
+}
+
+
 $welcome_role_lines = []; // Each entry: ['role' => ..., 'scope' => ...]
 $has_home_dept_role = false;
 $is_youth_advisor = false;
@@ -26,13 +33,13 @@ foreach ($raw_roles_welcome as $role_item) {
     $norm = normalize_role_name($role_item);
     if (is_general_church_role($norm)) {
         $welcome_role_lines[] = [
-            'role'  => ucwords(strtolower($role_item)),
+            'role'  => ucwords(strtolower(clean_role_display($role_item))),
             'scope' => 'General Church',
         ];
     } elseif (is_youth_advisor_role($norm)) {
         $is_youth_advisor = true;
         $welcome_role_lines[] = [
-            'role'  => ucwords(strtolower($role_item)),
+            'role'  => ucwords(strtolower(clean_role_display($role_item))),
             'scope' => 'Youth Department',
         ];
         if (strtolower($member_home_department) === 'youths' || strtolower($member_home_department) === 'youth ministry') {
@@ -48,7 +55,7 @@ foreach ($raw_roles_welcome as $role_item) {
         if ($norm === 'youth chairperson') {
             $display_role = get_youth_chairperson_title($member['gender'] ?? '');
         } else {
-            $display_role = ucwords(strtolower($role_item));
+            $display_role = ucwords(strtolower(clean_role_display($role_item)));
         }
         $welcome_role_lines[] = [
             'role'  => $display_role,
@@ -518,22 +525,34 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
     $valid_roles = ['Worshipper', 'Church Cleaner', 'Church Cooker', ''];
     if (!in_array($drp, $valid_roles)) { $drp = ''; }
     $drp_sql = $drp ? "'$drp'" : "NULL";
-    $conn->query("UPDATE members SET church_village = '$cv', desired_role_pref = $drp_sql WHERE id = $member_id");
-    // Reload member
-    $member = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
-    // Notify worship leaders/pastor/admin if new worshipper
-    if ($drp === 'Worshipper') {
-        $wl_name  = $conn->real_escape_string($member['first_name'] . ' ' . $member['last_name']);
-        $wl_notif = $conn->real_escape_string("New worshipper $wl_name from $cv village has joined the worship team.");
-        $wleaders = $conn->query("SELECT id FROM members WHERE is_approved = 1 AND LOWER(TRIM(church_role)) IN ('worship leader','vice worship leader')");
-        if ($wleaders) { while ($wl = $wleaders->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$wl['id']},'member','$wl_notif')"); } }
+
+    if (empty($member['church_village'])) {
+        // Initial setup
+        $conn->query("UPDATE members SET church_village = '$cv', desired_role_pref = $drp_sql WHERE id = $member_id");
+        // Reload member
+        $member = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
+        // Notify worship leaders/pastor/admin if new worshipper
+        if ($drp === 'Worshipper') {
+            $wl_name  = $conn->real_escape_string($member['first_name'] . ' ' . $member['last_name']);
+            $wl_notif = $conn->real_escape_string("New worshipper $wl_name from $cv village has joined the worship team.");
+            $wleaders = $conn->query("SELECT id FROM members WHERE is_approved = 1 AND LOWER(TRIM(church_role)) IN ('worship leader','vice worship leader')");
+            if ($wleaders) { while ($wl = $wleaders->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$wl['id']},'member','$wl_notif')"); } }
+            $pastors_q = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
+            if ($pastors_q) { while ($p = $pastors_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$p['id']},'pastor','$wl_notif')"); } }
+            $admins_q = $conn->query("SELECT id FROM admins");
+            if ($admins_q) { while ($a = $admins_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$a['id']},'admin','$wl_notif')"); } }
+        }
+        header("Location: member_dashboard.php?tab=desired_roles&success=Your church village has been saved! All tabs are now unlocked.");
+        exit();
+    } else {
+        // Update request - goes to pending
+        $conn->query("UPDATE members SET pending_church_village = '$cv', pending_desired_role_pref = $drp_sql WHERE id = $member_id");
+        $update_msg = $conn->real_escape_string("Member " . $member['first_name'] . " " . $member['last_name'] . " requested to update their church village to $cv.");
         $pastors_q = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
-        if ($pastors_q) { while ($p = $pastors_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$p['id']},'pastor','$wl_notif')"); } }
-        $admins_q = $conn->query("SELECT id FROM admins");
-        if ($admins_q) { while ($a = $admins_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$a['id']},'admin','$wl_notif')"); } }
+        if ($pastors_q) { while ($p = $pastors_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$p['id']},'pastor','$update_msg')"); } }
+        header("Location: member_dashboard.php?tab=desired_roles&success=Your update request has been sent to the Pastor for approval.");
+        exit();
     }
-    header("Location: member_dashboard.php?tab=desired_roles&success=Your church village has been saved! All tabs are now unlocked.");
-    exit();
 }
 $has_church_village = !empty($member['church_village']);
 
@@ -1227,7 +1246,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_password'])) {
 // Handle Department Request
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['request_department'])) {
     $requested_dept = $conn->real_escape_string($_POST['department']);
-    if ($requested_dept !== $member['department']) {
+    $current_dept = $member['department'];
+    $allowed_depts = [];
+    
+    if ($current_dept == 'Youths') {
+        $allowed_depts = ['Elders', 'Womens Ministry'];
+    } elseif ($current_dept == 'Sunday School') {
+        $allowed_depts = ['Youths'];
+    }
+    
+    if (!in_array($requested_dept, $allowed_depts)) {
+        header("Location: member_dashboard.php?tab=settings&error=Invalid department transfer request.");
+        exit();
+    }
+    
+    if ($requested_dept !== $current_dept) {
         $conn->query("UPDATE members SET pending_department = '$requested_dept' WHERE id = $member_id");
         header("Location: member_dashboard.php?tab=settings&success=Department transfer requested. Waiting for pastor approval.");
         exit();
@@ -1248,6 +1281,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['upload_picture'])) {
             $new_name = 'member_' . $member_id . '_' . time() . '.' . $ext;
             if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], 'uploads/' . $new_name)) {
                 $conn->query("UPDATE members SET profile_picture = '$new_name' WHERE id = $member_id");
+                // Check if setup can now be completed (username already set?)
+                $latest = $conn->query("SELECT username, profile_picture, department, sunday_school_class FROM members WHERE id = $member_id")->fetch_assoc();
+                if (!empty($latest['username']) && !empty($latest['profile_picture']) && $latest['profile_picture'] !== 'default_avatar.png') {
+                    $conn->query("UPDATE members SET setup_completed = 1 WHERE id = $member_id");
+                }
                 header("Location: member_dashboard.php?tab=settings&success=Profile picture updated");
                 exit();
             }
@@ -1255,6 +1293,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['upload_picture'])) {
         header("Location: member_dashboard.php?tab=settings&error=Invalid file type or upload failed");
         exit();
     }
+}
+
+// Handle Username Creation / Update
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_username'])) {
+    $new_username = $conn->real_escape_string(trim($_POST['new_username']));
+    if (strlen($new_username) < 3) {
+        header("Location: member_dashboard.php?tab=settings&error=Username must be at least 3 characters");
+        exit();
+    }
+    if (!preg_match('/^[a-zA-Z0-9_.]+$/', $new_username)) {
+        header("Location: member_dashboard.php?tab=settings&error=Username may only contain letters, numbers, dots and underscores");
+        exit();
+    }
+    // Check uniqueness
+    $u_check = $conn->query("SELECT id FROM members WHERE BINARY username = '$new_username' AND id != $member_id");
+    if ($u_check && $u_check->num_rows > 0) {
+        header("Location: member_dashboard.php?tab=settings&error=That username is already taken. Please choose another.");
+        exit();
+    }
+    $conn->query("UPDATE members SET username = '$new_username' WHERE id = $member_id");
+    // Check if profile picture also uploaded
+    $latest = $conn->query("SELECT profile_picture, username, department, sunday_school_class FROM members WHERE id = $member_id")->fetch_assoc();
+    if (!empty($latest['profile_picture']) && $latest['profile_picture'] !== 'default_avatar.png') {
+        $conn->query("UPDATE members SET setup_completed = 1 WHERE id = $member_id");
+    }
+    // Reload member data
+    $member = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
+    header("Location: member_dashboard.php?tab=settings&success=Username saved successfully!");
+    exit();
 }
 
 $messages_query = $conn->query("SELECT * FROM member_messages WHERE member_id = $member_id ORDER BY created_at DESC");
@@ -1268,6 +1335,20 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
     $tab_badges = [];
 }
 
+// ── Setup completion state ────────────────────────────────────────────────────
+$member = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
+$setup_completed = (bool)($member['setup_completed'] ?? false);
+$has_profile_pic = !empty($member['profile_picture']) && $member['profile_picture'] !== 'default_avatar.png';
+$has_username    = !empty($member['username']);
+// If both done but flag not yet set, mark complete
+if ($has_profile_pic && $has_username && !$setup_completed) {
+    $conn->query("UPDATE members SET setup_completed = 1 WHERE id = $member_id");
+    $setup_completed = true;
+}
+// Force tab to settings for new users who need setup
+if (!$setup_completed && !in_array($tab, ['settings', 'desired_roles', 'village_church'])) {
+    $tab = 'settings';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -1428,6 +1509,12 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
                         Discipline & Fines
                     </a>
+                    <?php if (!$is_leader && !$is_secretary): ?>
+                    <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
+                        <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
+                    </a>
+                    <?php endif; ?>
                 <?php endif; ?>
 
                 <!-- Graduation Panel -->
@@ -1437,9 +1524,14 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"></path></svg>
                         Graduation Panel
                     </a>
+                    <?php if (!$is_leader && !$is_secretary): ?>
+                    <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
+                        <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
+                    </a>
+                    <?php endif; ?>
                 <?php endif; ?>
 
-                <!-- Prayer Panel -->
                 <?php if ($is_prayer_coordinator): ?>
                     <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: var(--primary); margin-top: 10px;">Prayer Panel</div>
                     <a href="?tab=prayer_panel" class="sidebar-link <?= $tab == 'prayer_panel' ? 'active' : '' ?>">
@@ -1587,12 +1679,46 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
         </div>
 
         <div class="main-content">
-            <div class="topbar" style="justify-content: flex-end;">
-                <div style="display: flex; align-items: center; gap: 12px;">
+            <?php if (!$setup_completed): ?>
+            <div style="background: linear-gradient(90deg, #6366f1, #8b5cf6); color:#fff; padding: 16px 40px 20px 40px; margin: -40px -40px 30px -40px; display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; align-items:flex-start; gap:12px;">
+                    <span style="font-size:1.4rem; flex-shrink:0;">&#128272;</span>
+                    <span style="font-size:0.95rem; font-weight:700; line-height:1.6;"><strong>Action Required:</strong> Please go to <strong>Account Settings</strong> to create your unique username and upload a profile picture. Also click the <strong>Church Village & Role</strong> tab to choose your church village and unlock all tabs.</span>
+                </div>
+                <div style="padding-left: 36px;">
+                    <a href="?tab=settings" style="display:inline-block; background:rgba(255,255,255,0.25); color:#fff; border:1px solid rgba(255,255,255,0.6); padding: 8px 22px; border-radius: 8px; text-decoration:none; font-weight:700; font-size:0.9rem;">Go to Setup &rarr;</a>
+                </div>
+            </div>
+            <?php endif; ?>
+            <div class="topbar" style="justify-content: space-between;">
+                <!-- Mobile Menu Button -->
+                <button class="icon-btn mobile-menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open'); event.stopPropagation();" title="Toggle Menu">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <script>
+                if (!window.mobileSidebarBound) {
+                    window.mobileSidebarBound = true;
+                    document.addEventListener('click', function(e) {
+                        var sidebar = document.querySelector('.sidebar');
+                        var btn = document.querySelector('.mobile-menu-btn');
+                        if (sidebar && sidebar.classList.contains('open') && !sidebar.contains(e.target) && !(btn && btn.contains(e.target))) {
+                            sidebar.classList.remove('open');
+                        }
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (e.target.closest('.sidebar-link, .sidebar-logout')) {
+                            var sidebar = document.querySelector('.sidebar');
+                            if (sidebar) sidebar.classList.remove('open');
+                        }
+                    });
+                }
+                </script>
+                
+                <div style="display: flex; align-items: center; gap: 12px; margin-left: auto;">
                     <!-- Profile photo + name -->
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <a href="?tab=settings" title="Go to Account Settings">
-                            <img src="uploads/<?= htmlspecialchars($member['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                            <img src="uploads/<?= htmlspecialchars($member['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); transition: opacity 0.2s; cursor: zoom-in;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1" onclick="event.preventDefault(); viewProfileImage(this.src);">
                         </a>
                         <div style="line-height: 1.2;">
                             <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-main); display: block;"><?= htmlspecialchars($member['first_name']) ?></span>
@@ -1623,7 +1749,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <?php endif; ?>
                         </button>
                         <!-- Dropdown -->
-                        <div id="notifDropdown" style="display:none; position:absolute; top:calc(100% + 10px); right:0; width:340px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.18); z-index:9999; overflow:hidden;">
+                        <div id="notifDropdown" style="display:none; position:absolute; top:calc(100% + 10px); right:-10px; width:340px; max-width:calc(100vw - 32px); background:var(--bg-card); border:1px solid var(--border-color); border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.18); z-index:9999; overflow:hidden;">
                             <div style="padding:14px 18px; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
                                 <strong style="color:var(--text-main); font-size:0.95rem;">Notifications</strong>
                                 <?php if($unread_notifs > 0): ?>
@@ -1730,6 +1856,18 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     </a>
                 </div>
                 <?php endif; ?>
+                <?php 
+                $church_pastor = $conn->query("SELECT first_name, last_name, profile_picture FROM pastors WHERE is_approved = 1 LIMIT 1")->fetch_assoc();
+                if ($church_pastor): 
+                ?>
+                <div class="content-card" style="margin-bottom: 20px; display:flex; align-items:center; gap:20px;">
+                    <img src="uploads/<?= htmlspecialchars($church_pastor['profile_picture'] ?? 'default_avatar.png') ?>" alt="Pastor" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); cursor: zoom-in;" onclick="viewProfileImage(this.src);">
+                    <div>
+                        <p style="margin:0; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Your Church Pastor</p>
+                        <h3 style="margin: 4px 0 0; color: var(--text-main); font-size: 1.3rem;">Pastor <?= htmlspecialchars($church_pastor['first_name'] . ' ' . $church_pastor['last_name']) ?></h3>
+                    </div>
+                </div>
+                <?php endif; ?>
 
                 <div class="content-card" style="max-width: 600px;">
                     <h2>Membership Details</h2>
@@ -1792,7 +1930,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                                     <div>
                                         <h3 style="color: var(--secondary); margin: 0;"><?= htmlspecialchars($dann['first_name'] . ' ' . $dann['last_name']) ?></h3>
-                                        <span style="font-size: 0.8rem; color: var(--text-muted);"><?= htmlspecialchars($dann['church_role']) ?></span>
+                                        <span style="font-size: 0.8rem; color: var(--text-muted);"><?= htmlspecialchars(clean_role_display($dann['church_role'])) ?></span>
                                     </div>
                                     <small style="color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($dann['created_at'])) ?></small>
                                 </div>
@@ -2027,7 +2165,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                 <tbody>
                                     <?php while($dm = $dept_members->fetch_assoc()): ?>
                                         <tr>
-                                            <td><img src="uploads/<?= htmlspecialchars($dm['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);"></td>
+                                            <td><img src="uploads/<?= htmlspecialchars($dm['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); cursor: zoom-in;" onclick="viewProfileImage(this.src);"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($dm['first_name'] . ' ' . $dm['last_name']) ?></td>
                                             <td>
                                                 <?php
@@ -2550,7 +2688,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     </div>
                 </div>
 
-            <?php elseif ($tab == 'leader_chat' && ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary || $is_choir_leader || $is_youth_advisor)): ?>
+            <?php elseif ($tab == 'leader_chat' && ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary || $is_choir_leader || $is_youth_advisor || $is_discipline_master || $is_graduands_secretary)): ?>
                 <div class="page-header">
                     <h1>Leadership Chat — <?= htmlspecialchars($managed_dept) ?></h1>
                     <p>Private group chat for all <?= htmlspecialchars($managed_dept) ?> department leaders.</p>
@@ -2808,7 +2946,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                                 <div>
                                     <h4 style="color: var(--text-main); margin: 0; font-size: 0.95rem;"><?= htmlspecialchars($dann['first_name'] . ' ' . $dann['last_name']) ?></h4>
-                                    <span style="font-size: 0.75rem; color: var(--text-muted);"><?= htmlspecialchars($dann['church_role']) ?></span>
+                                    <span style="font-size: 0.75rem; color: var(--text-muted);"><?= htmlspecialchars(clean_role_display($dann['church_role'])) ?></span>
                                 </div>
                                 <small style="color: var(--text-muted); font-size: 0.75rem;"><?= date('M j, Y g:i A', strtotime($dann['created_at'])) ?></small>
                             </div>
@@ -3475,15 +3613,112 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     </form>
                 </div>
 
-            <?php elseif ($tab == 'settings'): ?>                <div class="page-header">
+            <?php elseif ($tab == 'settings'): ?>
+                <div class="page-header">
                     <h1>Account Settings</h1>
-                    <p>Manage your security credentials.</p>
+                    <p>Manage your profile, credentials and preferences.</p>
+                    <?php if (!$setup_completed): ?>
+                    <div style="display:flex; align-items:center; gap:10px; margin-top:10px; background:rgba(239,68,68,0.08); border:1.5px solid #ef4444; border-radius:10px; padding:10px 16px; flex-wrap:wrap;">
+                        <span style="font-size:1.3rem;">&#128272;</span>
+                        <span style="color:#ef4444; font-weight:700; font-size:0.95rem;"><strong>Action Required:</strong> Create your unique username and upload a profile picture below. Then, click the <strong>Church Village & Role</strong> tab to choose your church village and unlock all tabs.</span>
+                    </div>
+                    <?php endif; ?>
                 </div>
-                
+
+                <?php if (!$setup_completed): ?>
+                <!-- ═══ MANDATORY FIRST-TIME SETUP ═══ -->
+
+                <!-- STEP 1: Username -->
+                <div class="content-card" style="max-width: 480px; margin-bottom: 24px; border: 2px solid <?= $has_username ? '#10b981' : '#6366f1' ?>; position:relative;">
+                    <div style="position:absolute; top:16px; right:16px; width:28px; height:28px; border-radius:50%; background:<?= $has_username ? '#10b981' : '#e2e8f0' ?>; display:flex; align-items:center; justify-content:center; font-size:1rem;"><?= $has_username ? '✓' : '1' ?></div>
+                    <h2 style="color:<?= $has_username ? '#10b981' : 'var(--primary)' ?>;">Step 1 — Create Your Username</h2>
+                    <?php if ($has_username): ?>
+                        <div class="alert alert-success" style="margin-top:10px;">Username set: <strong><?= htmlspecialchars($member['username']) ?></strong> — you can change it below if needed.</div>
+                    <?php else: ?>
+                        <p style="color:var(--text-muted); font-size:0.9rem;">Your username will be used to log in and recover your password. Choose something memorable — only letters, numbers, dots (.) and underscores (_) allowed.</p>
+                    <?php endif; ?>
+                    <form method="POST" action="?tab=settings" style="margin-top:14px;">
+                        <input type="hidden" name="save_username" value="1">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" name="new_username" class="form-control" value="<?= htmlspecialchars($member['username'] ?? strtolower($member['first_name'])) ?>" placeholder="e.g. peter_ntoiti" pattern="[a-zA-Z0-9_.]+" minlength="3" required>
+                            <small style="display:block;margin-top:4px;color:var(--text-muted);">3+ characters. Letters, numbers, dots and underscores only.</small>
+                        </div>
+                        <button type="submit" class="btn-submit" style="<?= $has_username ? 'background:var(--bg-lighter);color:var(--text-main);border:1px solid var(--border-color);' : '' ?>"><?= $has_username ? 'Change Username' : 'Save Username' ?></button>
+                    </form>
+                </div>
+
+                <!-- STEP 2: Profile Picture -->
+                <div class="content-card" style="max-width: 480px; margin-bottom: 30px; border: 2px solid <?= $has_profile_pic ? '#10b981' : '#6366f1' ?>; position:relative;">
+                    <div style="position:absolute; top:16px; right:16px; width:28px; height:28px; border-radius:50%; background:<?= $has_profile_pic ? '#10b981' : '#e2e8f0' ?>; display:flex; align-items:center; justify-content:center; font-size:1rem;"><?= $has_profile_pic ? '✓' : '2' ?></div>
+                    <h2 style="color:<?= $has_profile_pic ? '#10b981' : 'var(--primary)' ?>;">Step 2 — Upload a Profile Picture</h2>
+                    <div style="display: flex; align-items: center; gap: 20px; margin: 14px 0;">
+                        <img src="uploads/<?= htmlspecialchars($member['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 3px solid <?= $has_profile_pic ? '#10b981' : 'var(--border-color)' ?>; cursor: zoom-in;" onclick="viewProfileImage(this.src);">
+                        <div>
+                            <?php if ($has_profile_pic): ?>
+                                <p style="font-weight:600; color:#10b981;">✓ Picture uploaded!</p>
+                                <small style="color:var(--text-muted);">You can replace it anytime.</small>
+                            <?php else: ?>
+                                <p style="font-weight:500;">No picture yet</p>
+                                <small style="color:var(--text-muted);">JPG or PNG, max 5MB.</small>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <form method="POST" action="?tab=settings" enctype="multipart/form-data">
+                        <input type="hidden" name="upload_picture" value="1">
+                        <div class="form-group">
+                            <input type="file" name="profile_picture" class="form-control" accept="image/*" required>
+                        </div>
+                        <button type="submit" class="btn-submit" style="<?= $has_profile_pic ? 'background:var(--bg-lighter);color:var(--text-main);border:1px solid var(--border-color);' : '' ?>"><?= $has_profile_pic ? 'Replace Picture' : 'Upload Picture' ?></button>
+                    </form>
+                </div>
+
+
+                <?php
+                $is_ss_member = ($member['department'] ?? '') === 'Sunday School';
+                $has_ss_class = !empty($member['sunday_school_class']);
+                ?>
+                <?php if ($is_ss_member): ?>
+                <!-- STEP: Sunday School Class Selection -->
+                <div class="content-card" style="max-width: 480px; margin-bottom: 24px; border: 2px solid <?= $has_ss_class ? '#10b981' : '#f59e0b' ?>; position:relative;">
+                    <div style="position:absolute; top:16px; right:16px; width:28px; height:28px; border-radius:50%; background:<?= $has_ss_class ? '#10b981' : '#f59e0b' ?>; display:flex; align-items:center; justify-content:center; font-size:1rem;"><?= $has_ss_class ? '✓' : '3' ?></div>
+                    <h2 style="color:<?= $has_ss_class ? '#10b981' : '#f59e0b' ?>;">Step 3 - Choose Your Sunday School Class</h2>
+                    <?php if ($has_ss_class): ?>
+                        <div class="alert alert-success" style="margin-top:10px;">Class set: <strong><?= htmlspecialchars($member['sunday_school_class']) ?></strong> — you can change it below.</div>
+                    <?php else: ?>
+                        <p style="color:var(--text-muted); font-size:0.9rem;">As a Sunday School member, please select which class you belong to.</p>
+                    <?php endif; ?>
+                    <form method="POST" action="?tab=settings" style="margin-top:14px;">
+                        <input type="hidden" name="save_ss_class" value="1">
+                        <div class="form-group">
+                            <label>Your Class</label>
+                            <select name="ss_class" class="form-control" required>
+                                <option value="">-- Select Class --</option>
+                                <option value="Battalion" <?= ($member['sunday_school_class'] ?? '') === 'Battalion' ? 'selected' : '' ?>>Battalion</option>
+                                <option value="Conquerors" <?= ($member['sunday_school_class'] ?? '') === 'Conquerors' ? 'selected' : '' ?>>Conquerors</option>
+                                <option value="Little Angels" <?= ($member['sunday_school_class'] ?? '') === 'Little Angels' ? 'selected' : '' ?>>Little Angels</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-submit" style="<?= $has_ss_class ? 'background:var(--bg-lighter);color:var(--text-main);border:1px solid var(--border-color);' : '' ?>"><?= $has_ss_class ? 'Change Class' : 'Save Class' ?></button>
+                    </form>
+                </div>
+                <?php endif; ?>
+                <?php if ($has_username && $has_profile_pic && (!$is_ss_member || ($is_ss_member && $has_ss_class))): ?>
+                <div class="alert alert-success" style="max-width:480px; margin-bottom:20px;">
+                    🎉 Setup complete! Refresh the page to unlock all tabs.
+                    <a href="member_dashboard.php" style="margin-left:12px; font-weight:600;">Unlock Now &rarr;</a>
+                </div>
+                <?php endif; ?>
+
+                <hr style="border:none; border-top: 1px solid var(--border-color); max-width:480px; margin: 10px 0 28px;">
+                <?php endif; // end !setup_completed ?>
+
+                <!-- PROFILE PICTURE (always visible after setup) -->
+                <?php if ($setup_completed): ?>
                 <div class="content-card" style="max-width: 450px; margin-bottom: 30px;">
                     <h2>Profile Picture</h2>
                     <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-                        <img src="uploads/<?= htmlspecialchars($member['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);">
+                        <img src="uploads/<?= htmlspecialchars($member['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); cursor: zoom-in;" onclick="viewProfileImage(this.src);">
                         <div>
                             <p style="font-weight: 500;">Current Picture</p>
                             <small style="color: var(--text-muted);">JPG or PNG allowed.</small>
@@ -3494,9 +3729,24 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         <div class="form-group">
                             <input type="file" name="profile_picture" class="form-control" accept="image/*" required>
                         </div>
-                        <button type="submit" class="btn-submit">Upload Picture</button>
+                        <button type="submit" class="btn-submit">Replace Picture</button>
                     </form>
                 </div>
+
+                <!-- USERNAME (always visible after setup) -->
+                <div class="content-card" style="max-width: 450px; margin-bottom: 30px;">
+                    <h2>Your Username</h2>
+                    <p style="color:var(--text-muted); margin-bottom:14px;">Your current username: <strong><?= htmlspecialchars($member['username'] ?? '—') ?></strong>. This is what you use to log in and reset your password.</p>
+                    <form method="POST" action="?tab=settings">
+                        <input type="hidden" name="save_username" value="1">
+                        <div class="form-group">
+                            <label>New Username</label>
+                            <input type="text" name="new_username" class="form-control" value="<?= htmlspecialchars($member['username'] ?? '') ?>" placeholder="e.g. peter_ntoiti" pattern="[a-zA-Z0-9_.]+" minlength="3" required>
+                        </div>
+                        <button type="submit" class="btn-submit">Update Username</button>
+                    </form>
+                </div>
+                <?php endif; // end setup_completed ?>
 
                 <div class="content-card" style="max-width: 450px;">
                     <h2>Change Password</h2>
@@ -3521,27 +3771,38 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             Your request to transfer to the <strong><?= htmlspecialchars($member['pending_department']) ?></strong> department is pending Pastor approval.
                         </div>
-                    <?php else: ?>
-                        <form method="POST" action="?tab=settings" style="margin-top: 15px;">
-                            <input type="hidden" name="request_department" value="1">
-                            <div class="form-group">
-                                <label>Request Transfer To</label>
-                                <select name="department" class="form-control" required>
-                                    <option value="" disabled selected>Select new department...</option>
-                                    <?php 
-                                    $depts = ['Youths'];
-                                    foreach ($depts as $d) {
-                                        if ($d !== $member['department']) {
-                                            $val = $d == 'None' ? 'None' : htmlspecialchars($d);
+                    <?php else: 
+                        $current_dept = $member['department'];
+                        $depts = [];
+                        if ($current_dept == 'Youths') {
+                            $depts = ['Elders', 'Womens Ministry'];
+                        } elseif ($current_dept == 'Sunday School') {
+                            $depts = ['Youths'];
+                        }
+                    ?>
+                        <?php if (empty($depts)): ?>
+                            <div class="alert alert-warning" style="margin-top: 15px;">
+                                Department transfers are not permitted from your current department (<strong><?= htmlspecialchars($current_dept ?? 'None') ?></strong>).
+                            </div>
+                        <?php else: ?>
+                            <form method="POST" action="?tab=settings" style="margin-top: 15px;">
+                                <input type="hidden" name="request_department" value="1">
+                                <div class="form-group">
+                                    <label>Request Transfer To</label>
+                                    <select name="department" class="form-control" required>
+                                        <option value="" disabled selected>Select new department...</option>
+                                        <?php 
+                                        foreach ($depts as $d) {
+                                            $val = htmlspecialchars($d);
                                             echo "<option value=\"$val\">$val</option>";
                                         }
-                                    }
-                                    ?>
-                                </select>
-                                <small style="color: var(--text-muted); display: block; margin-top: 5px;">Your current department is: <strong><?= htmlspecialchars($member['department'] ?? 'None') ?></strong></small>
-                            </div>
-                            <button type="submit" class="btn-submit">Request Transfer</button>
-                        </form>
+                                        ?>
+                                    </select>
+                                    <small style="color: var(--text-muted); display: block; margin-top: 5px;">Your current department is: <strong><?= htmlspecialchars($current_dept ?? 'None') ?></strong></small>
+                                </div>
+                                <button type="submit" class="btn-submit">Request Transfer</button>
+                            </form>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
@@ -3750,7 +4011,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                     <?php while($m = $avail_members->fetch_assoc()): ?>
                                         <option value="<?= $m['id'] ?>">
                                             <?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?>
-                                            <?= $m['pending_role'] ? ' (Pending: ' . htmlspecialchars($m['pending_role']) . ')' : '' ?>
+                                            <?= $m['pending_role'] ? ' (Pending: ' . htmlspecialchars(clean_role_display($m['pending_role'])) . ')' : '' ?>
                                         </option>
                                     <?php endwhile; ?>
                                 <?php else: ?>
@@ -5112,6 +5373,11 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
             </div>
             <?php endif; ?>
             
+            <?php if (!empty($member['pending_church_village'])): ?>
+                <div style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#b45309;padding:12px 16px;border-radius:10px;margin-bottom:18px;">
+                    ⏳ Your request to update your church village to <strong><?= htmlspecialchars($member['pending_church_village']) ?></strong> is pending Pastor approval.
+                </div>
+            <?php endif; ?>
             <form method="POST" action="?tab=desired_roles" class="content-card" style="max-width:800px;">
                 <input type="hidden" name="save_church_village" value="1">
                 
@@ -5459,5 +5725,26 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
     <script src="script.js"></script>
+<!-- Image Viewer Modal -->
+<div id="imageViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; flex-direction:column;">
+    <span onclick="document.getElementById('imageViewerModal').style.display='none'" style="position:absolute; top:20px; right:30px; font-size:40px; color:white; cursor:pointer; font-weight:bold; transition:color 0.2s;" onmouseover="this.style.color='#ff4444'" onmouseout="this.style.color='white'">&times;</span>
+    <img id="imageViewerImg" src="" style="max-width:90%; max-height:90%; border-radius:8px; border:4px solid white; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+</div>
+<script>
+function viewProfileImage(src) {
+    const modal = document.getElementById('imageViewerModal');
+    const img = document.getElementById('imageViewerImg');
+    img.src = src;
+    modal.style.display = 'flex';
+}
+// Close on click outside image
+document.getElementById('imageViewerModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.style.display = 'none';
+    }
+});
+</script>
 </body>
 </html>
+
+
