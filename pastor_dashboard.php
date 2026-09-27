@@ -2430,6 +2430,7 @@ w.document.write('</div>');
                         Church Villages &mdash; Members &amp; Departments
                     </h2>
                     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <span style="font-size:0.9rem; font-weight:800; color:var(--text-main); margin-right:4px;">Print All Villages:</span>
                         <a href="print_all_villages.php?mode=landscape" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#2563eb,#6366f1);color:white;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(37,99,235,0.3);">
                             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                             Print Landscape
@@ -2503,6 +2504,7 @@ w.document.write('</div>');
                         <span style="font-size:1.3rem;">🧹</span> Church Cleaners &amp; Cookers
                     </h2>
                     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <span style="font-size:0.9rem; font-weight:800; color:var(--text-main); margin-right:4px;">Print Cleaners &amp; Cookers:</span>
                         <a href="print_volunteers.php?mode=landscape" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:white;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(245,158,11,0.3);">
                             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                             Print Landscape
