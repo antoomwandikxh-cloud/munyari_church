@@ -1623,7 +1623,8 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     w.document.write('<img src="' + logoUrl + '" style="position:absolute;right:20px;top:0;width:70px;height:70px;object-fit:contain;">');
     w.document.write('<h2 style="margin:0;color:#1e3a8a;padding-top:8px;">E.A.P.C MUNYARI CHURCH</h2>');
     w.document.write('<h3 style="margin:3px 0;color:#1e3a8a;">' + deptName.toUpperCase() + ' DEPARTMENT</h3>');
-    w.document.write('</div>');
+        w.document.write('<p style="margin:2px 0;font-size:0.78rem;color:#555;">Printed on: ' + printDate + '</p>');
+w.document.write('</div>');
 
     // Table
     w.document.write('<table><thead><tr>' + theadRow + '</tr></thead><tbody>' + tbody + '</tbody></table>');
@@ -4703,6 +4704,7 @@ function openDeclineModal(id, name) {
         w.document.write('<div style="text-align:center;flex:1;min-width:0;">');
         w.document.write('<h2 style="margin:0;color:#1e3a8a;font-size:1.2rem;">E.A.P.C MUNYARI CHURCH</h2>');
         w.document.write('<h3 style="margin:3px 0;color:#1e3a8a;font-size:1rem;">' + villageName.toUpperCase() + ' VILLAGE — MEMBERS LIST</h3>');
+        w.document.write('<p style="margin:2px 0;font-size:0.78rem;color:#555;">Printed on: ' + new Date().toLocaleString() + '</p>');
         w.document.write('</div>');
         w.document.write('<img src="church_logo.jpg" style="width:60px;height:60px;object-fit:contain;flex-shrink:0;">');
         w.document.write('</div>');

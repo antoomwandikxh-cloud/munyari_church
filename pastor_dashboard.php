@@ -1822,11 +1822,15 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                                 <div style="font-size:1.2rem;font-weight:700;color:#1e3a8a;"><?= strtoupper($p_name ?: 'N/A') ?></div>
                                             </div>
                                         </div>
-                                        <div style="text-align:center;margin-bottom:6px;border-bottom:2px solid #1e3a8a;padding-bottom:12px;position:relative;min-height:85px;">
-                                            <img src="church_logo.jpg" style="position:absolute;left:20px;top:0;width:70px;height:70px;object-fit:contain;">
-                                            <img src="church_logo.jpg" style="position:absolute;right:20px;top:0;width:70px;height:70px;object-fit:contain;">
-                                            <h2 style="margin:0;font-size:1.35rem;color:#1e3a8a;padding-top:10px;">E.A.P.C MUNYARI CHURCH MEMBERS TRACK RECORD</h2>
+                                        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #1e3a8a;padding-bottom:12px;margin-bottom:6px;gap:10px;">
+                                            <img src="church_logo.jpg" style="width:65px;height:65px;object-fit:contain;flex-shrink:0;">
+                                            <div style="text-align:center;flex:1;min-width:0;">
+                                                <h2 style="margin:0;font-size:1.2rem;color:#1e3a8a;">E.A.P.C MUNYARI CHURCH</h2>
+                                                <h3 style="margin:2px 0;font-size:1rem;color:#1e3a8a;">MEMBERS TRACK RECORD</h3>
+                                                <p style="margin:2px 0;font-size:0.78rem;color:#555;">Printed on: <?= date('F j, Y g:i A') ?></p>
                                             </div>
+                                            <img src="church_logo.jpg" style="width:65px;height:65px;object-fit:contain;flex-shrink:0;">
+                                        </div>
                                     </th>
                                 </tr>
                                 <tr style="background:#1e3a8a;color:white;">
@@ -2145,7 +2149,8 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     w.document.write('<img src="' + logoUrl + '" style="position:absolute;right:20px;top:0;width:70px;height:70px;object-fit:contain;">');
     w.document.write('<h2 style="margin:0;color:#1e3a8a;padding-top:8px;">E.A.P.C MUNYARI CHURCH</h2>');
     w.document.write('<h3 style="margin:3px 0;color:#1e3a8a;">' + deptName.toUpperCase() + ' DEPARTMENT</h3>');
-    w.document.write('</div>');
+        w.document.write('<p style="margin:2px 0;font-size:0.78rem;color:#555;">Printed on: ' + printDate + '</p>');
+w.document.write('</div>');
 
     // Table
     w.document.write('<table><thead><tr>' + theadRow + '</tr></thead><tbody>' + tbody + '</tbody></table>');
@@ -5268,7 +5273,8 @@ function openDeclineModal(id, name) {
         w.document.write('<img src="church_logo.jpg" style="position:absolute;right:20px;top:0;width:70px;height:70px;object-fit:contain;">');
         w.document.write('<h2 style="margin:0;color:#1e3a8a;padding-top:8px;">E.A.P.C MUNYARI CHURCH</h2>');
         w.document.write('<h3 style="margin:3px 0;color:#1e3a8a;">' + villageName.toUpperCase() + ' VILLAGE — MEMBERS LIST</h3>');
-        w.document.write('</div>');
+        w.document.write('<p style="margin:2px 0;font-size:0.78rem;color:#555;">Printed on: ' + new Date().toLocaleString() + '</p>');
+w.document.write('</div>');
         w.document.write('<table>' + theadHTML + tbodyHTML + '</table>');
         w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
         w.document.write('</body></html>');
