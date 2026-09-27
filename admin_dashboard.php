@@ -1298,6 +1298,7 @@ if (!empty($action)) {
                     while ($pst = $pastors_q->fetch_assoc()) {
                         $pst['department'] = 'General Church';
                         $pst['church_role'] = 'General Church Pastor';
+                        $pst['address'] = $pst['church_village']; // Map residence
                         $pst['is_pastor'] = true;
                         $all_print_members[] = $pst;
                     }
@@ -1333,7 +1334,6 @@ if (!empty($action)) {
 
                     <!-- Hidden printable member list -->
                     <div id="printableMemberDir" style="display:none;">
-                        <?php
                         <?php
                         
                         $pastor_q = $conn->query("SELECT * FROM pastors WHERE is_approved = 1 LIMIT 1");

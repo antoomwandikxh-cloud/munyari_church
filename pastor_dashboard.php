@@ -1790,6 +1790,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     while ($pst = $pastors_q->fetch_assoc()) {
                         $pst['department'] = 'General Church';
                         $pst['church_role'] = 'General Church Pastor';
+                        $pst['address'] = $pst['church_village']; // Use church village as residence
                         $pst['is_pastor'] = true;
                         $all_print_members[] = $pst;
                     }
