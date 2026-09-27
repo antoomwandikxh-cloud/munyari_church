@@ -2841,21 +2841,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                     <p>View all members categorized by their church village and preferred roles.</p>
                 </div>
                 <?php
-                if (isset($_POST['assign_village_leader'])) {
-                    $l_id = (int)$_POST['leader_id'];
-                    $v_name = $conn->real_escape_string($_POST['village']);
-                    $conn->query("UPDATE members SET is_village_leader = 0 WHERE church_village = '$v_name' AND is_village_leader = 1");
-                    $mem_q = $conn->query("SELECT church_role FROM members WHERE id = $l_id")->fetch_assoc();
-                    if ($mem_q) {
-                        $roles = array_filter(array_map('trim', explode(',', $mem_q['church_role'] ?? '')));
-                        if (!in_array('Church Village Leader', $roles)) { $roles[] = 'Church Village Leader'; }
-                        $new_role = $conn->real_escape_string(implode(', ', $roles));
-                        $conn->query("UPDATE members SET church_village = '$v_name', is_village_leader = 1, church_role = '$new_role' WHERE id = $l_id");
-                        $msg = $conn->real_escape_string("You have been assigned as the Church Village Leader for $v_name.");
-                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($l_id, 'member', '$msg')");
-                        echo "<div style='background:rgba(16,185,129,0.1);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>Village Leader assigned!</div>";
-                    }
-                }
+
                 ?>
                 <div class="content-card" style="margin-bottom:30px; border-left:4px solid var(--primary);">
                     <h2 style="margin-bottom:15px; color:var(--text-main); font-size:1.1rem;">Assign Church Village Leader</h2>
