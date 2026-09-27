@@ -1724,7 +1724,7 @@ w.document.write('</div>');
                                 $pst['is_pastor'] = true;
                                 $pst['church_role'] = 'Church Pastor';
                                 $pst['role_rank'] = 0;
-                                $pst['address'] = $pst['church_village'];
+                                // address already holds the pastor's actual residence (e.g. Nkondi)
                                 $dept_members_arr[] = $pst;
                             }
                         }
