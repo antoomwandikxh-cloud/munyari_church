@@ -59,10 +59,13 @@ $pastor_cookers_q = $conn->query(
 <head>
 <meta charset="UTF-8">
 <title>E.A.P.C Munyari — Church Service Volunteers</title>
+<?php
+$print_mode = isset($_GET['mode']) && $_GET['mode'] === 'landscape' ? 'landscape' : 'portrait';
+?>
 <style>
 * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
 @media print {
-    @page { size: A4 portrait; margin: 10mm 12mm 16mm 12mm; }
+    @page { size: A4 <?= $print_mode ?>; margin: 10mm 12mm 16mm 12mm; }
     .no-print  { display: none !important; }
 }
 body { font-family: Arial, sans-serif; margin: 0; padding: 14px; color: #111; font-size: 12px; }
@@ -134,9 +137,10 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
     display: flex; justify-content: center; gap: 12px;
     padding: 10px; background: #f1f5f9; margin-bottom: 14px; border-radius: 8px;
 }
-.no-print button {
+.no-print button, .no-print a {
     padding: 9px 20px; border: none; border-radius: 8px; cursor: pointer;
-    font-size: 13px; font-weight: bold; color: white;
+    font-size: 13px; font-weight: bold; color: white; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px; font-family: Arial, sans-serif;
 }
 </style>
 </head>
@@ -145,8 +149,13 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
 
 <!-- toolbar (hidden on print) -->
 <div class="no-print">
+    <?php if ($print_mode === 'landscape'): ?>
+        <a href="?mode=portrait" style="background:#475569;">📄 Switch to Portrait Mode</a>
+    <?php else: ?>
+        <a href="?mode=landscape" style="background:#475569;">🖥️ Switch to Landscape Mode</a>
+    <?php endif; ?>
     <button onclick="window.print()" style="background:linear-gradient(135deg,#2563eb,#6366f1);">🖨 Print / Save PDF</button>
-    <button onclick="window.close()" style="background:#6b7280;">✕ Close</button>
+    <button onclick="window.close()" style="background:#dc2626;">✕ Close</button>
 </div>
 
 <!-- ═══ COMBINED: Cleaners & Cookers Header ═══ -->

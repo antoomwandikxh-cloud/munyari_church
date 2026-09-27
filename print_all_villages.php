@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once 'db_connect.php';
 
@@ -10,7 +10,7 @@ $villages       = ['Akoritho', 'Philadelphia', 'Bethsaida'];
 $village_colors = ['Akoritho' => '#6366f1', 'Philadelphia' => '#0ea5e9', 'Bethsaida' => '#10b981'];
 $print_date     = date('F j, Y \a\t g:i A');
 
-/* â”€â”€ Helper: file â†’ base64 data-URI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Helper: file → base64 data-URI ─────────────────────────── */
 function img_b64(string $filename): string {
     $paths = [
         'uploads/' . basename($filename),
@@ -30,10 +30,10 @@ function img_b64(string $filename): string {
     return '';
 }
 
-/* â”€â”€ Logo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Logo ────────────────────────────────────────────────────── */
 $logo_b64 = img_b64('church_logo.jpg');
 
-/* â”€â”€ Fetch village leaders (members table) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Fetch village leaders (members table) ───────────────────── */
 $leaders = [];
 foreach ($villages as $v) {
     $vs = $conn->real_escape_string($v);
@@ -44,7 +44,7 @@ foreach ($villages as $v) {
     $leaders[$v] = ($q && $q->num_rows) ? $q->fetch_assoc() : null;
 }
 
-/* â”€â”€ Fetch all pastors that have a village (they count as members) â”€â”€ */
+/* ── Fetch all pastors that have a village (they count as members) ── */
 $pastor_rows = [];
 $pq = $conn->query(
     "SELECT id, first_name, last_name, church_village, desired_role_pref,
@@ -58,7 +58,7 @@ if ($pq) {
     }
 }
 
-/* â”€â”€ Cleaners + Cookers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Cleaners + Cookers ──────────────────────────────────────── */
 $cleaners_q = $conn->query(
     "SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type
      FROM members WHERE desired_role_pref='Church Cleaner' AND is_approved=1
@@ -84,11 +84,14 @@ $pastor_cookers_q = $conn->query(
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>E.A.P.C Munyari â€” All Church Villages</title>
+<title>E.A.P.C Munyari — All Church Villages</title>
+<?php
+$print_mode = isset($_GET['mode']) && $_GET['mode'] === 'landscape' ? 'landscape' : 'portrait';
+?>
 <style>
 * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
 @media print {
-    @page { size: A4 portrait; margin: 10mm 12mm 16mm 12mm; }
+    @page { size: A4 <?= $print_mode ?>; margin: 10mm 12mm 16mm 12mm; }
     .no-print  { display: none !important; }
     .page-break { page-break-before: always; }
 }
@@ -183,9 +186,10 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
     display: flex; justify-content: center; gap: 12px;
     padding: 10px; background: #f1f5f9; margin-bottom: 14px; border-radius: 8px;
 }
-.no-print button {
+.no-print button, .no-print a {
     padding: 9px 20px; border: none; border-radius: 8px; cursor: pointer;
-    font-size: 13px; font-weight: bold; color: white;
+    font-size: 13px; font-weight: bold; color: white; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px; font-family: Arial, sans-serif;
 }
 </style>
 </head>
@@ -194,22 +198,27 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
 
 <!-- toolbar (hidden on print) -->
 <div class="no-print">
-    <button onclick="window.print()" style="background:linear-gradient(135deg,#2563eb,#6366f1);">ðŸ–¨ Print / Save PDF</button>
-    <button onclick="window.close()" style="background:#6b7280;">âœ• Close</button>
+    <?php if ($print_mode === 'landscape'): ?>
+        <a href="?mode=portrait" style="background:#475569;">📄 Switch to Portrait Mode</a>
+    <?php else: ?>
+        <a href="?mode=landscape" style="background:#475569;">🖥️ Switch to Landscape Mode</a>
+    <?php endif; ?>
+    <button onclick="window.print()" style="background:linear-gradient(135deg,#2563eb,#6366f1);">🖨 Print / Save PDF</button>
+    <button onclick="window.close()" style="background:#dc2626;">✕ Close</button>
 </div>
 
-<!-- â•â•â• MAIN HEADER â•â•â• -->
+<!-- ═══ MAIN HEADER ═══ -->
 <div class="main-header">
     <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
     <div class="ct">
         <h1>E.A.P.C Munyari Church</h1>
-        <h2>Church Villages â€” Members Only</h2>
+        <h2>Church Villages — Members Only</h2>
         <p>Printed on: <?= $print_date ?></p>
     </div>
     <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
 </div>
 
-<!-- â•â•â• VILLAGE LEADERS PROFILE BAR â•â•â• -->
+<!-- ═══ VILLAGE LEADERS PROFILE BAR ═══ -->
 <div class="leaders-bar">
     <?php foreach ($villages as $v):
         $l  = $leaders[$v];
@@ -222,10 +231,10 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
         <?php if ($pb): ?>
             <img src="<?= $pb ?>" alt="">
         <?php else: ?>
-            <div class="avatar-ph">ðŸ‘¤</div>
+            <div class="avatar-ph">👤</div>
         <?php endif; ?>
         <div class="ln"><?= htmlspecialchars($l['first_name'] . ' ' . $l['last_name']) ?></div>
-        <div class="lv" style="color:<?= $vc ?>;"><?= $v ?> â€” Village Leader</div>
+        <div class="lv" style="color:<?= $vc ?>;"><?= $v ?> — Village Leader</div>
         <div class="lr"><?= htmlspecialchars($l['church_role'] ?: 'Village Leader') ?></div>
         <?php else: ?>
         <div class="avatar-ph" style="color:#aaa;">?</div>
@@ -237,9 +246,9 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
 </div>
 
 <?php
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   SECTION 1 â€” Each Village: Leader â†’ Members â†’ Pastors
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ═══════════════════════════════════════════════════════
+   SECTION 1 — Each Village: Leader → Members → Pastors
+   ═══════════════════════════════════════════════════════ */
 foreach ($villages as $v):
     $vc  = $village_colors[$v];
     $vs  = $conn->real_escape_string($v);
@@ -266,7 +275,7 @@ foreach ($villages as $v):
     $total    = count($all_rows);
 ?>
 <div style="margin-bottom:18px;">
-    <div class="sec-badge" style="background:<?= $vc ?>;"><?= htmlspecialchars($v) ?> Village â€” <?= $total ?> Participant<?= $total != 1 ? 's' : '' ?></div>
+    <div class="sec-badge" style="background:<?= $vc ?>;"><?= htmlspecialchars($v) ?> Village — <?= $total ?> Participant<?= $total != 1 ? 's' : '' ?></div>
     <table>
         <thead>
             <tr>
@@ -296,7 +305,7 @@ foreach ($villages as $v):
                     <?php if ($pic_b64): ?>
                         <img src="<?= $pic_b64 ?>" alt="">
                     <?php else: ?>
-                        <div class="ph">ðŸ‘¤</div>
+                        <div class="ph">👤</div>
                     <?php endif; ?>
                 </td>
                 <td style="font-weight:<?= $is_leader || $is_pastor ? '800' : '600' ?>;">
@@ -313,10 +322,10 @@ foreach ($villages as $v):
                     <?php if ($dsr): ?>
                         <span class="badge" style="background:<?= $dsr_c ?>22;color:<?= $dsr_c ?>;"><?= htmlspecialchars($dsr) ?></span>
                     <?php else: ?>
-                        <span style="color:#bbb;">â€”</span>
+                        <span style="color:#bbb;">—</span>
                     <?php endif; ?>
                 </td>
-                <td style="color:#666;"><?= htmlspecialchars($row['phone'] ?? 'â€”') ?></td>
+                <td style="color:#666;"><?= htmlspecialchars($row['phone'] ?? '—') ?></td>
             </tr>
         <?php endforeach; else: ?>
             <tr><td colspan="7" style="text-align:center;color:#aaa;padding:12px;">No members in <?= htmlspecialchars($v) ?> Village yet.</td></tr>
@@ -326,6 +335,8 @@ foreach ($villages as $v):
 </div>
 <?php endforeach; ?>
 
+
+
 <div class="footer">
     Generated from E.A.P.C Munyari Church Portal &nbsp;|&nbsp; Printed on: <?= $print_date ?>
 </div>
@@ -334,7 +345,3 @@ window.onload = function() { setTimeout(function() { window.print(); }, 700); };
 </script>
 </body>
 </html>
-
-
-
-
