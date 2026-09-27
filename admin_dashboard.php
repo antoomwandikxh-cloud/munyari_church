@@ -1239,9 +1239,9 @@ if (!empty($action)) {
                 <div class="content-card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap:wrap; gap:12px;">
-                        <div>
+                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                             <h2 style="margin: 0;">All Members</h2>
-                            <span class="badge" style="background: var(--primary); color: white; font-size: 14px; padding: 5px 12px; margin-top: 5px; display:inline-block;">Total: <?= $members->num_rows ?></span>
+                            <span style="background:linear-gradient(135deg,#1e3a8a,#6366f1);color:white;font-size:0.85rem;font-weight:800;padding:5px 14px;border-radius:20px;letter-spacing:0.5px;">Total: <?= count($all_print_members) ?> Members</span>
                         </div>
                         <input type="text" id="memberSearch" placeholder="Search by name or phone..." style="padding:10px 15px; border:1px solid var(--border-color); border-radius:8px; width:100%; max-width:280px; flex-grow:1;" onkeyup="filterMembersTable()">
                         <div style="display:flex;gap:10px;">
@@ -1347,7 +1347,7 @@ if (!empty($action)) {
                                             <img src="church_logo.jpg" style="width:65px;height:65px;object-fit:contain;flex-shrink:0;">
                                             <div style="text-align:center;flex:1;min-width:0;">
                                                 <h2 style="margin:0;font-size:1.2rem;color:#1e3a8a;">E.A.P.C MUNYARI CHURCH</h2>
-                                                <h3 style="margin:2px 0;font-size:1rem;color:#1e3a8a;">MEMBERS TRACK RECORD</h3>
+                                                <h3 style="margin:2px 0;font-size:1rem;color:#1e3a8a;">MEMBERS TRACK RECORD (TOTAL: <?= count($all_print_members) ?>)</h3>
                                                 <p style="margin:2px 0;font-size:0.78rem;color:#555;">Printed on: <?= date('F j, Y g:i A') ?></p>
                                             </div>
                                             <img src="church_logo.jpg" style="width:65px;height:65px;object-fit:contain;flex-shrink:0;">
@@ -1584,6 +1584,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     var theadRow = container.querySelector('thead') ? container.querySelector('thead').innerHTML : '';
     theadRow = theadRow.replace(/<tr>/i, '<tr style="background:#1e3a8a;color:white;-webkit-print-color-adjust:exact;">');
     var tbody = container.querySelector('tbody') ? container.querySelector('tbody').innerHTML : '';
+    var rowCount = container.querySelectorAll('tbody tr').length;
 
     var wmSize = orientation === 'landscape' ? '3.2rem' : '2.0rem';
     var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
@@ -1620,7 +1621,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     w.document.write('<img src="' + logoUrl + '" style="position:absolute;left:20px;top:0;width:70px;height:70px;object-fit:contain;">');
     w.document.write('<img src="' + logoUrl + '" style="position:absolute;right:20px;top:0;width:70px;height:70px;object-fit:contain;">');
     w.document.write('<h2 style="margin:0;color:#1e3a8a;padding-top:8px;">E.A.P.C MUNYARI CHURCH</h2>');
-    w.document.write('<h3 style="margin:3px 0;color:#1e3a8a;">' + deptName.toUpperCase() + ' DEPARTMENT</h3>');
+    w.document.write('<h3 style="margin:3px 0;color:#1e3a8a;">' + deptName.toUpperCase() + ' DEPARTMENT (TOTAL: ' + rowCount + ')</h3>');
         w.document.write('<p style="margin:2px 0;font-size:0.78rem;color:#555;">Printed on: ' + printDate + '</p>');
 w.document.write('</div>');
 
