@@ -2887,16 +2887,20 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                     $v_count = $v_members ? $v_members->num_rows : 0;
                 ?>
                 <div class="content-card" style="margin-bottom:28px; border-top:4px solid <?= $v_color ?>;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
                         <h2 style="margin:0; color:<?= $v_color ?>; display:flex; align-items:center; gap:10px; font-size:1.2rem;">
                             <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
                             <?= $v ?> Village
                         </h2>
-                        <span class="badge" style="background:<?= $v_color ?>22; color:<?= $v_color ?>; font-weight:700; font-size:1rem; padding:6px 14px;"><?= $v_count ?> Members</span>
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <span class="badge" style="background:<?= $v_color ?>22; color:<?= $v_color ?>; font-weight:700; font-size:1rem; padding:6px 14px;"><?= $v_count ?> Members</span>
+                            <button onclick="printVillageTable('village_table_<?= str_replace(' ', '_', $v) ?>', '<?= $v ?>', 'landscape')" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#2563eb,#6366f1);color:white;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;">Print Landscape</button>
+                            <button onclick="printVillageTable('village_table_<?= str_replace(' ', '_', $v) ?>', '<?= $v ?>', 'portrait')" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:white;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;">Print Portrait</button>
+                        </div>
                     </div>
                     
                     <?php if ($v_count > 0): ?>
-                    <div class="table-responsive">
+                    <div class="table-responsive" id="village_table_<?= str_replace(' ', '_', $v) ?>">
                         <table>
                             <thead>
                                 <tr>
