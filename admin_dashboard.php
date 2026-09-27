@@ -2888,8 +2888,12 @@ w.document.write('</div>');
                 
                 <?php foreach ($villages as $v): 
                     $v_color = $village_colors[$v];
-                    $v_members = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, is_village_leader FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, department, first_name");
+                    $v_members = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, department, first_name");
                     $v_count = $v_members ? $v_members->num_rows : 0;
+                    $v_pastors = $conn->query("SELECT first_name, last_name, department, role AS church_role, phone, desired_role_pref, profile_picture, church_village, 0 AS is_village_leader, 'Pastor' AS person_type FROM pastors WHERE church_village='$v' AND is_approved=1 ORDER BY first_name");
+                    $v_pastor_rows = [];
+                    if ($v_pastors) { while ($pr = $v_pastors->fetch_assoc()) $v_pastor_rows[] = $pr; }
+                    $v_total = $v_count + count($v_pastor_rows);
                 ?>
                 <div class="content-card" style="margin-bottom:28px; border-top:4px solid <?= $v_color ?>;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
@@ -2898,13 +2902,13 @@ w.document.write('</div>');
                             <?= $v ?> Village
                         </h2>
                         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                            <span class="badge" style="background:<?= $v_color ?>22; color:<?= $v_color ?>; font-weight:700; font-size:1rem; padding:6px 14px;"><?= $v_count ?> Members</span>
+                            <span class="badge" style="background:<?= $v_color ?>22; color:<?= $v_color ?>; font-weight:700; font-size:1rem; padding:6px 14px;"><?= $v_total ?> Members</span>
                             <button onclick="printVillageTable('village_table_<?= str_replace(' ', '_', $v) ?>', '<?= $v ?>', 'landscape')" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#2563eb,#6366f1);color:white;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;">Print Landscape</button>
                             <button onclick="printVillageTable('village_table_<?= str_replace(' ', '_', $v) ?>', '<?= $v ?>', 'portrait')" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:white;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;">Print Portrait</button>
                         </div>
                     </div>
                     
-                    <?php if ($v_count > 0): ?>
+                    <?php if ($v_total > 0): ?>
                     <div class="table-responsive" id="village_table_<?= str_replace(' ', '_', $v) ?>">
                         <table>
                             <thead>
@@ -2912,9 +2916,10 @@ w.document.write('</div>');
                                     <th>#</th>
                                     <th>Photo</th>
                                     <th>Full Name</th>
+                                    <th>Village</th>
                                     <th>Department</th>
                                     <th>Church Role</th>
-                                    <th>Desired Service</th>
+                                    <th>Service Role Chosen</th>
                                     <th>Phone</th>
                                 </tr>
                             </thead>
@@ -2937,12 +2942,37 @@ w.document.write('</div>');
                                     <?= htmlspecialchars($vm['first_name'] . ' ' . $vm['last_name']) ?>
                                     <?php if ($is_leader): ?><span class="badge" style="background:<?= $v_color ?>22;color:<?= $v_color ?>;margin-left:4px;">Leader</span><?php endif; ?>
                                 </td>
+                                <td><span class="badge" style="background:<?= $v_color ?>22;color:<?= $v_color ?>;font-weight:700;"><?= htmlspecialchars($vm['church_village'] ?: $v) ?></span></td>
                                 <td><?= htmlspecialchars($vm['department'] ?: 'General Church') ?></td>
                                 <td><span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary);"><?= htmlspecialchars($vm['church_role'] ?: 'Member') ?></span></td>
-                                <td><?php if ($dsr): ?><span class="badge" style="background:<?= $dsr_color ?>22; color:<?= $dsr_color ?>;"><?= htmlspecialchars($dsr) ?></span><?php else: ?><span style="color:var(--text-muted); font-size:0.85rem;">—</span><?php endif; ?></td>
+                                <td><?php if ($dsr): ?><span class="badge" style="background:<?= $dsr_color ?>22; color:<?= $dsr_color ?>;font-weight:700;"><?= htmlspecialchars($dsr) ?></span><?php else: ?><span style="color:var(--text-muted); font-size:0.85rem;">—</span><?php endif; ?></td>
                                 <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($vm['phone'] ?? '—') ?></td>
                             </tr>
                             <?php endwhile; ?>
+                            <?php foreach ($v_pastor_rows as $pr):
+                                $dsr = $pr['desired_role_pref'] ?? '';
+                                $dsr_color = $dsr === 'Worshipper' ? '#8b5cf6' : ($dsr === 'Church Cleaner' ? '#0ea5e9' : ($dsr === 'Church Cooker' ? '#f59e0b' : '#94a3b8'));
+                                $pic = htmlspecialchars($pr['profile_picture'] ?? 'default_avatar.png');
+                            ?>
+                            <tr style="background:rgba(251,191,36,0.08);">
+                                <td style="color:var(--text-muted);"><?= $i++ ?></td>
+                                <td>
+                                    <img src="uploads/<?= $pic ?>" alt="Photo"
+                                         style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #f59e0b;cursor:zoom-in;display:block;"
+                                         onclick="viewProfileImage(this.src);"
+                                         onerror="this.src='uploads/default_avatar.png';">
+                                </td>
+                                <td style="font-weight:700;">
+                                    <?= htmlspecialchars($pr['first_name'] . ' ' . $pr['last_name']) ?>
+                                    <span class="badge" style="background:#fef3c7;color:#92400e;margin-left:4px;border:1px solid #f59e0b;">Pastor</span>
+                                </td>
+                                <td><span class="badge" style="background:<?= $v_color ?>22;color:<?= $v_color ?>;font-weight:700;"><?= htmlspecialchars($pr['church_village'] ?: $v) ?></span></td>
+                                <td><?= htmlspecialchars($pr['department'] ?: 'Pastoral') ?></td>
+                                <td><span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary);"><?= htmlspecialchars($pr['church_role'] ?: 'Pastor') ?></span></td>
+                                <td><?php if ($dsr): ?><span class="badge" style="background:<?= $dsr_color ?>22; color:<?= $dsr_color ?>;font-weight:700;"><?= htmlspecialchars($dsr) ?></span><?php else: ?><span style="color:var(--text-muted); font-size:0.85rem;">—</span><?php endif; ?></td>
+                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($pr['phone'] ?? '—') ?></td>
+                            </tr>
+                            <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
