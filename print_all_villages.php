@@ -237,7 +237,7 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
         <div class="lv" style="color:<?= $vc ?>;"><?= $v ?> — Village Leader</div>
         <div class="lr"><?= htmlspecialchars($l['church_role'] ?: 'Village Leader') ?></div>
         <?php else: ?>
-        <div class="avatar-ph" style="color:#aaa;">?</div>
+        <div class="avatar-ph" style="color:#aaa;">👤</div>
         <div class="ln" style="color:#aaa;">No Leader Yet</div>
         <div class="lv" style="color:<?= $vc ?>;"><?= $v ?> Village</div>
         <?php endif; ?>
