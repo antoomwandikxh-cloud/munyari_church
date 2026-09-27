@@ -1808,7 +1808,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         $p_name = strtoupper(htmlspecialchars(($pastor['first_name'] ?? '') . ' ' . ($pastor['last_name'] ?? '')));
                         ?>
                         <!-- Watermark (Fixed, repeats automatically) -->
-                        <div class="print-watermark" style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-45deg); font-size:3.6rem; color:rgba(0,0,0,0.04); font-weight:bold; white-space:nowrap; z-index:9999; pointer-events:none; font-family:Arial, sans-serif;">E.A.P.C MUNYARI CHURCH</div>
+                        <div class="print-watermark">E.A.P.C MUNYARI CHURCH</div>
                         
                         <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
                             <thead>
@@ -1950,7 +1950,7 @@ function printMemberDirectory(orientation) {
                         if (!printDiv) { alert("Print content not found."); return; }
                         var w = window.open('', '_blank');
                         if (!w) { alert("Popup blocked! Please allow popups."); return; }
-                        var wmSize   = orientation === 'landscape' ? '3.6rem' : '2.2rem';
+                        var wmSize = orientation === 'landscape' ? '3.2rem' : '2.0rem';
                         var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
                         w.document.write('<!doctype html><html><head><title>E.A.P.C MUNYARI CHURCH — MEMBERS</title>');
                         w.document.write('<base href="' + window.location.origin + window.location.pathname + '">');
@@ -1964,7 +1964,7 @@ function printMemberDirectory(orientation) {
                         w.document.write('td img{width:34px;height:34px;border-radius:50%;object-fit:cover;}');
                         w.document.write('.badge{display:inline-block;padding:3px 7px;border-radius:10px;font-size:0.7rem;font-weight:600;}');
                         w.document.write('.no-print{display:none!important;}');
-                        w.document.write('.print-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
+                        w.document.write('.print-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}');
                         w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
                         w.document.write('</style></head><body>');
                         w.document.write(printDiv.innerHTML);
@@ -2110,7 +2110,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     theadRow = theadRow.replace(/<tr>/i, '<tr style="background:#1e3a8a;color:white;-webkit-print-color-adjust:exact;">');
     var tbody = container.querySelector('tbody') ? container.querySelector('tbody').innerHTML : '';
 
-    var wmSize  = orientation === 'landscape' ? '3.6rem' : '2.2rem';
+    var wmSize = orientation === 'landscape' ? '3.2rem' : '2.0rem';
     var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
 
     var w = window.open('', '_blank');
@@ -2128,7 +2128,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     w.document.write('td{padding:6px 8px;border:1px solid #ccc;font-size:0.79rem;vertical-align:middle;}');
     w.document.write('.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:0.72rem;font-weight:600;}');
     w.document.write('.no-print{display:none!important;}');
-    w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.25);font-weight:bold;white-space:nowrap;z-index:999999;opacity:1;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
+    w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}');
     w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
     w.document.write('</style></head><body>');
 
@@ -5249,7 +5249,7 @@ function openDeclineModal(id, name) {
         if (!w) { alert('Popup blocked!'); return; }
         var theadHTML = container.querySelector('thead') ? container.querySelector('thead').outerHTML : '';
         var tbodyHTML = container.querySelector('tbody') ? container.querySelector('tbody').outerHTML : '';
-        var wmSize   = orientation === 'landscape' ? '3.6rem' : '2.2rem';
+        var wmSize = orientation === 'landscape' ? '3.2rem' : '2.0rem';
         var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
         w.document.write('<!doctype html><html><head><title>' + villageName + ' Village</title>');
         w.document.write('<base href="' + window.location.origin + window.location.pathname + '">');
@@ -5261,7 +5261,7 @@ function openDeclineModal(id, name) {
         w.document.write('th{background:#1e3a8a;color:white;padding:7px 8px;font-size:0.8rem;text-align:left;}');
         w.document.write('td{padding:6px 8px;border:1px solid #ccc;font-size:0.78rem;}');
         w.document.write('.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:0.72rem;font-weight:600;}');
-        w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.25);font-weight:bold;white-space:nowrap;z-index:999999;opacity:1;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
+        w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}');
         w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
         w.document.write('</style></head><body>');
         w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
