@@ -1343,11 +1343,14 @@ if (!empty($action)) {
                                                 <div style="font-size:1.2rem;font-weight:700;color:#1e3a8a;"><?= strtoupper($p_name ?: 'N/A') ?></div>
                                             </div>
                                         </div>
-                                        <div style="text-align:center;margin-bottom:6px;border-bottom:2px solid #1e3a8a;padding-bottom:12px;position:relative;min-height:85px;">
-                                            <img src="church_logo.jpg" style="position:absolute;left:20px;top:0;width:70px;height:70px;object-fit:contain;">
-                                            <img src="church_logo.jpg" style="position:absolute;right:20px;top:0;width:70px;height:70px;object-fit:contain;">
-                                            <h2 style="margin:0;font-size:1.35rem;color:#1e3a8a;padding-top:10px;">E.A.P.C MUNYARI CHURCH MEMBERS TRACK RECORD</h2>
-                                            <p style="margin:4px 0 0;font-size:0.82rem;color:#555;">Printed on: <?= date('F j, Y g:i A') ?></p>
+                                        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #1e3a8a;padding-bottom:12px;margin-bottom:6px;gap:10px;">
+                                            <img src="church_logo.jpg" style="width:65px;height:65px;object-fit:contain;flex-shrink:0;">
+                                            <div style="text-align:center;flex:1;min-width:0;">
+                                                <h2 style="margin:0;font-size:1.2rem;color:#1e3a8a;">E.A.P.C MUNYARI CHURCH</h2>
+                                                <h3 style="margin:2px 0;font-size:1rem;color:#1e3a8a;">MEMBERS TRACK RECORD</h3>
+                                                <p style="margin:2px 0;font-size:0.78rem;color:#555;">Printed on: <?= date('F j, Y g:i A') ?></p>
+                                            </div>
+                                            <img src="church_logo.jpg" style="width:65px;height:65px;object-fit:contain;flex-shrink:0;">
                                         </div>
                                     </th>
                                 </tr>
@@ -4696,12 +4699,14 @@ function openDeclineModal(id, name) {
         w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
         w.document.write('</style></head><body>');
         w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
-        w.document.write('<div style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:10px;position:relative;margin-bottom:18px;min-height:85px;">');
-        w.document.write('<img src="church_logo.jpg" style="position:absolute;left:20px;top:0;width:70px;height:70px;object-fit:contain;">');
-        w.document.write('<img src="church_logo.jpg" style="position:absolute;right:20px;top:0;width:70px;height:70px;object-fit:contain;">');
-        w.document.write('<h2 style="margin:0;color:#1e3a8a;padding-top:8px;">E.A.P.C MUNYARI CHURCH</h2>');
-        w.document.write('<h3 style="margin:3px 0;color:#1e3a8a;">' + villageName.toUpperCase() + ' VILLAGE — MEMBERS LIST</h3>');
-        w.document.write('<p style="margin:2px 0;font-size:0.82rem;color:#555;">Printed on: ' + new Date().toLocaleString() + '</p>');
+        w.document.write('<div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #1e3a8a;padding-bottom:10px;margin-bottom:18px;gap:10px;">');
+        w.document.write('<img src="church_logo.jpg" style="width:60px;height:60px;object-fit:contain;flex-shrink:0;">');
+        w.document.write('<div style="text-align:center;flex:1;min-width:0;">');
+        w.document.write('<h2 style="margin:0;color:#1e3a8a;font-size:1.2rem;">E.A.P.C MUNYARI CHURCH</h2>');
+        w.document.write('<h3 style="margin:3px 0;color:#1e3a8a;font-size:1rem;">' + villageName.toUpperCase() + ' VILLAGE — MEMBERS LIST</h3>');
+        w.document.write('<p style="margin:2px 0;font-size:0.78rem;color:#555;">Printed on: ' + new Date().toLocaleString() + '</p>');
+        w.document.write('</div>');
+        w.document.write('<img src="church_logo.jpg" style="width:60px;height:60px;object-fit:contain;flex-shrink:0;">');
         w.document.write('</div>');
         w.document.write('<table>' + theadHTML + tbodyHTML + '</table>');
         w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal</div>');
