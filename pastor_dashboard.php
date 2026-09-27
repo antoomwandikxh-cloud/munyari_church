@@ -2782,29 +2782,39 @@ w.document.write('</div>');
                     </div>
                 </div>
                 <div class="content-card">
-                    <h2 style="margin-bottom: 15px;">Financial Records</h2>
+                                        <h2 style="margin-bottom: 5px;">Department Financial Records</h2>
+                    <p style="margin-top:0; color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">Detailed finances per department, displaying amounts and who posted them.</p>
                     <?php
-                    $fin_records = $conn->query("SELECT fr.*, m.first_name, m.last_name FROM financial_records fr JOIN members m ON fr.recorded_by = m.id ORDER BY fr.recorded_at DESC LIMIT 50");
-                    if ($fin_records && $fin_records->num_rows > 0):
+                    $target_depts = ['General Church', 'Youths', 'Womens Ministry', 'Elders', 'Sunday School', 'Building'];
+                    $has_any_records = false;
+                    foreach ($target_depts as $d):
+                        $d_esc = $conn->real_escape_string($d);
+                        $fin_records = $conn->query("SELECT fr.*, m.first_name, m.last_name FROM financial_records fr JOIN members m ON fr.recorded_by = m.id WHERE fr.department = '$d_esc' ORDER BY fr.recorded_at DESC LIMIT 30");
+                        if ($fin_records && $fin_records->num_rows > 0):
+                            $has_any_records = true;
                     ?>
-                    <div class="table-responsive"><table>
-                        <thead><tr><th>Recorded By</th><th>Department</th><th>Amount (KSh)</th><th>Description</th><th>Date</th><th>Change Reason</th><th>Status</th></tr></thead>
+                    <h3 style="margin-top: 10px; color: #1e3a8a; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; margin-bottom: 12px;"><?= $d ?> Finances</h3>
+                    <div class="table-responsive" style="margin-bottom: 30px;"><table>
+                        <thead><tr><th>Posted By</th><th>Amount (KSh)</th><th>Description</th><th>Date</th><th>Change Reason</th><th>Status</th></tr></thead>
                         <tbody>
                             <?php while($fr = $fin_records->fetch_assoc()): ?>
                             <tr>
-                                <td><?= htmlspecialchars($fr['first_name'] . ' ' . $fr['last_name']) ?></td>
-                                <td><span class="badge" style="background:rgba(99,102,241,0.12);color:#6366f1;"><?= htmlspecialchars($fr['department'] ?? '-') ?></span></td>
-                                <td style="font-weight:600;color:#10b981;">KSh <?= number_format($fr['amount'], 2) ?></td>
+                                <td><span style="font-weight:600; color:var(--text-main);"><?= htmlspecialchars($fr['first_name'] . ' ' . $fr['last_name']) ?></span></td>
+                                <td style="font-weight:700;color:#10b981;">KSh <?= number_format($fr['amount'], 2) ?></td>
                                 <td><?= htmlspecialchars($fr['description'] ?? '-') ?></td>
                                 <td style="font-size:0.85em;color:var(--text-muted);"><?= date('M j, Y', strtotime($fr['record_date'] ?: $fr['recorded_at'])) ?></td>
-                                <td style="font-size:0.85em;color:var(--text-muted);"><?= !empty($fr['edit_reason']) ? htmlspecialchars($fr['edit_reason']) : '<span style="color:var(--border-color);">—</span>' ?></td>
+                                <td style="font-size:0.85em;color:var(--text-muted);"><?= !empty($fr['edit_reason']) ? htmlspecialchars($fr['edit_reason']) : '<span style="color:var(--border-color);">-</span>' ?></td>
                                 <td><?= !empty($fr['is_sent_to_chair']) ? '<span class="badge" style="background:rgba(16,185,129,0.12);color:#10b981;">Sent to Chair</span>' : '<span class="badge" style="background:rgba(100,100,100,0.1);color:var(--text-muted);">Not Sent</span>' ?></td>
                             </tr>
                             <?php endwhile; ?>
                         </tbody>
                     </table></div>
-                    <?php else: ?>
-                        <p style="color:var(--text-muted);">No financial records yet.</p>
+                    <?php 
+                        endif;
+                    endforeach; 
+                    if (!$has_any_records):
+                    ?>
+                        <p style="color:var(--text-muted); padding:20px; text-align:center; background:var(--bg-card); border-radius:8px;">No financial records have been posted yet.</p>
                     <?php endif; ?>
                 </div>
             <?php elseif ($tab == 'assign_roles'): ?>
