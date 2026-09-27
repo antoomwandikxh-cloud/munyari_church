@@ -1814,7 +1814,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <thead>
                                 <!-- Thead row containing pastor & logo: Repeats on every printed page -->
                                 <tr>
-                                    <th colspan="8" style="border:none; padding: 0 0 16px 0; font-weight:normal; background:white;">
+                                    <th colspan="8" style="border:none; padding: 0; font-weight:normal; background:white;">
                                         <div style="display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:10px;">
                                             <img src="uploads/<?= htmlspecialchars($p_pic) ?>" alt="Pastor" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid #1e3a8a;">
                                             <div>
@@ -1956,7 +1956,7 @@ function printMemberDirectory(orientation) {
                         w.document.write('<base href="' + window.location.origin + window.location.pathname + '">');
                         w.document.write('<style>');
                         w.document.write('*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}');
-                        w.document.write('@media print{@page{size:' + pageSize + ';margin:15mm;} thead{display:table-header-group;}}');
+                        w.document.write('@media print{@page{size:' + pageSize + ';margin:10mm 15mm 15mm 15mm;} thead{display:table-header-group;}}');
                         w.document.write('body{font-family:Arial,sans-serif;margin:0;padding:10px;padding-bottom:60px;}');
                         w.document.write('table{width:100%;border-collapse:collapse;}');
                         w.document.write('th{background:#1e3a8a;color:white;padding:7px 8px;font-size:0.78rem;text-align:left;}');
@@ -1964,7 +1964,7 @@ function printMemberDirectory(orientation) {
                         w.document.write('td img{width:34px;height:34px;border-radius:50%;object-fit:cover;}');
                         w.document.write('.badge{display:inline-block;padding:3px 7px;border-radius:10px;font-size:0.7rem;font-weight:600;}');
                         w.document.write('.no-print{display:none!important;}');
-                        w.document.write('.print-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.15)!important;font-weight:bold;white-space:nowrap;z-index:9999;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
+                        w.document.write('.print-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
                         w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
                         w.document.write('</style></head><body>');
                         w.document.write(printDiv.innerHTML);
@@ -2121,14 +2121,14 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     w.document.write('<base href="' + window.location.href + '">');
     w.document.write('<style>');
     w.document.write('*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}');
-    w.document.write('@media print{@page{size:' + pageSize + ';margin:15mm;}}');
+    w.document.write('@media print{@page{size:' + pageSize + ';margin:10mm 15mm 15mm 15mm;}}');
     w.document.write('body{font-family:Arial,sans-serif;margin:0;padding:10px;padding-bottom:60px;}');
     w.document.write('table{width:100%;border-collapse:collapse;}');
     w.document.write('th{background:#1e3a8a;color:white;padding:7px 8px;font-size:0.8rem;text-align:left;}');
     w.document.write('td{padding:6px 8px;border:1px solid #ccc;font-size:0.79rem;vertical-align:middle;}');
     w.document.write('.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:0.72rem;font-weight:600;}');
     w.document.write('.no-print{display:none!important;}');
-    w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.15);font-weight:bold;white-space:nowrap;z-index:9999;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
+    w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.25);font-weight:bold;white-space:nowrap;z-index:999999;opacity:1;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
     w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
     w.document.write('</style></head><body>');
 
@@ -5255,13 +5255,13 @@ function openDeclineModal(id, name) {
         w.document.write('<base href="' + window.location.origin + window.location.pathname + '">');
         w.document.write('<style>');
         w.document.write('*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}');
-        w.document.write('@media print{@page{size:' + pageSize + ';margin:15mm;}}');
+        w.document.write('@media print{@page{size:' + pageSize + ';margin:10mm 15mm 15mm 15mm;}}');
         w.document.write('body{font-family:Arial,sans-serif;margin:0;padding:10px;padding-bottom:60px;}');
         w.document.write('table{width:100%;border-collapse:collapse;}');
         w.document.write('th{background:#1e3a8a;color:white;padding:7px 8px;font-size:0.8rem;text-align:left;}');
         w.document.write('td{padding:6px 8px;border:1px solid #ccc;font-size:0.78rem;}');
         w.document.write('.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:0.72rem;font-weight:600;}');
-        w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.15);font-weight:bold;white-space:nowrap;z-index:9999;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
+        w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.25);font-weight:bold;white-space:nowrap;z-index:999999;opacity:1;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
         w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
         w.document.write('</style></head><body>');
         w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
