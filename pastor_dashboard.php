@@ -2444,7 +2444,7 @@ w.document.write('</div>');
                 
                 <?php foreach ($villages as $v): 
                     $v_color = $village_colors[$v];
-                    $v_members = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, department, first_name");
+                    $v_members = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, is_village_leader FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, department, first_name");
                     $v_count = $v_members ? $v_members->num_rows : 0;
                 ?>
                 <div class="content-card" style="margin-bottom:28px; border-top:4px solid <?= $v_color ?>;">
@@ -2466,6 +2466,7 @@ w.document.write('</div>');
                             <thead>
                                 <tr>
                                     <th>#</th>
+                                    <th>Photo</th>
                                     <th>Full Name</th>
                                     <th>Department</th>
                                     <th>Church Role</th>
@@ -2474,13 +2475,24 @@ w.document.write('</div>');
                                 </tr>
                             </thead>
                             <tbody>
-                            <?php $i = 1; while($vm = $v_members->fetch_assoc()): 
+                            <?php $i = 1; while($vm = $v_members->fetch_assoc()):
                                 $dsr = $vm['desired_role_pref'] ?? '';
                                 $dsr_color = $dsr === 'Worshipper' ? '#8b5cf6' : ($dsr === 'Church Cleaner' ? '#0ea5e9' : ($dsr === 'Church Cooker' ? '#f59e0b' : '#94a3b8'));
+                                $is_leader = !empty($vm['is_village_leader']);
+                                $pic = htmlspecialchars($vm['profile_picture'] ?? 'default_avatar.png');
                             ?>
-                            <tr>
-                                <td style="color:var(--text-muted);"><?= $i++ ?></td>
-                                <td style="font-weight:600;"><?= htmlspecialchars($vm['first_name'] . ' ' . $vm['last_name']) ?></td>
+                            <tr style="<?= $is_leader ? 'background:rgba(37,99,235,0.07);' : '' ?>">
+                                <td style="color:var(--text-muted);"><?= $i++ ?><?= $is_leader ? ' 🏆' : '' ?></td>
+                                <td>
+                                    <img src="uploads/<?= $pic ?>" alt="Photo"
+                                         style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid <?= $is_leader ? $v_color : 'var(--border-color)' ?>;cursor:zoom-in;display:block;"
+                                         onclick="viewProfileImage(this.src);"
+                                         onerror="this.src='uploads/default_avatar.png';">
+                                </td>
+                                <td style="font-weight:<?= $is_leader ? '700' : '600' ?>;">
+                                    <?= htmlspecialchars($vm['first_name'] . ' ' . $vm['last_name']) ?>
+                                    <?php if ($is_leader): ?><span class="badge" style="background:<?= $v_color ?>22;color:<?= $v_color ?>;margin-left:4px;">Leader</span><?php endif; ?>
+                                </td>
                                 <td><?= htmlspecialchars($vm['department'] ?: 'General Church') ?></td>
                                 <td><span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary);"><?= htmlspecialchars($vm['church_role'] ?: 'Member') ?></span></td>
                                 <td><?php if ($dsr): ?><span class="badge" style="background:<?= $dsr_color ?>22; color:<?= $dsr_color ?>;"><?= htmlspecialchars($dsr) ?></span><?php else: ?><span style="color:var(--text-muted); font-size:0.85rem;">—</span><?php endif; ?></td>
