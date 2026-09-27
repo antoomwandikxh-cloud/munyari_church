@@ -1808,7 +1808,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         $p_name = strtoupper(htmlspecialchars(($pastor['first_name'] ?? '') . ' ' . ($pastor['last_name'] ?? '')));
                         ?>
                         <!-- Watermark (Fixed, repeats automatically) -->
-                        <div class="print-watermark" style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-45deg); font-size:4.5rem; color:rgba(0,0,0,0.04); font-weight:bold; white-space:nowrap; z-index:9999; pointer-events:none; font-family:Arial, sans-serif;">E.A.P.C MUNYARI CHURCH</div>
+                        <div class="print-watermark" style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-45deg); font-size:3.6rem; color:rgba(0,0,0,0.04); font-weight:bold; white-space:nowrap; z-index:9999; pointer-events:none; font-family:Arial, sans-serif;">E.A.P.C MUNYARI CHURCH</div>
                         
                         <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
                             <thead>
@@ -1950,7 +1950,7 @@ function printMemberDirectory(orientation) {
                         if (!printDiv) { alert("Print content not found."); return; }
                         var w = window.open('', '_blank');
                         if (!w) { alert("Popup blocked! Please allow popups."); return; }
-                        var wmSize   = orientation === 'landscape' ? '4.2rem' : '2.8rem';
+                        var wmSize   = orientation === 'landscape' ? '3.6rem' : '2.2rem';
                         var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
                         w.document.write('<!doctype html><html><head><title>E.A.P.C MUNYARI CHURCH — MEMBERS</title>');
                         w.document.write('<base href="' + window.location.origin + window.location.pathname + '">');
@@ -2110,7 +2110,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     theadRow = theadRow.replace(/<tr>/i, '<tr style="background:#1e3a8a;color:white;-webkit-print-color-adjust:exact;">');
     var tbody = container.querySelector('tbody') ? container.querySelector('tbody').innerHTML : '';
 
-    var wmSize  = orientation === 'landscape' ? '4.2rem' : '2.8rem';
+    var wmSize  = orientation === 'landscape' ? '3.6rem' : '2.2rem';
     var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
 
     var w = window.open('', '_blank');
@@ -5249,7 +5249,7 @@ function openDeclineModal(id, name) {
         if (!w) { alert('Popup blocked!'); return; }
         var theadHTML = container.querySelector('thead') ? container.querySelector('thead').outerHTML : '';
         var tbodyHTML = container.querySelector('tbody') ? container.querySelector('tbody').outerHTML : '';
-        var wmSize   = orientation === 'landscape' ? '4.2rem' : '2.8rem';
+        var wmSize   = orientation === 'landscape' ? '3.6rem' : '2.2rem';
         var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
         w.document.write('<!doctype html><html><head><title>' + villageName + ' Village</title>');
         w.document.write('<base href="' + window.location.origin + window.location.pathname + '">');
