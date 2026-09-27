@@ -1481,7 +1481,7 @@ function printMemberDirectory(orientation) {
                         w.document.write('td img{width:34px;height:34px;border-radius:50%;object-fit:cover;}');
                         w.document.write('.badge{display:inline-block;padding:3px 7px;border-radius:10px;font-size:0.7rem;font-weight:600;}');
                         w.document.write('.no-print{display:none!important;}');
-                        w.document.write('.print-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.15)!important;font-weight:bold;white-space:nowrap;z-index:9999;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
+                        w.document.write('.print-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.15)!important;font-weight:bold;white-space:nowrap;z-index:-1;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
                         w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
                         w.document.write('</style></head><body>');
                         w.document.write(printDiv.innerHTML);
@@ -1605,7 +1605,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     w.document.write('td{padding:6px 8px;border:1px solid #ccc;font-size:0.79rem;vertical-align:middle;}');
     w.document.write('.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:0.72rem;font-weight:600;}');
     w.document.write('.no-print{display:none!important;}');
-    w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.15);font-weight:bold;white-space:nowrap;z-index:9999;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
+    w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.15);font-weight:bold;white-space:nowrap;z-index:-1;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
     w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
     w.document.write('</style></head><body>');
 
@@ -4695,7 +4695,7 @@ function openDeclineModal(id, name) {
         w.document.write('th{background:#1e3a8a;color:white;padding:7px 8px;font-size:0.8rem;text-align:left;}');
         w.document.write('td{padding:6px 8px;border:1px solid #ccc;font-size:0.78rem;}');
         w.document.write('.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:0.72rem;font-weight:600;}');
-        w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.15);font-weight:bold;white-space:nowrap;z-index:9999;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
+        w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.15);font-weight:bold;white-space:nowrap;z-index:-1;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
         w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
         w.document.write('</style></head><body>');
         w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
