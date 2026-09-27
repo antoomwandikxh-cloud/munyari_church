@@ -2074,7 +2074,7 @@ function printMemberDirectory() {
                 $departments = ['Youths', 'Elders', 'Sunday School', 'Womens Ministry'];
                 ?>
 <script>
-function printDepartment(deptName, containerId, leaderSpanId) {
+function printDepartment(deptName, containerId, leaderSpanId, orientation = 'landscape') {
     var container = document.getElementById(containerId);
     if(!container) { alert('Could not find department table. Please make sure you are on the Departments tab.'); return; }
 
@@ -2097,7 +2097,8 @@ function printDepartment(deptName, containerId, leaderSpanId) {
         + '<div style="font-size:1.2rem;font-weight:700;color:#1e3a8a;">' + leaderName + '</div>'
         + '</div></div>'
         + '<div style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:12px;position:relative;margin-bottom:6px;">'
-        + '<img src="' + logoUrl + '" style="position:absolute;left:0;top:0;width:70px;height:auto;border-radius:50%;">'
+        + '<img src="' + logoUrl + '" style="position:absolute;left:20px;top:0;width:70px;height:auto;border-radius:50%;">'
+        + '<img src="' + logoUrl + '" style="position:absolute;right:20px;top:0;width:70px;height:auto;border-radius:50%;">'
         + '<h2 style="margin:0;font-size:1.35rem;color:#1e3a8a;padding-top:10px;">E.A.P.C MUNYARI CHURCH &mdash; ' + deptName.toUpperCase() + ' DEPARTMENT</h2>'
         + '<p style="margin:4px 0 0;font-size:0.95rem;font-weight:bold;color:#333;">Printed on: ' + printDate + '</p>'
         + '</div>';
@@ -2138,14 +2139,20 @@ function printDepartment(deptName, containerId, leaderSpanId) {
 
     w.document.write('<!doctype html><html><head><title>' + deptName + ' Department Members</title>');
     w.document.write('<base href="' + window.location.href + '">');
+    let wmSize = orientation === 'landscape' ? '4.2rem' : '2.8rem';
+    
+    let pageCSS = orientation === 'landscape' ? '@page{size:A4 landscape;margin:0;} body{margin:15mm;}' : '@page{size:A4 portrait;margin:0;} body{margin:15mm;}';
+    
     w.document.write('<style>'
         + ':root{--border-color:#e2e8f0;--text-main:#1e293b;--success:#10b981;--danger:#ef4444;} body{font-family:Arial,sans-serif;padding:18px;margin:0;padding-bottom:50px;}'
-        + 'table{width:100%;border-collapse:collapse; -webkit-print-color-adjust: exact; print-color-adjust: exact;}'
-        + 'th,td{padding:6px 8px;border:1px solid #ccc;font-size:0.79rem;vertical-align:middle; -webkit-print-color-adjust: exact; print-color-adjust: exact;} .badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;}'
+        + 'table{width:100%;border-collapse:collapse; position:relative; z-index:2; background:transparent;}'
+        + 'th,td{padding:6px 8px;border:1px solid #ccc;font-size:0.79rem;vertical-align:middle; background:transparent; -webkit-print-color-adjust: exact; print-color-adjust: exact;} .badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;}'
         + 'img{display:block;}'
         + 'tr{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
         + '.no-print{display:none !important;}'
-        + '@media print{'
+        + '.watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: ' + wmSize + '; color: rgba(30,58,138,0.15); font-weight: bold; white-space: nowrap; z-index: 9999; pointer-events: none; letter-spacing: 4px; text-transform: uppercase; }'
+        + '.footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10px; color: #777; font-style: italic; background: rgba(255,255,255,0.9); padding: 5px 0; z-index: 10; }'
+        + '@media print{' + pageCSS'
         + '  @page{size:A4 portrait;margin:0;} body{margin:15mm;}'
         + '  thead{display:table-header-group;}'
         + '  body{padding:0;}'
@@ -2248,10 +2255,16 @@ function printDepartment(deptName, containerId, leaderSpanId) {
                                     </div>
                                     <?php endif; ?>
                                 </div>
-                                <button onclick="printDepartment('<?= htmlspecialchars($dept, ENT_QUOTES) ?>', 'dept_print_<?= str_replace(' ', '', $dept) ?>', '<?= $leader_id ?>')" class="btn-submit" style="width:auto; margin:0; padding:8px 16px; background:linear-gradient(135deg,#2563eb,#6366f1); border:none; box-shadow:0 2px 8px rgba(37,99,235,0.3); font-weight:600; display:inline-flex; align-items:center; gap:8px; color:white; cursor:pointer; border-radius:8px;">
-                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                                    Print / Save as PDF
-                                </button>
+                                <div style="display:flex;gap:10px;">
+                                    <button onclick="printDepartment('<?= htmlspecialchars($dept, ENT_QUOTES) ?>', 'dept_print_<?= str_replace(' ', '', $dept) ?>', '<?= $leader_id ?>', 'landscape')" class="btn-submit" style="width:auto; margin:0; padding:8px 16px; background:linear-gradient(135deg,#2563eb,#6366f1); border:none; box-shadow:0 2px 8px rgba(37,99,235,0.3); font-weight:600; display:inline-flex; align-items:center; gap:8px; color:white; cursor:pointer; border-radius:8px;">
+                                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                        Print Landscape
+                                    </button>
+                                    <button onclick="printDepartment('<?= htmlspecialchars($dept, ENT_QUOTES) ?>', 'dept_print_<?= str_replace(' ', '', $dept) ?>', '<?= $leader_id ?>', 'portrait')" class="btn-submit" style="width:auto; margin:0; padding:8px 16px; background:linear-gradient(135deg,#4f46e5,#4338ca); border:none; box-shadow:0 2px 8px rgba(37,99,235,0.3); font-weight:600; display:inline-flex; align-items:center; gap:8px; color:white; cursor:pointer; border-radius:8px;">
+                                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                        Print Portrait
+                                    </button>
+                                </div>
                             </div>
                             <div class="table-responsive" id="dept_print_<?= str_replace(' ', '', $dept) ?>">
                                 <table>
