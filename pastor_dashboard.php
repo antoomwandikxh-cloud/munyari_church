@@ -1943,10 +1943,47 @@ function filterMembersTable() {
 
 
 
-function printMemberDirectory() {
+function printMemberDirectory(orientation) {
+                        if (!orientation) orientation = 'landscape';
                         var printDiv = document.getElementById("printableMemberDir");
                         if (!printDiv) { alert("Print content not found."); return; }
                         var w = window.open('', '_blank');
+                        if (!w) { alert("Popup blocked! Please allow popups for this page."); return; }
+                        var pageCSS = orientation === 'landscape'
+                            ? '@page{size:A4 landscape;margin:0;} body{margin:15mm;}'
+                            : '@page{size:A4 portrait;margin:0;} body{margin:15mm;}';
+                        var wmSize = orientation === 'landscape' ? '4.2rem' : '2.8rem';
+                        w.document.write('<!doctype html><html><head><title>E.A.P.C MUNYARI CHURCH MEMBERS TRACK RECORD</title>');
+                        w.document.write('<base href="' + window.location.origin + window.location.pathname + '">');
+                        w.document.write('<style>');
+                        w.document.write(':root{--border-color:#e2e8f0;--text-main:#1e293b;--success:#10b981;--danger:#ef4444;}');
+                        w.document.write('body{font-family:Arial,sans-serif;padding:18px;margin:0;padding-bottom:60px;}');
+                        w.document.write('table{width:100%;border-collapse:collapse;}');
+                        w.document.write('th,td{padding:5px 8px;border:1px solid #ccc;font-size:0.74rem;}');
+                        w.document.write('.badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:0.7rem;font-weight:600;}');
+                        w.document.write('th{background:#1e3a8a;color:white;-webkit-print-color-adjust:exact;print-color-adjust:exact;}');
+                        w.document.write('img{width:34px;height:34px;border-radius:50%;object-fit:cover;}');
+                        w.document.write('* {-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important;}');
+                        w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.15);font-weight:bold;white-space:nowrap;z-index:9999;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
+                        w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
+                        w.document.write('@media print{' + pageCSS + ' .no-print{display:none!important;}}');
+                        w.document.write('</style></head><body>');
+                        w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
+                        w.document.write('<div style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:14px;position:relative;margin-bottom:24px;min-height:90px;">');
+                        w.document.write('<img src="church_logo.jpg" alt="logo" style="position:absolute;left:20px;top:0;width:75px;height:75px;border-radius:50%;object-fit:cover;border:2px solid #1e3a8a;">');
+                        w.document.write('<img src="church_logo.jpg" alt="logo" style="position:absolute;right:20px;top:0;width:75px;height:75px;border-radius:50%;object-fit:cover;border:2px solid #1e3a8a;">');
+                        w.document.write('<h2 style="margin:0;color:#1e3a8a;padding-top:10px;">E.A.P.C MUNYARI CHURCH</h2>');
+                        w.document.write('<h3 style="margin:4px 0;color:#1e3a8a;">MEMBERS TRACK RECORD</h3>');
+                        w.document.write('<p style="margin:2px 0;font-size:0.85rem;color:#555;">Printed on: ' + new Date().toLocaleString() + '</p>');
+                        w.document.write('</div>');
+                        w.document.write(printDiv.innerHTML);
+                        w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal</div>');
+                        w.document.write('</body></html>');
+                        w.document.close();
+                        w.focus();
+                        setTimeout(function(){ w.print(); }, 600);
+                    }
+                    var w = window.open('', '_blank');
                         if (!w) { alert("Popup blocked! Please allow popups for this page."); return; }
                         w.document.write('<html><head><title>E.A.P.C MUNYARI CHURCH MEMBERS TRACK RECORD</title>');
                         w.document.write('<base href="' + window.location.origin + window.location.pathname + '">');
@@ -2082,7 +2119,8 @@ function printMemberDirectory() {
                 $departments = ['Youths', 'Elders', 'Sunday School', 'Womens Ministry'];
                 ?>
 <script>
-function printDepartment(deptName, containerId, leaderSpanId, orientation = 'landscape') {
+function printDepartment(deptName, containerId, leaderSpanId, orientation) {
+    if (!orientation) orientation = 'landscape';
     var container = document.getElementById(containerId);
     if(!container) { alert('Could not find department table. Please make sure you are on the Departments tab.'); return; }
 
@@ -2104,9 +2142,9 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
         + '<div style="font-size:0.75rem;color:#555;text-transform:uppercase;letter-spacing:1px;">' + leaderRole + '</div>'
         + '<div style="font-size:1.2rem;font-weight:700;color:#1e3a8a;">' + leaderName + '</div>'
         + '</div></div>'
-        + '<div style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:12px;position:relative;margin-bottom:6px;">'
-        + '<img src="' + logoUrl + '" style="position:absolute;left:20px;top:0;width:70px;height:auto;border-radius:50%;">'
-        + '<img src="' + logoUrl + '" style="position:absolute;right:20px;top:0;width:70px;height:auto;border-radius:50%;">'
+        + '<div style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:12px;position:relative;margin-bottom:6px;min-height:90px;">'
+        + '<img src="' + logoUrl + '" alt="logo" style="position:absolute;left:20px;top:0;width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid #1e3a8a;">'
+        + '<img src="' + logoUrl + '" alt="logo" style="position:absolute;right:20px;top:0;width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid #1e3a8a;">'
         + '<h2 style="margin:0;font-size:1.35rem;color:#1e3a8a;padding-top:10px;">E.A.P.C MUNYARI CHURCH &mdash; ' + deptName.toUpperCase() + ' DEPARTMENT</h2>'
         + '<p style="margin:4px 0 0;font-size:0.95rem;font-weight:bold;color:#333;">Printed on: ' + printDate + '</p>'
         + '</div>';
@@ -2116,22 +2154,22 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
         + '<div style="text-align:center;">'
         + '<div style="font-size:0.82rem;font-weight:700;text-transform:uppercase;color:#1e3a8a;">Church Pastor</div>'
         + '<div style="font-size:0.75rem;font-weight:700;color:#333;margin-top:2px;margin-bottom:10px;">' + pastorName + '</div>'
-        + '<div style="font-size:0.9rem; margin-bottom: 8px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">'
+        + '<div style="font-size:0.9rem;margin-bottom:8px;display:flex;align-items:flex-end;justify-content:center;gap:8px;">'
         + '<span style="font-style:italic;color:#333;">Sign:</span>'
-        + '<span style="display:inline-block; border-bottom:1px solid #000; width:220px; height:14px;"></span></div>'
-        + '<div style="font-size:0.85rem; margin-top:12px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">'
+        + '<span style="display:inline-block;border-bottom:1px solid #000;width:220px;height:14px;"></span></div>'
+        + '<div style="font-size:0.85rem;margin-top:12px;display:flex;align-items:flex-end;justify-content:center;gap:8px;">'
         + '<span style="color:#333;">Date:</span>'
-        + '<span style="display:inline-block; border-bottom:1px dotted #000; width:220px; height:14px;"></span></div>'
+        + '<span style="display:inline-block;border-bottom:1px dotted #000;width:220px;height:14px;"></span></div>'
         + '</div>'
         + '<div style="text-align:center;">'
         + '<div style="font-size:0.82rem;font-weight:700;text-transform:uppercase;color:#1e3a8a;">' + leaderRole + ' <span style="color:#666;font-weight:normal;">/ VICE</span></div>'
         + '<div style="font-size:0.75rem;font-weight:700;color:#333;margin-top:2px;margin-bottom:10px;">' + displayNames + '</div>'
-        + '<div style="font-size:0.9rem; margin-bottom: 8px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">'
+        + '<div style="font-size:0.9rem;margin-bottom:8px;display:flex;align-items:flex-end;justify-content:center;gap:8px;">'
         + '<span style="font-style:italic;color:#333;">Sign:</span>'
-        + '<span style="display:inline-block; border-bottom:1px solid #000; width:220px; height:14px;"></span></div>'
-        + '<div style="font-size:0.85rem; margin-top:12px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">'
+        + '<span style="display:inline-block;border-bottom:1px solid #000;width:220px;height:14px;"></span></div>'
+        + '<div style="font-size:0.85rem;margin-top:12px;display:flex;align-items:flex-end;justify-content:center;gap:8px;">'
         + '<span style="color:#333;">Date:</span>'
-        + '<span style="display:inline-block; border-bottom:1px dotted #000; width:220px; height:14px;"></span></div>'
+        + '<span style="display:inline-block;border-bottom:1px dotted #000;width:220px;height:14px;"></span></div>'
         + '</div>'
         + '<div style="text-align:center;">'
         + '<div style="border:2px dashed #aaa;width:110px;height:110px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;text-align:center;line-height:1.4;">Official<br>Stamp</div>'
@@ -2142,25 +2180,24 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
     if (!w) { alert('Popup was blocked! Please allow popups for this site and try again.'); return; }
 
     var theadRow = container.querySelector('thead') ? container.querySelector('thead').innerHTML : '';
-    theadRow = theadRow.replace(/<tr>/i, '<tr style="background:#1e3a8a;color:white; -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact;">');
+    theadRow = theadRow.replace(/<tr>/i, '<tr style="background:#1e3a8a;color:white;-webkit-print-color-adjust:exact;color-adjust:exact;print-color-adjust:exact;">');
     var tbody = container.querySelector('tbody') ? container.querySelector('tbody').innerHTML : '';
+
+    var wmSize = orientation === 'landscape' ? '4.2rem' : '2.8rem';
+    var pageCSS = orientation === 'landscape' ? '@page{size:A4 landscape;margin:0;} body{margin:15mm;}' : '@page{size:A4 portrait;margin:0;} body{margin:15mm;}';
 
     w.document.write('<!doctype html><html><head><title>' + deptName + ' Department Members</title>');
     w.document.write('<base href="' + window.location.href + '">');
-    let wmSize = orientation === 'landscape' ? '4.2rem' : '2.8rem';
-    
-    let pageCSS = orientation === 'landscape' ? '@page{size:A4 landscape;margin:0;} body{margin:15mm;}' : '@page{size:A4 portrait;margin:0;} body{margin:15mm;}';
-    
     w.document.write('<style>'
-        + ':root{--border-color:#e2e8f0;--text-main:#1e293b;--success:#10b981;--danger:#ef4444;} body{font-family:Arial,sans-serif;padding:18px;margin:0;padding-bottom:50px;}'
-        + 'table{width:100%;border-collapse:collapse; position:relative; z-index:2; background:transparent;}'
-        + 'th,td{padding:6px 8px;border:1px solid #ccc;font-size:0.79rem;vertical-align:middle; background:transparent; -webkit-print-color-adjust: exact; print-color-adjust: exact;} .badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;}'
+        + ':root{--border-color:#e2e8f0;--text-main:#1e293b;--success:#10b981;--danger:#ef4444;} body{font-family:Arial,sans-serif;padding:18px;margin:0;padding-bottom:60px;}'
+        + 'table{width:100%;border-collapse:collapse;}'
+        + 'th,td{padding:6px 8px;border:1px solid #ccc;font-size:0.79rem;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact;} .badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;}'
         + 'img{display:block;}'
-        + 'tr{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
+        + '* {-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important;}'
         + '.no-print{display:none !important;}'
-        + '.watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: ' + wmSize + '; color: rgba(30,58,138,0.15); font-weight: bold; white-space: nowrap; z-index: 9999; pointer-events: none; letter-spacing: 4px; text-transform: uppercase; }'
-        + '.footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10px; color: #777; font-style: italic; background: rgba(255,255,255,0.9); padding: 5px 0; z-index: 10; }'
-        + '@media print{' + pageCSS'
+        + '.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.15);font-weight:bold;white-space:nowrap;z-index:9999;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}'
+        + '.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}'
+        + '@media print{' + pageCSS' + pageCSS'
         + '  @page{size:A4 portrait;margin:0;} body{margin:15mm;}'
         + '  thead{display:table-header-group;}'
         + '  body{padding:0;}'
@@ -5249,5 +5286,44 @@ function openDeclineModal(id, name) {
     document.getElementById("declineReasonText").value = "";
     document.getElementById("declineMemberModal").style.display = "flex";
 }
+
+    function printVillageTable(containerId, villageName, orientation) {
+        if (!orientation) orientation = 'landscape';
+        var container = document.getElementById(containerId);
+        if (!container) { alert('Table not found. Please make sure you are on the Church Villages tab.'); return; }
+        var w = window.open('', '_blank');
+        if (!w) { alert('Popup blocked! Please allow popups for this page.'); return; }
+        var theadHTML = container.querySelector('thead') ? container.querySelector('thead').outerHTML : '';
+        var tbodyHTML = container.querySelector('tbody') ? container.querySelector('tbody').outerHTML : '';
+        var wmSize = orientation === 'landscape' ? '4.2rem' : '2.8rem';
+        var pageCSS = orientation === 'landscape' ? '@page{size:A4 landscape;margin:0;} body{margin:15mm;}' : '@page{size:A4 portrait;margin:0;} body{margin:15mm;}';
+        w.document.write('<!doctype html><html><head><title>' + villageName + ' Village Members</title>');
+        w.document.write('<base href="' + window.location.origin + window.location.pathname + '">');
+        w.document.write('<style>');
+        w.document.write('body{font-family:Arial,sans-serif;margin:0;padding:15px;padding-bottom:60px;}');
+        w.document.write('table{width:100%;border-collapse:collapse;}');
+        w.document.write('th{background:#1e3a8a;color:white;padding:8px;font-size:0.8rem;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact;}');
+        w.document.write('td{padding:6px 8px;border:1px solid #ccc;font-size:0.78rem;}');
+        w.document.write('.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:0.72rem;font-weight:600;}');
+        w.document.write('* {-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important;}');
+        w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + ';color:rgba(30,58,138,0.15);font-weight:bold;white-space:nowrap;z-index:9999;pointer-events:none;letter-spacing:4px;text-transform:uppercase;}');
+        w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
+        w.document.write('@media print{' + pageCSS + '}');
+        w.document.write('</style></head><body>');
+        w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
+        w.document.write('<div style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:12px;position:relative;margin-bottom:20px;min-height:90px;">');
+        w.document.write('<img src="church_logo.jpg" alt="logo" style="position:absolute;left:20px;top:0;width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid #1e3a8a;">');
+        w.document.write('<img src="church_logo.jpg" alt="logo" style="position:absolute;right:20px;top:0;width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid #1e3a8a;">');
+        w.document.write('<h2 style="margin:0;color:#1e3a8a;">E.A.P.C MUNYARI CHURCH</h2>');
+        w.document.write('<h3 style="margin:4px 0;color:#1e3a8a;">' + villageName.toUpperCase() + ' VILLAGE — MEMBERS LIST</h3>');
+        w.document.write('<p style="margin:2px 0;font-size:0.85rem;color:#555;">Printed on: ' + new Date().toLocaleString() + '</p>');
+        w.document.write('</div>');
+        w.document.write('<table>' + theadHTML + tbodyHTML + '</table>');
+        w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal</div>');
+        w.document.write('</body></html>');
+        w.document.close();
+        w.focus();
+        setTimeout(function(){ w.print(); }, 500);
+    }
 </script>
 </html>
