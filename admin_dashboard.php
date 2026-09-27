@@ -2588,7 +2588,7 @@ w.document.write('</div>');
                                         <tr>
                                             <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y', strtotime($fr['created_at'])) ?></td>
                                             <td><span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;"><?= htmlspecialchars($fr['department']) ?></span></td>
-                                            <td style="font-weight: 500;"><?= !empty($fr['first_name']) ? htmlspecialchars($fr['first_name'] . ' ' . $fr['last_name']) : 'System / Unknown' ?></td>
+                                            <td style="font-weight: 500;"><?= htmlspecialchars($fr['poster_name'] ?: 'Unknown') ?></td>
                                             <td style="font-size: 0.85em; color: var(--text-muted);"><?= htmlspecialchars($fr['dm_first'] . ' ' . $fr['dm_last']) ?></td>
                                             <td><?= htmlspecialchars($fr['reason']) ?></td>
                                         </tr>
@@ -3475,7 +3475,7 @@ w.document.write('</div>');
                     $has_any_records = false;
                     foreach ($target_depts as $d):
                         $d_esc = $conn->real_escape_string($d);
-                        $fin_records = $conn->query("SELECT fr.*, m.first_name, m.last_name FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE fr.department = '$d_esc' ORDER BY fr.recorded_at DESC LIMIT 30");
+                        $fin_records = $conn->query("SELECT fr.*, COALESCE(fr.recorded_by_name, CONCAT(m.first_name, ' ', m.last_name)) AS poster_name FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE fr.department = '$d_esc' ORDER BY fr.recorded_at DESC LIMIT 30");
                         if ($fin_records && $fin_records->num_rows > 0):
                             $has_any_records = true;
                     ?>
@@ -3485,7 +3485,7 @@ w.document.write('</div>');
                         <tbody>
                             <?php while($fr = $fin_records->fetch_assoc()): ?>
                             <tr>
-                                <td><span style="font-weight:600; color:var(--text-main);"><?= !empty($fr['first_name']) ? htmlspecialchars($fr['first_name'] . ' ' . $fr['last_name']) : 'System / Unknown' ?></span></td>
+                                <td><span style="font-weight:600; color:var(--text-main);"><?= htmlspecialchars($fr['poster_name'] ?: 'Unknown') ?></span></td>
                                 <td style="font-weight:700;color:#10b981;">KSh <?= number_format($fr['amount'], 2) ?></td>
                                 <td><?= htmlspecialchars($fr['description'] ?? '-') ?></td>
                                 <td style="font-size:0.85em;color:var(--text-muted);"><?= date('M j, Y', strtotime($fr['record_date'] ?: $fr['recorded_at'])) ?></td>

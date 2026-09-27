@@ -136,7 +136,8 @@ if (isset($_GET['action'])) {
             $description = $conn->real_escape_string(trim($_POST['description'] ?? ''));
             $record_date = $conn->real_escape_string($_POST['record_date']);
             $esc_dept = $conn->real_escape_string($submitted_dept);
-            $conn->query("INSERT INTO financial_records (pastor_id, department, amount, description, record_date, recorded_by) VALUES (0, '$esc_dept', $amount, '$description', '$record_date', $member_id)");
+            $recorder_name = $conn->real_escape_string($member_query['first_name'] . ' ' . $member_query['last_name']);
+            $conn->query("INSERT INTO financial_records (pastor_id, department, amount, description, record_date, recorded_by, recorded_by_name) VALUES (0, '$esc_dept', $amount, '$description', '$record_date', $member_id, '$recorder_name')");
             
             // Notify pastors and admins
             $member_name = $conn->real_escape_string($member_query['first_name'] . ' ' . $member_query['last_name']);
@@ -628,7 +629,9 @@ if (isset($_GET['action'])) {
                 $dept = $conn->real_escape_string($fine['department']);
                 $desc = $conn->real_escape_string("Disciplinary Fine: " . $fine['fine_reason']);
                 $amount = (float)$fine['amount'];
-                $conn->query("INSERT INTO financial_records (department, amount, record_date, description) VALUES ('$dept', $amount, CURRENT_DATE(), '$desc')");
+                $fine_verifier = $conn->query("SELECT first_name, last_name FROM members WHERE id = $member_id")->fetch_assoc();
+                $fine_recorder_name = $conn->real_escape_string($fine_verifier ? ($fine_verifier['first_name'] . ' ' . $fine_verifier['last_name']) : 'System');
+                $conn->query("INSERT INTO financial_records (department, amount, record_date, description, recorded_by, recorded_by_name) VALUES ('$dept', $amount, CURRENT_DATE(), '$desc', $member_id, '$fine_recorder_name')");
             }
             header("Location: member_dashboard.php?tab=financials&success=Fine payment verified and added to records");
             exit();

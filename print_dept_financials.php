@@ -55,7 +55,7 @@ if ($chairman && !empty($chairman['church_role'])) {
 
 
 // Fetch records
-$records_q = $conn->query("SELECT fr.*, m.first_name, m.last_name FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE fr.department = '$safe_dept' AND (DATE(fr.record_date) <= '$safe_date' OR (fr.record_date IS NULL AND DATE(fr.recorded_at) <= '$safe_date')) ORDER BY fr.record_date DESC, fr.recorded_at DESC");
+$records_q = $conn->query("SELECT fr.*, COALESCE(fr.recorded_by_name, CONCAT(m.first_name, ' ', m.last_name)) AS poster_name FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE fr.department = '$safe_dept' AND (DATE(fr.record_date) <= '$safe_date' OR (fr.record_date IS NULL AND DATE(fr.recorded_at) <= '$safe_date')) ORDER BY fr.record_date DESC, fr.recorded_at DESC");
 
 // Logo
 $logo_path = 'church_logo.jpg';
@@ -226,7 +226,7 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
                     $date = date('M j, Y', strtotime($r['record_date'] ?: $r['recorded_at']));
                     echo "<tr>";
                     echo "<td>$date</td>";
-                    echo "<td>" . (!empty($r['first_name']) ? htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) : 'System / Unknown') . "</td>";
+                    echo "<td>" . htmlspecialchars($r['poster_name'] ?: 'Unknown') . "</td>";
                     echo "<td>" . htmlspecialchars($r['description']) . "</td>";
                     echo "<td class='amt'>" . number_format($r['amount'], 2) . "</td>";
                     echo "</tr>";
