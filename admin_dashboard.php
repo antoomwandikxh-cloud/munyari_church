@@ -1497,26 +1497,7 @@ function printMemberDirectory(orientation) {
                         w.focus();
                         setTimeout(function(){ w.print(); }, 600);
                     }
-                    var w = window.open('', '_blank');
-                        if (!w) { alert("Popup blocked! Please allow popups for this page."); return; }
-                        w.document.write('<html><head><title>E.A.P.C MUNYARI CHURCH MEMBERS TRACK RECORD</title>');
-                        w.document.write('<base href="' + window.location.origin + window.location.pathname + '">');
-                        w.document.write('<style>');
-                        w.document.write(':root{--border-color:#e2e8f0;--text-main:#1e293b;--success:#10b981;--danger:#ef4444;} body{font-family:Arial,sans-serif;padding:18px;margin:0;padding-bottom:50px;}');
-                        w.document.write('table{width:100%;border-collapse:collapse;}');
-                        w.document.write('th,td{padding:5px 8px;border:1px solid #ccc;font-size:0.74rem;} .badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:0.7rem;font-weight:600;}');
-                        w.document.write('th{background:#1e3a8a;color:white;}');
-                        w.document.write('img{width:36px;height:36px;border-radius:50%;object-fit:cover;}');
-                        w.document.write('* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; } @media print{@page{size:A4 landscape;margin:0;} body{margin:15mm;} * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; } }');
-                        w.document.write('</style>');
-                        w.document.write('</head><body>');
-                        w.document.write(printDiv.innerHTML);
-                        w.document.write('<div style="position:fixed;bottom:10px;left:0;right:0;text-align:center;font-size:0.75rem;color:#777;font-style:italic;">Generated from E.A.P.C Munyari Portal</div>');
-                        w.document.write('</body></html>');
-                        w.document.close();
-                        w.focus();
-                        setTimeout(function(){ w.print(); }, 600);
-                    }, 600);
+, 600);
                     }
                     </script>
                         <span class="badge" style="background: var(--primary); color: white; font-size: 14px; padding: 5px 12px;">Total: <?= $members->num_rows ?></span>
