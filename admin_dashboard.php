@@ -1491,8 +1491,6 @@ function printMemberDirectory(orientation) {
                         w.focus();
                         setTimeout(function(){ w.print(); }, 600);
                     }
-, 600);
-                    }
                     </script>
                         <span class="badge" style="background: var(--primary); color: white; font-size: 14px; padding: 5px 12px;">Total: <?= $members->num_rows ?></span>
                     </div>
