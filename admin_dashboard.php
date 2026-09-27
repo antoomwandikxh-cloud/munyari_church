@@ -1235,6 +1235,83 @@ if (!empty($action)) {
                     </script>
                 </div>
 
+                <?php
+                if (!function_exists('get_print_sort_order')) {
+                    function get_print_sort_order($role_raw, $dept) {
+                        $r = strtolower(trim($role_raw ?? ''));
+                        $d = strtolower(trim($dept ?? ''));
+                        if (strpos($r, 'general church') !== false || strpos($r, 'pastor') !== false) return [0, 0];
+                        if (strpos($d, 'elder') !== false || strpos($r, 'elder') !== false) {
+                            if (preg_match('/^(elder chairman|elder chairperson|elder chairlady)$/', $r)) return [1, 0];
+                            if (strpos($r, 'vice elder chair') !== false) return [1, 1];
+                            if (strpos($r, 'elder secretary') !== false && strpos($r, 'vice') === false) return [1, 2];
+                            if (strpos($r, 'vice elder secretary') !== false) return [1, 3];
+                            if (strpos($r, 'elder treasurer') !== false) return [1, 4];
+                            return [1, 5];
+                        }
+                        if (strpos($d, 'women') !== false || strpos($r, 'women') !== false) {
+                            if (preg_match('/vice women (chairlady|chairperson|chairman)/', $r)) return [2, 0];
+                            if (preg_match('/^women (chairlady|chairperson|chairman)$/', $r)) return [2, 1];
+                            if (strpos($r, 'women secretary') !== false && strpos($r, 'vice') === false) return [2, 2];
+                            if (strpos($r, 'vice women secretary') !== false) return [2, 3];
+                            if (strpos($r, 'women treasurer') !== false) return [2, 4];
+                            return [2, 5];
+                        }
+                        if (strpos($d, 'youth') !== false || strpos($r, 'youth') !== false) {
+                            if (preg_match('/^(youth chairman|youth chairperson|youth chairlady)$/', $r)) return [3, 0];
+                            if (strpos($r, 'vice youth chair') !== false) return [3, 1];
+                            if (strpos($r, 'youth secretary') !== false && strpos($r, 'vice') === false) return [3, 2];
+                            if (strpos($r, 'vice youth secretary') !== false) return [3, 3];
+                            if (strpos($r, 'youth treasurer') !== false) return [3, 4];
+                            if (strpos($r, 'mama youth') !== false || strpos($r, 'baba youth') !== false) return [3, 5];
+                            return [3, 6];
+                        }
+                        if (strpos($d, 'sunday school') !== false || strpos($r, 'sunday school') !== false) {
+                            if (strpos($r, 'sunday school patron') !== false && strpos($r, 'vice') === false) return [4, 0];
+                            if (strpos($r, 'vice sunday school patron') !== false) return [4, 1];
+                            if (preg_match('/sunday school (chairman|chairperson|chairlady)/', $r) && strpos($r, 'vice') === false) return [4, 2];
+                            if (preg_match('/vice sunday school (chairman|chairperson|chairlady)/', $r)) return [4, 3];
+                            if (strpos($r, 'sunday school secretary') !== false && strpos($r, 'vice') === false) return [4, 4];
+                            if (strpos($r, 'vice sunday school secretary') !== false) return [4, 5];
+                            if (strpos($r, 'sunday school treasurer') !== false) return [4, 6];
+                            if (strpos($r, 'sunday school teacher') !== false) return [5, 0];
+                            return [6, 0];
+                        }
+                        if (strpos($r, 'building') !== false) {
+                            if (preg_match('/^(building chairman|building chairperson|building chairlady)$/', $r)) return [7, 0];
+                            if (strpos($r, 'vice building chair') !== false) return [7, 1];
+                            if (strpos($r, 'building secretary') !== false && strpos($r, 'vice') === false) return [7, 2];
+                            if (strpos($r, 'vice building secretary') !== false) return [7, 3];
+                            if (strpos($r, 'building treasurer') !== false) return [7, 4];
+                            return [7, 5];
+                        }
+                        if ($r !== 'member' && $r !== '') return [8, 0];
+                        return [99, 0];
+                    }
+                }
+                $members->data_seek(0);
+                $all_print_members = [];
+                while ($pm = $members->fetch_assoc()) { $all_print_members[] = $pm; }
+
+                $pastors_q = $conn->query("SELECT * FROM pastors WHERE is_approved = 1");
+                if ($pastors_q) {
+                    while ($pst = $pastors_q->fetch_assoc()) {
+                        $pst['department'] = 'General Church';
+                        $pst['church_role'] = 'General Church Pastor';
+                        $pst['is_pastor'] = true;
+                        $all_print_members[] = $pst;
+                    }
+                }
+
+                usort($all_print_members, function($a, $b) {
+                    $ra = get_print_sort_order($a['church_role'] ?? '', $a['department'] ?? '');
+                    $rb = get_print_sort_order($b['church_role'] ?? '', $b['department'] ?? '');
+                    if ($ra[0] !== $rb[0]) return $ra[0] - $rb[0];
+                    if ($ra[1] !== $rb[1]) return $ra[1] - $rb[1];
+                    return strcmp($a['first_name'].$a['last_name'], $b['first_name'].$b['last_name']);
+                });
+                ?>
+
                 <!-- Members Table -->
                 <div class="content-card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -1257,70 +1334,7 @@ if (!empty($action)) {
                     <!-- Hidden printable member list -->
                     <div id="printableMemberDir" style="display:none;">
                         <?php
-                        // ---- SORTED MEMBER LIST FOR PRINT ----
-                        if (!function_exists('get_print_sort_order')) {
-                            function get_print_sort_order($role_raw, $dept) {
-                                $r = strtolower(trim($role_raw ?? ''));
-                                $d = strtolower(trim($dept ?? ''));
-                                if (strpos($r, 'general church') !== false) return [0, 0];
-                                if (strpos($d, 'elder') !== false || strpos($r, 'elder') !== false) {
-                                    if (preg_match('/^(elder chairman|elder chairperson|elder chairlady)$/', $r)) return [1, 0];
-                                    if (strpos($r, 'vice elder chair') !== false) return [1, 1];
-                                    if (strpos($r, 'elder secretary') !== false && strpos($r, 'vice') === false) return [1, 2];
-                                    if (strpos($r, 'vice elder secretary') !== false) return [1, 3];
-                                    if (strpos($r, 'elder treasurer') !== false) return [1, 4];
-                                    return [1, 5];
-                                }
-                                if (strpos($d, 'women') !== false || strpos($r, 'women') !== false) {
-                                    if (preg_match('/vice women (chairlady|chairperson|chairman)/', $r)) return [2, 0];
-                                    if (preg_match('/^women (chairlady|chairperson|chairman)$/', $r)) return [2, 1];
-                                    if (strpos($r, 'women secretary') !== false && strpos($r, 'vice') === false) return [2, 2];
-                                    if (strpos($r, 'vice women secretary') !== false) return [2, 3];
-                                    if (strpos($r, 'women treasurer') !== false) return [2, 4];
-                                    return [2, 5];
-                                }
-                                if (strpos($d, 'youth') !== false || strpos($r, 'youth') !== false) {
-                                    if (preg_match('/^(youth chairman|youth chairperson|youth chairlady)$/', $r)) return [3, 0];
-                                    if (strpos($r, 'vice youth chair') !== false) return [3, 1];
-                                    if (strpos($r, 'youth secretary') !== false && strpos($r, 'vice') === false) return [3, 2];
-                                    if (strpos($r, 'vice youth secretary') !== false) return [3, 3];
-                                    if (strpos($r, 'youth treasurer') !== false) return [3, 4];
-                                    if (strpos($r, 'mama youth') !== false || strpos($r, 'baba youth') !== false) return [3, 5];
-                                    return [3, 6];
-                                }
-                                if (strpos($d, 'sunday school') !== false || strpos($r, 'sunday school') !== false) {
-                                    if (strpos($r, 'sunday school patron') !== false && strpos($r, 'vice') === false) return [4, 0];
-                                    if (strpos($r, 'vice sunday school patron') !== false) return [4, 1];
-                                    if (preg_match('/sunday school (chairman|chairperson|chairlady)/', $r) && strpos($r, 'vice') === false) return [4, 2];
-                                    if (preg_match('/vice sunday school (chairman|chairperson|chairlady)/', $r)) return [4, 3];
-                                    if (strpos($r, 'sunday school secretary') !== false && strpos($r, 'vice') === false) return [4, 4];
-                                    if (strpos($r, 'vice sunday school secretary') !== false) return [4, 5];
-                                    if (strpos($r, 'sunday school treasurer') !== false) return [4, 6];
-                                    if (strpos($r, 'sunday school teacher') !== false) return [5, 0];
-                                    return [6, 0];
-                                }
-                                if (strpos($r, 'building') !== false) {
-                                    if (preg_match('/^(building chairman|building chairperson|building chairlady)$/', $r)) return [7, 0];
-                                    if (strpos($r, 'vice building chair') !== false) return [7, 1];
-                                    if (strpos($r, 'building secretary') !== false && strpos($r, 'vice') === false) return [7, 2];
-                                    if (strpos($r, 'vice building secretary') !== false) return [7, 3];
-                                    if (strpos($r, 'building treasurer') !== false) return [7, 4];
-                                    return [7, 5];
-                                }
-                                if ($r !== 'member' && $r !== '') return [8, 0];
-                                return [99, 0];
-                            }
-                        }
-                        $members->data_seek(0);
-                        $all_print_members = [];
-                        while ($pm = $members->fetch_assoc()) { $all_print_members[] = $pm; }
-                        usort($all_print_members, function($a, $b) {
-                            $ra = get_print_sort_order($a['church_role'] ?? '', $a['department'] ?? '');
-                            $rb = get_print_sort_order($b['church_role'] ?? '', $b['department'] ?? '');
-                            if ($ra[0] !== $rb[0]) return $ra[0] - $rb[0];
-                            if ($ra[1] !== $rb[1]) return $ra[1] - $rb[1];
-                            return strcmp($a['first_name'].$a['last_name'], $b['first_name'].$b['last_name']);
-                        });
+                        <?php
                         
                         $pastor_q = $conn->query("SELECT * FROM pastors WHERE is_approved = 1 LIMIT 1");
                         $pastor = $pastor_q ? $pastor_q->fetch_assoc() : null;
@@ -1530,8 +1544,12 @@ function printMemberDirectory(orientation) {
                                 <td style="white-space:normal;"><?php foreach(array_map('trim', explode(',', $m['church_role'] ?? 'Member')) as $role_part) { if(trim($role_part)==='') continue; echo '<span class="badge" style="background:var(--border-color);color:var(--text-main);margin:2px 2px 2px 0;display:inline-block;white-space:nowrap;">'.htmlspecialchars($role_part).'</span>'; } ?></td>
                                 <td><span class="badge <?= $m['is_approved'] ? 'approved' : 'pending' ?>"><?= $m['is_approved'] ? 'Active' : 'Pending' ?></span></td>
                                 <td>
-                                    <a href="#" onclick="openEditMemberModal(<?= $m['id'] ?>, '<?= htmlspecialchars($m['first_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['last_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['username'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($m['phone'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['address'] ?? '', ENT_QUOTES) ?>'); return false;" style="background:#3b82f6;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;margin-right:5px;display:inline-block;margin-bottom:4px;">Edit</a>
-                                    <a href="?tab=members&action=delete_member&id=<?= $m['id'] ?>" onclick="return confirm('Permanently delete this member? This cannot be undone.');" class="btn-sm" style="background: var(--danger); color: white; text-decoration:none;">Delete</a>
+                                    <?php if (!empty($m['is_pastor'])): ?>
+                                        <span class="badge" style="background:linear-gradient(135deg,#1e3a8a,#6366f1);color:white;font-size:0.75rem;">Church Pastor</span>
+                                    <?php else: ?>
+                                        <a href="#" onclick="openEditMemberModal(<?= $m['id'] ?>, '<?= htmlspecialchars($m['first_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['last_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['username'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($m['phone'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['address'] ?? '', ENT_QUOTES) ?>'); return false;" style="background:#3b82f6;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;margin-right:5px;display:inline-block;margin-bottom:4px;">Edit</a>
+                                        <a href="?tab=members&action=delete_member&id=<?= $m['id'] ?>" onclick="return confirm('Permanently delete this member? This cannot be undone.');" class="btn-sm" style="background: var(--danger); color: white; text-decoration:none;">Delete</a>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -1562,6 +1580,19 @@ function printMemberDirectory(orientation) {
                 $depts_result = $conn->query("SELECT department, COUNT(*) as count FROM members WHERE is_approved=1 GROUP BY department");
                 while ($row = $depts_result->fetch_assoc()) {
                     $dept_counts[$row['department']] = $row['count'];
+                }
+                
+                $pastors_res = $conn->query("SELECT department, gender FROM pastors WHERE is_approved=1");
+                if ($pastors_res) {
+                    while($pst = $pastors_res->fetch_assoc()) {
+                        $eff_dept = $pst['department'];
+                        if ($pst['gender'] === 'Female' && $eff_dept === 'Elders') {
+                            $eff_dept = 'Womens Ministry';
+                        }
+                        if ($eff_dept) {
+                            $dept_counts[$eff_dept] = ($dept_counts[$eff_dept] ?? 0) + 1;
+                        }
+                    }
                 }
                 $departments = ['Youths', 'Elders', 'Sunday School', 'Womens Ministry'];
                 ?>
@@ -1662,7 +1693,8 @@ w.document.write('</div>');
                     $dept_esc = $conn->real_escape_string($dept);
 
                     // Role rank: 1=chairman/chairlady/chairperson, 2=vice chair, 3=secretary/treasurer/subsidiary, 99=member
-                    $dept_members = $conn->query("
+                    $dept_members_arr = [];
+                    $dept_mem_res = $conn->query("
                         SELECT *,
                         CASE
                             WHEN LOWER(church_role) REGEXP 'chairman|chairlady|chairperson' AND LOWER(church_role) NOT REGEXP '^vice' THEN 1
@@ -1674,8 +1706,33 @@ w.document.write('</div>');
                         END AS role_rank
                         FROM members
                         WHERE is_approved=1 AND department='$dept_esc'
-                        ORDER BY role_rank ASC, first_name ASC
                     ");
+                    if ($dept_mem_res) {
+                        while($row = $dept_mem_res->fetch_assoc()) {
+                            $row['is_pastor'] = false;
+                            $dept_members_arr[] = $row;
+                        }
+                    }
+                    $pastors_res = $conn->query("SELECT * FROM pastors WHERE is_approved = 1");
+                    if ($pastors_res) {
+                        while($pst = $pastors_res->fetch_assoc()) {
+                            $eff_dept = $pst['department'];
+                            if ($pst['gender'] === 'Female' && $eff_dept === 'Elders') {
+                                $eff_dept = 'Womens Ministry';
+                            }
+                            if ($eff_dept === $dept) {
+                                $pst['is_pastor'] = true;
+                                $pst['church_role'] = 'Church Pastor';
+                                $pst['role_rank'] = 0;
+                                $pst['address'] = $pst['church_village'];
+                                $dept_members_arr[] = $pst;
+                            }
+                        }
+                    }
+                    usort($dept_members_arr, function($a, $b) {
+                        if ($a['role_rank'] != $b['role_rank']) return $a['role_rank'] <=> $b['role_rank'];
+                        return strcmp($a['first_name'], $b['first_name']);
+                    });
 
                     // Find top leader (chairman/chairperson/chairlady) for this dept
                     $dept_leader = null;
@@ -1709,7 +1766,7 @@ w.document.write('</div>');
                     
                     $leader_id   = 'deptLeader_'.str_replace(' ','',$dept);
 
-                    if ($dept_members && $dept_members->num_rows > 0):
+                    if (count($dept_members_arr) > 0):
                     ?>
                         <!-- Hidden dept leader data for JS print -->
                         <span id="<?= $leader_id ?>"
@@ -1722,13 +1779,18 @@ w.document.write('</div>');
                         <div class="content-card" style="margin-top: 30px;">
                             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px;">
                                 <div style="display:flex;align-items:center;gap:14px;">
+                                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                                     <h2 style="margin:0;"><?= htmlspecialchars($dept) ?></h2>
+                                    <span style="background:linear-gradient(135deg,#1e3a8a,#6366f1);color:white;font-size:0.82rem;font-weight:800;padding:4px 12px;border-radius:20px;">
+                                        <?= count($dept_members_arr) ?> Members
+                                    </span>
                                     <?php if ($dept_leader): ?>
                                     <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--border-color);border-radius:20px;background:var(--bg-main);">
                                         <img src="uploads/<?= htmlspecialchars($leader_pic) ?>" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">
                                         <span style="font-size:0.82rem;font-weight:600;"><?= htmlspecialchars(ucwords(strtolower($leader_role))) ?>: <?= htmlspecialchars($leader_name) ?></span>
                                     </div>
                                     <?php endif; ?>
+                                </div>
                                 </div>
                                 <div style="display:flex;gap:10px;">
                                     <button onclick="printDepartment('<?= htmlspecialchars($dept, ENT_QUOTES) ?>', 'dept_print_<?= str_replace(' ', '', $dept) ?>', '<?= $leader_id ?>', 'landscape')" class="btn-submit" style="width:auto; margin:0; padding:8px 16px; background:linear-gradient(135deg,#2563eb,#6366f1); border:none; box-shadow:0 2px 8px rgba(37,99,235,0.3); font-weight:600; display:inline-flex; align-items:center; gap:8px; color:white; cursor:pointer; border-radius:8px;">
@@ -1745,12 +1807,13 @@ w.document.write('</div>');
                                 <table>
                                     <thead><tr><th>#</th><th>Photo</th><th>Name</th><th>Phone</th><th>Role</th><th>Residence</th><?php if ($dept === 'Youths' || $dept === 'Sunday School') echo "<th class='no-print'>Actions</th>"; ?></tr></thead>
                                     <tbody>
-                                        <?php $dpi=1; $dept_members->data_seek(0); while($dm = $dept_members->fetch_assoc()):
+                                        <?php $dpi=1; foreach($dept_members_arr as $dm):
                                             $role_r = (int)($dm['role_rank'] ?? 99);
-                                            $row_bg = $role_r == 1 ? 'background:rgba(37,99,235,0.07);font-weight:700;'
+                                            $row_bg = $role_r == 0 ? 'background:rgba(30,58,138,0.1);font-weight:700;'
+                                                    : ($role_r == 1 ? 'background:rgba(37,99,235,0.07);font-weight:700;'
                                                     : ($role_r == 2 ? 'background:rgba(99,102,241,0.05);font-weight:600;'
                                                     : ($role_r <= 3 ? 'background:rgba(16,185,129,0.05);'
-                                                    : ''));
+                                                    : '')));
                                         ?>
                                             <tr style="<?= $row_bg ?>">
                                                 <td><?= $dpi++ ?></td>
@@ -1761,7 +1824,9 @@ w.document.write('</div>');
                                                 <td><?= htmlspecialchars($dm['address'] ?? '-') ?></td>
                                                 <?php if ($dept === 'Youths' || $dept === 'Sunday School'): ?>
                                                     <td class="no-print">
-                                                        <?php if ($dept === 'Youths'): ?>
+                                                        <?php if ($dm['is_pastor']): ?>
+                                                            <span style="font-size:0.75rem; color:#888;">Pastor</span>
+                                                        <?php elseif ($dept === 'Youths'): ?>
                                                             <?php 
                                                                 $t_dest = (strtolower(trim($dm['gender'] ?? '')) === 'female') ? 'Womens Ministry' : 'Elders'; 
                                                             ?>
@@ -1772,7 +1837,7 @@ w.document.write('</div>');
                                                     </td>
                                                 <?php endif; ?>
                                             </tr>
-                                        <?php endwhile; ?>
+                                        <?php endforeach; ?>
                                     </tbody>
                                 </table>
                             </div>
