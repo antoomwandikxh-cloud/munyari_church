@@ -70,8 +70,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             exit();
         }
 
-        $sql = "INSERT INTO pastors (first_name, last_name, phone, role, password, gender, department, is_approved)
-                VALUES ('$first_name', '$last_name', '$phone', '$role', '$hashed_password', '$gender', '$department', 0)";
+        $sql = "INSERT INTO pastors (first_name, last_name, phone, role, address, password, gender, department, is_approved)
+                VALUES ('$first_name', '$last_name', '$phone', '$role', '$role', '$hashed_password', '$gender', '$department', 0)";
 
     // ── MEMBER REGISTRATION ────────────────────────────────────────────────────
     } else {

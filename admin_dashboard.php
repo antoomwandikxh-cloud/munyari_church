@@ -1298,7 +1298,7 @@ if (!empty($action)) {
                     while ($pst = $pastors_q->fetch_assoc()) {
                         $pst['department'] = 'General Church';
                         $pst['church_role'] = 'General Church Pastor';
-                        $pst['address'] = $pst['church_village']; // Map residence
+                        // address column holds the pastor's actual residence area (e.g. Nkondi)
                         $pst['is_pastor'] = true;
                         $all_print_members[] = $pst;
                     }
