@@ -3,11 +3,6 @@ session_start();
 require_once 'db_connect.php';
 require_once 'role_departments.php';
 
-// Strip "(subsidiary)" and extra whitespace from any role name for display
-function clean_role_label($role) {
-    return trim(preg_replace('/\s*\(subsidiary\)\s*/i', '', $role ?? ''));
-}
-
 if (!isset($_SESSION['pastor_id'])) {
     header("Location: login.php");
     exit();
@@ -58,18 +53,21 @@ if (isset($_GET['action'])) {
 
         // Check if role is already assigned (search inside combined roles too)
         if (!$is_unlimited) {
-            // Find all members who have this role (including combined roles e.g. "Mama Youth, Women Secretary")
-            $check_q = $conn->query("SELECT id, church_role FROM members WHERE church_role IS NOT NULL AND church_role != '' AND id != $member_id AND is_approved = 1");
+            $check_q = $conn->query("SELECT id, church_role, department FROM members WHERE church_role IS NOT NULL AND church_role != '' AND id != $member_id AND is_approved = 1");
             $already_exists = false;
             if ($check_q) {
                 while ($cr = $check_q->fetch_assoc()) {
                     $parts = array_filter(array_map('trim', explode(',', str_replace('&', ',', $cr['church_role']))));
                     foreach ($parts as $p) {
                         if (normalize_role_name($p) === $new_normalized) {
-                            // For subsidiary roles, scope is per-department
                             if (is_subsidiary_department_role($raw_role) && !empty($assignment_department)) {
-                                $dept_of = $conn->query("SELECT department FROM members WHERE id = {$cr['id']}")->fetch_assoc()['department'] ?? '';
-                                if (department_matches($dept_of, $assignment_department)) {
+                                $role_context = '';
+                                if (preg_match('/\((.*?)\)/', $p, $m)) {
+                                    $role_context = trim($m[1], '() ');
+                                } else {
+                                    $role_context = $cr['department'] ?? '';
+                                }
+                                if (department_matches($role_context, $assignment_department)) {
                                     $already_exists = true;
                                 }
                             } elseif (!is_subsidiary_department_role($raw_role)) {
@@ -100,6 +98,23 @@ if (isset($_GET['action'])) {
 
         $existing_role = trim($member_data['church_role'] ?? '');
 
+        // Sunday School main leadership roles (Patron, Secretary, Treasurer…) are
+        // cross-church — they must NEVER overwrite the member's registered (home) department.
+        $assigning_ss_leadership = is_sunday_school_leadership_role($raw_role);
+
+        // If the member already holds the equivalent "home-dept" version of this role
+        // (e.g. Youth Secretary) and we're now assigning the Sunday School version,
+        // tag it with a (Sunday School) suffix so both can coexist in church_role.
+        if ($assigning_ss_leadership) {
+            $raw_role = trim(str_ireplace(['(sunday school)', '(subsidiary)'], '', $raw_role)) . ' (Sunday School)';
+            $role = $conn->real_escape_string($raw_role);
+        }
+
+        if (is_subsidiary_department_role($raw_role) && !empty($assignment_department) && !department_matches($member_department, $assignment_department)) {
+            $raw_role = trim(str_ireplace('(subsidiary)', '', $raw_role)) . ' (' . $assignment_department . ')';
+            $role = $conn->real_escape_string($raw_role);
+        }
+
         $role_to_set = $role;
         $dept_sql    = "";
 
@@ -117,10 +132,27 @@ if (isset($_GET['action'])) {
 
         if (!empty($existing_role) && normalize_role_name($existing_role) !== 'member') {
             $already_has = false;
+            
+            // Extract suffix of the new role we're trying to assign
+            $new_suffix = '';
+            if (preg_match('/\((.+?)\)/', $raw_role, $m_new)) {
+                $new_suffix = strtolower(trim($m_new[1]));
+            }
+
             foreach ($existing_roles_arr as $r) {
-                if (normalize_role_name($r) === $new_normalized) {
-                    $already_has = true;
-                    break;
+                // Check if base role is the same
+                if (normalize_role_name($r) === normalize_role_name($raw_role)) {
+                    // Extract suffix of the existing role
+                    $existing_suffix = '';
+                    if (preg_match('/\((.+?)\)/', $r, $m_ext)) {
+                        $existing_suffix = strtolower(trim($m_ext[1]));
+                    }
+                    
+                    // If both base role AND suffixes match (or if both have NO suffix), it's a true duplicate
+                    if ($new_suffix === $existing_suffix) {
+                        $already_has = true;
+                        break;
+                    }
                 }
             }
 
@@ -130,8 +162,9 @@ if (isset($_GET['action'])) {
                 // Only update department if:
                 // - member has no dept yet, AND
                 // - not a youth advisor (mama/baba youth keep home dept), AND
+                // - not a Sunday School cross-church role (those never change home dept), AND
                 // - the new role has a specific dept mapping
-                if ((empty($member_department) || $member_department === 'None') && !$member_is_youth_advisor && !$assigning_youth_advisor) {
+                if ((empty($member_department) || $member_department === 'None') && !$member_is_youth_advisor && !$assigning_youth_advisor && !$assigning_ss_leadership) {
                     $dept_sql = role_department_sql($conn, $raw_role);
                 }
                 // If assigning mama/baba youth to someone with no dept, set their home dept (Women's/Elders)
@@ -151,6 +184,9 @@ if (isset($_GET['action'])) {
                     $esc_home = $conn->real_escape_string($home_dept);
                     $dept_sql = ", department = '$esc_home'";
                 }
+            } elseif ($assigning_ss_leadership) {
+                // Sunday School leadership roles never touch the member's registered department
+                $dept_sql = '';
             } else {
                 $dept_sql = role_department_sql($conn, $raw_role);
             }
@@ -173,8 +209,7 @@ if (isset($_GET['action'])) {
             $gendered_title = get_building_chairperson_title($member_gender, $raw_role);
             $msg = $conn->real_escape_string("Welcome $member_first_name as $gendered_title in the Building & Construction Department");
         } else {
-            $display_role = clean_role_label($raw_role);
-            $msg = $conn->real_escape_string("Congratulations! You have been appointed as $display_role$scope_text. Welcome to your new role!");
+            $msg = $conn->real_escape_string("You have been assigned a new role: $raw_role$scope_text.");
         }
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
 
@@ -195,15 +230,25 @@ if (isset($_GET['action'])) {
             }
         }
         
+        // Filter out any plain 'member' placeholders that might have crept in
+        $new_roles = array_values(array_filter($new_roles, function($r) {
+            return strtolower(trim($r)) !== 'member';
+        }));
+        
         if (empty($new_roles)) {
-            $conn->query("UPDATE members SET church_role = 'Member' WHERE id = $member_id");
+            // Clear the role entirely — NULL means no role assigned, not "Member" placeholder
+            $conn->query("UPDATE members SET church_role = NULL WHERE id = $member_id");
         } else {
             $combined = $conn->real_escape_string(implode(', ', $new_roles));
             $conn->query("UPDATE members SET church_role = '$combined' WHERE id = $member_id");
         }
+
+        // If the removed role was Church Village Leader, also clear the village leader flag
+        if (stripos(trim($role_to_remove), 'village leader') !== false) {
+            $conn->query("UPDATE members SET is_village_leader = 0 WHERE id = $member_id");
+        }
         
-        $display_role_removed = clean_role_label($role_to_remove);
-        $msg = $conn->real_escape_string("Your role '$display_role_removed' has been removed.");
+        $msg = $conn->real_escape_string("Your role '$role_to_remove' has been removed.");
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
         
         header("Location: pastor_dashboard.php?tab=assign_roles&success=Role removed from member");
@@ -244,26 +289,15 @@ if (isset($_GET['action'])) {
     // Handle subsidiary appointments
     elseif ($action === 'approve_subsidiary' && isset($_GET['id'])) {
         $id = (int)$_GET['id'];
-        $member = $conn->query("SELECT m.*, c.first_name AS c_fn, c.last_name AS c_ln FROM members m LEFT JOIN members c ON c.id = m.pending_proposed_by WHERE m.id = $id AND m.pending_role IS NOT NULL AND m.pending_role != ''")->fetch_assoc();
+        $member = $conn->query("SELECT * FROM members WHERE id = $id AND pending_role IS NOT NULL AND pending_role != ''")->fetch_assoc();
         if ($member) {
             $new_role = $conn->real_escape_string($member['pending_role']);
             $dept_sql = role_department_sql($conn, $new_role);
-            $conn->query("UPDATE members SET church_role = '$new_role', pending_role = NULL, pending_proposed_by = NULL$dept_sql WHERE id = $id");
+            $conn->query("UPDATE members SET church_role = '$new_role', pending_role = NULL$dept_sql WHERE id = $id");
             
-            // Notify the member
-            $member_name = $conn->real_escape_string($member['first_name'] . ' ' . $member['last_name']);
-            $display_new_role = clean_role_label($new_role);
-            $msg_member = $conn->real_escape_string("Congratulations {$member['first_name']}! You have been appointed as $display_new_role. Welcome to your new role!");
-            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($id, 'member', '$msg_member')");
-            
-            // Notify the chairman who proposed - routes to 'appoint_leaders' tab
-            if (!empty($member['pending_proposed_by'])) {
-                $proposer_id = (int)$member['pending_proposed_by'];
-                $role_approval_msg = $conn->real_escape_string("The Pastor has approved your request: {$member['first_name']} {$member['last_name']} has been officially appointed as $display_new_role.");
-                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($proposer_id, 'member', '$role_approval_msg')");
-            }
-            
-            header("Location: pastor_dashboard.php?tab=assign_roles&success=Role approved successfully");
+            $msg = $conn->real_escape_string("Your leadership appointment to '$new_role' has been approved.");
+            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($id, 'member', '$msg')");
+            header("Location: pastor_dashboard.php?tab=assign_roles&success=Appointment approved successfully");
             exit();
         }
         header("Location: pastor_dashboard.php?tab=assign_roles&error=Appointment not found");
@@ -271,22 +305,10 @@ if (isset($_GET['action'])) {
     }
     elseif ($action === 'reject_subsidiary' && isset($_GET['id'])) {
         $id = (int)$_GET['id'];
-        $member = $conn->query("SELECT id, first_name, last_name, pending_role, pending_proposed_by FROM members WHERE id = $id")->fetch_assoc();
-        $rejected_role = $member['pending_role'] ?? 'the proposed role';
-        $conn->query("UPDATE members SET pending_role = NULL, pending_proposed_by = NULL WHERE id = $id");
+        $conn->query("UPDATE members SET pending_role = NULL WHERE id = $id");
         
-        // Notify the member
-        $display_rejected_role = clean_role_label($rejected_role);
-        $msg = $conn->real_escape_string("We are sorry, your proposed role '$display_rejected_role' was not approved by the Pastor.");
+        $msg = $conn->real_escape_string("Your leadership appointment was rejected.");
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($id, 'member', '$msg')");
-        
-        // Notify the chairman who proposed
-        if (!empty($member['pending_proposed_by'])) {
-            $proposer_id = (int)$member['pending_proposed_by'];
-            $reject_msg = $conn->real_escape_string("The Pastor has declined your request: {$member['first_name']} {$member['last_name']} for the role of $display_rejected_role was not approved.");
-            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($proposer_id, 'member', '$reject_msg')");
-        }
-        
         header("Location: pastor_dashboard.php?tab=assign_roles&success=Appointment rejected");
         exit();
     }

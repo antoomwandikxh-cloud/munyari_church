@@ -1,0 +1,2 @@
+# Redirect site root to login page
+DirectoryIndex login.php index.php

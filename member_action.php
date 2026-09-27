@@ -19,6 +19,50 @@ if (!isset($_SESSION['member_id'])) {
 
 $member_id = $_SESSION['member_id'];
 
+function ensure_financial_record_workflow_schema($conn) {
+    $columns = [
+        'is_sent_to_chair' => "ALTER TABLE financial_records ADD COLUMN is_sent_to_chair TINYINT(1) NOT NULL DEFAULT 0",
+        'edit_reason' => "ALTER TABLE financial_records ADD COLUMN edit_reason VARCHAR(255) NULL",
+        'is_chair_confirmed' => "ALTER TABLE financial_records ADD COLUMN is_chair_confirmed TINYINT(1) NOT NULL DEFAULT 0 AFTER is_sent_to_chair",
+        'chair_confirmed_by' => "ALTER TABLE financial_records ADD COLUMN chair_confirmed_by INT(6) UNSIGNED NULL AFTER is_chair_confirmed",
+        'chair_confirmed_at' => "ALTER TABLE financial_records ADD COLUMN chair_confirmed_at DATETIME NULL AFTER chair_confirmed_by",
+        'chair_disbursement_note' => "ALTER TABLE financial_records ADD COLUMN chair_disbursement_note TEXT NULL AFTER chair_confirmed_at"
+    ];
+
+    foreach ($columns as $column => $sql) {
+        $exists = $conn->query("SHOW COLUMNS FROM financial_records LIKE '$column'");
+        if ($exists && $exists->num_rows == 0) {
+            $conn->query($sql);
+        }
+    }
+}
+
+function chair_roles_for_department($department) {
+    if (department_matches($department, 'Youths')) {
+        return ['youth chairperson', 'youth chairman', 'youth chairlady', 'vice youth chairperson', 'vice youth chairman', 'vice youth chairlady'];
+    }
+    if (department_matches($department, 'Womens Ministry')) {
+        return ['women chairlady', 'women chairperson', 'women chairman', 'vice women chairlady', 'vice women chairperson', 'vice women chairman'];
+    }
+    if (department_matches($department, 'Elders')) {
+        return ['elder chairman', 'elder chairperson', 'elder chairlady', 'vice elder chairman', 'vice elder chairperson', 'vice elder chairlady'];
+    }
+    if (department_matches($department, 'Sunday School')) {
+        return ['sunday school patron', 'vice sunday school patron', 'sunday school chairperson', 'sunday school chairman', 'sunday school chairlady', 'vice sunday school chairperson', 'vice sunday school chairman', 'vice sunday school chairlady'];
+    }
+    if (department_matches($department, 'Building & Construction')) {
+        return ['building chairperson', 'building chairman', 'building chairlady', 'vice building chairperson', 'vice building chairman', 'vice building chairlady'];
+    }
+
+    return [];
+}
+
+function member_is_chair_for_department($roles, $department) {
+    return !empty(array_intersect($roles, chair_roles_for_department($department)));
+}
+
+ensure_financial_record_workflow_schema($conn);
+
 if (isset($_GET['action'])) {
     $action = $_GET['action'];
     
@@ -121,6 +165,228 @@ if (isset($_GET['action'])) {
         }
     }
 
+    // Edit Financials
+    elseif ($action === 'edit_finance' && $_SERVER['REQUEST_METHOD'] == 'POST') {
+        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
+        $roles = get_member_roles($member_query['church_role'] ?? '');
+        
+        $treasurer_departments = [
+            'treasurer' => 'General Church',
+            'youth treasurer' => 'Youths',
+            'women treasurer' => 'Womens Ministry',
+            'elder treasurer' => 'Elders',
+            'sunday school treasurer' => 'Sunday School',
+            'building treasurer' => 'Building & Construction'
+        ];
+        
+        $allowed_depts = [];
+        foreach ($roles as $r) {
+            if (array_key_exists($r, $treasurer_departments)) {
+                $allowed_depts[] = $treasurer_departments[$r];
+            }
+        }
+        
+        $submitted_dept = $_POST['department'] ?? '';
+        
+        $dept_is_allowed = false;
+        foreach ($allowed_depts as $allowed) {
+            if (department_matches($submitted_dept, $allowed)) {
+                $dept_is_allowed = true;
+                break;
+            }
+        }
+        $is_general_leader = false;
+        $general_leader_roles = ['treasurer', 'general church secretary', 'vice church secretary', 'senior church elder'];
+        foreach ($roles as $r) {
+            if (in_array($r, $general_leader_roles, true)) {
+                $is_general_leader = true;
+                break;
+            }
+        }
+        if ($dept_is_allowed || ($is_general_leader && !empty($submitted_dept))) {
+            $record_id = (int)$_POST['record_id'];
+            $amount = floatval($_POST['amount']);
+            $description = $conn->real_escape_string(trim($_POST['description'] ?? ''));
+            $record_date = $conn->real_escape_string($_POST['record_date']);
+            $edit_reason = $conn->real_escape_string(trim($_POST['edit_reason'] ?? ''));
+            
+            // Check if it was sent to chair before updating
+            $old_record = $conn->query("SELECT is_sent_to_chair FROM financial_records WHERE id = $record_id")->fetch_assoc();
+            
+            if (!empty($old_record['is_sent_to_chair'])) {
+                $conn->query("UPDATE financial_records SET amount = $amount, description = '$description', record_date = '$record_date', edit_reason = '$edit_reason', is_sent_to_chair = 0, is_chair_confirmed = 0, chair_confirmed_by = NULL, chair_confirmed_at = NULL, chair_disbursement_note = NULL WHERE id = $record_id");
+                
+                // Delete transfers and disbursements linked to this record to "redo" it
+                $conn->query("DELETE FROM department_funds_transfer WHERE financial_record_id = $record_id");
+            } else {
+                $conn->query("UPDATE financial_records SET amount = $amount, description = '$description', record_date = '$record_date', edit_reason = '$edit_reason' WHERE id = $record_id");
+            }
+            
+            // Notify pastors and admins about the edit
+            $member_name = $conn->real_escape_string($member_query['first_name'] . ' ' . $member_query['last_name']);
+            $notif_text = "$submitted_dept Treasurer ($member_name) edited a financial record. Reason: $edit_reason. New Amount: KSh " . number_format($amount, 2);
+            $notif_msg = $conn->real_escape_string($notif_text);
+            $pastors_q = $conn->query("SELECT id FROM pastors");
+            while($p = $pastors_q->fetch_assoc()) {
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$p['id']}, 'pastor', '$notif_msg')");
+            }
+            $admins_q = $conn->query("SELECT id FROM admins");
+            if ($admins_q) {
+                while($a = $admins_q->fetch_assoc()) {
+                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$a['id']}, 'admin', '$notif_msg')");
+                }
+            }
+            
+            header("Location: member_dashboard.php?tab=financials&treasurer_dept=" . urlencode($submitted_dept) . "&success=Financial record updated successfully. Reverted to unsent if previously sent.");
+            exit();
+        } else {
+            header("Location: member_dashboard.php?tab=financials&error=Access denied to edit financial records for this department.");
+            exit();
+        }
+    }
+
+    // Send Specific Record to Chairperson
+    elseif ($action === 'send_record_to_chairperson' && $_SERVER['REQUEST_METHOD'] == 'POST') {
+        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
+        $roles = get_member_roles($member_query['church_role'] ?? '');
+        
+        $treasurer_departments = [
+            'youth treasurer' => 'Youths',
+            'women treasurer' => 'Womens Ministry',
+            'elder treasurer' => 'Elders',
+            'sunday school treasurer' => 'Sunday School',
+            'building treasurer' => 'Building & Construction'
+        ];
+        
+        $allowed_depts = [];
+        foreach ($roles as $r) {
+            if (array_key_exists($r, $treasurer_departments)) {
+                $allowed_depts[] = $treasurer_departments[$r];
+            }
+        }
+        
+        $submitted_dept = $_POST['department'] ?? '';
+        $dept_is_allowed = false;
+        foreach ($allowed_depts as $allowed) {
+            if (department_matches($submitted_dept, $allowed)) {
+                $dept_is_allowed = true;
+                break;
+            }
+        }
+        
+        if ($dept_is_allowed) {
+            $record_id = (int)$_POST['record_id'];
+            $esc_dept = $conn->real_escape_string($submitted_dept);
+            
+            $record = $conn->query("SELECT * FROM financial_records WHERE id = $record_id AND department = '$esc_dept' AND (is_sent_to_chair = 0 OR is_sent_to_chair IS NULL)")->fetch_assoc();
+            
+            if (!$record) {
+                header("Location: member_dashboard.php?tab=financials&treasurer_dept=" . urlencode($submitted_dept) . "&error=Record not found or already sent.");
+                exit();
+            }
+            
+            $amount = floatval($record['amount']);
+            $description = $conn->real_escape_string($record['description'] ?: 'Transfer of recorded funds');
+            
+            // Mark as sent
+            $conn->query("UPDATE financial_records SET is_sent_to_chair = 1 WHERE id = $record_id");
+            
+            // Insert transfer (link it to the source record)
+            $conn->query("INSERT INTO department_funds_transfer (department, amount, transfer_type, description, recorded_by, financial_record_id) VALUES ('$esc_dept', $amount, 'To Chairperson', '$description', $member_id, $record_id)");
+            
+            // Notify Chairperson
+            $chair_roles = chair_roles_for_department($esc_dept);
+            
+            if (!empty($chair_roles)) {
+                $chairs_res = $conn->query("SELECT id, church_role FROM members WHERE is_approved=1");
+                while ($c = $chairs_res->fetch_assoc()) {
+                    $c_roles = get_member_roles($c['church_role']);
+                    $is_chair = !empty(array_intersect($c_roles, $chair_roles));
+                    if ($is_chair) {
+                        $msg = $conn->real_escape_string("Financial record submitted for chairperson review in $esc_dept. KSh " . number_format($amount, 2) . " from the Treasurer. Open Received Financial Records to confirm and disburse. Reason: $description");
+                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$c['id']}, 'member', '$msg')");
+                    }
+                }
+            }
+            
+            header("Location: member_dashboard.php?tab=financials&treasurer_dept=" . urlencode($submitted_dept) . "&success=Record sent to Chairperson successfully");
+            exit();
+        } else {
+            header("Location: member_dashboard.php?tab=financials&error=Access denied.");
+            exit();
+        }
+    }
+
+    // Chairperson Confirm / Disburse Whole Treasurer Transaction
+    elseif ($action === 'disperse_funds' && $_SERVER['REQUEST_METHOD'] == 'POST') {
+        $department = $conn->real_escape_string($_POST['department']);
+        $financial_record_id = (int)($_POST['financial_record_id'] ?? 0);
+        $description = $conn->real_escape_string(trim($_POST['description'] ?? ''));
+        
+        // Verify chairperson access
+        $member_query = $conn->query("SELECT first_name, last_name, church_role FROM members WHERE id = $member_id")->fetch_assoc();
+        $roles = get_member_roles($member_query['church_role'] ?? '');
+        $is_chair = member_is_chair_for_department($roles, $department);
+        
+        if ($is_chair) {
+            $record = null;
+            if ($financial_record_id > 0) {
+                $dept_match = department_match_sql($conn, 'fr.department', $department);
+                $record = $conn->query("
+                    SELECT fr.*, dft.id AS transfer_id
+                    FROM financial_records fr
+                    LEFT JOIN department_funds_transfer dft ON dft.financial_record_id = fr.id AND dft.transfer_type = 'To Chairperson'
+                    WHERE fr.id = $financial_record_id
+                      AND $dept_match
+                      AND fr.is_sent_to_chair = 1
+                      AND fr.is_chair_confirmed = 0
+                    LIMIT 1
+                ")->fetch_assoc();
+            }
+
+            if (!$record) {
+                header("Location: member_dashboard.php?tab=received_financials&leader_dept=" . urlencode($department) . "&error=Financial transaction was not found or has not been sent by the treasurer.");
+                exit();
+            }
+
+            $amount = (float)$record['amount'];
+            $final_note = $description !== '' ? $description : ($record['description'] ?: 'Confirmed whole treasurer transaction');
+            $final_note_sql = $conn->real_escape_string($final_note);
+            $conn->query("UPDATE financial_records SET is_chair_confirmed = 1, chair_confirmed_by = $member_id, chair_confirmed_at = NOW(), chair_disbursement_note = '$final_note_sql' WHERE id = $financial_record_id");
+
+            // Notify the treasurer/member who submitted the transaction and the approved members in that department.
+            $chair_name = trim(($member_query['first_name'] ?? '') . ' ' . ($member_query['last_name'] ?? ''));
+            $msg = $conn->real_escape_string("Financial record confirmed and disbursed for {$record['department']}. KSh " . number_format($amount, 2) . " was confirmed by $chair_name. Open Financial Records.");
+            $recorded_by = (int)$record['recorded_by'];
+            $notified_members = [];
+            if ($recorded_by > 0) {
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($recorded_by, 'member', '$msg')");
+                $notified_members[$recorded_by] = true;
+            }
+
+            $department_member_where = department_match_sql($conn, 'department', $record['department']);
+            if (department_matches($record['department'], 'Youths')) {
+                $department_member_where = "($department_member_where OR LOWER(church_role) LIKE '%mama youth%' OR LOWER(church_role) LIKE '%baba youth%')";
+            }
+            $dept_members_notify = $conn->query("SELECT id FROM members WHERE is_approved = 1 AND $department_member_where");
+            if ($dept_members_notify) {
+                while ($notify_member = $dept_members_notify->fetch_assoc()) {
+                    $notify_member_id = (int)$notify_member['id'];
+                    if ($notify_member_id > 0 && $notify_member_id !== $member_id && empty($notified_members[$notify_member_id])) {
+                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($notify_member_id, 'member', '$msg')");
+                        $notified_members[$notify_member_id] = true;
+                    }
+                }
+            }
+
+            header("Location: member_dashboard.php?tab=received_financials&leader_dept=" . urlencode($department) . "&success=Financial transaction confirmed and disbursed successfully");
+            exit();
+        } else {
+            header("Location: member_dashboard.php?tab=received_financials&error=Access denied.");
+            exit();
+        }
+    }
+
     // Appoint Leader
     elseif ($action === 'appoint_leader' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $target_member_id = (int)$_POST['target_member_id'];
@@ -164,11 +430,13 @@ if (isset($_GET['action'])) {
         ];
 
         
-        $managed_dept = null;
-        foreach ($member_roles_list as $r) {
-            if (array_key_exists($r, $leader_departments)) {
-                $managed_dept = $leader_departments[$r];
-                break;
+        $managed_dept = $_POST['active_dept'] ?? null;
+        if (!$managed_dept) {
+            foreach ($member_roles_list as $r) {
+                if (array_key_exists($r, $leader_departments)) {
+                    $managed_dept = $leader_departments[$r];
+                    break;
+                }
             }
         }
         
@@ -181,7 +449,9 @@ if (isset($_GET['action'])) {
             $target_check = $conn->query("SELECT id, first_name, last_name FROM members WHERE id = $target_member_id AND $dept_filter AND is_approved = 1 AND (church_role IS NULL OR church_role = '' OR LOWER(TRIM(church_role)) = 'member') AND (pending_role IS NULL OR pending_role = '')")->fetch_assoc();
 
             if (!$target_check) {
-                header("Location: member_dashboard.php?tab=appoint_leaders&error=You can only assign approved members in your own department who do not already have a role or pending role");
+                $redirect = "member_dashboard.php?tab=appoint_leaders&error=You can only assign approved members in your own department who do not already have a role or pending role";
+                if (isset($_POST['active_dept'])) $redirect .= "&leader_dept=" . urlencode($_POST['active_dept']);
+                header("Location: $redirect");
                 exit();
             }
             
@@ -200,7 +470,9 @@ if (isset($_GET['action'])) {
                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pid, 'pastor', '$notif_msg')");
             }
             
-            header("Location: member_dashboard.php?tab=appoint_leaders&success=Appointment request sent to Pastor for approval");
+            $redirect = "member_dashboard.php?tab=appoint_leaders&success=Appointment request sent to Pastor for approval";
+            if (isset($_POST['active_dept'])) $redirect .= "&leader_dept=" . urlencode($_POST['active_dept']);
+            header("Location: $redirect");
             exit();
         } else {
             header("Location: member_dashboard.php?tab=appoint_leaders&error=Unauthorized access");
@@ -213,7 +485,7 @@ if (isset($_GET['action'])) {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         
         if (member_has_role($member_query['church_role'] ?? '', 'organizing secretary')) {
-            $department = $conn->real_escape_string($member_query['department']);
+            $department = isset($_POST['active_dept']) ? $conn->real_escape_string(trim($_POST['active_dept'])) : $conn->real_escape_string($member_query['department']);
             $title = $conn->real_escape_string($_POST['title']);
             $announcement = $conn->real_escape_string($_POST['announcement']);
             $meet_link = $conn->real_escape_string($_POST['meet_link']);
@@ -263,12 +535,12 @@ if (isset($_GET['action'])) {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         
         if (member_has_role($member_query['church_role'] ?? '', 'discipline master')) {
-            $dept = $conn->real_escape_string($member_query['department']);
+            $dept = isset($_POST['active_dept']) ? $conn->real_escape_string(trim($_POST['active_dept'])) : $conn->real_escape_string($member_query['department']);
             $fine_name = $conn->real_escape_string($_POST['fine_name']);
             $amount = floatval($_POST['amount']);
             
             $conn->query("INSERT INTO fine_templates (department, fine_name, amount) VALUES ('$dept', '$fine_name', $amount)");
-            header("Location: member_dashboard.php?tab=discipline&success=Fine rule added");
+            header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($dept) . "&success=Fine rule added");
             exit();
         }
     }
@@ -278,8 +550,9 @@ if (isset($_GET['action'])) {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         if (member_has_role($member_query['church_role'] ?? '', 'discipline master')) {
             $id = (int)$_GET['id'];
+            $active_dept = $_GET['active_dept'] ?? $member_query['department'];
             $conn->query("DELETE FROM fine_templates WHERE id = $id");
-            header("Location: member_dashboard.php?tab=discipline&success=Fine rule removed");
+            header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($active_dept) . "&success=Fine rule removed");
             exit();
         }
     }
@@ -288,7 +561,7 @@ if (isset($_GET['action'])) {
     elseif ($action === 'issue_fine' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         if (member_has_role($member_query['church_role'] ?? '', 'discipline master')) {
-            $dept = $conn->real_escape_string($member_query['department']);
+            $dept = isset($_POST['active_dept']) ? $conn->real_escape_string(trim($_POST['active_dept'])) : $conn->real_escape_string($member_query['department']);
             $target_id = (int)$_POST['member_id'];
             $template_id = (int)$_POST['fine_template_id'];
             
@@ -304,7 +577,7 @@ if (isset($_GET['action'])) {
                 $msg = $conn->real_escape_string("You have been fined KSh $amount for '$reason' by the Discipline Master. Please pay by the next meeting.");
                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($target_id, 'member', '$msg')");
                 
-                header("Location: member_dashboard.php?tab=discipline&success=Fine issued successfully");
+                header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($dept) . "&success=Fine issued successfully");
                 exit();
             }
         }
@@ -395,7 +668,7 @@ if (isset($_GET['action'])) {
     elseif ($action === 'report_member' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         if (member_has_role($member_query['church_role'] ?? '', 'discipline master')) {
-            $dept = $conn->real_escape_string($member_query['department']);
+            $dept = isset($_POST['active_dept']) ? $conn->real_escape_string(trim($_POST['active_dept'])) : $conn->real_escape_string($member_query['department']);
             $target_id = (int)$_POST['member_id'];
             $reason = $conn->real_escape_string($_POST['reason']);
             
@@ -410,7 +683,7 @@ if (isset($_GET['action'])) {
             }
             
             $title = ($dept === 'Womens Ministry') ? 'Chairlady' : 'Chairman';
-            header("Location: member_dashboard.php?tab=discipline&success=Member reported to $title");
+            header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($dept) . "&success=Member reported to $title");
             exit();
         }
     }
@@ -531,7 +804,7 @@ if (isset($_GET['action'])) {
     elseif ($action === 'schedule_prayer' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         if (member_has_role($member_query['church_role'] ?? '', 'prayer coordinator')) {
-            $dept = $conn->real_escape_string($member_query['department']);
+            $dept = isset($_POST['active_dept']) ? $conn->real_escape_string(trim($_POST['active_dept'])) : $conn->real_escape_string($member_query['department']);
             $title = $conn->real_escape_string($_POST['title']);
             $description = $conn->real_escape_string($_POST['description'] ?? '');
             $prayer_date = $conn->real_escape_string($_POST['prayer_date']);
@@ -559,7 +832,7 @@ if (isset($_GET['action'])) {
             $admins = $conn->query("SELECT id FROM admins");
             if ($admins) { while ($a = $admins->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$a['id']}, 'admin', '$notif_msg')"); } }
 
-            header("Location: member_dashboard.php?tab=prayer_panel&success=Prayer session scheduled and department notified");
+            header("Location: member_dashboard.php?tab=prayer_panel&prayer_dept=" . urlencode($dept) . "&success=Prayer session scheduled and department notified");
             exit();
         }
     }
@@ -568,7 +841,7 @@ if (isset($_GET['action'])) {
     elseif ($action === 'add_prayer_item' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         if (member_has_role($member_query['church_role'] ?? '', 'prayer coordinator')) {
-            $dept = $conn->real_escape_string($member_query['department']);
+            $dept = isset($_POST['active_dept']) ? $conn->real_escape_string(trim($_POST['active_dept'])) : $conn->real_escape_string($member_query['department']);
             $title = $conn->real_escape_string($_POST['title']);
             $description = $conn->real_escape_string($_POST['description'] ?? '');
             $category = $conn->real_escape_string($_POST['category'] ?? 'General');
@@ -592,7 +865,7 @@ if (isset($_GET['action'])) {
             $admins = $conn->query("SELECT id FROM admins");
             if ($admins) { while ($a = $admins->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$a['id']}, 'admin', '$notif_msg')"); } }
 
-            header("Location: member_dashboard.php?tab=prayer_panel&success=Prayer item added and department notified");
+            header("Location: member_dashboard.php?tab=prayer_panel&prayer_dept=" . urlencode($dept) . "&success=Prayer item added and department notified");
             exit();
         }
     }
@@ -634,7 +907,7 @@ if (isset($_GET['action'])) {
     elseif ($action === 'schedule_match' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         if (member_has_role($member_query['church_role'] ?? '', 'sport secretary') || member_has_role($member_query['church_role'] ?? '', 'sports secretary')) {
-            $dept = $conn->real_escape_string($member_query['department']);
+            $dept = isset($_POST['active_dept']) ? $conn->real_escape_string(trim($_POST['active_dept'])) : $conn->real_escape_string($member_query['department']);
             $title = $conn->real_escape_string($_POST['title']);
             $description = $conn->real_escape_string($_POST['description'] ?? '');
             $match_date = $conn->real_escape_string($_POST['match_date']);
@@ -662,7 +935,7 @@ if (isset($_GET['action'])) {
             while ($adm = $admins->fetch_assoc()) {
                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$adm['id']}, 'admin', '$notif_msg')");
             }
-            header("Location: member_dashboard.php?tab=manage_sport&success=Match scheduled and members notified!");
+            header("Location: member_dashboard.php?tab=manage_sport&sport_dept=" . urlencode($dept) . "&success=Match scheduled and members notified!");
             exit();
         }
     }
@@ -671,7 +944,7 @@ if (isset($_GET['action'])) {
     elseif ($action === 'post_sport_announcement' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         if (member_has_role($member_query['church_role'] ?? '', 'sport secretary') || member_has_role($member_query['church_role'] ?? '', 'sports secretary')) {
-            $dept = $conn->real_escape_string($member_query['department']);
+            $dept = isset($_POST['active_dept']) ? $conn->real_escape_string(trim($_POST['active_dept'])) : $conn->real_escape_string($member_query['department']);
             $message = $conn->real_escape_string(trim($_POST['message']));
             if (!empty($message)) {
                 $conn->query("INSERT INTO sport_announcements (department, secretary_id, message) VALUES ('$dept', $member_id, '$message')");
@@ -690,7 +963,7 @@ if (isset($_GET['action'])) {
                     $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$adm['id']}, 'admin', '$notif_msg')");
                 }
             }
-            header("Location: member_dashboard.php?tab=manage_sport&success=Announcement posted successfully!");
+            header("Location: member_dashboard.php?tab=manage_sport&sport_dept=" . urlencode($dept) . "&success=Announcement posted successfully!");
             exit();
         }
     }

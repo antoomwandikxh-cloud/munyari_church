@@ -1,7 +1,71 @@
-<?php
+﻿<?php
 function notification_badge_tabs($message, $user_type) {
     $msg  = strtolower($message);
     $tabs = [];
+
+    if (strpos($msg, 'new member registration pending approval') !== false) {
+        $tabs[] = 'manage_members';
+    }
+    if (strpos($msg, 'approved by the pastor') !== false || strpos($msg, 'approved by the admin') !== false) {
+        $tabs[] = 'dashboard';
+    }
+    if (strpos($msg, 'deployed to their department') !== false) {
+        $tabs[] = 'departments';
+    }
+
+    if (strpos($msg, 'assigned as the church village leader') !== false) {
+        $tabs[] = 'manage_church_village';
+    }
+    if (strpos($msg, 'a new member has been added in') !== false) {
+        if ($user_type === 'member') {
+            $tabs[] = 'manage_church_village';
+        } else {
+            $tabs[] = 'desired_roles';
+        }
+    }
+
+
+        // Village announcement notification -> desired_roles tab (where members see their village)
+    if (strpos($msg, 'new village announcement') !== false && strpos($msg, 'village leader') !== false) {
+        if ($user_type === 'member') {
+            $tabs[] = 'desired_roles';
+        }
+    }
+
+    if (strpos($msg, 'sunday school class change request') !== false || strpos($msg, 'sunday school class approval') !== false) {
+        if ($user_type === 'member') {
+            $tabs[] = (strpos($msg, 'your sunday school class') !== false) ? 'manage_classes' : 'manage_department';
+        } elseif ($user_type === 'pastor' || $user_type === 'admin') {
+            $tabs[] = 'manage_sunday_school';
+        }
+        return array_values(array_unique($tabs));
+    }
+
+    if (strpos($msg, 'sunday school teacher message') !== false) {
+        return [$user_type === 'member' ? 'manage_classes' : 'manage_sunday_school'];
+    }
+
+    if (strpos($msg, 'sunday school attendance register') !== false) {
+        return [$user_type === 'member' ? 'manage_sunday_classes' : 'manage_sunday_school'];
+    }
+
+    if (strpos($msg, 'sunday school class leader') !== false || strpos($msg, 'sunday school teacher') !== false) {
+        if ($user_type === 'member') {
+            $tabs[] = (strpos($msg, 'approval request') !== false) ? 'manage_department' : 'manage_sunday_classes';
+        } elseif ($user_type === 'pastor' || $user_type === 'admin') {
+            $tabs[] = 'manage_sunday_school';
+        }
+        return array_values(array_unique($tabs));
+    }
+
+    if ($user_type === 'member') {
+        if (strpos($msg, 'treasurer') !== false && (strpos($msg, 'received') !== false || strpos($msg, 'sent') !== false || strpos($msg, 'record') !== false)) {
+            return ['manage_department', 'received_financials'];
+        }
+        if (strpos($msg, 'chairperson') !== false && (strpos($msg, 'received') !== false || strpos($msg, 'dispersed') !== false || strpos($msg, 'ksh') !== false)) {
+            return ['my_financials', 'financials'];
+        }
+    }
 
     // ─── 1. SECRETARY REPLY TO QUERY (most specific – must come first) ──────
     // e.g. "Reply to your announcement query from General Church Secretary rose: ..."
@@ -53,9 +117,21 @@ function notification_badge_tabs($message, $user_type) {
     if (strpos($msg, 'pastor') !== false && strpos($msg, 'registration') !== false) {
         $tabs[] = $user_type === 'admin' ? 'pastors' : 'dashboard';
     }
-    if ((strpos($msg, 'member') !== false && strpos($msg, 'worship') === false) || 
+        if ((strpos($msg, 'member') !== false && strpos($msg, 'worship') === false) || 
         (strpos($msg, 'registration') !== false && strpos($msg, 'pastor') === false)) {
         $tabs[] = $user_type === 'admin' ? 'members' : 'manage_members';
+        $tabs[] = 'departments';
+    }
+
+    if (strpos($msg, 'assigned as the church village leader') !== false) {
+        $tabs[] = 'manage_church_village';
+    }
+    if (strpos($msg, 'a new member has been added in') !== false) {
+        if ($user_type === 'member') {
+            $tabs[] = 'manage_church_village';
+        } else {
+            $tabs[] = 'desired_roles';
+        }
     }
 
     // ─── 5. ROLE / APPOINTMENT ──────────────────────────────────────────────
@@ -66,7 +142,13 @@ function notification_badge_tabs($message, $user_type) {
         }
     }
     if (strpos($msg, 'appointment') !== false && strpos($msg, 'role') === false) {
-        $tabs[] = $user_type === 'member' ? 'contact_pastor' : 'appointments_messages';
+        if ($user_type === 'member') {
+            $tabs[] = 'contact_pastor';
+        } elseif ($user_type === 'pastor') {
+            $tabs[] = 'appointments';
+        } else {
+            $tabs[] = 'appointments';
+        }
     }
 
     // ─── 6. DAILY QUOTE / HIGHLIGHTS ────────────────────────────────────────
@@ -75,7 +157,11 @@ function notification_badge_tabs($message, $user_type) {
     }
 
     // ─── 7. GENERAL ANNOUNCEMENTS (broad – must come after specific query checks) ─
-    if (strpos($msg, 'announcement') !== false || strpos($msg, 'department') !== false || strpos($msg, 'transfer') !== false) {
+    if (strpos($msg, 'transferred') !== false) {
+        $tabs[] = 'dashboard';
+    }
+
+    if (strpos($msg, 'announcement') !== false || strpos($msg, 'department') !== false) {
         if ($user_type === 'member') {
             $tabs[] = 'announcements';
             $tabs[] = 'dept_announcements';
@@ -153,7 +239,7 @@ function notification_badge_tabs($message, $user_type) {
                 ? (strpos($msg, 'secretary council') !== false ? 'query_announcements' : 'general_leader_chat')
                 : 'general_leadership';
         } else {
-            $tabs[] = $user_type === 'member' ? 'leader_chat' : 'appointments_messages';
+            $tabs[] = $user_type === 'member' ? 'leader_chat' : 'appointments';
         }
     }
 
@@ -220,3 +306,5 @@ function notification_target_tab($message, $user_type, $fallback_tab = 'dashboar
     return $tabs[0] ?? $fallback_tab;
 }
 ?>
+
+

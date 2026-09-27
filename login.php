@@ -54,6 +54,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if (password_verify($password, $member['password'])) {
                 if ($member['is_approved'] == 0) {
                     $error = "Your account is pending pastor approval. Please check back later.";
+                } elseif ($member['is_approved'] == -2) {
+                    $attempts = (int)($member['decline_attempts'] ?? 0);
+                    if ($attempts >= 2) {
+                        $conn->query("DELETE FROM members WHERE id = " . $member['id']);
+                        $error = "Your declined account has been removed from the system. Please re-register with valid details.";
+                    } else {
+                        $conn->query("UPDATE members SET decline_attempts = decline_attempts + 1 WHERE id = " . $member['id']);
+                        $reason = $member['decline_reason'] ?? 'No reason provided.';
+                        $error = "__DECLINED__|" . htmlspecialchars($member['first_name'], ENT_QUOTES) . "|" . htmlspecialchars($reason, ENT_QUOTES);
+                    }
                 } elseif ($member['is_approved'] == -1) {
                     $error = "Your account has been deactivated. Please contact your pastor.";
                 } else {
@@ -128,10 +138,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <?php endif; ?>
             
             <?php if($error): ?>
+                <?php
+                $is_declined = str_starts_with($error, '__DECLINED__|');
+                if ($is_declined) {
+                    $parts = explode('|', $error, 3);
+                    $dec_name   = $parts[1] ?? 'Member';
+                    $dec_reason = $parts[2] ?? 'No reason provided.';
+                }
+                ?>
+                <?php if (!$is_declined): ?>
                 <div class="alert alert-error">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     <span><?= $error ?></span>
                 </div>
+                <?php else: ?>
+                <!-- Decline Reason Popup -->
+                <div id="declinePopup" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;">
+                  <div style="background:white;border-radius:14px;padding:30px 32px;max-width:440px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,0.25);text-align:center;position:relative;">
+                    <div style="width:60px;height:60px;background:#fef2f2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                      <svg width="30" height="30" fill="none" stroke="#dc2626" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <h2 style="margin:0 0 6px;color:#dc2626;font-size:1.2rem;">Registration Declined</h2>
+                    <p style="margin:0 0 16px;color:#6b7280;font-size:0.9rem;">Hello <strong><?= htmlspecialchars($dec_name) ?></strong>, the pastor has reviewed your registration.</p>
+                    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:14px 16px;margin-bottom:20px;text-align:left;">
+                      <div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;color:#dc2626;letter-spacing:0.5px;margin-bottom:6px;">Reason</div>
+                      <div style="font-size:0.92rem;color:#374151;line-height:1.5;"><?= htmlspecialchars($dec_reason) ?></div>
+                    </div>
+                    <p style="font-size:0.82rem;color:#9ca3af;margin-bottom:20px;">Please contact your pastor for more information or re-register with the correct details.</p>
+                    <button onclick="window.location.href='register_page.php'" style="background:#dc2626;color:white;border:none;padding:10px 28px;border-radius:8px;cursor:pointer;font-size:0.95rem;font-weight:600;">OK, I understand</button>
+                  </div>
+                </div>
+                <?php endif; ?>
             <?php endif; ?>
             
             <form action="login.php" method="POST" autocomplete="off">

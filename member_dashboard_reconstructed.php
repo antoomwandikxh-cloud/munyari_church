@@ -2187,14 +2187,14 @@ $pastors = $conn->query("SELECT * FROM pastors WHERE is_approved = 1");
 // Handle Mark All as Read
 if (isset($_GET['action']) && $_GET['action'] == 'mark_all_read') {
     $conn->query("UPDATE notifications SET is_read = 1 WHERE user_id = $member_id AND user_type = 'member'");
-    header("Location: member_dashboard.php?tab=" . ($_GET['tab'] ?? 'dashboard'));
+    header("Location: member_dashboard.php");
     exit();
 }
 
 // Handle Delete All Notifications
 if (isset($_GET['action']) && $_GET['action'] == 'delete_all_notifications') {
     $conn->query("DELETE FROM notifications WHERE user_id = $member_id AND user_type = 'member'");
-    header("Location: member_dashboard.php?tab=" . ($_GET['tab'] ?? 'dashboard'));
+    header("Location: member_dashboard.php");
     exit();
 }
 
@@ -2481,7 +2481,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
     <title>Member Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
     <?php
-    $phones_result = $conn->query("SELECT phone FROM members WHERE phone IS NOT NULL AND phone != ''");
+    $phones_result = $conn->query("SELECT phone FROM members WHERE phone IS NOT NULL AND phone != '");
     $phones = [];
     if ($phones_result) {
         while ($row = $phones_result->fetch_assoc()) {
@@ -2520,12 +2520,26 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     Church Village & Role
                     <?php if (!$has_church_village): ?><span style="background:var(--danger);color:white;font-size:0.6rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;animation:pulse 1.5s infinite;">NEW</span><?php endif; ?>
                 </a>
+                <?php if ($member['is_village_leader'] == 1): ?>
+                <a href="?tab=manage_church_village" class="sidebar-link <?= $tab == 'manage_church_village' ? 'active' : '' ?>" style="position:relative;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Manage Church Village
+                    <?php if (!empty($tab_badges['manage_church_village'])): ?><span style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['manage_church_village'] ?></span><?php endif; ?>
+                </a>
+                <?php endif; ?>
 
                 <?php if (($member['department'] ?? '') === 'Sunday School'): ?>
                 <a href="?tab=manage_classes" class="sidebar-link <?= $tab == 'manage_classes' ? 'active' : '' ?>" style="position:relative; <?= empty($member['sunday_school_class']) ? 'background:linear-gradient(135deg,rgba(245,158,11,0.18),rgba(245,158,11,0.08)); border-left:3px solid #f59e0b;' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422A12.083 12.083 0 0118.825 17 11.952 11.952 0 0012 20.055 11.952 11.952 0 005.175 17a12.083 12.083 0 01.665-6.422L12 14z"></path></svg>
                     Manage Classes
                     <?php if (empty($member['sunday_school_class'])): ?><span style="background:var(--danger);color:white;font-size:0.6rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;animation:pulse 1.5s infinite;">REQUIRED</span><?php endif; ?>
+                </a>
+                <?php endif; ?>
+                <?php if ($is_ss_class_teacher): ?>
+                <a href="?tab=manage_sunday_classes" class="sidebar-link <?= $tab == 'manage_sunday_classes' ? 'active' : '' ?>" style="position:relative;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5S19.832 5.477 21 6.253v13C19.832 18.477 18.246 18 16.5 18s-3.332.477-4.5 1.253"></path></svg>
+                    Manage Sunday Classes
+                    <?php if (!empty($tab_badges['manage_sunday_classes'])): ?><span class="tab-notif-badge"><?= $tab_badges['manage_sunday_classes'] > 99 ? '99+' : $tab_badges['manage_sunday_classes'] ?></span><?php endif; ?>
                 </a>
                 <?php endif; ?>
 
@@ -2618,7 +2632,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 <?php endif; ?>
 
                 <!-- Leadership Panel -->
-                <?php if ($ctx_is_leader && $managed_dept !== 'Sunday School'): ?>
+                <?php if ($ctx_is_leader): ?>
                     <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: var(--primary); margin-top: 10px;">Leadership</div>
                     <a href="?tab=manage_department" class="sidebar-link <?= $tab == 'manage_department' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -2811,43 +2825,6 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 </a>
                 <?php endif; ?>
 
-                <!-- Village Panel -->
-                <?php if ($member['is_village_leader'] == 1): ?>
-                <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: #f59e0b; margin-top: 10px;">Church Village Panel</div>
-                <a href="?tab=manage_church_village" class="sidebar-link <?= $tab == 'manage_church_village' ? 'active' : '' ?>" style="position:relative;">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                    Manage Church Village
-                    <?php if (!empty($tab_badges['manage_church_village'])): ?><span class="tab-notif-badge"><?= $tab_badges['manage_church_village'] ?></span><?php endif; ?>
-                </a>
-                <?php endif; ?>
-
-                <!-- Sunday School Panel -->
-                <?php if ((in_array('Sunday School', $ss_leader_depts) || $is_ss_class_teacher)): ?>
-                <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: #0ea5e9; margin-top: 10px;">Sunday School Panel</div>
-                <?php if (in_array('Sunday School', $ss_leader_depts)): ?>
-                <a href="?tab=manage_department&leader_dept=Sunday+School" class="sidebar-link <?= ($tab == 'manage_department' && $managed_dept == 'Sunday School') ? 'active' : '' ?>">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
-                    Manage Sunday School
-                    <?php if (!empty($tab_badges['manage_department']) && $managed_dept == 'Sunday School'): ?><span class="tab-notif-badge"><?= $tab_badges['manage_department'] > 99 ? '99+' : $tab_badges['manage_department'] ?></span><?php endif; ?>
-                </a>
-                <a href="?tab=appoint_leaders&leader_dept=Sunday+School" class="sidebar-link <?= ($tab == 'appoint_leaders' && $managed_dept == 'Sunday School') ? 'active' : '' ?>">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
-                    Appoint Leaders
-                </a>
-                <a href="?tab=leader_chat&leader_dept=Sunday+School" class="sidebar-link <?= ($tab == 'leader_chat' && $managed_dept == 'Sunday School') ? 'active' : '' ?>">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
-                    Sunday School Leaders Chat
-                </a>
-                <?php endif; ?>
-                <?php if ($is_ss_class_teacher): ?>
-                <a href="?tab=manage_sunday_classes" class="sidebar-link <?= $tab == 'manage_sunday_classes' ? 'active' : '' ?>" style="position:relative;">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5S19.832 5.477 21 6.253v13C19.832 18.477 18.246 18 16.5 18s-3.332.477-4.5 1.253"></path></svg>
-                    Manage Sunday Classes
-                    <?php if (!empty($tab_badges['manage_sunday_classes'])): ?><span class="tab-notif-badge"><?= $tab_badges['manage_sunday_classes'] > 99 ? '99+' : $tab_badges['manage_sunday_classes'] ?></span><?php endif; ?>
-                </a>
-                <?php endif; ?>
-                <?php endif; ?>
-
                 <!-- Worship Panel -->
                 <?php if ($is_worship_leader || $is_vice_worship_leader): ?>
                 <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: #d946ef; margin-top: 10px;">Worship Panel</div>
@@ -2993,11 +2970,17 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 <?php endif; ?>
                             </div>
                             <div style="display:flex; border-top:1px solid var(--border-color);">
-                                <a href="?action=mark_all_read&tab=<?= htmlspecialchars($tab) ?>" style="flex:1; padding:12px; text-align:center; color:var(--text-muted); font-size:0.8rem; text-decoration:none; background:var(--bg-main);" onmouseover="this.style.background='rgba(37,99,235,0.06)'; this.style.color='var(--primary)';" onmouseout="this.style.background='var(--bg-main)'; this.style.color='var(--text-muted)';">Mark all as read</a>
+                                <a href="?action=mark_all_read" style="flex:1; padding:12px; text-align:center; color:var(--text-muted); font-size:0.8rem; text-decoration:none; background:var(--bg-main);" onmouseover="this.style.background='rgba(37,99,235,0.06)'; this.style.color='var(--primary)';" onmouseout="this.style.background='var(--bg-main)'; this.style.color='var(--text-muted)';">
+                                    Mark all as read
+                                </a>
                                 <div style="width:1px; background:var(--border-color);"></div>
-                                <a href="?action=delete_all_notifications&tab=<?= htmlspecialchars($tab) ?>" onclick="return confirm('Delete all your notifications?')" style="flex:1; padding:12px; text-align:center; color:var(--danger); font-size:0.8rem; font-weight:700; text-decoration:none; background:var(--bg-main);" onmouseover="this.style.background='rgba(239,68,68,0.08)'" onmouseout="this.style.background='var(--bg-main)'">Delete all</a>
+                                <a href="?action=delete_all_notifications" onclick="return confirm('Delete all your notifications?')" style="flex:1; padding:12px; text-align:center; color:var(--danger); font-size:0.8rem; font-weight:700; text-decoration:none; background:var(--bg-main);" onmouseover="this.style.background='rgba(239,68,68,0.08)'" onmouseout="this.style.background='var(--bg-main)'">
+                                    Delete all
+                                </a>
                                 <div style="width:1px; background:var(--border-color);"></div>
-                                <a href="?tab=notifications" style="flex:1; padding:12px; text-align:center; color:var(--primary); font-size:0.875rem; font-weight:600; text-decoration:none; background:var(--bg-main);" onmouseover="this.style.background='rgba(37,99,235,0.06)'" onmouseout="this.style.background='var(--bg-main)'">View All &rarr;</a>
+                                <a href="?tab=notifications" style="flex:1; padding:12px; text-align:center; color:var(--primary); font-size:0.875rem; font-weight:600; text-decoration:none; background:var(--bg-main);" onmouseover="this.style.background='rgba(37,99,235,0.06)'" onmouseout="this.style.background='var(--bg-main)'">
+                                    View All →
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -3063,8 +3046,16 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
 
                 <a href="?tab=desired_roles" style="display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#6366f1,#3b82f6); color:white; padding:11px 24px; border-radius:10px; text-decoration:none; font-weight:600; font-size:0.9rem;">
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                        Choose Your Church Village &rarr;
+                        Choose Your Church Village →
                     </a>
+                <?php if ($member['is_village_leader'] == 1): ?>
+                <a href="?tab=manage_church_village" class="sidebar-link <?= $tab == 'manage_church_village' ? 'active' : '' ?>" style="position:relative;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Manage Church Village
+                    <?php if (!empty($tab_badges['manage_church_village'])): ?><span style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['manage_church_village'] ?></span><?php endif; ?>
+                </a>
+                <?php endif; ?>
+                </div>
                 <?php endif; ?>
                 <?php render_leadership_hierarchy_card($conn, $active_dashboard_dept ?: ($member['department'] ?? '')); ?>
                 <?php if (($member['department'] ?? '') === 'Sunday School' && !empty($member['sunday_school_class'])): ?>
@@ -7963,97 +7954,46 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
             </div>
 
             <!-- Members List -->
-            <!-- Members Card Grid -->
-            <!-- Members Table Grid -->
             <div class="content-card">
-                <?php
-                $v = $conn->real_escape_string($member['church_village']);
-                
-                // First get the leader explicitly for the horizontal badge
-                $leader = null;
-                $lq = $conn->query("SELECT first_name, last_name, profile_picture FROM members WHERE is_approved = 1 AND church_village = '$v' AND is_village_leader = 1 LIMIT 1");
-                if ($lq && $lq->num_rows > 0) $leader = $lq->fetch_assoc();
-                ?>
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px; flex-wrap:wrap; gap:12px;">
-                    <div style="display:flex;align-items:center;gap:14px; flex-wrap:wrap;">
-                        <h2 style="margin:0; color:var(--text-main); font-size:1.1rem;">
-                            <?= htmlspecialchars($member['church_village']) ?> Village
-                        </h2>
-                        <?php if ($leader): 
-                            $l_pic = !empty($leader['profile_picture']) ? 'uploads/'.htmlspecialchars($leader['profile_picture']) : 'uploads/default_avatar.png';
-                        ?>
-                        <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--border-color);border-radius:20px;background:var(--bg-main);">
-                            <img src="<?= $l_pic ?>" style="width:28px;height:28px;border-radius:50%;object-fit:cover;" onerror="this.src='uploads/default_avatar.png'">
-                            <span style="font-size:0.82rem;font-weight:600;">Village Leader: <?= htmlspecialchars(ucfirst($leader['first_name']) . ' ' . ucfirst($leader['last_name'])) ?></span>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                    <a href="print_village_members.php?village=<?= urlencode($member['church_village']) ?>" target="_blank"
-                       style="display:inline-flex; align-items:center; gap:6px; padding:8px 16px; background:#10b981; color:white; text-decoration:none; border-radius:8px; font-size:0.85rem; font-weight:600;">
-                        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                        Print Official List
-                    </a>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2 style="margin:0; color:var(--text-main); font-size:1.1rem;">Village Members (<?= htmlspecialchars($member['church_village']) ?>)</h2>
+                    <button onclick="window.print()" class="btn-primary" style="background:#10b981; padding:8px 16px; font-size:0.85rem;">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:6px; vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        Print List
+                    </button>
                 </div>
-
-                <?php
-                $v_mems = $conn->query("
-                    SELECT id, first_name, last_name, phone, department, church_role, profile_picture, is_village_leader, address,
-                    CASE
-                        WHEN is_village_leader = 1 THEN 1
-                        WHEN church_role IS NOT NULL AND church_role != '' AND LOWER(church_role) != 'member' THEN 2
-                        ELSE 99
-                    END AS sort_rank
-                    FROM members
-                    WHERE is_approved = 1 AND church_village = '$v'
-                    ORDER BY sort_rank ASC, first_name ASC
-                ");
-
-                if ($v_mems && $v_mems->num_rows > 0):
-                ?>
                 <div class="table-responsive">
                     <table class="print-table">
                         <thead>
                             <tr>
-                                <th>#</th>
-                                <th>Photo</th>
-                                <th>Full Name</th>
+                                <th>Name</th>
                                 <th>Phone</th>
-                                <th>Role</th>
-                                <th>Residence</th>
+                                <th>Department</th>
+                                <th>Roles</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php 
-                            $i = 1;
-                            while($vm = $v_mems->fetch_assoc()):
-                                $rank = (int)$vm['sort_rank'];
-                                $row_bg = $rank == 1 ? 'background:rgba(245,158,11,0.05);font-weight:700;'
-                                        : ($rank == 2 ? 'background:rgba(16,185,129,0.05);font-weight:600;'
-                                        : '');
-                                
-                                $pic = !empty($vm['profile_picture']) ? 'uploads/' . htmlspecialchars($vm['profile_picture']) : 'uploads/default_avatar.png';
-                                $role = $rank == 1 ? 'Village Leader' : (!empty($vm['church_role']) ? htmlspecialchars($vm['church_role']) : htmlspecialchars($vm['department'] ?? 'Member'));
+                            <?php
+                            $v = $conn->real_escape_string($member['church_village']);
+                            $v_mems = $conn->query("SELECT first_name, last_name, phone, department, church_role FROM members WHERE is_approved = 1 AND church_village = '$v' ORDER BY first_name");
+                            if ($v_mems && $v_mems->num_rows > 0) {
+                                while($m = $v_mems->fetch_assoc()) {
+                                    echo "<tr>";
+                                    echo "<td>" . htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) . "</td>";
+                                    echo "<td>" . htmlspecialchars($m['phone'] ?? '') . "</td>";
+                                    echo "<td>" . htmlspecialchars($m['department'] ?? '') . "</td>";
+                                    echo "<td>" . htmlspecialchars($m['church_role'] ?? '') . "</td>";
+                                    echo "</tr>";
+                                }
+                            } else {
+                                echo "<tr><td colspan='4'>No members found in this village.</td></tr>";
+                            }
                             ?>
-                            <tr style="<?= $row_bg ?>">
-                                <td><?= $i++ ?></td>
-                                <td><img src="<?= $pic ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #ccc;cursor:zoom-in;" onerror="this.src='uploads/default_avatar.png'"></td>
-                                <td><?= htmlspecialchars(ucfirst($vm['first_name']) . ' ' . ucfirst($vm['last_name'])) ?></td>
-                                <td><?= htmlspecialchars($vm['phone'] ?? '-') ?></td>
-                                <td><?= $role ?></td>
-                                <td><?= htmlspecialchars($vm['address'] ?? '-') ?></td>
-                            </tr>
-                            <?php endwhile; ?>
                         </tbody>
                     </table>
                 </div>
-                <?php else: ?>
-                <div style="text-align:center; padding:50px 20px; color:var(--text-muted);">
-                    <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin:0 auto 12px; display:block; opacity:0.3;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                    <p style="margin:0; font-size:0.95rem;">No members found in this village yet.</p>
-                </div>
-                <?php endif; ?>
             </div>
-
+            
             <style>
                 @media print {
                     body * { visibility: hidden; }

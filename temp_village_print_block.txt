@@ -1,0 +1,56 @@
+﻿                <div id="print-village-headers" style="display:none;">
+                    <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:20px; text-align:center;">
+                        <?php 
+                           $pastor_q = $conn->query("SELECT first_name, last_name, profile_picture FROM pastors WHERE is_approved = 1 LIMIT 1");
+                           $pastor = $pastor_q ? $pastor_q->fetch_assoc() : null;
+                           $p_name = $pastor ? "Rev. " . $pastor['first_name'] . " " . $pastor['last_name'] : "Senior Pastor";
+                           $p_pic = $pastor ? ($pastor['profile_picture'] ?? 'default_avatar.png') : 'default_avatar.png';
+                        ?>
+                        <img src="uploads/<?= htmlspecialchars($p_pic) ?>" style="width:70px; height:70px; border-radius:50%; border:3px solid #1e3a8a; object-fit:cover;">
+                        <h3 style="margin:8px 0 2px 0; color:#1e3a8a;"><?= htmlspecialchars($p_name) ?></h3>
+                        <p style="margin:0; font-size:0.9rem; color:#555; font-weight:bold;">Senior Pastor</p>
+
+                        <div style="display:flex; justify-content:center; gap:40px; margin-top:20px;">
+                            <?php
+                               $vls = $conn->query("SELECT first_name, last_name, church_village, profile_picture FROM members WHERE is_village_leader = 1");
+                               $leaders_map = [];
+                               if($vls) { while($l = $vls->fetch_assoc()) { $leaders_map[$l['church_village']] = $l; } }
+                               foreach(['Akoritho', 'Philadelphia', 'Bethsaida'] as $v) {
+                                   if (isset($leaders_map[$v])) {
+                                       $lname = $leaders_map[$v]['first_name'] . ' ' . $leaders_map[$v]['last_name'];
+                                       $lpic = $leaders_map[$v]['profile_picture'] ?? 'default_avatar.png';
+                                   } else {
+                                       $lname = "No Leader";
+                                       $lpic = "default_avatar.png";
+                                   }
+                                   echo '<div style="text-align:center;">';
+                                   echo '<img src="uploads/'.htmlspecialchars($lpic).'" style="width:56px; height:56px; border-radius:50%; border:2px solid #555; object-fit:cover;">';
+                                   echo '<h4 style="margin:6px 0 2px 0; font-size:0.9rem;">'.htmlspecialchars($lname).'</h4>';
+                                   echo '<p style="margin:0; font-size:0.8rem; color:#777;">'.$v.' Leader</p>';
+                                   echo '</div>';
+                               }
+                            ?>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="print-village-signatures" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; text-align:center; margin-top:40px;">
+                        <?php foreach(['Akoritho', 'Philadelphia', 'Bethsaida'] as $v): ?>
+                            <div style="flex:1; min-width:120px;">
+                                <p style="margin-bottom:30px; font-weight:bold; font-size:0.9rem;"><?= $v ?> Leader</p>
+                                <p>___________________</p>
+                                <p style="font-size:0.8rem; color:#555;">Sign / Date</p>
+                            </div>
+                        <?php endforeach; ?>
+                        <div style="flex:1; min-width:120px;">
+                            <p style="margin-bottom:30px; font-weight:bold; font-size:0.9rem;">Pastor's Approval</p>
+                            <p>___________________</p>
+                            <p style="font-size:0.8rem; color:#555;">Sign / Date</p>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align:center; margin-top:30px;">
+                        <div style="display:inline-block; width:120px; height:120px; border:2px dashed #999; border-radius:50%; line-height:120px; color:#999; font-size:0.9rem; margin-bottom:20px;">Official Stamp</div>
+                    </div>
+                </div>

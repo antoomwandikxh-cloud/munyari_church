@@ -500,6 +500,27 @@ tbody tr:hover { background: rgba(241, 245, 249, 0.5); }
     border: 2px solid var(--bg-color);
 }
 
+.notif-bell-btn {
+    color: #d97706 !important;
+    border-color: rgba(217, 119, 6, 0.42) !important;
+    background: rgba(245, 158, 11, 0.12) !important;
+}
+
+.notif-bell-btn:hover {
+    color: #ffffff !important;
+    background: #d97706 !important;
+    border-color: #d97706 !important;
+}
+
+.notif-bell-btn.has-unread {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12), var(--shadow-sm);
+}
+
+.notif-bell-btn .notif-badge {
+    background: #ef4444;
+    color: #ffffff;
+}
+
 /* Animations */
 @keyframes slideUp {
     from { opacity: 0; transform: translateY(20px); }
@@ -1310,6 +1331,7 @@ button {
     background: #ffffff !important;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
+    z-index: 100000 !important;
 }
 [data-theme="dark"] #notifDropdown {
     background: #1e293b !important;
@@ -1395,11 +1417,99 @@ button {
     .topbar {
         position: sticky;
         top: 0;
-        z-index: 50;
+        z-index: 90000;
         justify-content: space-between !important;
+        overflow: visible !important;
     }
 }
 [data-theme="dark"] #notifDropdown a[href*="mark_all_read"]:hover,
 [data-theme="dark"] #notifDropdown a[href*="tab=notifications"]:hover {
     background: rgba(37,99,235,0.15) !important;
 }
+
+/* Keep the bell dropdown above page/tab content on hosted mobile portrait screens. */
+#notifBellWrap {
+    z-index: 100000;
+}
+
+@media (max-width: 980px) and (orientation: portrait) {
+    .topbar {
+        overflow: visible !important;
+        position: sticky;
+        top: 0;
+        z-index: 90000 !important;
+    }
+
+    #notifBellWrap {
+        position: static !important;
+        z-index: 100000 !important;
+    }
+
+    #notifDropdown {
+        position: fixed !important;
+        top: calc(env(safe-area-inset-top, 0px) + 74px) !important;
+        left: 12px !important;
+        right: 12px !important;
+        width: auto !important;
+        max-width: none !important;
+        max-height: calc(100vh - 96px) !important;
+        z-index: 100000 !important;
+        overflow: hidden !important;
+    }
+
+    #notifDropdown > div:nth-child(2) {
+        max-height: min(60vh, 420px) !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* ===== GOLD NOTIFICATION BELL - theme-proof ===== */
+.notif-bell-btn {
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    border-color: #b45309 !important;
+    color: #fff !important;
+    box-shadow: 0 2px 10px rgba(217, 119, 6, 0.35) !important;
+    transition: transform 0.15s, box-shadow 0.15s !important;
+}
+.notif-bell-btn svg {
+    stroke: #fff !important;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+}
+.notif-bell-btn:hover {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+    border-color: #d97706 !important;
+    box-shadow: 0 4px 18px rgba(217, 119, 6, 0.55) !important;
+    transform: scale(1.07) !important;
+    color: #fff !important;
+}
+@keyframes bellShake {
+    0%   { transform: rotate(0deg); }
+    15%  { transform: rotate(-18deg); }
+    30%  { transform: rotate(18deg); }
+    45%  { transform: rotate(-14deg); }
+    60%  { transform: rotate(14deg); }
+    75%  { transform: rotate(-8deg); }
+    90%  { transform: rotate(8deg); }
+    100% { transform: rotate(0deg); }
+}
+.notif-bell-btn.bell-shake svg {
+    animation: bellShake 0.75s ease-in-out infinite;
+    transform-origin: 50% 0%;
+    display: inline-block;
+}
+.notif-bell-btn .notif-badge {
+    box-shadow: 0 0 0 2px #d97706, 0 4px 10px rgba(220, 38, 38, 0.45) !important;
+}
+[data-theme='dark'] .notif-bell-btn {
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    border-color: #b45309 !important;
+    color: #fff !important;
+}
+[data-theme='dark'] .notif-bell-btn:hover {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+}
+[data-theme='dark'] .notif-bell-btn svg {
+    stroke: #fff !important;
+}
+/* ================================================ */

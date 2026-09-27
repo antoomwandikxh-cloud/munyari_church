@@ -1,11 +1,32 @@
 <?php
 function normalize_role_name($role) {
     $normalized = strtolower(trim(preg_replace('/\s+/', ' ', $role ?? '')));
-    $normalized = str_replace('(subsidiary)', '', $normalized);
+    $normalized = preg_replace('/\(.*?\)/', '', $normalized);
     return trim($normalized);
 }
 
+// Sunday School main leadership roles are cross-church — any member from any
+// department can hold them. They must NOT auto-set the member's home department.
+function is_sunday_school_leadership_role($role) {
+    $n = normalize_role_name($role);
+    return in_array($n, [
+        'sunday school patron', 'vice sunday school patron',
+        'sunday school chairperson', 'vice sunday school chairperson',
+        'sunday school chairman', 'vice sunday school chairman',
+        'sunday school chairlady', 'vice sunday school chairlady',
+        'sunday school secretary', 'vice sunday school secretary',
+        'sunday school treasurer',
+    ], true);
+}
+
 function department_for_role($role) {
+    // Sunday School roles are cross-church — they don't own a single department
+    // so we deliberately exclude them from this map to prevent the member's
+    // registered (home) department from being silently overwritten.
+    if (is_sunday_school_leadership_role($role)) {
+        return null;
+    }
+
     $role_departments = [
         // Youth ministry - both chairperson and chairman/chairlady variants
         'youth chairperson'       => 'Youths',
@@ -19,22 +40,24 @@ function department_for_role($role) {
         'youth treasurer'         => 'Youths',
 
         'women chairlady'         => 'Womens Ministry',
+        'women chairperson'       => 'Womens Ministry',
+        'women chairman'          => 'Womens Ministry',
         'vice women chairlady'    => 'Womens Ministry',
+        'vice women chairperson'  => 'Womens Ministry',
+        'vice women chairman'     => 'Womens Ministry',
         'women secretary'         => 'Womens Ministry',
         'vice women secretary'    => 'Womens Ministry',
         'women treasurer'         => 'Womens Ministry',
 
         'elder chairman'          => 'Elders',
+        'elder chairperson'       => 'Elders',
+        'elder chairlady'         => 'Elders',
         'vice elder chairman'     => 'Elders',
+        'vice elder chairperson'  => 'Elders',
+        'vice elder chairlady'    => 'Elders',
         'elder secretary'         => 'Elders',
         'vice elder secretary'    => 'Elders',
         'elder treasurer'         => 'Elders',
-
-        'sunday school patron'    => 'Sunday School',
-        'vice sunday school patron' => 'Sunday School',
-        'sunday school secretary' => 'Sunday School',
-        'vice sunday school secretary' => 'Sunday School',
-        'sunday school treasurer' => 'Sunday School',
     ];
 
     $normalized = normalize_role_name($role);
@@ -93,7 +116,7 @@ function is_subsidiary_department_role($role) {
 
 function role_allowed_for_department($role, $department) {
     $normalized_role = normalize_role_name($role);
-    if (in_array($normalized_role, ['graduands secretary', 'sport secretary', 'sports secretary'], true)) {
+    if (in_array($normalized_role, ['graduands secretary', 'vice graduands secretary', 'sport secretary', 'sports secretary', 'vice sport secretary', 'vice sports secretary'], true)) {
         return department_allows_graduation_and_sport($department);
     }
 
@@ -103,8 +126,21 @@ function role_allowed_for_department($role, $department) {
 function role_assignment_departments($role, $context_department = null) {
     $normalized_role = normalize_role_name($role);
 
+    // Sunday School subsidiary roles (Discipline Master, Choir Leader, etc. assigned
+    // under Sunday School context) are open to ALL church members — any dept.
+    if (is_subsidiary_department_role($role) && !empty($context_department) && strtolower(trim($context_department)) === 'sunday school') {
+        return []; // No restriction — any church member can serve as a Sunday School subsidiary leader
+    }
+
+    // Subsidiary roles in other departments (Youth, Women, Elders) are restricted
+    // to members of that specific department.
     if (is_subsidiary_department_role($role) && !empty($context_department)) {
         return [$context_department];
+    }
+
+    // All Sunday School main leadership roles are open to ALL church members.
+    if (!empty($context_department) && strtolower(trim($context_department)) === 'sunday school') {
+        return [];
     }
 
     if ($normalized_role === 'senior church elder') {
@@ -124,6 +160,20 @@ function role_assignment_departments($role, $context_department = null) {
     }
 
     $department = department_for_role($role);
+
+    // Sunday School main leadership roles are also open to all general church members
+    $ss_leadership_roles = [
+        'sunday school patron', 'vice sunday school patron',
+        'sunday school chairperson', 'vice sunday school chairperson',
+        'sunday school chairman', 'vice sunday school chairman',
+        'sunday school chairlady', 'vice sunday school chairlady',
+        'sunday school secretary', 'vice sunday school secretary',
+        'sunday school treasurer'
+    ];
+    if (in_array($normalized_role, $ss_leadership_roles, true)) {
+        return []; // No department restriction — any church member can be appointed
+    }
+
     return $department ? [$department] : [];
 }
 
@@ -278,48 +328,28 @@ function role_display_label($role, $member_department = null, $member_gender = n
 
 function role_rank_case_sql($column = 'church_role') {
     return "
-        CASE LOWER(TRIM(COALESCE($column, '')))
-            WHEN 'youth chairperson' THEN 1
-            WHEN 'women chairlady' THEN 1
-            WHEN 'elder chairman' THEN 1
-            WHEN 'sunday school patron' THEN 1
-            WHEN 'general church secretary' THEN 1
-            WHEN 'vice youth chairperson' THEN 2
-            WHEN 'vice women chairlady' THEN 2
-            WHEN 'vice elder chairman' THEN 2
-            WHEN 'vice sunday school patron' THEN 2
-            WHEN 'youth secretary' THEN 3
-            WHEN 'women secretary' THEN 3
-            WHEN 'elder secretary' THEN 3
-            WHEN 'sunday school secretary' THEN 3
-            WHEN 'vice church secretary' THEN 4
-            WHEN 'vice youth secretary' THEN 4
-            WHEN 'vice women secretary' THEN 4
-            WHEN 'vice elder secretary' THEN 4
-            WHEN 'vice sunday school secretary' THEN 4
-            WHEN 'treasurer' THEN 5
-            WHEN 'youth treasurer' THEN 5
-            WHEN 'women treasurer' THEN 5
-            WHEN 'elder treasurer' THEN 5
-            WHEN 'sunday school treasurer' THEN 5
-            WHEN 'mama youth' THEN 6
-            WHEN 'baba youth' THEN 6
-            WHEN 'head usher' THEN 10
-            WHEN 'usher' THEN 11
-            WHEN 'building chairperson' THEN 12
-            WHEN 'vice building chairperson' THEN 13
-            WHEN 'building secretary' THEN 14
-            WHEN 'vice building secretary' THEN 15
-            WHEN 'building treasurer' THEN 16
-            WHEN 'organizing secretary' THEN 20
-            WHEN 'discipline master' THEN 21
-            WHEN 'graduands secretary' THEN 22
-            WHEN 'prayer coordinator' THEN 23
-            WHEN 'sport secretary' THEN 24
-            WHEN 'sports secretary' THEN 24
-            WHEN 'choir leader' THEN 25
-            WHEN 'member' THEN 90
-            WHEN '' THEN 90
+        CASE 
+            WHEN LOWER($column) LIKE '%youth chairperson%' OR LOWER($column) LIKE '%women chairlady%' OR LOWER($column) LIKE '%elder chairman%' OR LOWER($column) LIKE '%sunday school patron%' OR LOWER($column) LIKE '%general church secretary%' THEN 1
+            WHEN LOWER($column) LIKE '%vice youth chairperson%' OR LOWER($column) LIKE '%vice women chairlady%' OR LOWER($column) LIKE '%vice elder chairman%' OR LOWER($column) LIKE '%vice sunday school patron%' THEN 2
+            WHEN LOWER($column) LIKE '%youth secretary%' OR LOWER($column) LIKE '%women secretary%' OR LOWER($column) LIKE '%elder secretary%' OR LOWER($column) LIKE '%sunday school secretary%' THEN 3
+            WHEN LOWER($column) LIKE '%vice church secretary%' OR LOWER($column) LIKE '%vice youth secretary%' OR LOWER($column) LIKE '%vice women secretary%' OR LOWER($column) LIKE '%vice elder secretary%' OR LOWER($column) LIKE '%vice sunday school secretary%' THEN 4
+            WHEN LOWER($column) LIKE '%youth treasurer%' OR LOWER($column) LIKE '%women treasurer%' OR LOWER($column) LIKE '%elder treasurer%' OR LOWER($column) LIKE '%sunday school treasurer%' OR (LOWER($column) LIKE '%treasurer%' AND LOWER($column) NOT LIKE '%building treasurer%') THEN 5
+            WHEN LOWER($column) LIKE '%mama youth%' OR LOWER($column) LIKE '%baba youth%' THEN 6
+            WHEN LOWER($column) LIKE '%head usher%' THEN 10
+            WHEN LOWER($column) LIKE '%usher%' AND LOWER($column) NOT LIKE '%head usher%' THEN 11
+            WHEN LOWER($column) LIKE '%building chairperson%' THEN 12
+            WHEN LOWER($column) LIKE '%vice building chairperson%' THEN 13
+            WHEN LOWER($column) LIKE '%building secretary%' THEN 14
+            WHEN LOWER($column) LIKE '%vice building secretary%' THEN 15
+            WHEN LOWER($column) LIKE '%building treasurer%' THEN 16
+            WHEN LOWER($column) LIKE '%organizing secretary%' THEN 20
+            WHEN LOWER($column) LIKE '%discipline master%' THEN 21
+            WHEN LOWER($column) LIKE '%graduands secretary%' THEN 22
+            WHEN LOWER($column) LIKE '%prayer coordinator%' THEN 23
+            WHEN LOWER($column) LIKE '%sport secretary%' OR LOWER($column) LIKE '%sports secretary%' THEN 24
+            WHEN LOWER($column) LIKE '%choir leader%' THEN 25
+            WHEN LOWER(TRIM(COALESCE($column, ''))) = 'member' THEN 90
+            WHEN TRIM(COALESCE($column, '')) = '' THEN 90
             ELSE 40
         END
     ";
