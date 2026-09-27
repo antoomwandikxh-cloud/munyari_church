@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once 'db_connect.php';
 require_once 'role_departments.php';
@@ -254,6 +254,9 @@ require_once 'notification_badges.php';
 if (!isset($_SESSION['pastor_id'])) { header("Location: login.php"); exit(); }
 
 $pastor_id = $_SESSION['pastor_id'];
+$pastor_name = $_SESSION['pastor_name'];
+$tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
+
 // ── Early PRG handler: assign_village_leader ──────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader'])) {
     $l_id   = (int)$_POST['leader_id'];
@@ -261,7 +264,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader
     
     $check_existing = $conn->query("SELECT id FROM members WHERE church_village = '$v_name' AND is_village_leader = 1 LIMIT 1");
     if ($check_existing && $check_existing->num_rows > 0) {
-        header("Location: pastor_dashboard.php?tab=desired_roles&error=village_has_leader&vname=" . urlencode($v_name));
+        $r = basename($_SERVER['PHP_SELF']);
+        header("Location: " . $r . "?tab=desired_roles&error=village_has_leader&vname=" . urlencode($v_name));
         exit();
     }
     
@@ -274,12 +278,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader
         $nmsg = $conn->real_escape_string("You have been assigned as the Church Village Leader for $v_name.");
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($l_id, 'member', '$nmsg')");
     }
-    header("Location: pastor_dashboard.php?tab=desired_roles&success=village_leader_assigned&vname=" . urlencode($v_name));
+    $r = basename($_SERVER['PHP_SELF']);
+    header("Location: " . $r . "?tab=desired_roles&success=village_leader_assigned&vname=" . urlencode($v_name));
     exit();
 }
 // ──────────────────────────────────────────────────────────────────────────
-$pastor_name = $_SESSION['pastor_name'];
-$tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
+
 
 $pastor = $conn->query("SELECT * FROM pastors WHERE id = $pastor_id")->fetch_assoc();
 
@@ -998,7 +1002,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['pastor_leader_chat']))
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_pastor_announcement'])) {
     $ann_msg = $conn->real_escape_string(trim($_POST['pastor_announcement_message'] ?? ''));
     if (!empty($ann_msg)) {
-        // Save in department_announcements as 'General Church' â€” using pastor_id as a negative to distinguish, 
+        // Save in department_announcements as 'General Church' — using pastor_id as a negative to distinguish, 
         // but we need a member record. We'll put it in a separate table or store pastor_id in a dedicated column.
         // Use pastor_announcements table (auto-create)
         $conn->query("
@@ -1262,7 +1266,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                 </a>
                                 <div style="width:1px; background:var(--border-color);"></div>
                                 <a href="?tab=notifications" style="flex:1; padding:12px; text-align:center; color:var(--primary); font-size:0.875rem; font-weight:600; text-decoration:none; background:var(--bg-main);" onmouseover="this.style.background='rgba(37,99,235,0.06)'" onmouseout="this.style.background='var(--bg-main)'">
-                                    View All â†’
+                                    View All →
                                 </a>
                             </div>
                         </div>
@@ -1320,7 +1324,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
 
                 <!-- Pastor Post Announcement Form -->
                 <div class="content-card" style="margin-bottom:28px;border-left:4px solid var(--primary);">
-                    <h2 style="font-size:1.1rem;margin-top:0;color:var(--primary);">ðŸ“¢ Post Announcement to Entire Church</h2>
+                    <h2 style="font-size:1.1rem;margin-top:0;color:var(--primary);">📢 Post Announcement to Entire Church</h2>
                     <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:15px;">This will be sent to every member's Announcements tab and they will receive a notification.</p>
                     <form method="POST" action="pastor_dashboard.php?tab=general_announcements" enctype="multipart/form-data" onsubmit="this.querySelector('button[type=submit]').disabled=true; this.querySelector('button[type=submit]').innerHTML='Posting...';">
                         <input type="hidden" name="post_pastor_announcement" value="1">
@@ -1337,7 +1341,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
 
                 <!-- Announcement Queries from Secretaries -->
                 <div class="content-card" style="margin-bottom:24px;border-left:4px solid #f59e0b;">
-                    <h2 style="font-size:1.05rem;margin-top:0;color:#f59e0b;">ðŸ“¬ Announcement Queries (from Secretaries)</h2>
+                    <h2 style="font-size:1.05rem;margin-top:0;color:#f59e0b;">📬 Announcement Queries (from Secretaries)</h2>
                     <?php
                     $ann_queries = $conn->query("
                         SELECT q.*, m.first_name, m.last_name, m.church_role
@@ -1352,7 +1356,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
                                 <div>
                                     <strong style="color:var(--text-main);"><?= htmlspecialchars($q['first_name'] . ' ' . $q['last_name']) ?></strong>
-                                    <span style="font-size:0.8rem;color:var(--text-muted);"> â€” <?= htmlspecialchars(clean_role_display($q['church_role'])) ?> Â· <?= htmlspecialchars($q['department']) ?></span>
+                                    <span style="font-size:0.8rem;color:var(--text-muted);"> — <?= htmlspecialchars(clean_role_display($q['church_role'])) ?> · <?= htmlspecialchars($q['department']) ?></span>
                                     <span style="font-size:0.75rem;background:rgba(245,158,11,0.12);color:#f59e0b;padding:2px 8px;border-radius:20px;margin-left:6px;"><?= htmlspecialchars($q['status']) ?></span>
                                 </div>
                                 <small style="color:var(--text-muted);font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($q['created_at'])) ?></small>
@@ -1366,7 +1370,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
 
                 <!-- All Department & Secretary Announcements -->
                 <div class="content-card" style="margin-bottom:24px;border-left:4px solid var(--secondary);">
-                    <h2 style="font-size:1.05rem;margin-top:0;color:var(--secondary);">ðŸ“‹ Department Announcements (All Secretaries & Elders)</h2>
+                    <h2 style="font-size:1.05rem;margin-top:0;color:var(--secondary);">📋 Department Announcements (All Secretaries & Elders)</h2>
                     <?php
                     $dept_anns = $conn->query("
                         SELECT da.*, m.first_name, m.last_name, m.church_role
@@ -1382,7 +1386,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
                                 <div>
                                     <strong style="color:var(--text-main);"><?= htmlspecialchars($dann['first_name'] . ' ' . $dann['last_name']) ?></strong>
-                                    <span style="font-size:0.8rem;color:var(--text-muted);"> â€” <?= htmlspecialchars(clean_role_display($dann['church_role'])) ?></span>
+                                    <span style="font-size:0.8rem;color:var(--text-muted);"> — <?= htmlspecialchars(clean_role_display($dann['church_role'])) ?></span>
                                     <span style="font-size:0.75rem;background:rgba(37,99,235,0.1);color:var(--primary);padding:2px 8px;border-radius:20px;margin-left:6px;"><?= htmlspecialchars($dann['department']) ?></span>
                                 </div>
                                 <small style="color:var(--text-muted);font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($dann['created_at'])) ?></small>
@@ -1401,7 +1405,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
 
                 <!-- Past Pastor Announcements -->
                 <div class="content-card" style="border-left:4px solid #10b981;">
-                    <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">âœ‰ï¸ Your Past Announcements</h2>
+                    <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">✉️ Your Past Announcements</h2>
                     <?php
                     $pastor_anns = $conn->query("
                         SELECT pa.*, p.first_name, p.last_name
@@ -1474,10 +1478,10 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         </div>
                     </div>
                     <?php if (!empty($_GET['success'])): ?>
-                        <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:var(--success);padding:12px 16px;border-radius:10px;margin-bottom:18px;">âœ… <?= htmlspecialchars($_GET['success']) ?></div>
+                        <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:var(--success);padding:12px 16px;border-radius:10px;margin-bottom:18px;">✅ <?= htmlspecialchars($_GET['success']) ?></div>
                     <?php endif; ?>
                     <?php if (!empty($_GET['error'])): ?>
-                        <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);padding:12px 16px;border-radius:10px;margin-bottom:18px;">âŒ <?= htmlspecialchars($_GET['error']) ?></div>
+                        <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);padding:12px 16px;border-radius:10px;margin-bottom:18px;">❌ <?= htmlspecialchars($_GET['error']) ?></div>
                     <?php endif; ?>
                     <form method="POST" action="?tab=manage_members" id="pastorRegForm" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
                         <input type="hidden" name="register_member" value="1">
@@ -1545,7 +1549,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             </div>
                         </div>
                         <div style="margin-top:20px; display:flex; gap:12px; align-items:center;">
-                            <button type="submit" class="btn-submit" style="width:auto;padding:12px 32px;">âœ… Register Member</button>
+                            <button type="submit" class="btn-submit" style="width:auto;padding:12px 32px;">✅ Register Member</button>
                             <button type="reset" style="background:none;border:1px solid var(--border-color);color:var(--text-muted);padding:11px 20px;border-radius:10px;cursor:pointer;font-size:0.9rem;">Clear Form</button>
                         </div>
                     </form>
@@ -1688,7 +1692,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             Array.from(gender.options).forEach(function(opt) { opt.disabled = opt.value !== 'Male'; });
                             if (hint) hint.textContent = 'Elders members are registered as Male.';
                         } else if (dept === 'Youths' || dept === 'Sunday School') {
-                            // Don't force â€” keep current or default Male
+                            // Don't force — keep current or default Male
                             Array.from(gender.options).forEach(function(opt) { opt.disabled = false; });
                             if (!gender.value) gender.value = 'Male';
                             if (hint) hint.textContent = "Select the member's gender.";
@@ -1702,10 +1706,10 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         if (p2.length > 0) {
                             hint.style.display = 'block';
                             if (p1 === p2) {
-                                hint.textContent = 'âœ“ Passwords match';
+                                hint.textContent = '✓ Passwords match';
                                 hint.style.color = 'var(--success)';
                             } else {
-                                hint.textContent = 'âœ— Passwords do not match';
+                                hint.textContent = '✗ Passwords do not match';
                                 hint.style.color = 'var(--danger)';
                             }
                         } else {
@@ -1726,10 +1730,14 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
                         <h2 style="margin:0;">Member Directory</h2>
                         <input type="text" id="memberSearch" placeholder="Search by name or phone..." style="padding:10px 15px; border:1px solid var(--border-color); border-radius:8px; width:100%; max-width:280px; flex-grow:1;" onkeyup="filterMembersTable()">
-                        <button onclick="printMemberDirectory()" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#2563eb,#6366f1);color:white;border:none;padding:10px 20px;border-radius:10px;cursor:pointer;font-size:0.9rem;font-weight:600;box-shadow:0 2px 8px rgba(37,99,235,0.3);">
-                            <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                            Print / Save as PDF
-                        </button>
+                        <div style="display:flex;gap:10px;">
+                            <button onclick="printMemberDirectory('landscape')" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#2563eb,#6366f1);color:white;border:none;padding:10px 20px;border-radius:10px;cursor:pointer;font-size:0.9rem;font-weight:600;box-shadow:0 2px 8px rgba(37,99,235,0.3);">
+                                Print Landscape
+                            </button>
+                            <button onclick="printMemberDirectory('portrait')" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:white;border:none;padding:10px 20px;border-radius:10px;cursor:pointer;font-size:0.9rem;font-weight:600;box-shadow:0 2px 8px rgba(37,99,235,0.3);">
+                                Print Portrait
+                            </button>
+                        </div>
                     </div>
 
                                         <!-- Hidden printable member list -->
@@ -1800,7 +1808,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         $p_name = strtoupper(htmlspecialchars(($pastor['first_name'] ?? '') . ' ' . ($pastor['last_name'] ?? '')));
                         ?>
                         <!-- Watermark (Fixed, repeats automatically) -->
-                        <div class="print-watermark" style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-45deg); font-size:4.5rem; color:rgba(30,58,138,0.15); font-weight:bold; white-space:nowrap; z-index:-1; pointer-events:none; font-family:Arial, sans-serif;">E.A.P.C MUNYARI CHURCH</div>
+                        <div class="print-watermark" style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-45deg); font-size:4.5rem; color:rgba(0,0,0,0.04); font-weight:bold; white-space:nowrap; z-index:-1; pointer-events:none; font-family:Arial, sans-serif;">E.A.P.C MUNYARI CHURCH</div>
                         
                         <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
                             <thead>
@@ -1834,7 +1842,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <tbody>
                                 <?php
                                 $print_row = 1; $last_grp = -1;
-                                $group_labels = [0=>'General Church Leaders',1=>'Elders Department',2=>"Women's Ministry",3=>'Youths Department',4=>'Sunday School â€” Main Leaders',5=>'Sunday School Teachers',6=>'Sunday School â€” Subsidiary Leaders',7=>'Building Department',8=>'Other Roles',99=>'Members'];
+                                $group_labels = [0=>'General Church Leaders',1=>'Elders Department',2=>"Women's Ministry",3=>'Youths Department',4=>'Sunday School — Main Leaders',5=>'Sunday School Teachers',6=>'Sunday School — Subsidiary Leaders',7=>'Building Department',8=>'Other Roles',99=>'Members'];
                                 $group_colors = [0=>'#1e3a8a',1=>'#6d28d9',2=>'#be185d',3=>'#b45309',4=>'#0e7490',5=>'#047857',6=>'#0369a1',7=>'#92400e',8=>'#4b5563',99=>'#374151'];
                                 foreach ($all_print_members as $pm):
                                     $s = get_print_sort_order($pm['church_role'] ?? '', $pm['department'] ?? '');
@@ -1964,7 +1972,7 @@ function printMemberDirectory() {
                         <tbody>
                             <?php
                             $ui_last_grp = -1;
-                            $ui_group_labels = [0=>'General Church Leaders',1=>'Elders Department',2=>"Women's Ministry",3=>'Youths Department',4=>'Sunday School â€” Main Leaders',5=>'Sunday School Teachers',6=>'Sunday School â€” Subsidiary Leaders',7=>'Building Department',8=>'Other Roles',99=>'Members'];
+                            $ui_group_labels = [0=>'General Church Leaders',1=>'Elders Department',2=>"Women's Ministry",3=>'Youths Department',4=>'Sunday School — Main Leaders',5=>'Sunday School Teachers',6=>'Sunday School — Subsidiary Leaders',7=>'Building Department',8=>'Other Roles',99=>'Members'];
                             $ui_group_colors = [0=>'#1e3a8a',1=>'#6d28d9',2=>'#be185d',3=>'#b45309',4=>'#0e7490',5=>'#047857',6=>'#0369a1',7=>'#92400e',8=>'#4b5563',99=>'#374151'];
                             
                             foreach($all_print_members as $m): 
@@ -2160,7 +2168,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
         + '}'
         + '</style>');
     w.document.write('</head><body>');
-    w.document.write('<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:4.5rem;color:rgba(30,58,138,0.15);font-weight:bold;white-space:nowrap;z-index:0;pointer-events:none;">E.A.P.C MUNYARI CHURCH</div>');
+    w.document.write('<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:4.5rem;color:rgba(0,0,0,0.04);font-weight:bold;white-space:nowrap;z-index:0;pointer-events:none;">E.A.P.C MUNYARI CHURCH</div>');
     w.document.write('<table><thead>');
     w.document.write('<tr><th colspan="6" style="border:none;padding:0 0 10px 0;font-weight:normal;background:white;">' + headerHtml + '</th></tr>');
     w.document.write(theadRow);
@@ -2334,19 +2342,24 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                         }
                     }
                 }
-                if (isset($_GET['success']) && $_GET['success'] === 'village_leader_assigned') {
-                    $assigned_v = htmlspecialchars($_GET['vname'] ?? '');
-                    echo "<div style='background:rgba(16,185,129,0.1);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;font-weight:600;'>";
-                    echo "✅ Church Village Leader for <strong>" . $assigned_v . "</strong> has been assigned successfully!";
-                    echo "</div>";
+                
+                // Handle Assign Village Leader
+                if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_village_leader'])) {
+                    $l_id = (int)$_POST['leader_id'];
+                    $v_name = $conn->real_escape_string($_POST['village']);
+                    $conn->query("UPDATE members SET is_village_leader = 0 WHERE church_village = '$v_name' AND is_village_leader = 1");
+                    $mem_q = $conn->query("SELECT first_name, last_name, church_role FROM members WHERE id = $l_id")->fetch_assoc();
+                    if ($mem_q) {
+                        $roles = array_filter(array_map('trim', explode(',', $mem_q['church_role'] ?? '')));
+                        if (!in_array('Church Village Leader', $roles)) { $roles[] = 'Church Village Leader'; }
+                        $new_role = $conn->real_escape_string(implode(', ', $roles));
+                        $conn->query("UPDATE members SET church_village = '$v_name', is_village_leader = 1, church_role = '$new_role' WHERE id = $l_id");
+                        $msg = $conn->real_escape_string("You have been assigned as the Church Village Leader for $v_name.");
+                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($l_id, 'member', '$msg')");
+                        echo "<div style='background:rgba(16,185,129,0.1);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>Church Village Leader assigned successfully!</div>";
+                    }
                 }
-                if (isset($_GET['error']) && $_GET['error'] === 'village_has_leader') {
-                    $assigned_v = htmlspecialchars($_GET['vname'] ?? '');
-                    echo "<div style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;font-weight:600;'>";
-                    echo "❌ Cannot assign a new leader for <strong>" . $assigned_v . "</strong>. Please remove the current leader first.";
-                    echo "</div>";
-                }
-?>
+                ?>
                 <!-- Assign Village Leader Form -->
                 <div class="content-card" style="margin-bottom:30px; border-left:4px solid var(--primary);">
                     <h2 style="margin-bottom:15px; color:var(--text-main); font-size:1.1rem; display:flex; align-items:center; gap:8px;">
@@ -2380,15 +2393,9 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                     function filterVillageLeaderMembers(v) {
                         var select = document.getElementById('village_leader_member');
                         select.value = '';
-                        if (!v) {
-                            select.disabled = true;
-                        } else {
-                            select.disabled = false;
-                            select.querySelectorAll('option[data-village]').forEach(function(o) {
-                                o.style.display = (o.getAttribute('data-village') === v) ? '' : 'none';
-                            });
-                        }
-                    };
+                        select.querySelectorAll('option[data-village]').forEach(function(o) {
+                            o.style.display = (o.getAttribute('data-village') === v) ? '' : 'none';
+                        });
                     }
                     </script>
                 </div>
@@ -2437,10 +2444,10 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                 $village_colors = ['Akoritho' => '#6366f1', 'Philadelphia' => '#0ea5e9', 'Bethsaida' => '#10b981'];
                 ?>
                 
-                <!-- â•â•â• SECTION 1: Members by Village + Department â•â•â• -->
+                <!-- ═══ SECTION 1: Members by Village + Department ═══ -->
                 <h2 style="font-size:1.1rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                    Church Villages â€” Members & Departments
+                    Church Villages — Members & Departments
                 </h2>
                 
                 <?php foreach ($villages as $v): 
@@ -2480,8 +2487,8 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                                 <td style="font-weight:600;"><?= htmlspecialchars($vm['first_name'] . ' ' . $vm['last_name']) ?></td>
                                 <td><?= htmlspecialchars($vm['department'] ?: 'General Church') ?></td>
                                 <td><span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary);"><?= htmlspecialchars($vm['church_role'] ?: 'Member') ?></span></td>
-                                <td><?php if ($dsr): ?><span class="badge" style="background:<?= $dsr_color ?>22; color:<?= $dsr_color ?>;"><?= htmlspecialchars($dsr) ?></span><?php else: ?><span style="color:var(--text-muted); font-size:0.85rem;">â€”</span><?php endif; ?></td>
-                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($vm['phone'] ?? 'â€”') ?></td>
+                                <td><?php if ($dsr): ?><span class="badge" style="background:<?= $dsr_color ?>22; color:<?= $dsr_color ?>;"><?= htmlspecialchars($dsr) ?></span><?php else: ?><span style="color:var(--text-muted); font-size:0.85rem;">—</span><?php endif; ?></td>
+                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($vm['phone'] ?? '—') ?></td>
                             </tr>
                             <?php endwhile; ?>
                             </tbody>
@@ -2495,9 +2502,9 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                 
                 <hr style="border:0; border-top:2px solid var(--border-color); margin:30px 0;">
                 
-                <!-- â•â•â• SECTION 2: Church Cleaners â•â•â• -->
+                <!-- ═══ SECTION 2: Church Cleaners ═══ -->
                 <h2 style="font-size:1.1rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:1.3rem;">ðŸ§¹</span> Church Cleaners â€” All Villages
+                    <span style="font-size:1.3rem;">🧹</span> Church Cleaners — All Villages
                 </h2>
                 <div class="content-card" style="margin-bottom:28px; border-top:4px solid #0ea5e9;">
                     <?php
@@ -2505,7 +2512,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                     $cleaners_count = $cleaners ? $cleaners->num_rows : 0;
                     ?>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                        <h3 style="margin:0; color:#0ea5e9;">ðŸ§¹ Church Cleaners</h3>
+                        <h3 style="margin:0; color:#0ea5e9;">🧹 Church Cleaners</h3>
                         <span class="badge" style="background:#0ea5e922; color:#0ea5e9; font-size:1rem; padding:6px 14px;"><?= $cleaners_count ?> Volunteers</span>
                     </div>
                     <?php if ($cleaners_count > 0): ?>
@@ -2527,9 +2534,9 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                             <tr>
                                 <td style="color:var(--text-muted);"><?= $i++ ?></td>
                                 <td style="font-weight:600;"><?= htmlspecialchars($cl['first_name'] . ' ' . $cl['last_name']) ?></td>
-                                <td><span class="badge" style="background:<?= $vc ?>22; color:<?= $vc ?>;"><?= htmlspecialchars($cl['church_village'] ?: 'â€”') ?></span></td>
+                                <td><span class="badge" style="background:<?= $vc ?>22; color:<?= $vc ?>;"><?= htmlspecialchars($cl['church_village'] ?: '—') ?></span></td>
                                 <td><?= htmlspecialchars($cl['department'] ?: 'General Church') ?></td>
-                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($cl['phone'] ?? 'â€”') ?></td>
+                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($cl['phone'] ?? '—') ?></td>
                             </tr>
                             <?php endwhile; ?>
                             </tbody>
@@ -2540,9 +2547,9 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                     <?php endif; ?>
                 </div>
                 
-                <!-- â•â•â• SECTION 3: Church Cookers â•â•â• -->
+                <!-- ═══ SECTION 3: Church Cookers ═══ -->
                 <h2 style="font-size:1.1rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:1.3rem;">ðŸ³</span> Church Cookers â€” All Villages
+                    <span style="font-size:1.3rem;">🍳</span> Church Cookers — All Villages
                 </h2>
                 <div class="content-card" style="margin-bottom:28px; border-top:4px solid #f59e0b;">
                     <?php
@@ -2550,7 +2557,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                     $cookers_count = $cookers ? $cookers->num_rows : 0;
                     ?>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                        <h3 style="margin:0; color:#f59e0b;">ðŸ³ Church Cookers</h3>
+                        <h3 style="margin:0; color:#f59e0b;">🍳 Church Cookers</h3>
                         <span class="badge" style="background:#f59e0b22; color:#f59e0b; font-size:1rem; padding:6px 14px;"><?= $cookers_count ?> Volunteers</span>
                     </div>
                     <?php if ($cookers_count > 0): ?>
@@ -2572,9 +2579,9 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                             <tr>
                                 <td style="color:var(--text-muted);"><?= $i++ ?></td>
                                 <td style="font-weight:600;"><?= htmlspecialchars($ck['first_name'] . ' ' . $ck['last_name']) ?></td>
-                                <td><span class="badge" style="background:<?= $vc ?>22; color:<?= $vc ?>;"><?= htmlspecialchars($ck['church_village'] ?: 'â€”') ?></span></td>
+                                <td><span class="badge" style="background:<?= $vc ?>22; color:<?= $vc ?>;"><?= htmlspecialchars($ck['church_village'] ?: '—') ?></span></td>
                                 <td><?= htmlspecialchars($ck['department'] ?: 'General Church') ?></td>
-                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($ck['phone'] ?? 'â€”') ?></td>
+                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($ck['phone'] ?? '—') ?></td>
                             </tr>
                             <?php endwhile; ?>
                             </tbody>
@@ -2807,7 +2814,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                                 <td style="font-weight:600;color:#10b981;">KSh <?= number_format($fr['amount'], 2) ?></td>
                                 <td><?= htmlspecialchars($fr['description'] ?? '-') ?></td>
                                 <td style="font-size:0.85em;color:var(--text-muted);"><?= date('M j, Y', strtotime($fr['record_date'] ?: $fr['recorded_at'])) ?></td>
-                                <td style="font-size:0.85em;color:var(--text-muted);"><?= !empty($fr['edit_reason']) ? htmlspecialchars($fr['edit_reason']) : '<span style="color:var(--border-color);">â€”</span>' ?></td>
+                                <td style="font-size:0.85em;color:var(--text-muted);"><?= !empty($fr['edit_reason']) ? htmlspecialchars($fr['edit_reason']) : '<span style="color:var(--border-color);">—</span>' ?></td>
                                 <td><?= !empty($fr['is_sent_to_chair']) ? '<span class="badge" style="background:rgba(16,185,129,0.12);color:#10b981;">Sent to Chair</span>' : '<span class="badge" style="background:rgba(100,100,100,0.1);color:var(--text-muted);">Not Sent</span>' ?></td>
                             </tr>
                             <?php endwhile; ?>
@@ -2903,7 +2910,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                 $role_is_available = function($role_name, $context_department = '') use ($assigned_members_for_availability, $assigned_global_roles, $head_usher_already_assigned) {
                     $normalized_role = normalize_role_name($role_name);
 
-                    // Head Usher: strictly one â€” hide from dropdown if already assigned
+                    // Head Usher: strictly one — hide from dropdown if already assigned
                     if ($normalized_role === 'head usher') {
                         return !$head_usher_already_assigned;
                     }
@@ -2982,7 +2989,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
 
                         <!-- Popup toast for taken role -->
                         <div id="headUsherToast" style="display:none; position:fixed; top:30px; left:50%; transform:translateX(-50%); z-index:9999; background:#1e293b; color:#fff; border-radius:14px; padding:18px 28px; box-shadow:0 8px 32px rgba(0,0,0,0.25); max-width:400px; width:90%; text-align:center; animation: fadeInDown 0.3s ease;">
-                            <div style="font-size:2rem; margin-bottom:8px;">ðŸ”’</div>
+                            <div style="font-size:2rem; margin-bottom:8px;">🔒</div>
                             <strong id="toastRoleTitle" style="font-size:1rem; display:block; margin-bottom:6px;">Role Already Assigned</strong>
                             <p id="toastRoleBody" style="font-size:0.88rem; color:#94a3b8; margin:0 0 14px;">This role is already taken. Remove the current holder first before reassigning.</p>
                             <button onclick="document.getElementById('headUsherToast').style.display='none'; document.getElementById('assignRoleSelect').value='';" style="background:var(--primary,#2563eb); color:#fff; border:none; border-radius:8px; padding:8px 22px; font-size:0.9rem; cursor:pointer; font-weight:600;">OK, Got It</button>
@@ -3337,13 +3344,13 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                 <?php
                 // Department groups and their leader chat dept_keys
                 $dept_groups = [
-                    'youths'          => ['label' => 'ðŸŽ“ Youth Department',       'dept_key' => 'youths',          'color' => '#3b82f6'],
-                    'womens_ministry' => ['label' => 'ðŸ‘© Women\'s Ministry',       'dept_key' => 'womens_ministry', 'color' => '#ec4899'],
-                    'elders'          => ['label' => 'ðŸ•Šï¸ Elders',                 'dept_key' => 'elders',          'color' => '#8b5cf6'],
-                    'sunday_school'   => ['label' => 'ðŸ“š Sunday School',           'dept_key' => 'sunday_school',   'color' => '#f59e0b'],
-                    'general_church'  => ['label' => 'â›ª General Church Leaders',  'dept_key' => 'general_church',  'color' => '#10b981'],
-                    'building_construction' => ['label' => 'ðŸ—ï¸ Building Dept',    'dept_key' => 'building_construction', 'color' => '#ef4444'],
-                    'worship_leaders' => ['label' => 'ðŸŽ¶ Worship Dept',           'dept_key' => 'worship_leaders', 'color' => '#d946ef'],
+                    'youths'          => ['label' => '🎓 Youth Department',       'dept_key' => 'youths',          'color' => '#3b82f6'],
+                    'womens_ministry' => ['label' => '👩 Women\'s Ministry',       'dept_key' => 'womens_ministry', 'color' => '#ec4899'],
+                    'elders'          => ['label' => '🕊️ Elders',                 'dept_key' => 'elders',          'color' => '#8b5cf6'],
+                    'sunday_school'   => ['label' => '📚 Sunday School',           'dept_key' => 'sunday_school',   'color' => '#f59e0b'],
+                    'general_church'  => ['label' => '⛪ General Church Leaders',  'dept_key' => 'general_church',  'color' => '#10b981'],
+                    'building_construction' => ['label' => '🏗️ Building Dept',    'dept_key' => 'building_construction', 'color' => '#ef4444'],
+                    'worship_leaders' => ['label' => '🎶 Worship Dept',           'dept_key' => 'worship_leaders', 'color' => '#d946ef'],
                 ];
                 $active_group = $_GET['leader_group'] ?? 'general_church';
                 if (!array_key_exists($active_group, $dept_groups)) $active_group = 'general_church';
@@ -3372,7 +3379,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
 
                 <!-- Chat view for active group -->
                 <div class="content-card" style="margin-bottom:24px;border-left:4px solid <?= $active_color ?>;">
-                    <h2 style="font-size:1.05rem;margin-top:0;color:<?= $active_color ?>;"><?= $active_label ?> â€” Leadership Chat</h2>
+                    <h2 style="font-size:1.05rem;margin-top:0;color:<?= $active_color ?>;"><?= $active_label ?> — Leadership Chat</h2>
                     <?php
                     $esc_dept_key = $conn->real_escape_string($active_dept_key);
                     if ($esc_dept_key === 'building_construction') {
@@ -3416,7 +3423,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                             ORDER BY created_at ASC
                         ");
                         if (!$chat_msgs) {
-                            // table may not exist yet â€” only show member messages
+                            // table may not exist yet — only show member messages
                             $chat_msgs = $conn->query("
                                 SELECT lm.*, m.first_name, m.last_name, m.church_role, m.department, 0 as is_pastor
                                 FROM leader_messages lm
@@ -3437,8 +3444,8 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                         <div style="margin-bottom:12px;padding:12px 14px;border-radius:10px;background:<?= $bg ?>;border-left:3px solid <?= $border ?>;">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
                                 <span style="font-weight:600;font-size:0.9rem;color:var(--text-main);">
-                                    <?= $is_pastor_msg ? 'â›ª ' : '' ?><?= htmlspecialchars($msg['first_name'] . ' ' . $msg['last_name']) ?>
-                                    <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400;"> â€” <?= htmlspecialchars($msg['church_role']) ?></span>
+                                    <?= $is_pastor_msg ? '⛪ ' : '' ?><?= htmlspecialchars($msg['first_name'] . ' ' . $msg['last_name']) ?>
+                                    <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400;"> — <?= htmlspecialchars($msg['church_role']) ?></span>
                                 </span>
                                 <small style="color:var(--text-muted);font-size:0.72rem;"><?= date('M j, g:i A', strtotime($msg['created_at'])) ?></small>
                             </div>
@@ -3464,7 +3471,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
 
             <?php elseif ($tab == 'choir_songs'): ?>
                 <div class="page-header">
-                    <h1>ðŸŽµ Choir Songs Monitor</h1>
+                    <h1>🎵 Choir Songs Monitor</h1>
                     <p>Song plans and choir announcements posted across all departments.</p>
                 </div>
 
@@ -3534,12 +3541,12 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
 
             <?php elseif ($tab == 'sport_board'): ?>
                 <div class="page-header">
-                    <h1>âš½ Sport Board</h1>
+                    <h1>⚽ Sport Board</h1>
                     <p>All scheduled matches and sport announcements across every department.</p>
                 </div>
 
                 <div class="content-card" style="margin-bottom:25px;">
-                    <h2>ðŸ† Scheduled Matches (All Departments)</h2>
+                    <h2>🏆 Scheduled Matches (All Departments)</h2>
                     <?php
                     $all_matches = $conn->query("SELECT sm.*, m.first_name, m.last_name FROM sport_matches sm JOIN members m ON sm.secretary_id = m.id ORDER BY sm.match_date ASC, sm.match_time ASC");
                     if ($all_matches && $all_matches->num_rows > 0):
@@ -3560,9 +3567,9 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                                         </div>
                                         <?php if($sm['description']): ?><p style="color:var(--text-muted);margin:0 0 8px;font-size:0.9rem;"><?= nl2br(htmlspecialchars($sm['description'])) ?></p><?php endif; ?>
                                         <div style="display:flex;gap:15px;flex-wrap:wrap;">
-                                            <span style="color:var(--text-muted);font-size:0.85rem;">â° <?= date('g:i A', strtotime($sm['match_time'])) ?><?= $sm['end_time'] ? ' â€“ '.date('g:i A', strtotime($sm['end_time'])) : '' ?></span>
-                                            <span style="color:var(--text-muted);font-size:0.85rem;">ðŸ“ <?= htmlspecialchars($sm['location']) ?></span>
-                                            <span style="color:var(--text-muted);font-size:0.85rem;">ðŸ‘¤ <?= htmlspecialchars($sm['first_name'] . ' ' . $sm['last_name']) ?></span>
+                                            <span style="color:var(--text-muted);font-size:0.85rem;">⏰ <?= date('g:i A', strtotime($sm['match_time'])) ?><?= $sm['end_time'] ? ' – '.date('g:i A', strtotime($sm['end_time'])) : '' ?></span>
+                                            <span style="color:var(--text-muted);font-size:0.85rem;">📍 <?= htmlspecialchars($sm['location']) ?></span>
+                                            <span style="color:var(--text-muted);font-size:0.85rem;">👤 <?= htmlspecialchars($sm['first_name'] . ' ' . $sm['last_name']) ?></span>
                                         </div>
                                         <?php if (!empty($sm['score_result'])): ?>
                                             <div style="margin-top:15px;padding-top:15px;border-top:1px solid var(--border-color);">
@@ -3580,7 +3587,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                 </div>
 
                 <div class="content-card">
-                    <h2>ðŸ“¢ Sport Announcements (All Departments)</h2>
+                    <h2>📢 Sport Announcements (All Departments)</h2>
                     <?php
                     $all_sport_anncs = $conn->query("SELECT sa.*, m.first_name, m.last_name FROM sport_announcements sa JOIN members m ON sa.secretary_id = m.id ORDER BY sa.created_at DESC");
                     if ($all_sport_anncs && $all_sport_anncs->num_rows > 0):
@@ -3590,7 +3597,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                                 <div style="padding:18px;border-left:4px solid var(--primary);background:var(--bg-main);border-radius:0 10px 10px 0;">
                                     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
                                         <div style="display:flex;gap:10px;align-items:center;">
-                                            <strong style="color:var(--text-main);">ðŸ“¢ <?= htmlspecialchars($sa['first_name'] . ' ' . $sa['last_name']) ?></strong>
+                                            <strong style="color:var(--text-main);">📢 <?= htmlspecialchars($sa['first_name'] . ' ' . $sa['last_name']) ?></strong>
                                             <span style="background:rgba(79,70,229,0.1);color:var(--primary);font-size:0.75rem;padding:2px 8px;border-radius:12px;"><?= htmlspecialchars($sa['department']) ?></span>
                                         </div>
                                         <small style="color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($sa['created_at'])) ?></small>
@@ -3606,13 +3613,13 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
 
             <?php elseif ($tab == 'prayer_board'): ?>
                 <div class="page-header">
-                    <h1>ðŸ™ Global Prayer Board</h1>
+                    <h1>🙏 Global Prayer Board</h1>
                     <p>All prayer sessions and active prayer items across every department in the church.</p>
                 </div>
 
                 <!-- Upcoming Sessions (all depts) -->
                 <div class="content-card" style="margin-bottom:25px;">
-                    <h2>ðŸ“… Upcoming Prayer Sessions (All Departments)</h2>
+                    <h2>📅 Upcoming Prayer Sessions (All Departments)</h2>
                     <?php
                     $all_schedules = $conn->query("SELECT ps.*, m.first_name, m.last_name FROM prayer_schedules ps JOIN members m ON ps.coordinator_id = m.id WHERE ps.prayer_date >= CURDATE() ORDER BY ps.prayer_date ASC, ps.prayer_time ASC");
                     if ($all_schedules && $all_schedules->num_rows > 0):
@@ -3641,9 +3648,9 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                                         </div>
                                         <?php if($s['description']): ?><p style="color:var(--text-muted);margin:0 0 8px;font-size:0.9rem;"><?= nl2br(htmlspecialchars($s['description'])) ?></p><?php endif; ?>
                                         <div style="display:flex;gap:15px;flex-wrap:wrap;">
-                                            <span style="color:var(--text-muted);font-size:0.85rem;">â° <?= date('g:i A', strtotime($s['prayer_time'])) ?></span>
-                                            <span style="color:var(--text-muted);font-size:0.85rem;">ðŸ“ <?= htmlspecialchars($s['location']) ?></span>
-                                            <span style="color:var(--text-muted);font-size:0.85rem;">ðŸ‘¤ <?= htmlspecialchars($s['first_name'] . ' ' . $s['last_name']) ?></span>
+                                            <span style="color:var(--text-muted);font-size:0.85rem;">⏰ <?= date('g:i A', strtotime($s['prayer_time'])) ?></span>
+                                            <span style="color:var(--text-muted);font-size:0.85rem;">📍 <?= htmlspecialchars($s['location']) ?></span>
+                                            <span style="color:var(--text-muted);font-size:0.85rem;">👤 <?= htmlspecialchars($s['first_name'] . ' ' . $s['last_name']) ?></span>
                                         </div>
                                     </div>
                                 </div>
@@ -3656,7 +3663,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
 
                 <!-- Active Prayer Items (all depts) -->
                 <div class="content-card">
-                    <h2>ðŸ™ Active Prayer Items (All Departments)</h2>
+                    <h2>🙏 Active Prayer Items (All Departments)</h2>
                     <?php
                     $all_items = $conn->query("SELECT pi.*, m.first_name, m.last_name FROM prayer_items pi JOIN members m ON pi.coordinator_id = m.id WHERE pi.status='Active' ORDER BY pi.department ASC, pi.created_at DESC");
                     if ($all_items && $all_items->num_rows > 0):
@@ -3666,7 +3673,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                                 <div style="padding:18px; border-left:4px solid var(--primary); background:var(--bg-main); border-radius:0 10px 10px 0;">
                                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
                                         <div>
-                                            <strong style="font-size:1.05rem;color:var(--text-main);">ðŸ™ <?= htmlspecialchars($pi['title']) ?></strong>
+                                            <strong style="font-size:1.05rem;color:var(--text-main);">🙏 <?= htmlspecialchars($pi['title']) ?></strong>
                                             <span class="badge" style="margin-left:8px;background:rgba(79,70,229,0.1);color:var(--primary);"><?= htmlspecialchars($pi['category']) ?></span>
                                             <span class="badge" style="margin-left:5px;background:rgba(16,185,129,0.1);color:#10b981;"><?= htmlspecialchars($pi['department']) ?></span>
                                         </div>
@@ -3685,15 +3692,15 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                 </div>
             <?php elseif ($tab == 'usher_monitoring'): ?>
                 <div class="page-header">
-                    <h1>ðŸ›¡ Usher Monitoring</h1>
+                    <h1>🛡 Usher Monitoring</h1>
                     <p>Monitor announcements and chat messages within the Usher department.</p>
                 </div>
                 <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                     <!-- Announcements Column -->
                     <div style="flex: 1; min-width: 300px;">
                         <div class="content-card" style="margin-bottom: 24px;">
-                            <h2>ðŸ“¢ Usher Announcements</h2>
-ï»¿                            <?php
+                            <h2>📢 Usher Announcements</h2>
+﻿                            <?php
                             // Usher Announcements Query
                             $all_usher_anns = $conn->query("SELECT ua.*, m.first_name, m.last_name, m.department FROM usher_announcements ua JOIN members m ON ua.usher_id = m.id ORDER BY ua.created_at DESC");
                             if ($all_usher_anns && $all_usher_anns->num_rows > 0): ?>
@@ -3745,7 +3752,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                                         <img src="uploads/<?= htmlspecialchars($chat['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
                                         <div style="max-width: 75%; <?= $is_pastor ? 'text-align: right;' : '' ?>">
                                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
-                                                <?= htmlspecialchars($chat['first_name']) ?> <span style="opacity:0.7;">(<?= htmlspecialchars($chat['department']) ?>)</span> â€¢ <?= date('M j, g:i A', strtotime($chat['created_at'])) ?>
+                                                <?= htmlspecialchars($chat['first_name']) ?> <span style="opacity:0.7;">(<?= htmlspecialchars($chat['department']) ?>)</span> • <?= date('M j, g:i A', strtotime($chat['created_at'])) ?>
                                             </div>
                                             <div style="background: <?= $is_pastor ? 'var(--primary)' : 'var(--border-color)' ?>; color: <?= $is_pastor ? 'white' : 'var(--text-main)' ?>; padding: 10px 14px; border-radius: 12px; font-size: 0.95rem;">
                                                 <?= nl2br(htmlspecialchars($chat['message'])) ?>
@@ -3765,7 +3772,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
 
             <?php elseif ($tab == 'building_monitoring'): ?>
                 <div class="page-header">
-                    <h1>ðŸ—ï¸ Building Monitoring</h1>
+                    <h1>🏗️ Building Monitoring</h1>
                     <p>Monitor and participate in Building & Construction department activities.</p>
                 </div>
                 <?php render_building_leader_profiles_card($conn); ?>
@@ -3774,7 +3781,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
 
                     <!-- Construction Progress Log -->
                     <div class="content-card">
-                        <h2>ðŸ“‹ Construction Progress Log</h2>
+                        <h2>📋 Construction Progress Log</h2>
                         <?php
                         $progress_log = $conn->query("
                             SELECT bp.*, m.first_name, m.last_name, m.church_role, m.gender
@@ -3790,7 +3797,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                                 <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                                     <div>
                                         <span style="font-weight:bold; color:var(--primary);"><?= htmlspecialchars($prog['progress_status']) ?></span>
-                                        <div style="font-size:0.8rem; color:var(--text-muted);"><?= htmlspecialchars($prog['first_name'] . ' ' . $prog['last_name']) ?> Â· <?= htmlspecialchars($author_title) ?></div>
+                                        <div style="font-size:0.8rem; color:var(--text-muted);"><?= htmlspecialchars($prog['first_name'] . ' ' . $prog['last_name']) ?> · <?= htmlspecialchars($author_title) ?></div>
                                     </div>
                                     <span style="font-size:0.8rem; color:var(--text-muted);"><?= date('M j, Y', strtotime($prog['date_scheduled'])) ?></span>
                                 </div>
@@ -3803,7 +3810,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
 
                     <!-- Building Leadership Chat -->
                     <div class="content-card" style="display:flex; flex-direction:column;">
-                        <h2>ðŸ’¬ Building Leadership Chat</h2>
+                        <h2>💬 Building Leadership Chat</h2>
                         <div style="flex:1; max-height:400px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; margin-bottom:15px;" id="bldChatPastor">
                         <?php
                         $blc = $conn->query("
@@ -3844,7 +3851,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
 
                     <!-- Building Public Posts (member-facing posts) -->
                     <div class="content-card" style="grid-column: 1 / -1;">
-                        <h2>ðŸ“¢ Church Building Public Posts</h2>
+                        <h2>📢 Church Building Public Posts</h2>
                         <?php
                         $public_posts = $conn->query("
                             SELECT bp.*, m.first_name, m.last_name, m.church_role, m.gender
@@ -4253,7 +4260,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                         $videos = array_filter($all_highlights, function($h){ $ext = strtolower(pathinfo($h['image_file'], PATHINFO_EXTENSION)); return in_array($ext, ['mp4','webm','ogg']); });
                     ?>
                         <?php if(count($videos) > 0): ?>
-                            <h3 style="margin-bottom: 15px; color: var(--primary);">ðŸŽ¥ Video Highlights</h3>
+                            <h3 style="margin-bottom: 15px; color: var(--primary);">🎥 Video Highlights</h3>
                             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-bottom: 30px;">
                                 <?php foreach($videos as $h): $ext = strtolower(pathinfo($h['image_file'], PATHINFO_EXTENSION)); ?>
                                     <div style="border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; background: var(--card-bg); position: relative;">
@@ -4264,14 +4271,14 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                                             <?php if($h['caption']): ?><p style="font-weight: 500; color: var(--text-main); margin-bottom: 5px;"><?= htmlspecialchars($h['caption']) ?></p><?php endif; ?>
                                             <p style="font-size: 0.78rem; color: var(--text-muted);"><?= date('M j, Y', strtotime($h['created_at'])) ?></p>
                                         </div>
-                                        <a href="pastor_dashboard.php?tab=inspiration_highlights&action=delete_highlight&id=<?= $h['id'] ?>" onclick="return confirm('Delete this highlight?')" style="position: absolute; top: 8px; right: 8px; background: rgba(239,68,68,0.85); color: white; padding: 4px 10px; border-radius: 5px; text-decoration: none; font-size: 0.78rem;">âœ• Delete</a>
+                                        <a href="pastor_dashboard.php?tab=inspiration_highlights&action=delete_highlight&id=<?= $h['id'] ?>" onclick="return confirm('Delete this highlight?')" style="position: absolute; top: 8px; right: 8px; background: rgba(239,68,68,0.85); color: white; padding: 4px 10px; border-radius: 5px; text-decoration: none; font-size: 0.78rem;">✕ Delete</a>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
 
                         <?php if(count($photos) > 0): ?>
-                            <h3 style="margin-bottom: 15px; color: var(--primary);">ðŸ“· Photo Highlights</h3>
+                            <h3 style="margin-bottom: 15px; color: var(--primary);">📷 Photo Highlights</h3>
                             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;">
                                 <?php foreach($photos as $h): ?>
                                     <div style="border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; background: var(--card-bg); position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
@@ -4280,7 +4287,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                                             <?php if($h['caption']): ?><p style="font-weight: 500; color: var(--text-main); margin-bottom: 5px;"><?= htmlspecialchars($h['caption']) ?></p><?php endif; ?>
                                             <p style="font-size: 0.78rem; color: var(--text-muted);"><?= date('M j, Y', strtotime($h['created_at'])) ?></p>
                                         </div>
-                                        <a href="pastor_dashboard.php?tab=inspiration_highlights&action=delete_highlight&id=<?= $h['id'] ?>" onclick="return confirm('Delete this highlight?')" style="position: absolute; top: 8px; right: 8px; background: rgba(239,68,68,0.85); color: white; padding: 4px 10px; border-radius: 5px; text-decoration: none; font-size: 0.78rem;">âœ• Delete</a>
+                                        <a href="pastor_dashboard.php?tab=inspiration_highlights&action=delete_highlight&id=<?= $h['id'] ?>" onclick="return confirm('Delete this highlight?')" style="position: absolute; top: 8px; right: 8px; background: rgba(239,68,68,0.85); color: white; padding: 4px 10px; border-radius: 5px; text-decoration: none; font-size: 0.78rem;">✕ Delete</a>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
@@ -4305,9 +4312,9 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                 <!-- STEP 1: Username -->
                 <div class="content-card" style="max-width: 480px; margin-bottom: 24px; border: 2px solid <?= $has_username ? '#10b981' : '#6366f1' ?>; position:relative;">
                     <div style="position:absolute; top:16px; right:16px; width:28px; height:28px; border-radius:50%; background:<?= $has_username ? '#10b981' : '#e2e8f0' ?>; display:flex; align-items:center; justify-content:center; font-size:1rem;"><?= $has_username ? '&#10003;' : '1' ?></div>
-                    <h2 style="color:<?= $has_username ? '#10b981' : 'var(--primary)' ?>;">Step 1 ï¿½ Create Your Username</h2>
+                    <h2 style="color:<?= $has_username ? '#10b981' : 'var(--primary)' ?>;">Step 1 � Create Your Username</h2>
                     <?php if ($has_username): ?>
-                        <div class="alert alert-success" style="margin-top:10px;">Username set: <strong><?= htmlspecialchars($pastor['username']) ?></strong> ï¿½ you can change it below if needed.</div>
+                        <div class="alert alert-success" style="margin-top:10px;">Username set: <strong><?= htmlspecialchars($pastor['username']) ?></strong> � you can change it below if needed.</div>
                     <?php else: ?>
                         <p style="color:var(--text-muted); font-size:0.9rem;">Your username will be used to log in and recover your password.</p>
                     <?php endif; ?>
@@ -4324,7 +4331,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                 <!-- STEP 2: Profile Picture -->
                 <div class="content-card" style="max-width: 480px; margin-bottom: 24px; border: 2px solid <?= $has_profile_pic ? '#10b981' : '#6366f1' ?>; position:relative;">
                     <div style="position:absolute; top:16px; right:16px; width:28px; height:28px; border-radius:50%; background:<?= $has_profile_pic ? '#10b981' : '#e2e8f0' ?>; display:flex; align-items:center; justify-content:center; font-size:1rem;"><?= $has_profile_pic ? '&#10003;' : '2' ?></div>
-                    <h2 style="color:<?= $has_profile_pic ? '#10b981' : 'var(--primary)' ?>;">Step 2 ï¿½ Upload a Profile Picture</h2>
+                    <h2 style="color:<?= $has_profile_pic ? '#10b981' : 'var(--primary)' ?>;">Step 2 � Upload a Profile Picture</h2>
                     <div style="display: flex; align-items: center; gap: 20px; margin: 14px 0;">
                         <img src="uploads/<?= htmlspecialchars($pastor['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 3px solid <?= $has_profile_pic ? '#10b981' : 'var(--border-color)' ?>; cursor: zoom-in;" onclick="viewProfileImage(this.src);">
                         <div>
@@ -4346,8 +4353,8 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
 
                 <!-- STEP 3: Village & Roles -->
                 <div class="content-card" style="max-width: 480px; margin-bottom: 30px; border: 2px solid <?= $has_village ? '#10b981' : '#6366f1' ?>; position:relative;">
-                    <div style="position:absolute; top:16px; right:16px; width:28px; height:28px; border-radius:50%; background:<?= $has_village ? '#10b981' : '#e2e8f0' ?>; display:flex; align-items:center; justify-content:center; font-size:1rem;"><?= $has_village ? 'âœ“' : '3' ?></div>
-                    <h2 style="color:<?= $has_village ? '#10b981' : 'var(--primary)' ?>;">Step 3 â€” Select Your Church Village</h2>
+                    <div style="position:absolute; top:16px; right:16px; width:28px; height:28px; border-radius:50%; background:<?= $has_village ? '#10b981' : '#e2e8f0' ?>; display:flex; align-items:center; justify-content:center; font-size:1rem;"><?= $has_village ? '✓' : '3' ?></div>
+                    <h2 style="color:<?= $has_village ? '#10b981' : 'var(--primary)' ?>;">Step 3 — Select Your Church Village</h2>
                     <form method="POST" action="?tab=settings" style="margin-top:14px;">
                         <input type="hidden" name="save_church_village" value="1">
                         <div class="form-group">
@@ -4374,7 +4381,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
 
                 <?php if ($has_username && $has_profile_pic && $has_village): ?>
                 <div class="alert alert-success" style="max-width:480px; margin-bottom:20px;">
-                    ðŸŽ‰ Setup complete! Refresh the page to unlock all tabs.
+                    🎉 Setup complete! Refresh the page to unlock all tabs.
                     <a href="pastor_dashboard.php" style="margin-left:12px; font-weight:600;">Unlock Now &rarr;</a>
                 </div>
                 <?php endif; ?>
@@ -4484,18 +4491,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
                     </div>
                     <a href="#assignSsClassLeader" class="btn-submit" style="width:auto;height:auto;padding:9px 14px;text-decoration:none;font-size:0.86rem;margin:0;">Assign Leader</a>
                 </div>
-                if (isset($_GET['success']) && $_GET['success'] === 'village_leader_assigned') {
-                    $assigned_v = htmlspecialchars($_GET['vname'] ?? '');
-                    echo "<div style='background:rgba(16,185,129,0.1);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;font-weight:600;'>";
-                    echo "✅ Church Village Leader for <strong>" . $assigned_v . "</strong> has been assigned successfully!";
-                    echo "</div>";
-                }
-                if (isset($_GET['error']) && $_GET['error'] === 'village_has_leader') {
-                    $assigned_v = htmlspecialchars($_GET['vname'] ?? '');
-                    echo "<div style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;font-weight:600;'>";
-                    echo "❌ Cannot assign a new leader for <strong>" . $assigned_v . "</strong>. Please remove the current leader first.";
-                    echo "</div>";
-                }
+                <?php if (isset($_GET['success'])): ?><div class="alert alert-success" style="margin-bottom:16px;"><?= htmlspecialchars($_GET['success']) ?></div><?php endif; ?>
                 <?php if (isset($_GET['error'])): ?><div class="alert alert-danger" style="margin-bottom:16px;"><?= htmlspecialchars($_GET['error']) ?></div><?php endif; ?>
                 <div id="assignSsClassLeader" class="content-card" style="margin-bottom:24px;border-left:4px solid #0ea5e9;">
                     <h2 style="margin-bottom:14px;">Assign Sunday School Class Leader</h2>
@@ -4732,7 +4728,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation = 'lan
         </form>
     </div>
 </div>
-ï»¿<script>
+﻿<script>
 function openEditMemberModal(id, fname, lname, uname, phone, addr) {
     document.getElementById("em_id").value    = id;
     document.getElementById("em_fname").value = fname;
@@ -4744,7 +4740,7 @@ function openEditMemberModal(id, fname, lname, uname, phone, addr) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-    // Names: letters and spaces only â€” block numbers/symbols live
+    // Names: letters and spaces only — block numbers/symbols live
     ["em_fname","em_lname"].forEach(function(fid) {
         var el = document.getElementById(fid);
         if (!el) return;
@@ -4781,7 +4777,7 @@ document.addEventListener("DOMContentLoaded", function () {
             var err = "";
             if (!/^[A-Za-z\s]{2,}$/.test(fname))  err = "First name must contain letters only (minimum 2 characters).";
             else if (!/^[A-Za-z\s]{2,}$/.test(lname)) err = "Last name must contain letters only (minimum 2 characters).";
-            else if (!/^\d{10}$/.test(phone))          err = "Phone number must be exactly 10 digits â€” no spaces or characters.";
+            else if (!/^\d{10}$/.test(phone))          err = "Phone number must be exactly 10 digits — no spaces or characters.";
             if (err) {
                 e.preventDefault();
                 var errDiv = document.getElementById("editMemberError");
@@ -5133,7 +5129,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </form>
     </div>
 </div>
-ï»¿<script>
+﻿<script>
 function openEditMemberModal(id, fname, lname, uname, phone, addr) {
     document.getElementById("em_id").value    = id;
     document.getElementById("em_fname").value = fname;
@@ -5145,7 +5141,7 @@ function openEditMemberModal(id, fname, lname, uname, phone, addr) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-    // Names: letters and spaces only â€” block numbers/symbols live
+    // Names: letters and spaces only — block numbers/symbols live
     ["em_fname","em_lname"].forEach(function(fid) {
         var el = document.getElementById(fid);
         if (!el) return;
@@ -5182,7 +5178,7 @@ document.addEventListener("DOMContentLoaded", function () {
             var err = "";
             if (!/^[A-Za-z\s]{2,}$/.test(fname))  err = "First name must contain letters only (minimum 2 characters).";
             else if (!/^[A-Za-z\s]{2,}$/.test(lname)) err = "Last name must contain letters only (minimum 2 characters).";
-            else if (!/^\d{10}$/.test(phone))          err = "Phone number must be exactly 10 digits â€” no spaces or characters.";
+            else if (!/^\d{10}$/.test(phone))          err = "Phone number must be exactly 10 digits — no spaces or characters.";
             if (err) {
                 e.preventDefault();
                 var errDiv = document.getElementById("editMemberError");
@@ -5266,5 +5262,3 @@ function openDeclineModal(id, name) {
 }
 </script>
 </html>
-
-
