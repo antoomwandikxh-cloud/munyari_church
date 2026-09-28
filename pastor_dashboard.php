@@ -2432,7 +2432,7 @@ w.document.write('</div>');
                         </div>
                         <div style="flex:1; min-width:200px;">
                             <label style="display:block; font-size:0.85rem; font-weight:600; color:var(--text-muted); margin-bottom:6px;">Select Member</label>
-                            <select name="leader_id" id="village_leader_member" required disabled style="width:100%; padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-lighter); color:var(--text-main);">
+                            <select name="leader_id" id="village_leader_member" required disabled style="width:100%; padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-lighter); color:var(--text-main);" onmousedown="if(!document.getElementById('village_leader_sel').value){event.preventDefault();alert('⚠️ Please select a Church Village first!');document.getElementById('village_leader_sel').focus();}">
                                 <option value="">-- Choose Member --</option>
                                 <?php
                                 $mems = $conn->query("SELECT id, first_name, last_name, church_village FROM members WHERE is_approved = 1 AND church_village IN ('Akoritho', 'Philadelphia', 'Bethsaida') ORDER BY church_village, first_name");
@@ -2446,6 +2446,7 @@ w.document.write('</div>');
                     function filterVillageLeaderMembers(v) {
                         var select = document.getElementById('village_leader_member');
                         select.value = '';
+                        select.disabled = !v;
                         select.querySelectorAll('option[data-village]').forEach(function(o) {
                             o.style.display = (o.getAttribute('data-village') === v) ? '' : 'none';
                         });
