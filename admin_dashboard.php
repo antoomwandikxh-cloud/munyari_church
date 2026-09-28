@@ -2251,7 +2251,7 @@ w.document.write('</div>');
                                 roleSelect.addEventListener('change', function() {
                                     const selected = roleSelect.options[roleSelect.selectedIndex];
                                     if (selected && selected.dataset.taken === 'true') {
-                                        alert('🔒 This role is already assigned!\n\nYou will now be taken to the Currently Assigned Roles table so you can remove the current leader before assigning a new one.');
+                                        alert('\uD83D\uDD12 This role is already assigned!\n\nYou will now be taken to the Currently Assigned Roles table so you can remove the current leader before assigning a new one.');
                                         const currentRolesTable = document.getElementById('currentlyAssignedRolesTable');
                                         if (currentRolesTable) {
                                             currentRolesTable.scrollIntoView({behavior: 'smooth'});
@@ -2388,7 +2388,7 @@ w.document.write('</div>');
                     </div>
                 </div>
                 <!-- Currently Assigned Roles (Hierarchical) -->
-                <div class="content-card" style="margin-top: 20px;">
+                <div id="currentlyAssignedRolesTable" class="content-card" style="margin-top: 20px;">
 <h2 style="margin-bottom: 20px;">Currently Assigned Roles</h2>
                     <?php 
                     $assigned_roles_q = $conn->query("SELECT id, first_name, last_name, department, church_role, profile_picture FROM members WHERE church_role IS NOT NULL AND church_role != '' AND LOWER(TRIM(church_role)) != 'member'");
