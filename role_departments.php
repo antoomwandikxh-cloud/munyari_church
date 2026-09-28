@@ -170,6 +170,10 @@ function role_assignment_departments($role, $context_department = null) {
         return ['Elders'];
     }
 
+    if (is_building_leadership_role($role)) {
+        return []; // Building roles are open to all members
+    }
+
     $department = department_for_role($role);
 
     // Sunday School main leadership roles are also open to all general church members
