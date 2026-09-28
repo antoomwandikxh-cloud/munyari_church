@@ -3496,7 +3496,13 @@ w.document.write('</div>');
                 </div>
                 
                 <div class="content-card">
-                    <h2 style="margin-bottom: 20px;">Currently Assigned Roles</h2>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+                        <h2 style="margin:0;">Currently Assigned Roles</h2>
+                        <button onclick="printRequiredTable()" style="background:#1e3a8a;color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                            Print Required Table
+                        </button>
+                    </div>
                     <?php 
                     $assigned_roles_q = $conn->query("SELECT id, first_name, last_name, department, church_role, profile_picture FROM members WHERE church_role IS NOT NULL AND church_role != '' AND LOWER(TRIM(church_role)) != 'member'");
                     
@@ -5369,7 +5375,39 @@ document.addEventListener("DOMContentLoaded", function () {
         <img id="imageViewerImg" src="" style="max-width:90%; max-height:90%; border-radius:8px; border:4px solid white; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
     </div>
     <script>
-    function viewProfileImage(src) {
+    
+function printRequiredTable() {
+    var card = document.getElementById('assignedRolesCard');
+    if (!card) {
+        alert('Table not found.');
+        return;
+    }
+    var w = window.open('', '_blank', 'width=1100,height=800');
+    if (!w) return;
+    w.document.write('<!DOCTYPE html><html><head><title>Required Church Leaders Table</title>');
+    w.document.write('<style>');
+    w.document.write('@page { margin: 15mm; size: A4 landscape; }');
+    w.document.write('body { font-family: Arial, sans-serif; font-size: 0.85rem; color: #111; }');
+    w.document.write('h2 { color: #1e3a8a; font-size: 1.2rem; margin-bottom: 12px; }');
+    w.document.write('.badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:700; }');
+    w.document.write('table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }');
+    w.document.write('thead tr { background: #1e3a8a; color: white; }');
+    w.document.write('thead th { padding: 9px 12px; text-align: left; font-size: 0.8rem; }');
+    w.document.write('tbody tr:nth-child(even) { background: #eff6ff; }');
+    w.document.write('tbody td { padding: 8px 12px; border-bottom: 1px solid #ddd; vertical-align: middle; }');
+    w.document.write('h3 { color: #1e3a8a; font-size: 1rem; margin: 18px 0 6px; border-bottom: 2px solid #1e3a8a; padding-bottom: 4px; }');
+    w.document.write('.dept-cell { font-weight:800; color:#1e3a8a; }');
+    w.document.write('img { width:32px; height:32px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:8px; border:1px solid #ccc; }');
+    w.document.write('.btn-sm { display:none; }');
+    w.document.write('</style></head><body>');
+    w.document.write('<h2 style="text-align:center; border-bottom:2px solid #1e3a8a; padding-bottom:8px;">E.A.P.C MUNYARI CHURCH &mdash; Currently Assigned Leaders</h2>');
+    w.document.write('<p style="text-align:center;color:#555;margin-bottom:16px;">Printed on: ' + new Date().toLocaleDateString('en-GB', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) + '</p>');
+    w.document.write(card.innerHTML);
+    w.document.write('</body></html>');
+    w.document.close();
+    setTimeout(function(){ w.print(); }, 600);
+}
+function viewProfileImage(src) {
         const modal = document.getElementById('imageViewerModal');
         const img = document.getElementById('imageViewerImg');
         img.src = src;
