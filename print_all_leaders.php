@@ -6,116 +6,83 @@ if (!$allowed) { header('Location: login.php'); exit(); }
 require_once 'db_connect.php';
 require_once 'role_departments.php';
 
-// Always landscape as user requested
-$page_size  = 'A4 landscape';
 $print_date = date('d F Y, H:i');
 
-/* ─── PASTOR INFO ──────────────────────────────────────────────────── */
+/* ── PASTOR INFO ───────────────────────────────────────────────────── */
 $pastor = null;
 if (isset($_SESSION['pastor_id'])) {
     $pid = (int)$_SESSION['pastor_id'];
-    $pr  = $conn->query("SELECT first_name, last_name, phone, address, profile_picture FROM pastors WHERE id = $pid LIMIT 1");
+    $pr  = $conn->query("SELECT first_name, last_name, phone, address, profile_picture FROM pastors WHERE id=$pid LIMIT 1");
 } else {
     $pr  = $conn->query("SELECT first_name, last_name, phone, address, profile_picture FROM pastors WHERE is_approved=1 ORDER BY id DESC LIMIT 1");
 }
 if ($pr && $pr->num_rows > 0) $pastor = $pr->fetch_assoc();
 
-$pastor_name    = $pastor ? ucfirst($pastor['first_name']) . ' ' . ucfirst($pastor['last_name']) : 'N/A';
-$pastor_address = $pastor ? ($pastor['address'] ?? '') : '';
-$pastor_phone   = $pastor ? ($pastor['phone'] ?? '') : '';
+$pastor_name    = $pastor ? ucfirst($pastor['first_name']).' '.ucfirst($pastor['last_name']) : 'N/A';
+$pastor_phone   = $pastor['phone']   ?? '';
+$pastor_address = $pastor['address'] ?? '';
 
-/* ─── EMBED HELPERS ────────────────────────────────────────────────── */
-function embed_img($path) {
-    if (empty($path)) return null;
-    $full = __DIR__ . '/uploads/' . basename($path);
-    if (!file_exists($full)) $full = __DIR__ . '/uploads/default_avatar.png';
+/* ── IMAGE EMBEDDING ───────────────────────────────────────────────── */
+function b64_img($rel_path) {
+    $full = __DIR__.'/uploads/'.basename($rel_path ?: 'default_avatar.png');
+    if (!file_exists($full)) $full = __DIR__.'/uploads/default_avatar.png';
     if (!file_exists($full)) return null;
-    $mime = mime_content_type($full);
-    return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($full));
+    return 'data:'.mime_content_type($full).';base64,'.base64_encode(file_get_contents($full));
+}
+function b64_file($path) {
+    if (!file_exists($path)) return null;
+    return 'data:'.mime_content_type($path).';base64,'.base64_encode(file_get_contents($path));
 }
 
-function embed_file($full_path) {
-    if (!file_exists($full_path)) return null;
-    $mime = mime_content_type($full_path);
-    return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($full_path));
-}
+$logo_src      = b64_file(__DIR__.'/church_logo.jpg');
+$pastor_pic    = b64_img($pastor['profile_picture'] ?? '');
 
-$logo_b64   = embed_file(__DIR__ . '/church_logo.jpg');
-$pastor_pic = embed_img($pastor['profile_picture'] ?? 'default_avatar.png');
-
-/* ─── LEADER SECTIONS ──────────────────────────────────────────────── */
+/* ── SECTION DEFINITIONS ───────────────────────────────────────────── */
 $leader_sections = [
-    'general' => [
-        'title'  => 'General Church Leaders',
-        'accent' => '#10b981',
-        'roles'  => ['senior church elder','general church secretary','vice church secretary','treasurer'],
-        'labels' => ['treasurer' => 'Church Treasurer'],
-    ],
-    'youths' => [
-        'title'  => 'Youth Department Leaders',
-        'accent' => '#6366f1',
-        'roles'  => ['youth chairperson','youth chairman','youth chairlady','vice youth chairperson','vice youth chairman','vice youth chairlady','youth secretary','vice youth secretary','youth treasurer','mama youth','baba youth','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader','sport secretary','sports secretary','vice sport secretary','vice sports secretary','graduands secretary','vice graduands secretary'],
-    ],
-    'women' => [
-        'title'  => "Women's Ministry Leaders",
-        'accent' => '#ec4899',
-        'roles'  => ['women chairlady','women chairperson','women chairman','vice women chairlady','vice women chairperson','vice women chairman','women secretary','vice women secretary','women treasurer','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader'],
-    ],
-    'elders' => [
-        'title'  => 'Elder Ministry Leaders',
-        'accent' => '#f59e0b',
-        'roles'  => ['elder chairman','elder chairperson','elder chairlady','vice elder chairman','vice elder chairperson','vice elder chairlady','elder secretary','vice elder secretary','elder treasurer','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader'],
-    ],
-    'sunday_school' => [
-        'title'  => 'Sunday School Leaders',
-        'accent' => '#0ea5e9',
-        'roles'  => ['sunday school patron','sunday school chairperson','sunday school chairman','sunday school chairlady','vice sunday school patron','vice sunday school chairperson','vice sunday school chairman','vice sunday school chairlady','sunday school secretary','vice sunday school secretary','sunday school treasurer','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader','sport secretary','sports secretary','vice sport secretary','vice sports secretary','graduands secretary','vice graduands secretary'],
-    ],
+    'general'      => ['title'=>'General Church Leaders',    'accent'=>'#10b981',
+        'roles'=>['senior church elder','general church secretary','vice church secretary','treasurer'],
+        'labels'=>['treasurer'=>'Church Treasurer']],
+    'youths'       => ['title'=>'Youth Department Leaders',  'accent'=>'#6366f1',
+        'roles'=>['youth chairperson','youth chairman','youth chairlady','vice youth chairperson','vice youth chairman','vice youth chairlady','youth secretary','vice youth secretary','youth treasurer','mama youth','baba youth','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader','sport secretary','sports secretary','vice sport secretary','vice sports secretary','graduands secretary','vice graduands secretary']],
+    'women'        => ['title'=>"Women's Ministry Leaders",  'accent'=>'#ec4899',
+        'roles'=>['women chairlady','women chairperson','women chairman','vice women chairlady','vice women chairperson','vice women chairman','women secretary','vice women secretary','women treasurer','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader']],
+    'elders'       => ['title'=>'Elder Ministry Leaders',    'accent'=>'#f59e0b',
+        'roles'=>['elder chairman','elder chairperson','elder chairlady','vice elder chairman','vice elder chairperson','vice elder chairlady','elder secretary','vice elder secretary','elder treasurer','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader']],
+    'sunday_school'=> ['title'=>'Sunday School Leaders',     'accent'=>'#0ea5e9',
+        'roles'=>['sunday school patron','sunday school chairperson','sunday school chairman','sunday school chairlady','vice sunday school patron','vice sunday school chairperson','vice sunday school chairman','vice sunday school chairlady','sunday school secretary','vice sunday school secretary','sunday school treasurer','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader','sport secretary','sports secretary','vice sport secretary','vice sports secretary','graduands secretary','vice graduands secretary']],
 ];
 
-/* ─── LOAD ALL LEADERS (include subsidiary) ────────────────────────── */
+/* ── LOAD LEADERS ──────────────────────────────────────────────────── */
 $leaders = [];
 $res = $conn->query("
     SELECT id, first_name, last_name, gender, department, church_role,
            profile_picture, phone, address, church_village
     FROM members
-    WHERE is_approved = 1
-      AND church_role IS NOT NULL
-      AND TRIM(church_role) != ''
-      AND LOWER(TRIM(church_role)) != 'member'
+    WHERE is_approved=1 AND church_role IS NOT NULL
+      AND TRIM(church_role)!='' AND LOWER(TRIM(church_role))!='member'
     ORDER BY first_name ASC, last_name ASC
 ");
-if ($res) {
-    while ($row = $res->fetch_assoc()) $leaders[] = $row;
-}
+if ($res) while ($row = $res->fetch_assoc()) $leaders[] = $row;
 
-/* ─── HELPERS ──────────────────────────────────────────────────────── */
-function normalize_role_str2($r) {
-    return strtolower(trim(preg_replace('/\s+/', ' ', $r ?? '')));
-}
-
-function parse_member_roles2($church_role_string) {
-    $parts = array_filter(array_map('trim', explode(',', str_replace('&', ',', $church_role_string ?? ''))));
-    $out = [];
-    foreach ($parts as $part) {
-        $clean = trim(preg_replace('/\s*\(.*?\)\s*/', '', $part));
-        if ($clean !== '') {
-            $out[] = ['raw' => $part, 'norm' => normalize_role_str2($clean)];
-        }
+/* ── ROLE HELPERS ──────────────────────────────────────────────────── */
+function norm_role($r){ return strtolower(trim(preg_replace('/\s+/',' ',$r??''))); }
+function parse_roles($str){
+    $out=[];
+    foreach(array_filter(array_map('trim',explode(',',str_replace('&',',',$str??'')))) as $p){
+        $clean=trim(preg_replace('/\s*\(.*?\)\s*/','', $p));
+        if($clean!=='') $out[]=['raw'=>$p,'norm'=>norm_role($clean)];
     }
     return $out;
 }
-
-function role_matches_group2($role_norm, $member_dept, $section_key) {
-    $d = strtolower(trim($member_dept));
-    switch ($section_key) {
-        case 'youths':        return $d === 'youths';
-        case 'women':         return in_array($d, ['womens ministry', "women's ministry", 'women ministry']);
-        case 'elders':        return $d === 'elders';
-        case 'sunday_school': return $d === 'sunday school';
-        case 'general':       return true;
-        default:              return true;
-    }
+function matches_group($role_norm,$dept,$sk){
+    $d=strtolower(trim($dept));
+    return match($sk){
+        'youths'       => $d==='youths',
+        'women'        => in_array($d,['womens ministry',"women's ministry",'women ministry']),
+        'elders'       => $d==='elders',
+        'sunday_school'=> $d==='sunday school',
+        default        => true,
+    };
 }
 ?>
 <!DOCTYPE html>
@@ -124,203 +91,214 @@ function role_matches_group2($role_norm, $member_dept, $section_key) {
 <meta charset="UTF-8">
 <title>All Church Leaders</title>
 <style>
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; box-sizing: border-box; margin: 0; padding: 0; }
-  @media print { @page { size: A4 landscape; margin: 8mm 10mm 16mm 10mm; } .no-print { display: none !important; } }
-  body { font-family: Arial, sans-serif; background: #fff; padding: 10px; padding-bottom: 70px; font-size: 0.8rem; }
+*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;box-sizing:border-box;margin:0;padding:0;}
+@media print{@page{size:A4 landscape;margin:7mm 10mm 16mm 10mm;}.no-print{display:none!important;}}
+body{font-family:Arial,sans-serif;background:#fff;padding:10px;padding-bottom:72px;font-size:0.78rem;}
 
-  /* Watermark */
-  .watermark {
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%) rotate(-45deg);
-    font-size: 72px !important; color: rgba(30,58,138,0.18) !important;
-    font-weight: bold; white-space: nowrap; z-index: 999999 !important;
-    opacity: 1 !important; pointer-events: none; letter-spacing: 4px;
-    text-transform: uppercase; mix-blend-mode: multiply;
-  }
+/* Watermark */
+.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);
+font-size:72px!important;color:rgba(30,58,138,0.18)!important;font-weight:bold;white-space:nowrap;
+z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}
 
-  /* Footer */
-  .footer {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    text-align: center; font-size: 9px; color: #777; font-style: italic;
-    background: rgba(255,255,255,0.95); padding: 4px 0; z-index: 10;
-    border-top: 1px solid #e5e7eb;
-  }
+/* Footer */
+.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:9px;color:#777;
+font-style:italic;background:rgba(255,255,255,0.95);padding:4px 0;z-index:10;border-top:1px solid #e5e7eb;}
 
-  /* Church header */
-  .church-header {
-    text-align: center; border-bottom: 3px solid #1e3a8a;
-    padding-bottom: 10px; position: relative; margin-bottom: 14px; min-height: 90px;
-  }
-  .church-header .logo { position: absolute; top: 0; width: 68px; height: 68px; object-fit: contain; }
-  .church-header .logo-left  { left: 10px; }
-  .church-header .logo-right { right: 10px; }
-  .church-header h2 { margin: 0; color: #1e3a8a; padding-top: 8px; font-size: 1.15rem; font-weight: 900; }
-  .church-header h3 { margin: 3px 0 2px; color: #1e3a8a; font-size: 0.95rem; font-weight: 700; }
-  .church-header p  { margin: 1px 0; font-size: 0.73rem; color: #555; }
+/* ── COMBINED HEADER ── */
+.main-header{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    align-items:center;
+    gap:0;
+    border:2.5px solid #1e3a8a;
+    border-radius:10px;
+    overflow:hidden;
+    margin-bottom:14px;
+}
 
-  /* Pastor strip */
-  .pastor-strip {
-    display: flex; align-items: center; gap: 16px;
-    background: linear-gradient(135deg,#1e3a8a,#2563eb);
-    color: #fff; border-radius: 10px; padding: 12px 18px; margin-bottom: 16px;
-  }
-  .pastor-strip img {
-    width: 72px; height: 72px; border-radius: 50%; object-fit: cover;
-    border: 3px solid rgba(255,255,255,0.7); flex-shrink: 0;
-  }
-  .pastor-strip .info h4 { font-size: 1rem; font-weight: 800; margin-bottom: 3px; }
-  .pastor-strip .info span { font-size: 0.76rem; opacity: 0.88; display: block; }
+/* Left: logo box */
+.hdr-logo-box{
+    background:#1e3a8a;
+    padding:10px 14px;
+    display:flex;align-items:center;justify-content:center;
+}
+.hdr-logo-box img{width:66px;height:66px;object-fit:contain;}
 
-  /* Section title */
-  .section-title {
-    display: inline-block; padding: 4px 14px; border-radius: 6px;
-    font-size: 0.78rem; font-weight: 800; text-transform: uppercase;
-    letter-spacing: 0.07em; color: #fff; margin: 14px 0 8px;
-  }
+/* Centre: church name + date */
+.hdr-center{
+    text-align:center;
+    padding:8px 10px;
+}
+.hdr-center h2{color:#1e3a8a;font-size:1.1rem;font-weight:900;margin-bottom:2px;}
+.hdr-center h3{color:#1e3a8a;font-size:0.9rem;font-weight:700;margin-bottom:3px;}
+.hdr-center p {font-size:0.7rem;color:#555;}
 
-  /* Leader grid — 4 columns in landscape */
-  .leader-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    margin-bottom: 4px;
-  }
+/* Right: pastor card */
+.hdr-pastor{
+    background:#1e3a8a;
+    color:#fff;
+    padding:10px 16px;
+    display:flex;align-items:center;gap:12px;
+    min-width:210px;
+}
+.hdr-pastor img{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2.5px solid rgba(255,255,255,0.7);flex-shrink:0;}
+.hdr-pastor .avatar-placeholder{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.2);
+display:flex;align-items:center;justify-content:center;font-size:1.8rem;flex-shrink:0;}
+.hdr-pastor .pinfo{min-width:0;}
+.hdr-pastor .pinfo .ptitle{font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;opacity:0.75;margin-bottom:2px;}
+.hdr-pastor .pinfo .pname{font-size:0.88rem;font-weight:800;margin-bottom:3px;}
+.hdr-pastor .pinfo .pmeta{font-size:0.68rem;opacity:0.88;line-height:1.5;}
 
-  /* Leader card */
-  .leader-card {
-    display: flex; align-items: center; gap: 9px;
-    padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px;
-    background: #fff;
-  }
-  .leader-card img {
-    width: 48px; height: 48px; border-radius: 50%;
-    object-fit: cover; flex-shrink: 0;
-  }
-  .leader-card .lc-name { font-weight: 700; font-size: 0.79rem; color: #1e3a8a; }
-  .leader-card .lc-role { font-size: 0.69rem; color: #4b5563; margin-top: 1px; }
-  .leader-card .lc-meta { font-size: 0.67rem; color: #6b7280; margin-top: 2px; line-height: 1.4; }
+/* Section header */
+.section-title{
+    display:block;padding:5px 14px;
+    font-size:0.77rem;font-weight:800;text-transform:uppercase;
+    letter-spacing:0.07em;color:#fff;margin:12px 0 6px;
+    border-radius:5px;
+}
 
-  /* Signature block */
-  .sig-block {
-    display: flex; justify-content: space-between; align-items: flex-end;
-    margin-top: 40px; padding: 0 20px; page-break-inside: avoid;
-  }
-  .sig-col { text-align: center; }
-  .sig-label { font-size: 0.79rem; font-weight: 700; text-transform: uppercase; color: #1e3a8a; margin-bottom: 4px; }
-  .sig-name  { font-size: 0.72rem; color: #333; margin-bottom: 8px; }
-  .sig-line  { display: inline-block; border-bottom: 1px solid #000; width: 180px; height: 13px; }
-  .sig-date  { display: flex; align-items: flex-end; gap: 6px; margin-top: 8px; font-size: 0.79rem; }
-  .stamp {
-    border: 2px dashed #aaa; width: 90px; height: 90px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    color: #ccc; font-size: 0.62rem; text-transform: uppercase;
-    line-height: 1.5; text-align: center;
-  }
+/* Table */
+table{width:100%;border-collapse:collapse;margin-bottom:6px;font-size:0.74rem;}
+thead tr{color:#fff;}
+thead th{padding:6px 7px;text-align:left;font-weight:700;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;}
+tbody tr:nth-child(even){background:#f9fafb;}
+tbody td{padding:6px 7px;border-bottom:1px solid #e5e7eb;vertical-align:middle;}
+.td-photo img,.td-photo .avatar-ph{width:40px;height:40px;border-radius:50%;object-fit:cover;}
+.td-photo .avatar-ph{background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
+.td-name{font-weight:700;color:#1e3a8a;}
+.td-role{color:#374151;}
+.td-meta{color:#6b7280;}
 
-  /* No-print bar */
-  .no-print { display: flex; gap: 10px; margin-bottom: 14px; }
+/* Signature */
+.sig-block{display:flex;justify-content:space-between;align-items:flex-end;margin-top:38px;padding:0 20px;page-break-inside:avoid;}
+.sig-col{text-align:center;}
+.sig-label{font-size:0.78rem;font-weight:700;text-transform:uppercase;color:#1e3a8a;margin-bottom:4px;}
+.sig-name{font-size:0.71rem;color:#333;margin-bottom:8px;}
+.sig-line{display:inline-block;border-bottom:1px solid #000;width:180px;height:12px;}
+.sig-date{display:flex;align-items:flex-end;gap:6px;margin-top:8px;font-size:0.77rem;}
+.stamp{border:2px dashed #aaa;width:90px;height:90px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:0.62rem;text-transform:uppercase;line-height:1.5;text-align:center;}
 </style>
 </head>
 <body>
 
 <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
 
-<!-- Action buttons (hidden on print) -->
-<div class="no-print">
+<!-- Action buttons -->
+<div class="no-print" style="display:flex;gap:10px;margin-bottom:12px;">
   <button onclick="window.print()" style="background:#1e3a8a;color:#fff;border:none;padding:9px 22px;border-radius:8px;cursor:pointer;font-size:0.9rem;font-weight:600;">🖨️ Print</button>
   <button onclick="window.close()" style="background:#6b7280;color:#fff;border:none;padding:9px 22px;border-radius:8px;cursor:pointer;font-size:0.9rem;">✕ Close</button>
 </div>
 
-<!-- Church header with logos -->
-<div class="church-header">
-  <?php if ($logo_b64): ?>
-    <img src="<?= $logo_b64 ?>" class="logo logo-left"  alt="Logo">
-    <img src="<?= $logo_b64 ?>" class="logo logo-right" alt="Logo">
-  <?php endif; ?>
-  <h2>E.A.P.C MUNYARI CHURCH</h2>
-  <h3>CHURCH LEADERS REGISTER</h3>
-  <p>Printed on: <?= htmlspecialchars($print_date) ?></p>
-</div>
+<!-- Combined header: Logo | Church Name & Title | Pastor Card -->
+<div class="main-header">
+  <!-- Logo -->
+  <div class="hdr-logo-box">
+    <?php if($logo_src): ?><img src="<?=$logo_src?>" alt="Logo"><?php endif; ?>
+  </div>
 
-<!-- Pastor profile strip -->
-<div class="pastor-strip">
-  <?php if ($pastor_pic): ?>
-    <img src="<?= $pastor_pic ?>" alt="Pastor">
-  <?php else: ?>
-    <div style="width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:2rem;">👤</div>
-  <?php endif; ?>
-  <div class="info">
-    <h4>Pastor: <?= htmlspecialchars($pastor_name) ?></h4>
-    <?php if ($pastor_phone): ?><span>📞 <?= htmlspecialchars($pastor_phone) ?></span><?php endif; ?>
-    <?php if ($pastor_address): ?><span>📍 <?= htmlspecialchars($pastor_address) ?></span><?php endif; ?>
+  <!-- Centre -->
+  <div class="hdr-center">
+    <h2>E.A.P.C MUNYARI CHURCH</h2>
+    <h3>CHURCH LEADERS REGISTER</h3>
+    <p>Printed on: <?=htmlspecialchars($print_date)?></p>
+  </div>
+
+  <!-- Pastor card (right side of header) -->
+  <div class="hdr-pastor">
+    <?php if($pastor_pic): ?>
+      <img src="<?=$pastor_pic?>" alt="Pastor">
+    <?php else: ?>
+      <div class="avatar-placeholder">👤</div>
+    <?php endif; ?>
+    <div class="pinfo">
+      <div class="ptitle">Church Pastor</div>
+      <div class="pname"><?=htmlspecialchars($pastor_name)?></div>
+      <div class="pmeta">
+        <?php if($pastor_phone):?>📞 <?=htmlspecialchars($pastor_phone)?><br><?php endif;?>
+        <?php if($pastor_address):?>📍 <?=htmlspecialchars($pastor_address)?><?php endif;?>
+      </div>
+    </div>
   </div>
 </div>
 
 <?php
-$total_printed = 0;
-foreach ($leader_sections as $section_key => $section):
+$total = 0;
+foreach($leader_sections as $sk => $section):
     $shown = [];
-    $section_leaders = [];
+    $rows  = [];
 
-    foreach ($section['roles'] as $role_name) {
-        foreach ($leaders as $leader) {
-            foreach (parse_member_roles2($leader['church_role'] ?? '') as $role) {
-                if ($role['norm'] !== $role_name) continue;
-                if (!role_matches_group2($role['norm'], $leader['department'] ?? '', $section_key)) continue;
-                $show_key = $leader['id'] . ':' . $section_key . ':' . $role_name;
-                if (isset($shown[$show_key])) continue;
-                $shown[$show_key] = true;
+    foreach($section['roles'] as $role_name){
+        foreach($leaders as $leader){
+            foreach(parse_roles($leader['church_role']??'') as $role){
+                if($role['norm'] !== $role_name) continue;
+                if(!matches_group($role['norm'], $leader['department']??'', $sk)) continue;
+                $key = $leader['id'].':'.$sk.':'.$role_name;
+                if(isset($shown[$key])) continue;
+                $shown[$key] = true;
 
-                $label = $section['labels'][$role_name] ?? role_display_label(
-                    trim(preg_replace('/\s*\(.*?\)\s*/', '', $role['raw'])),
-                    $leader['department'] ?? '',
-                    $leader['gender'] ?? ''
-                );
+                $label = $section['labels'][$role_name]
+                    ?? role_display_label(
+                        trim(preg_replace('/\s*\(.*?\)\s*/','',$role['raw'])),
+                        $leader['department']??'',
+                        $leader['gender']??''
+                       );
 
-                // Build residence string: address OR church_village
-                $residence = trim($leader['address'] ?? '');
-                if (empty($residence)) $residence = trim($leader['church_village'] ?? '');
+                $residence = trim($leader['address']??'');
+                if(empty($residence)) $residence = trim($leader['church_village']??'');
 
-                $section_leaders[] = [
-                    'name'      => ucfirst($leader['first_name']) . ' ' . ucfirst($leader['last_name']),
+                $rows[] = [
+                    'pic'       => b64_img($leader['profile_picture']??''),
+                    'name'      => ucfirst($leader['first_name']).' '.ucfirst($leader['last_name']),
                     'role'      => $label,
-                    'pic'       => embed_img($leader['profile_picture'] ?? ''),
-                    'phone'     => $leader['phone'] ?? '',
-                    'residence' => $residence,
+                    'phone'     => $leader['phone']??'',
+                    'village'   => $leader['church_village']??'',
+                    'residence' => $leader['address']??'',
                     'accent'    => $section['accent'],
                 ];
-                $total_printed++;
+                $total++;
             }
         }
     }
 
-    if (empty($section_leaders)) continue;
+    if(empty($rows)) continue;
 ?>
-  <div class="section-title" style="background:<?= htmlspecialchars($section['accent']) ?>;">
-    <?= htmlspecialchars($section['title']) ?> (<?= count($section_leaders) ?>)
+  <div class="section-title" style="background:<?=htmlspecialchars($section['accent'])?>;">
+    <?=htmlspecialchars($section['title'])?> &nbsp;(<?=count($rows)?>)
   </div>
-  <div class="leader-grid">
-    <?php foreach ($section_leaders as $lc): ?>
-    <div class="leader-card">
-      <?php if ($lc['pic']): ?>
-        <img src="<?= $lc['pic'] ?>" style="border:2px solid <?= htmlspecialchars($lc['accent']) ?>;" alt="">
-      <?php else: ?>
-        <div style="width:48px;height:48px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">👤</div>
-      <?php endif; ?>
-      <div style="min-width:0;">
-        <div class="lc-name"><?= htmlspecialchars($lc['name']) ?></div>
-        <div class="lc-role"><?= htmlspecialchars($lc['role']) ?></div>
-        <div class="lc-meta">
-          <?php if ($lc['phone']): ?>📞 <?= htmlspecialchars($lc['phone']) ?><br><?php endif; ?>
-          <?php if ($lc['residence']): ?>📍 <?= htmlspecialchars($lc['residence']) ?><?php endif; ?>
-        </div>
-      </div>
-    </div>
-    <?php endforeach; ?>
-  </div>
+
+  <table>
+    <thead>
+      <tr style="background:<?=htmlspecialchars($section['accent'])?>;">
+        <th style="width:48px;">Photo</th>
+        <th>Name</th>
+        <th>Role / Position</th>
+        <th>Phone Number</th>
+        <th>Church Village</th>
+        <th>Residence / Area</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach($rows as $i => $r): ?>
+      <tr>
+        <td class="td-photo">
+          <?php if($r['pic']): ?>
+            <img src="<?=$r['pic']?>" style="border:2px solid <?=htmlspecialchars($r['accent'])?>;" alt="">
+          <?php else: ?>
+            <div class="avatar-ph">👤</div>
+          <?php endif; ?>
+        </td>
+        <td class="td-name"><?=htmlspecialchars($r['name'])?></td>
+        <td class="td-role"><?=htmlspecialchars($r['role'])?></td>
+        <td class="td-meta"><?=htmlspecialchars($r['phone'])?></td>
+        <td class="td-meta"><?=htmlspecialchars($r['village'])?></td>
+        <td class="td-meta"><?=htmlspecialchars($r['residence'])?></td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
 <?php endforeach; ?>
 
-<?php if ($total_printed === 0): ?>
+<?php if($total===0): ?>
   <p style="text-align:center;color:#888;margin-top:40px;">No leaders have been assigned yet.</p>
 <?php endif; ?>
 
@@ -328,9 +306,9 @@ foreach ($leader_sections as $section_key => $section):
 <div class="sig-block">
   <div class="sig-col">
     <div class="sig-label">Church Pastor</div>
-    <div class="sig-name"><?= htmlspecialchars($pastor_name) ?></div>
+    <div class="sig-name"><?=htmlspecialchars($pastor_name)?></div>
     <div style="display:flex;align-items:flex-end;gap:8px;">
-      <span style="font-style:italic;font-size:0.79rem;">Sign:</span>
+      <span style="font-style:italic;font-size:0.77rem;">Sign:</span>
       <span class="sig-line"></span>
     </div>
     <div class="sig-date">
@@ -343,10 +321,10 @@ foreach ($leader_sections as $section_key => $section):
   </div>
 </div>
 
-<div class="footer">Generated from E.A.P.C Munyari Portal | Printed on: <?= htmlspecialchars($print_date) ?></div>
+<div class="footer">Generated from E.A.P.C Munyari Portal | Printed on: <?=htmlspecialchars($print_date)?></div>
 
 <script>
-window.addEventListener('load', function() { window.print(); });
+window.addEventListener('load', function(){ window.print(); });
 </script>
 </body>
 </html>
