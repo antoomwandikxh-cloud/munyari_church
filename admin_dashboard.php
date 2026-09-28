@@ -1697,8 +1697,8 @@ w.document.write('</div>');
                     $dept_mem_res = $conn->query("
                         SELECT *,
                         CASE
-                            WHEN LOWER(church_role) REGEXP 'chairman|chairlady|chairperson' AND LOWER(church_role) NOT REGEXP '^vice' THEN 1
-                            WHEN LOWER(church_role) REGEXP '^vice.*(chairman|chairlady|chairperson)' THEN 2
+                            WHEN LOWER(church_role) REGEXP '(^|, *)(youth |women |elder |sunday school )?(chairman|chairperson|chairlady)( *,|$)' THEN 1
+                            WHEN LOWER(church_role) REGEXP '(^|, *)vice (youth |women |elder |sunday school )?(chairman|chairperson|chairlady)( *,|$)' THEN 2
                             WHEN LOWER(church_role) REGEXP 'secretary|treasurer|organiz|disciplin|choir|sport|graduand' THEN 3
                             WHEN LOWER(church_role) REGEXP 'mama youth|baba youth' THEN 3
                             WHEN church_role IS NULL OR church_role='' OR LOWER(church_role)='member' THEN 99
@@ -1737,15 +1737,14 @@ w.document.write('</div>');
                     // Find top leader (chairman/chairperson/chairlady) for this dept
                     $dept_leader = null;
                     $lq = $conn->query("SELECT * FROM members WHERE is_approved=1 AND department='$dept_esc'
-                        AND LOWER(church_role) REGEXP 'chairman|chairlady|chairperson'
-                        AND LOWER(church_role) NOT REGEXP '^vice'
+                        AND LOWER(church_role) REGEXP '(^|, *)(youth |women |elder |sunday school )?(chairman|chairperson|chairlady)( *,|$)'
                         LIMIT 1");
                     if ($lq && $lq->num_rows > 0) $dept_leader = $lq->fetch_assoc();
 
                     // Find vice leader
                     $vice_leader = null;
                     $vq = $conn->query("SELECT * FROM members WHERE is_approved=1 AND department='$dept_esc'
-                        AND LOWER(church_role) REGEXP '^vice.*(chairman|chairlady|chairperson)'
+                        AND LOWER(church_role) REGEXP '(^|, *)vice (youth |women |elder |sunday school )?(chairman|chairperson|chairlady)( *,|$)'
                         LIMIT 1");
                     if ($vq && $vq->num_rows > 0) $vice_leader = $vq->fetch_assoc();
 

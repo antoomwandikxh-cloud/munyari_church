@@ -1,11 +1,11 @@
-<?php
+﻿<?php
 function normalize_role_name($role) {
     $normalized = strtolower(trim(preg_replace('/\s+/', ' ', $role ?? '')));
     $normalized = preg_replace('/\(.*?\)/', '', $normalized);
     return trim($normalized);
 }
 
-// Sunday School main leadership roles are cross-church — any member from any
+// Sunday School main leadership roles are cross-church â€” any member from any
 // department can hold them. They must NOT auto-set the member's home department.
 function is_sunday_school_leadership_role($role) {
     $n = normalize_role_name($role);
@@ -20,7 +20,7 @@ function is_sunday_school_leadership_role($role) {
 }
 
 function department_for_role($role) {
-    // Sunday School roles are cross-church — they don't own a single department
+    // Sunday School roles are cross-church â€” they don't own a single department
     // so we deliberately exclude them from this map to prevent the member's
     // registered (home) department from being silently overwritten.
     if (is_sunday_school_leadership_role($role)) {
@@ -127,9 +127,9 @@ function role_assignment_departments($role, $context_department = null) {
     $normalized_role = normalize_role_name($role);
 
     // Sunday School subsidiary roles (Discipline Master, Choir Leader, etc. assigned
-    // under Sunday School context) are open to ALL church members — any dept.
+    // under Sunday School context) are open to ALL church members â€” any dept.
     if (is_subsidiary_department_role($role) && !empty($context_department) && strtolower(trim($context_department)) === 'sunday school') {
-        return []; // No restriction — any church member can serve as a Sunday School subsidiary leader
+        return []; // No restriction â€” any church member can serve as a Sunday School subsidiary leader
     }
 
     // Subsidiary roles in other departments (Youth, Women, Elders) are restricted
@@ -171,7 +171,7 @@ function role_assignment_departments($role, $context_department = null) {
         'sunday school treasurer'
     ];
     if (in_array($normalized_role, $ss_leadership_roles, true)) {
-        return []; // No department restriction — any church member can be appointed
+        return []; // No department restriction â€” any church member can be appointed
     }
 
     return $department ? [$department] : [];
@@ -300,7 +300,7 @@ function role_display_label($role, $member_department = null, $member_gender = n
         if ($member_gender !== null) {
             $label = get_youth_chairperson_title($member_gender, $normalized_role);
         } else {
-            // No gender passed — show the neutral label
+            // No gender passed â€” show the neutral label
             $label = $normalized_role === 'vice youth chairperson' ? 'Vice Youth Chairperson' : 'Youth Chairperson';
         }
     } elseif (in_array($normalized_role, ['building chairperson', 'vice building chairperson'], true)) {
@@ -329,29 +329,24 @@ function role_display_label($role, $member_department = null, $member_gender = n
 function role_rank_case_sql($column = 'church_role') {
     return "
         CASE 
-            WHEN LOWER($column) LIKE '%youth chairperson%' OR LOWER($column) LIKE '%women chairlady%' OR LOWER($column) LIKE '%elder chairman%' OR LOWER($column) LIKE '%sunday school patron%' OR LOWER($column) LIKE '%general church secretary%' THEN 1
-            WHEN LOWER($column) LIKE '%vice youth chairperson%' OR LOWER($column) LIKE '%vice women chairlady%' OR LOWER($column) LIKE '%vice elder chairman%' OR LOWER($column) LIKE '%vice sunday school patron%' THEN 2
-            WHEN LOWER($column) LIKE '%youth secretary%' OR LOWER($column) LIKE '%women secretary%' OR LOWER($column) LIKE '%elder secretary%' OR LOWER($column) LIKE '%sunday school secretary%' THEN 3
-            WHEN LOWER($column) LIKE '%vice church secretary%' OR LOWER($column) LIKE '%vice youth secretary%' OR LOWER($column) LIKE '%vice women secretary%' OR LOWER($column) LIKE '%vice elder secretary%' OR LOWER($column) LIKE '%vice sunday school secretary%' THEN 4
-            WHEN LOWER($column) LIKE '%youth treasurer%' OR LOWER($column) LIKE '%women treasurer%' OR LOWER($column) LIKE '%elder treasurer%' OR LOWER($column) LIKE '%sunday school treasurer%' OR (LOWER($column) LIKE '%treasurer%' AND LOWER($column) NOT LIKE '%building treasurer%') THEN 5
-            WHEN LOWER($column) LIKE '%mama youth%' OR LOWER($column) LIKE '%baba youth%' THEN 6
-            WHEN LOWER($column) LIKE '%head usher%' THEN 10
-            WHEN LOWER($column) LIKE '%usher%' AND LOWER($column) NOT LIKE '%head usher%' THEN 11
-            WHEN LOWER($column) LIKE '%building chairperson%' THEN 12
-            WHEN LOWER($column) LIKE '%vice building chairperson%' THEN 13
-            WHEN LOWER($column) LIKE '%building secretary%' THEN 14
-            WHEN LOWER($column) LIKE '%vice building secretary%' THEN 15
-            WHEN LOWER($column) LIKE '%building treasurer%' THEN 16
-            WHEN LOWER($column) LIKE '%organizing secretary%' THEN 20
-            WHEN LOWER($column) LIKE '%discipline master%' THEN 21
-            WHEN LOWER($column) LIKE '%graduands secretary%' THEN 22
-            WHEN LOWER($column) LIKE '%prayer coordinator%' THEN 23
-            WHEN LOWER($column) LIKE '%sport secretary%' OR LOWER($column) LIKE '%sports secretary%' THEN 24
-            WHEN LOWER($column) LIKE '%choir leader%' THEN 25
+            WHEN LOWER($column) REGEXP '(^|, *)(youth |women |elder |sunday school |building )?(chairman|chairperson|chairlady|patron)( *,|$)' THEN 1
+            WHEN LOWER($column) REGEXP '(^|, *)vice (youth |women |elder |sunday school |building )?(chairman|chairperson|chairlady|patron)( *,|$)' THEN 2
+            WHEN LOWER($column) REGEXP '(^|, *)(general church |youth |women |elder |sunday school |building |organizing |sport |sports |graduands |choir |prayer )?secretary( *,|$)' THEN 3
+            WHEN LOWER($column) REGEXP '(^|, *)vice (general church |youth |women |elder |sunday school |building |organizing |sport |sports |graduands |choir |prayer )?secretary( *,|$)' THEN 4
+            WHEN LOWER($column) REGEXP '(^|, *)(youth |women |elder |sunday school |building )?treasurer( *,|$)' THEN 5
+            WHEN LOWER($column) REGEXP '(^|, *)vice (youth |women |elder |sunday school |building )?treasurer( *,|$)' THEN 6
+            WHEN LOWER($column) REGEXP '(^|, *)(mama youth|baba youth)( *,|$)' THEN 7
+            WHEN LOWER($column) REGEXP '(^|, *)head usher( *,|$)' THEN 10
+            WHEN LOWER($column) REGEXP '(^|, *)usher( *,|$)' THEN 11
+            WHEN LOWER($column) REGEXP '(^|, *)discipline master( *,|$)' THEN 21
+            WHEN LOWER($column) REGEXP '(^|, *)prayer coordinator( *,|$)' THEN 23
+            WHEN LOWER($column) REGEXP '(^|, *)choir leader( *,|$)' THEN 25
             WHEN LOWER(TRIM(COALESCE($column, ''))) = 'member' THEN 90
             WHEN TRIM(COALESCE($column, '')) = '' THEN 90
             ELSE 40
         END
     ";
 }
+
 ?>
+
