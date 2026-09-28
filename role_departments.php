@@ -58,6 +58,17 @@ function department_for_role($role) {
         'elder secretary'         => 'Elders',
         'vice elder secretary'    => 'Elders',
         'elder treasurer'         => 'Elders',
+        
+        // Building Ministry
+        'building chairperson'       => 'Building',
+        'building chairman'          => 'Building',
+        'building chairlady'         => 'Building',
+        'vice building chairperson'  => 'Building',
+        'vice building chairman'     => 'Building',
+        'vice building chairlady'    => 'Building',
+        'building secretary'         => 'Building',
+        'vice building secretary'    => 'Building',
+        'building treasurer'         => 'Building',
     ];
 
     $normalized = normalize_role_name($role);

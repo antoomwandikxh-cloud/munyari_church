@@ -14,7 +14,11 @@ $safe_dept = $conn->real_escape_string($dept);
 if (empty($dept)) { die("Department is required."); }
 
 // Fetch treasurer of the department
-$treasurer_q = $conn->query("SELECT * FROM members WHERE department = '$safe_dept' AND LOWER(church_role) LIKE '%treasurer%' AND is_approved = 1 LIMIT 1");
+if (strtolower($safe_dept) === 'building') {
+    $treasurer_q = $conn->query("SELECT * FROM members WHERE LOWER(church_role) LIKE '%building treasurer%' AND is_approved = 1 LIMIT 1");
+} else {
+    $treasurer_q = $conn->query("SELECT * FROM members WHERE department = '$safe_dept' AND LOWER(church_role) LIKE '%treasurer%' AND is_approved = 1 LIMIT 1");
+}
 $treasurer = $treasurer_q ? $treasurer_q->fetch_assoc() : null;
 
 
@@ -23,18 +27,26 @@ $chairman = null;
 $chairman_title = 'Chairman';
 
 // 1. Try exact chairman / chairlady / patron (not vice)
-$chairman_q = $conn->query("SELECT * FROM members WHERE department = '$safe_dept'
-    AND LOWER(church_role) REGEXP '(^|,| )(youth chairperson|women chairlady|elder chairman|sunday school patron|building chairperson|chairperson|chairman|chairlady|patron)( |,|\$)'
-    AND LOWER(church_role) NOT REGEXP 'vice'
-    AND is_approved = 1 LIMIT 1");
+if (strtolower($safe_dept) === 'building') {
+    $chairman_q = $conn->query("SELECT * FROM members WHERE LOWER(church_role) REGEXP 'building chair' AND LOWER(church_role) NOT REGEXP 'vice' AND is_approved = 1 LIMIT 1");
+} else {
+    $chairman_q = $conn->query("SELECT * FROM members WHERE department = '$safe_dept'
+        AND LOWER(church_role) REGEXP '(^|,| )(youth chairperson|women chairlady|elder chairman|sunday school patron|building chairperson|chairperson|chairman|chairlady|patron)( |,|\$)'
+        AND LOWER(church_role) NOT REGEXP 'vice'
+        AND is_approved = 1 LIMIT 1");
+}
 if ($chairman_q) $chairman = $chairman_q->fetch_assoc();
 
 // 2. Fall back to Vice Chairman / Vice Chairlady if no main chairman found
 if (!$chairman) {
-    $vice_q = $conn->query("SELECT * FROM members WHERE department = '$safe_dept'
-        AND LOWER(church_role) LIKE '%vice%'
-        AND LOWER(church_role) REGEXP 'chair|patron'
-        AND is_approved = 1 LIMIT 1");
+    if (strtolower($safe_dept) === 'building') {
+        $vice_q = $conn->query("SELECT * FROM members WHERE LOWER(church_role) REGEXP 'vice building chair' AND is_approved = 1 LIMIT 1");
+    } else {
+        $vice_q = $conn->query("SELECT * FROM members WHERE department = '$safe_dept'
+            AND LOWER(church_role) LIKE '%vice%'
+            AND LOWER(church_role) REGEXP 'chair|patron'
+            AND is_approved = 1 LIMIT 1");
+    }
     if ($vice_q) {
         $chairman = $vice_q->fetch_assoc();
         if ($chairman) $chairman_title = 'Vice Chairman';
