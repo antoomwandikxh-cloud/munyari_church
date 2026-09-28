@@ -2856,10 +2856,57 @@ w.document.write('</div>');
                     </div>
                     <?php else: ?>
                     <p style="color:var(--text-muted); text-align:center; padding:20px 0;">No members have volunteered as Church Cookers yet.</p>
-                    <?php endif; ?>
+                                        <?php endif; ?>
                 </div>
 
-            <?php elseif ($tab == 'manage_worshippers'): ?>
+                <!-- Custom Roles Sections -->
+                <?php
+                $cr_query = $conn->query("SELECT * FROM custom_desired_roles ORDER BY id ASC");
+                if ($cr_query && $cr_query->num_rows > 0):
+                    while ($cr = $cr_query->fetch_assoc()):
+                        $c_role = $cr['role_name'];
+                        $c_role_esc = $conn->real_escape_string($c_role);
+                        $cmems = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone FROM members WHERE desired_role_pref='$c_role_esc' ORDER BY church_village, first_name");
+                ?>
+                <div class="content-card" style="margin-bottom: 30px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin:0; color:#4c1d95; font-size:1.1rem;">
+                            <span style="font-size:1.3rem;">✨</span> <?= htmlspecialchars($c_role) ?> - All Villages
+                        </h3>
+                    </div>
+                    <?php if ($cmems && $cmems->num_rows > 0): ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Full Name</th>
+                                    <th>Village</th>
+                                    <th>Department</th>
+                                    <th>Phone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php $i = 1; while($ck = $cmems->fetch_assoc()): 
+                                $vc = $village_colors[$ck['church_village']] ?? '#94a3b8';
+                            ?>
+                            <tr>
+                                <td style="color:var(--text-muted);"><?= $i++ ?></td>
+                                <td style="font-weight:600;"><?= htmlspecialchars($ck['first_name'] . ' ' . $ck['last_name']) ?></td>
+                                <td><span class="badge" style="background:<?= $vc ?>22; color:<?= $vc ?>;"><?= htmlspecialchars($ck['church_village'] ?: '-') ?></span></td>
+                                <td><?= htmlspecialchars($ck['department'] ?: 'General Church') ?></td>
+                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($ck['phone'] ?? '-') ?></td>
+                            </tr>
+                            <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                    <p style="color:var(--text-muted); text-align:center; padding:20px 0;">No members have volunteered for "<?= htmlspecialchars($c_role) ?>" yet.</p>
+                    <?php endif; ?>
+                </div>
+                <?php endwhile; endif; ?>
+<?php elseif ($tab == 'manage_worshippers'): ?>
                 <div class="page-header">
                     <h1>Worship Department Overview</h1>
                     <p>Monitor the total number of registered worshippers and their assigned tasks.</p>

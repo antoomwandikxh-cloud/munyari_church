@@ -7924,6 +7924,8 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         <option value="">-- None --</option>
                         <?php
                         $roles = ['Worshipper', 'Church Cleaner', 'Church Cooker'];
+                        $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles ORDER BY id ASC");
+                        if ($cr_q) { while($cr = $cr_q->fetch_assoc()){ $roles[] = $cr['role_name']; } }
                         $curr_r = $member['desired_role_pref'] ?? '';
                         foreach ($roles as $r) {
                             $sel = ($curr_r === $r) ? 'selected' : '';
