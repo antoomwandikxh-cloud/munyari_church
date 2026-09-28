@@ -40,7 +40,7 @@ $pastor_pic    = b64_img($pastor['profile_picture'] ?? '');
 /* ── SECTION DEFINITIONS ───────────────────────────────────────────── */
 $leader_sections = [
     'general'      => ['title'=>'General Church Leaders',    'accent'=>'#10b981',
-        'roles'=>['senior church elder','general church secretary','vice church secretary','treasurer','worship leader','vice worship leader','church village leader','head usher','usher','building chairperson','vice building chairperson','building secretary','vice building secretary','building treasurer'],
+        'roles'=>['senior church elder','general church secretary','vice church secretary','treasurer'],
         'labels'=>['treasurer'=>'Church Treasurer']],
     'youths'       => ['title'=>'Youth Department Leaders',  'accent'=>'#6366f1',
         'roles'=>['youth chairperson','youth chairman','youth chairlady','vice youth chairperson','vice youth chairman','vice youth chairlady','youth secretary','vice youth secretary','youth treasurer','mama youth','baba youth','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader','sport secretary','sports secretary','vice sport secretary','vice sports secretary','graduands secretary','vice graduands secretary']],
@@ -50,6 +50,14 @@ $leader_sections = [
         'roles'=>['elder chairman','elder chairperson','elder chairlady','vice elder chairman','vice elder chairperson','vice elder chairlady','elder secretary','vice elder secretary','elder treasurer','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader']],
     'sunday_school'=> ['title'=>'Sunday School Leaders',     'accent'=>'#0ea5e9',
         'roles'=>['sunday school patron','sunday school chairperson','sunday school chairman','sunday school chairlady','vice sunday school patron','vice sunday school chairperson','vice sunday school chairman','vice sunday school chairlady','sunday school secretary','vice sunday school secretary','sunday school treasurer','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader','sport secretary','sports secretary','vice sport secretary','vice sports secretary','graduands secretary','vice graduands secretary','teacher','sunday school teacher','teachers of sunday school']],
+    'building'     => ['title'=>'Building Department Leaders','accent'=>'#8b5cf6',
+        'roles'=>['building chairperson','vice building chairperson','building secretary','vice building secretary','building treasurer']],
+    'worship'      => ['title'=>'Worship Ministry Leaders',  'accent'=>'#d946ef',
+        'roles'=>['worship leader','vice worship leader']],
+    'ushers'       => ['title'=>'Ushering Ministry Leaders', 'accent'=>'#14b8a6',
+        'roles'=>['head usher','usher']],
+    'village'      => ['title'=>'Church Village Leaders',    'accent'=>'#f43f5e',
+        'roles'=>['church village leader']],
 ];
 
 /* ── LOAD LEADERS ──────────────────────────────────────────────────── */
