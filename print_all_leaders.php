@@ -106,17 +106,16 @@ font-style:italic;background:rgba(255,255,255,0.95);padding:4px 0;z-index:10;bor
 
 /* ── COMBINED HEADER ── */
 .main-header{
-    display:grid;
-    grid-template-columns:auto 1fr auto;
+    display:flex;
     align-items:center;
-    gap:0;
+    justify-content:space-between;
     border:2.5px solid #1e3a8a;
     border-radius:10px;
     overflow:hidden;
     margin-bottom:14px;
 }
 
-/* Left: logo box */
+/* Side logo panels */
 .hdr-logo-box{
     background:#1e3a8a;
     padding:10px 14px;
@@ -124,37 +123,51 @@ font-style:italic;background:rgba(255,255,255,0.95);padding:4px 0;z-index:10;bor
 }
 .hdr-logo-box img{width:66px;height:66px;object-fit:contain;}
 
-/* Centre: church name + date */
+/* Centre: church name + pastor */
 .hdr-center{
+    flex: 1;
     text-align:center;
     padding:8px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 .hdr-center h2{color:#1e3a8a;font-size:1.1rem;font-weight:900;margin-bottom:2px;}
 .hdr-center h3{color:#1e3a8a;font-size:0.9rem;font-weight:700;margin-bottom:3px;}
 .hdr-center p {font-size:0.7rem;color:#555;}
 
-/* Right: pastor card */
-.hdr-pastor{
-    background:#1e3a8a;
-    color:#fff;
-    padding:10px 16px;
-    display:flex;align-items:center;gap:12px;
-    min-width:210px;
+.pastor-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 6px;
+    margin-bottom: 2px;
 }
-.hdr-pastor img{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2.5px solid rgba(255,255,255,0.7);flex-shrink:0;}
-.hdr-pastor .avatar-placeholder{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.2);
-display:flex;align-items:center;justify-content:center;font-size:1.8rem;flex-shrink:0;}
-.hdr-pastor .pinfo{min-width:0;}
-.hdr-pastor .pinfo .ptitle{font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;opacity:0.75;margin-bottom:2px;}
-.hdr-pastor .pinfo .pname{font-size:0.88rem;font-weight:800;margin-bottom:3px;}
-.hdr-pastor .pinfo .pmeta{font-size:0.68rem;opacity:0.88;line-height:1.5;}
+.pastor-profile img, .pastor-profile .avatar-placeholder {
+    width: 64px; height: 64px; border-radius: 50%;
+    object-fit: cover; border: 2.5px solid #1e3a8a;
+}
+.pastor-profile .avatar-placeholder {
+    background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
+}
+.pastor-profile .ptitle {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: #1e3a8a; font-weight: 700; margin-top: 4px;
+}
+.pastor-profile .pname {
+    font-size: 0.88rem; font-weight: 800; color: #1e3a8a;
+}
+.pastor-profile .pmeta {
+    font-size: 0.68rem; color: #555;
+}
 
 /* Section header */
 .section-title{
-    display:block;padding:5px 14px;
-    font-size:0.77rem;font-weight:800;text-transform:uppercase;
+    display:block;padding:6px 14px;
+    font-size:0.8rem;font-weight:800;text-transform:uppercase;
     letter-spacing:0.07em;color:#fff;margin:12px 0 6px;
     border-radius:5px;
+    text-align: center;
 }
 
 /* Table */
@@ -189,9 +202,9 @@ tbody td{padding:6px 7px;border-bottom:1px solid #e5e7eb;vertical-align:middle;}
   <button onclick="window.close()" style="background:#6b7280;color:#fff;border:none;padding:9px 22px;border-radius:8px;cursor:pointer;font-size:0.9rem;">✕ Close</button>
 </div>
 
-<!-- Combined header: Logo | Church Name & Title | Pastor Card -->
+<!-- Combined header: Logo | Church Name + Pastor | Logo -->
 <div class="main-header">
-  <!-- Logo -->
+  <!-- Left Logo -->
   <div class="hdr-logo-box">
     <?php if($logo_src): ?><img src="<?=$logo_src?>" alt="Logo"><?php endif; ?>
   </div>
@@ -200,24 +213,28 @@ tbody td{padding:6px 7px;border-bottom:1px solid #e5e7eb;vertical-align:middle;}
   <div class="hdr-center">
     <h2>E.A.P.C MUNYARI CHURCH</h2>
     <h3>CHURCH LEADERS REGISTER</h3>
-    <p>Printed on: <?=htmlspecialchars($print_date)?></p>
+    
+    <div class="pastor-profile">
+        <?php if($pastor_pic): ?>
+          <img src="<?=$pastor_pic?>" alt="Pastor">
+        <?php else: ?>
+          <div class="avatar-placeholder">👤</div>
+        <?php endif; ?>
+        <div class="ptitle">Church Pastor</div>
+        <div class="pname"><?=htmlspecialchars($pastor_name)?></div>
+        <div class="pmeta">
+          <?php if($pastor_phone):?>📞 <?=htmlspecialchars($pastor_phone)?><?php endif;?>
+          <?php if($pastor_phone && $pastor_address):?> | <?php endif;?>
+          <?php if($pastor_address):?>📍 <?=htmlspecialchars($pastor_address)?><?php endif;?>
+        </div>
+    </div>
+    
+    <p style="margin-top:4px;">Printed on: <?=htmlspecialchars($print_date)?></p>
   </div>
 
-  <!-- Pastor card (right side of header) -->
-  <div class="hdr-pastor">
-    <?php if($pastor_pic): ?>
-      <img src="<?=$pastor_pic?>" alt="Pastor">
-    <?php else: ?>
-      <div class="avatar-placeholder">👤</div>
-    <?php endif; ?>
-    <div class="pinfo">
-      <div class="ptitle">Church Pastor</div>
-      <div class="pname"><?=htmlspecialchars($pastor_name)?></div>
-      <div class="pmeta">
-        <?php if($pastor_phone):?>📞 <?=htmlspecialchars($pastor_phone)?><br><?php endif;?>
-        <?php if($pastor_address):?>📍 <?=htmlspecialchars($pastor_address)?><?php endif;?>
-      </div>
-    </div>
+  <!-- Right Logo -->
+  <div class="hdr-logo-box">
+    <?php if($logo_src): ?><img src="<?=$logo_src?>" alt="Logo"><?php endif; ?>
   </div>
 </div>
 
@@ -263,7 +280,7 @@ foreach($leader_sections as $sk => $section):
     if(empty($rows)) continue;
 ?>
   <div class="section-title" style="background:<?=htmlspecialchars($section['accent'])?>;">
-    <?=htmlspecialchars($section['title'])?> &nbsp;(<?=count($rows)?>)
+    ═══ <?=htmlspecialchars(strtoupper($section['title']))?> (<?=count($rows)?>) ═══
   </div>
 
   <table>
