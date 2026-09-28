@@ -109,19 +109,17 @@ font-style:italic;background:rgba(255,255,255,0.95);padding:4px 0;z-index:10;bor
     display:flex;
     align-items:center;
     justify-content:space-between;
-    border:2.5px solid #1e3a8a;
-    border-radius:10px;
-    overflow:hidden;
     margin-bottom:14px;
+    border-bottom: 2px solid #1e3a8a;
+    padding-bottom: 10px;
 }
 
 /* Side logo panels */
 .hdr-logo-box{
-    background:#1e3a8a;
     padding:10px 14px;
     display:flex;align-items:center;justify-content:center;
 }
-.hdr-logo-box img{width:66px;height:66px;object-fit:contain;}
+.hdr-logo-box img{width:70px;height:70px;object-fit:contain;}
 
 /* Centre: church name + pastor */
 .hdr-center{
