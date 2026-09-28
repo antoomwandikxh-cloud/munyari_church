@@ -2213,7 +2213,7 @@ w.document.write('</div>');
                                     if ($approved_members) {
                                         $approved_members->data_seek(0);
                                         while($m = $approved_members->fetch_assoc()): ?>
-                                            <option value="<?= $m['id'] ?>" data-department="<?= htmlspecialchars($m['department'] ?? '') ?>" data-churchrole="<?= htmlspecialchars($m['church_role'] ?? '') ?>" data-desiredrolepref="<?= htmlspecialchars($m['desired_role_pref'] ?? '') ?>">
+                                            <option value="<?= $m['id'] ?>" data-department="<?= htmlspecialchars($m['department'] ?? '') ?>" data-churchrole="<?= htmlspecialchars($m['church_role'] ?? '') ?>" data-desiredrolepref="<?= htmlspecialchars($m['desired_role_pref'] ?? '') ?>" data-ssclass="<?= htmlspecialchars($m['sunday_school_class'] ?? '') ?>">
                                                 <?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?> - <?= htmlspecialchars($m['department'] ?? 'No Department') ?> (Current: <?= htmlspecialchars(role_display_label($m['church_role'] ?? 'Member', $m['department'] ?? null)) ?>)
                                             </option>
                                         <?php endwhile; 
@@ -2255,8 +2255,13 @@ w.document.write('</div>');
                                     memberSelect.innerHTML = '<option value="">-- Select Member --</option>';
                                     
                                     const isWorshipLeadership = selectedVal.includes('worship leader');
+                                    const isBuildingRole = selectedVal.includes('building');
 
                                     const filtered = originalOptions.filter(option => {
+                                        // Exclude Sunday School members from Building roles
+                                        if (isBuildingRole && option.dataset.ssclass && option.dataset.ssclass.trim() !== '') {
+                                            return false;
+                                        }
                                         if (isWorshipLeadership) {
                                             const pref = normalize(option.dataset.desiredrolepref);
                                             
