@@ -40,7 +40,7 @@ $pastor_pic    = b64_img($pastor['profile_picture'] ?? '');
 /* ── SECTION DEFINITIONS ───────────────────────────────────────────── */
 $leader_sections = [
     'general'      => ['title'=>'General Church Leaders',    'accent'=>'#10b981',
-        'roles'=>['senior church elder','general church secretary','vice church secretary','treasurer'],
+        'roles'=>['senior church elder','general church secretary','vice church secretary','treasurer','worship leader','vice worship leader','church village leader','head usher','usher','building chairperson','vice building chairperson','building secretary','vice building secretary','building treasurer'],
         'labels'=>['treasurer'=>'Church Treasurer']],
     'youths'       => ['title'=>'Youth Department Leaders',  'accent'=>'#6366f1',
         'roles'=>['youth chairperson','youth chairman','youth chairlady','vice youth chairperson','vice youth chairman','vice youth chairlady','youth secretary','vice youth secretary','youth treasurer','mama youth','baba youth','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader','sport secretary','sports secretary','vice sport secretary','vice sports secretary','graduands secretary','vice graduands secretary']],
@@ -49,20 +49,30 @@ $leader_sections = [
     'elders'       => ['title'=>'Elder Ministry Leaders',    'accent'=>'#f59e0b',
         'roles'=>['elder chairman','elder chairperson','elder chairlady','vice elder chairman','vice elder chairperson','vice elder chairlady','elder secretary','vice elder secretary','elder treasurer','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader']],
     'sunday_school'=> ['title'=>'Sunday School Leaders',     'accent'=>'#0ea5e9',
-        'roles'=>['sunday school patron','sunday school chairperson','sunday school chairman','sunday school chairlady','vice sunday school patron','vice sunday school chairperson','vice sunday school chairman','vice sunday school chairlady','sunday school secretary','vice sunday school secretary','sunday school treasurer','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader','sport secretary','sports secretary','vice sport secretary','vice sports secretary','graduands secretary','vice graduands secretary']],
+        'roles'=>['sunday school patron','sunday school chairperson','sunday school chairman','sunday school chairlady','vice sunday school patron','vice sunday school chairperson','vice sunday school chairman','vice sunday school chairlady','sunday school secretary','vice sunday school secretary','sunday school treasurer','organizing secretary','vice organizing secretary','discipline master','vice discipline master','prayer coordinator','vice prayer coordinator','choir leader','vice choir leader','sport secretary','sports secretary','vice sport secretary','vice sports secretary','graduands secretary','vice graduands secretary','teacher','sunday school teacher','teachers of sunday school']],
 ];
 
 /* ── LOAD LEADERS ──────────────────────────────────────────────────── */
 $leaders = [];
 $res = $conn->query("
     SELECT id, first_name, last_name, gender, department, church_role,
-           profile_picture, phone, address, church_village
+           profile_picture, phone, address, church_village, is_village_leader
     FROM members
-    WHERE is_approved=1 AND church_role IS NOT NULL
-      AND TRIM(church_role)!='' AND LOWER(TRIM(church_role))!='member'
+    WHERE is_approved=1 
+      AND (
+          (church_role IS NOT NULL AND TRIM(church_role)!='' AND LOWER(TRIM(church_role))!='member')
+          OR is_village_leader = 1
+      )
     ORDER BY first_name ASC, last_name ASC
 ");
-if ($res) while ($row = $res->fetch_assoc()) $leaders[] = $row;
+if ($res) {
+    while ($row = $res->fetch_assoc()) {
+        if ($row['is_village_leader'] == 1 && stripos($row['church_role']??'', 'church village leader') === false) {
+            $row['church_role'] = trim(($row['church_role']??'') . ', Church Village Leader', ', ');
+        }
+        $leaders[] = $row;
+    }
+}
 
 /* ── ROLE HELPERS ──────────────────────────────────────────────────── */
 function norm_role($r){ return strtolower(trim(preg_replace('/\s+/',' ',$r??''))); }
@@ -74,8 +84,22 @@ function parse_roles($str){
     }
     return $out;
 }
-function matches_group($role_norm,$dept,$sk){
-    $d=strtolower(trim($dept));
+function matches_group($role_norm, $raw_role, $dept, $sk){
+    $d = strtolower(trim($dept));
+    $raw_lower = strtolower(trim($raw_role));
+    
+    // If the role explicitly has a department suffix like (Sunday School), force it to that section
+    if (strpos($raw_lower, '(sunday school)') !== false) return $sk === 'sunday_school';
+    if (strpos($raw_lower, '(youths)') !== false || strpos($raw_lower, '(youth)') !== false) return $sk === 'youths';
+    if (strpos($raw_lower, '(women)') !== false || strpos($raw_lower, '(womens') !== false) return $sk === 'women';
+    if (strpos($raw_lower, '(elders)') !== false || strpos($raw_lower, '(elder)') !== false) return $sk === 'elders';
+    
+    // Explicit unambiguous roles
+    if (strpos($role_norm, 'sunday school') !== false || $role_norm === 'teacher') return $sk === 'sunday_school';
+    if (strpos($role_norm, 'youth') !== false) return $sk === 'youths';
+    if (strpos($role_norm, 'women') !== false) return $sk === 'women';
+    if (strpos($role_norm, 'elder') !== false) return $sk === 'elders';
+
     return match($sk){
         'youths'       => $d==='youths',
         'women'        => in_array($d,['womens ministry',"women's ministry",'women ministry']),
@@ -246,7 +270,7 @@ foreach($leader_sections as $sk => $section):
         foreach($leaders as $leader){
             foreach(parse_roles($leader['church_role']??'') as $role){
                 if($role['norm'] !== $role_name) continue;
-                if(!matches_group($role['norm'], $leader['department']??'', $sk)) continue;
+                if(!matches_group($role['norm'], $role['raw'], $leader['department']??'', $sk)) continue;
                 $key = $leader['id'].':'.$sk.':'.$role_name;
                 if(isset($shown[$key])) continue;
                 $shown[$key] = true;
