@@ -3272,6 +3272,61 @@ w.document.write('</div>');
                 <?php endif; ?>
 
                 <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <!-- Required Leaders Table -->
+                    <div class="content-card" style="margin-bottom:20px;" id="requiredLeadersCard">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+                            <div>
+                                <h2 style="margin:0 0 4px;">Required Leaders</h2>
+                                <small style="color:var(--text-muted);">Roles not yet assigned &mdash; these positions still need to be filled.</small>
+                            </div>
+                            <button onclick="printRequiredLeadersTable()" style="background:#dc2626;color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                Print Required Leaders
+                            </button>
+                        </div>
+                        <?php
+                        $req_rows = [];
+                        foreach ($hierarchy as $dept => $roles) {
+                            $context_department = $hierarchy_department_names[$dept] ?? '';
+                            foreach ($roles as $expected_role) {
+                                if ($role_is_available($expected_role, $context_department)) {
+                                    $req_rows[$dept][] = $expected_role;
+                                }
+                            }
+                        }
+                        if (empty($req_rows)): ?>
+                            <p style="color:#10b981;font-weight:600;">&#10003; All required leadership positions are currently filled!</p>
+                        <?php else: ?>
+                        <div class="table-responsive">
+                            <table id="requiredLeadersTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width:35%">Department</th>
+                                        <th>Unfilled Position</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($req_rows as $dept => $dept_roles): ?>
+                                    <?php $first = true; foreach ($dept_roles as $role): ?>
+                                    <tr>
+                                        <?php if ($first): ?>
+                                        <td rowspan="<?= count($dept_roles) ?>" style="font-weight:700;color:var(--primary);vertical-align:top;padding-top:10px;">
+                                            <?= htmlspecialchars($dept) ?>
+                                        </td>
+                                        <?php $first = false; endif; ?>
+                                        <td>
+                                            <span class="badge" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;font-weight:700;">
+                                                &#9679; <?= htmlspecialchars(role_display_label($role, $hierarchy_department_names[$dept] ?? '')) ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <?php endif; ?>
+                    </div>
                     <!-- Assign Role Form -->
                     <div class="content-card" style="flex: 1; min-width: 300px; margin-bottom: 20px;">
                         <h2>Assign to Member</h2>
@@ -5376,6 +5431,38 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
     <script>
     
+
+function printRequiredLeadersTable() {
+    var card = document.getElementById('requiredLeadersCard');
+    if (!card) { alert('Table not found.'); return; }
+    var w = window.open('', '_blank', 'width=900,height=700');
+    if (!w) return;
+    w.document.write('<!DOCTYPE html><html><head><title>Required Church Leaders</title>');
+    w.document.write('<style>');
+    w.document.write('@page { margin: 15mm; size: A4 portrait; }');
+    w.document.write('body { font-family: Arial, sans-serif; font-size: 0.88rem; color: #111; padding: 0; margin: 0; }');
+    w.document.write('.print-header { text-align:center; border-bottom:3px solid #1e3a8a; padding-bottom:10px; margin-bottom:18px; }');
+    w.document.write('.print-header h1 { color:#1e3a8a; font-size:1.3rem; margin:0 0 4px; }');
+    w.document.write('.print-header p { color:#555; font-size:0.8rem; margin:0; }');
+    w.document.write('table { width:100%; border-collapse:collapse; }');
+    w.document.write('thead tr { background:#1e3a8a; color:white; }');
+    w.document.write('thead th { padding:10px 14px; text-align:left; font-size:0.82rem; }');
+    w.document.write('tbody tr:nth-child(even) { background:#fef2f2; }');
+    w.document.write('tbody td { padding:9px 14px; border-bottom:1px solid #fca5a5; vertical-align:middle; }');
+    w.document.write('.badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:700; background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; }');
+    w.document.write('.btn-sm, button { display:none !important; }');
+    w.document.write('.print-footer { text-align:center; margin-top:24px; font-size:0.75rem; color:#777; border-top:1px solid #ddd; padding-top:8px; }');
+    w.document.write('</style></head><body>');
+    w.document.write('<div class="print-header">');
+    w.document.write('<h1>E.A.P.C MUNYARI CHURCH</h1>');
+    w.document.write('<p>Required / Unfilled Leadership Positions &mdash; Printed on: ' + new Date().toLocaleDateString('en-GB', {weekday:"long",year:"numeric",month:"long",day:"numeric"}) + '</p>');
+    w.document.write('</div>');
+    w.document.write(card.innerHTML);
+    w.document.write('<div class="print-footer">E.A.P.C Munyari Church &bull; Church Leadership Register</div>');
+    w.document.write('</body></html>');
+    w.document.close();
+    setTimeout(function(){ w.print(); }, 600);
+}
 function printRequiredTable() {
     var card = document.getElementById('assignedRolesCard');
     if (!card) {
