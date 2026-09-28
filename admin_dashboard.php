@@ -2369,13 +2369,13 @@ w.document.write('</div>');
                     if (!empty($uncategorized)) {
                         $has_any_roles = true;
                         echo "<div style='margin-bottom: 30px;'>";
-                        echo "<h3 style='font-size: 1.1rem; color: var(--text-muted); margin-bottom: 15px; border-bottom: 2px solid var(--border-color); padding-bottom: 5px;'>Other Roles</h3>";
+                        echo "<h3 style='font-size: 1.1rem; color: var(--primary); margin-bottom: 15px; border-bottom: 2px solid var(--border-color); padding-bottom: 5px;'>Other Roles</h3>";
                         echo "<div class='table-responsive'><table>";
                         echo "<thead><tr><th style='width: 40%;'>Assigned Role</th><th>Member</th><th>Action</th></tr></thead><tbody>";
                         foreach ($uncategorized as $member_data) {
                             $disp_role = $member_data['displayed_role'] ?? $member_data['church_role'];
                             echo "<tr>";
-                            echo "<td><span class='badge' style='background: var(--text-muted); color: white;'>" . htmlspecialchars(role_display_label($disp_role, $member_data['department'] ?? null)) . "</span></td>";
+                            echo "<td><span class='badge' style='background: var(--primary); color: white; font-weight: bold;'>" . htmlspecialchars(role_display_label($disp_role, $member_data['department'] ?? null)) . "</span></td>";
                             $pic = empty($member_data['profile_picture']) ? 'default_avatar.png' : $member_data['profile_picture'];
                             $pic_url = 'uploads/' . basename($pic);
                             $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";

@@ -3613,13 +3613,13 @@ w.document.write('</div>');
                                 $role_label = role_display_label($disp_role, $member_data['department'] ?? null);
                                 echo "<tr style='border-bottom: 1px solid var(--border-color);'>";
                                 if ($first_row) {
-                                    echo "<td rowspan='$uncat_count' style='font-weight: bold; background: var(--bg-main); border-right: 1px solid var(--border-color); vertical-align: top; padding: 15px; color: var(--text-muted);'>";
+                                    echo "<td rowspan='$uncat_count' style='font-weight: bold; background: var(--bg-main); border-right: 1px solid var(--border-color); vertical-align: top; padding: 15px; color: var(--primary);'>";
                                     echo "<div style='font-size: 1.05rem; margin-bottom: 6px;'>Other Roles</div>";
-                                    echo "<span class='badge' style='background: var(--border-color); color: var(--text-muted); font-weight: 500;'>$uncat_count assigned</span>";
+                                    echo "<span class='badge' style='background: rgba(37, 99, 235, 0.1); color: var(--primary); font-weight: 500;'>$uncat_count assigned</span>";
                                     echo "</td>";
                                     $first_row = false;
                                 }
-                                echo "<td style='padding: 12px;'><span class='badge' style='background: var(--text-muted); color: white; font-weight: bold;'>" . htmlspecialchars($role_label) . "</span></td>";
+                                echo "<td style='padding: 12px;'><span class='badge' style='background: var(--primary); color: white; font-weight: bold;'>" . htmlspecialchars($role_label) . "</span></td>";
                                 $pic = empty($member_data['profile_picture']) ? 'default_avatar.png' : $member_data['profile_picture'];
                             $pic_url = 'uploads/' . basename($pic);
                             $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
