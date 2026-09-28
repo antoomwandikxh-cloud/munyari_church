@@ -1608,10 +1608,13 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     var leaderSpan = leaderSpanId ? document.getElementById(leaderSpanId) : null;
     var leaderName = leaderSpan ? leaderSpan.getAttribute('data-name') : 'N/A';
     var viceName   = leaderSpan ? leaderSpan.getAttribute('data-vice') : 'N/A';
-    var displayNames = (viceName && viceName !== 'N/A') ? (leaderName + ' / ' + viceName) : leaderName;
-    var sigRoleTitle = (viceName && viceName !== 'N/A') ? (leaderRole + ' / VICE') : leaderRole;
     var leaderPic  = leaderSpan ? leaderSpan.getAttribute('data-pic') : 'uploads/default_avatar.png';
     var leaderRole = leaderSpan ? leaderSpan.getAttribute('data-role') : 'Chairperson';
+    var vicePic    = leaderSpan ? leaderSpan.getAttribute('data-vice-pic') : 'uploads/default_avatar.png';
+    var viceRole   = leaderSpan ? leaderSpan.getAttribute('data-vice-role') : 'Vice Chairperson';
+    
+    var displayNames = (viceName && viceName !== 'N/A') ? (leaderName + ' / ' + viceName) : leaderName;
+    var sigRoleTitle = (viceName && viceName !== 'N/A') ? (leaderRole + ' / VICE') : leaderRole;
 
     var theadRow = container.querySelector('thead') ? container.querySelector('thead').innerHTML : '';
     theadRow = theadRow.replace(/<tr>/i, '<tr style="background:#1e3a8a;color:white;-webkit-print-color-adjust:exact;">');
@@ -1643,10 +1646,22 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
 
     // Leader photo row
-    w.document.write('<div style="display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:10px;">');
+    w.document.write('<div style="display:flex;align-items:center;justify-content:center;gap:40px;margin-bottom:10px;">');
+    
+    // Main Leader
+    w.document.write('<div style="display:flex;align-items:center;gap:15px;">');
     w.document.write('<img src="' + leaderPic + '" alt="Leader" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid #1e3a8a;">');
     w.document.write('<div><div style="font-size:0.75rem;color:#555;text-transform:uppercase;">' + leaderRole + '</div>');
     w.document.write('<div style="font-size:1.2rem;font-weight:700;color:#1e3a8a;">' + leaderName + '</div></div></div>');
+    
+    // Vice Leader (if present and not N/A)
+    if (viceName && viceName !== 'N/A') {
+        w.document.write('<div style="display:flex;align-items:center;gap:15px;">');
+        w.document.write('<img src="' + vicePic + '" alt="Vice Leader" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid #6366f1;">');
+        w.document.write('<div><div style="font-size:0.75rem;color:#555;text-transform:uppercase;">' + viceRole + '</div>');
+        w.document.write('<div style="font-size:1.2rem;font-weight:700;color:#1e3a8a;">' + viceName + '</div></div></div>');
+    }
+    w.document.write('</div>');
 
     // Church header with dual logos (NO circle on logos)
     w.document.write('<div style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:10px;position:relative;margin-bottom:14px;min-height:85px;">');
@@ -1770,6 +1785,21 @@ w.document.write('</div>');
                         }
                     }
                     
+                    $vice_pic = $second_leader ? ($second_leader['profile_picture'] ?? 'default_avatar.png') : 'default_avatar.png';
+                    
+                    if ($d === 'youths') $vice_role = 'Vice Youth Chairperson';
+                    elseif ($d === 'womens ministry') $vice_role = 'Vice Women Chairlady';
+                    elseif ($d === 'elders') $vice_role = 'Vice Elder Chairman';
+                    elseif ($d === 'sunday school') $vice_role = 'Vice Sunday School Patron';
+                    else $vice_role = 'Vice Chairperson';
+
+                    if ($second_leader && !empty($second_leader['church_role'])) {
+                        $best_vice = get_best_role_from_string($second_leader['church_role']);
+                        if (strtolower($best_vice) !== 'member') {
+                            $vice_role = role_display_label($best_vice, $dept, $second_leader['gender'] ?? null);
+                        }
+                    }
+                    
                     $leader_id   = 'deptLeader_'.str_replace(' ','',$dept);
 
                     if (count($dept_members_arr) > 0):
@@ -1780,6 +1810,8 @@ w.document.write('</div>');
                               data-vice="<?= htmlspecialchars($vice_name) ?>"
                               data-pic="uploads/<?= htmlspecialchars($leader_pic) ?>"
                               data-role="<?= htmlspecialchars($leader_role) ?>"
+                              data-vice-pic="uploads/<?= htmlspecialchars($vice_pic) ?>"
+                              data-vice-role="<?= htmlspecialchars($vice_role) ?>"
                               style="display:none;"></span>
 
                         <div class="content-card" style="margin-top: 30px;">
