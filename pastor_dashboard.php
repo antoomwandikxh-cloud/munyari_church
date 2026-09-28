@@ -3415,10 +3415,16 @@ w.document.write('</div>');
                 <div class="content-card" style="margin-bottom: 30px;" id="requiredLeadersCard">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
                         <h2 style="margin:0;">Required Leaders Table</h2>
-                        <button onclick="printRequiredLeadersTable()" style="background:#1e3a8a;color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                            Print Required Leaders
-                        </button>
+                        <div style="display:flex;gap:10px;">
+                            <button onclick="printRequiredLeadersTable('portrait')" style="background:#1e3a8a;color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                Print Portrait
+                            </button>
+                            <button onclick="printRequiredLeadersTable('landscape')" style="background:#2563eb;color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                Print Landscape
+                            </button>
+                        </div>
                     </div>
                     <div class="table-responsive">
                         <table style="width: 100%; border-collapse: collapse;">
@@ -5377,35 +5383,71 @@ document.addEventListener("DOMContentLoaded", function () {
     <script>
     
 
-function printRequiredLeadersTable() {
+function printRequiredLeadersTable(orientation) {
+    if (!orientation) orientation = 'portrait';
     var card = document.getElementById('requiredLeadersCard');
     if (!card) { alert('Table not found.'); return; }
-    var w = window.open('', '_blank', 'width=900,height=700');
-    if (!w) return;
-    w.document.write('<!DOCTYPE html><html><head><title>Required Church Leaders</title>');
+    
+    var logoUrl = 'church_logo.jpg';
+    if (document.getElementById('deptPrintLogo')) {
+        logoUrl = document.getElementById('deptPrintLogo').getAttribute('data-src');
+    }
+    var printDate = new Date().toLocaleString();
+    
+    var theadRow = card.querySelector('thead') ? card.querySelector('thead').innerHTML : '';
+    theadRow = theadRow.replace(/<tr>/i, '<tr style="background:#1e3a8a;color:white;-webkit-print-color-adjust:exact;">');
+    var tbody = card.querySelector('tbody') ? card.querySelector('tbody').innerHTML : '';
+    
+    var wmSize = orientation === 'landscape' ? '3.2rem' : '2.0rem';
+    var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
+
+    var w = window.open('', '_blank');
+    if (!w) { alert('Popup blocked! Please allow popups.'); return; }
+
+    w.document.write('<!doctype html><html><head>');
+    w.document.write('<title>Required Church Leaders</title>');
+    w.document.write('<base href="' + window.location.href + '">');
     w.document.write('<style>');
-    w.document.write('@page { margin: 15mm; size: A4 portrait; }');
-    w.document.write('body { font-family: Arial, sans-serif; font-size: 0.88rem; color: #111; padding: 0; margin: 0; }');
-    w.document.write('.print-header { text-align:center; border-bottom:3px solid #1e3a8a; padding-bottom:10px; margin-bottom:18px; }');
-    w.document.write('.print-header h1 { color:#1e3a8a; font-size:1.3rem; margin:0 0 4px; }');
-    w.document.write('.print-header p { color:#555; font-size:0.8rem; margin:0; }');
-    w.document.write('table { width:100%; border-collapse:collapse; }');
-    w.document.write('thead tr { background:#1e3a8a; color:white; }');
-    w.document.write('thead th { padding:10px 14px; text-align:left; font-size:0.82rem; }');
-    w.document.write('tbody tr:nth-child(even) { background:#fef2f2; }');
-    w.document.write('tbody td { padding:9px 14px; border-bottom:1px solid #fca5a5; vertical-align:middle; }');
-    w.document.write('.badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:700; background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; }');
+    w.document.write('*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}');
+    w.document.write('@media print{@page{size:' + pageSize + ';margin: 0;} body{padding:15mm !important;} }');
+    w.document.write('body{font-family:Arial,sans-serif;margin:0;padding:10px;padding-bottom:60px;}');
+    w.document.write('table{width:100%;border-collapse:collapse;margin-top:20px;}');
+    w.document.write('th{background:#1e3a8a;color:white;padding:10px 14px;font-size:0.85rem;text-align:left;}');
+    w.document.write('td{padding:9px 14px;border:1px solid #ccc;font-size:0.85rem;vertical-align:middle;}');
+    w.document.write('.badge{display:inline-block;padding:4px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;}');
+    w.document.write('.no-print{display:none!important;}');
+    w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}');
+    w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
     w.document.write('.btn-sm, button { display:none !important; }');
-    w.document.write('.print-footer { text-align:center; margin-top:24px; font-size:0.75rem; color:#777; border-top:1px solid #ddd; padding-top:8px; }');
     w.document.write('</style></head><body>');
-    w.document.write('<div class="print-header">');
-    w.document.write('<h1>E.A.P.C MUNYARI CHURCH</h1>');
-    w.document.write('<p>Required / Unfilled Leadership Positions &mdash; Printed on: ' + new Date().toLocaleDateString('en-GB', {weekday:"long",year:"numeric",month:"long",day:"numeric"}) + '</p>');
+
+    w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
+
+    // Church header with dual logos
+    w.document.write('<div style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:10px;position:relative;margin-bottom:14px;min-height:85px;">');
+    w.document.write('<img src="' + logoUrl + '" style="position:absolute;left:20px;top:0;width:70px;height:70px;object-fit:contain;">');
+    w.document.write('<img src="' + logoUrl + '" style="position:absolute;right:20px;top:0;width:70px;height:70px;object-fit:contain;">');
+    w.document.write('<h2 style="margin:0;color:#1e3a8a;padding-top:8px;">E.A.P.C MUNYARI CHURCH</h2>');
+    w.document.write('<h3 style="margin:5px 0;color:#1e3a8a;">REQUIRED / UNFILLED LEADERSHIP POSITIONS</h3>');
+    w.document.write('<p style="margin:2px 0;font-size:0.78rem;color:#555;">Printed on: ' + printDate + '</p>');
     w.document.write('</div>');
-    w.document.write(card.innerHTML);
-    w.document.write('<div class="print-footer">E.A.P.C Munyari Church &bull; Church Leadership Register</div>');
+
+    // Table
+    w.document.write('<table><thead><tr>' + theadRow + '</tr></thead><tbody>' + tbody + '</tbody></table>');
+    
+    // Signature block
+    w.document.write('<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:60px;padding:0 20px;page-break-inside:avoid;">');
+    w.document.write('<div style="text-align:center;"><div style="font-size:0.82rem;font-weight:700;text-transform:uppercase;color:#1e3a8a;">Church Pastor</div>');
+    w.document.write('<div style="display:flex;align-items:flex-end;gap:8px;margin-top:20px;"><span style="font-style:italic;">Sign:</span><span style="display:inline-block;border-bottom:1px solid #000;width:200px;height:14px;"></span></div>');
+    w.document.write('<div style="display:flex;align-items:flex-end;gap:8px;margin-top:10px;"><span>Date:</span><span style="display:inline-block;border-bottom:1px dotted #000;width:200px;height:14px;"></span></div></div>');
+    
+    w.document.write('<div style="text-align:center;"><div style="border:2px dashed #aaa;width:100px;height:100px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:0.7rem;text-transform:uppercase;line-height:1.4;text-align:center;">Official<br>Stamp</div></div>');
+    w.document.write('</div>');
+
+    w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + printDate + '</div>');
     w.document.write('</body></html>');
     w.document.close();
+    w.focus();
     setTimeout(function(){ w.print(); }, 600);
 }
 function printRequiredTable() {
