@@ -2075,7 +2075,8 @@ w.document.write('</div>');
                     'Youths Department' => 'Youths',
                     'Women\'s Ministry' => 'Womens Ministry',
                     'Elders Department' => 'Elders',
-                    'Sunday School' => 'Sunday School',
+                    'Sunday School' => 'Sunday School',,
+                            'Building' => 'Building Dept'
                 ];
 
                 $all_hierarchy_roles = [];
@@ -3813,7 +3814,8 @@ w.document.write('</div>');
                             'Youths' => 'Youth Ministry',
                             'Womens Ministry' => "Women's Ministry",
                             'Elders' => 'Elders',
-                            'Sunday School' => 'Sunday School'
+                            'Sunday School' => 'Sunday School',
+                            'Building' => 'Building Dept'
                         ];
                         $all_totals = array_sum($dept_totals);
                         $overall_total = $all_totals;
