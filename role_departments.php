@@ -59,16 +59,9 @@ function department_for_role($role) {
         'vice elder secretary'    => 'Elders',
         'elder treasurer'         => 'Elders',
         
-        // Building Ministry
-        'building chairperson'       => 'Building',
-        'building chairman'          => 'Building',
-        'building chairlady'         => 'Building',
-        'vice building chairperson'  => 'Building',
-        'vice building chairman'     => 'Building',
-        'vice building chairlady'    => 'Building',
-        'building secretary'         => 'Building',
-        'vice building secretary'    => 'Building',
-        'building treasurer'         => 'Building',
+        // Building Ministry - intentionally NOT mapped to any department.
+        // Building is a ministry/committee, NOT a main department.
+        // Assigning a Building role must NOT change the member's department.
     ];
 
     $normalized = normalize_role_name($role);
@@ -172,7 +165,7 @@ function role_assignment_departments($role, $context_department = null) {
 
     if (is_building_leadership_role($role)) {
         // Building roles open to all departments EXCEPT Sunday School
-        return ['General Church', 'Youths', 'Womens Ministry', 'Elders', 'Building'];
+        return ['General Church', 'Youths', 'Womens Ministry', 'Elders'];
     }
 
     $department = department_for_role($role);
