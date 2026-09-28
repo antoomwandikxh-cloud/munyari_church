@@ -2254,16 +2254,24 @@ w.document.write('</div>');
                                         alert('\uD83D\uDD12 This role is already assigned!\n\nYou will now be taken to the Currently Assigned Roles table so you can remove the current leader before assigning a new one.');
                                         const currentRolesTable = document.getElementById('currentlyAssignedRolesTable');
                                         if (currentRolesTable) {
-                                            currentRolesTable.scrollIntoView({behavior: 'smooth'});
                                             const highlightRole = selected.value.toLowerCase();
                                             const rows = currentRolesTable.querySelectorAll('tbody tr');
+                                            let targetRow = null;
                                             rows.forEach(row => {
                                                 if (row.innerText.toLowerCase().includes(highlightRole)) {
+                                                    targetRow = row;
                                                     row.style.transition = 'background-color 0.5s';
                                                     row.style.backgroundColor = '#fef3c7';
                                                     setTimeout(() => row.style.backgroundColor = '', 3000);
                                                 }
                                             });
+                                            setTimeout(() => {
+                                                if (targetRow) {
+                                                    targetRow.scrollIntoView({behavior: 'smooth', block: 'center'});
+                                                } else {
+                                                    currentRolesTable.scrollIntoView({behavior: 'smooth', block: 'start'});
+                                                }
+                                            }, 50);
                                         }
                                         roleSelect.value = '';
                                         memberSelect.innerHTML = '<option value="">-- Select Member --</option>';
