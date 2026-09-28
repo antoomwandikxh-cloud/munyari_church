@@ -2176,12 +2176,6 @@ w.document.write('</div>');
 
                 <div>
                     <!-- Assign Role Form -->
-                    <?php if (isset($_GET['highlight'])): ?>
-                    <div style="background:#fef3c7;border:2px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-weight:600;color:#92400e;">
-                        <span style="font-size:22px;">&#128274;</span>
-                        <span>Role Already Assigned &mdash; <em><?= htmlspecialchars($_GET['highlight']) ?></em> is already taken. Find the current holder below and remove them first.</span>
-                    </div>
-                    <?php endif; ?>
                     <div id="assignRoleSection" class="content-card" style="flex: 1; min-width: 300px;">
                         <h2>Assign to Member</h2>
                         <form method="POST" action="admin_dashboard.php?tab=assign_roles&action=assign_role">
@@ -2261,11 +2255,61 @@ w.document.write('</div>');
                                         memberSelect.innerHTML = '<option value="">-- Select Member --</option>';
                                         memberSelect.disabled = true;
                                         
-                                        // Store role in sessionStorage so we can highlight on reload
-                                        sessionStorage.setItem('highlightRole', selected.value.toLowerCase());
+                                        // Custom alert to avoid browser blocking
+                                        const modal = document.createElement('div');
+                                        modal.innerHTML = `
+                                            <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999999;backdrop-filter:blur(3px);">
+                                                <div style="background:white;padding:30px;border-radius:12px;text-align:center;max-width:380px;box-shadow:0 15px 35px rgba(0,0,0,0.25);border-top:4px solid #f59e0b;">
+                                                    <div style="font-size:45px;margin-bottom:15px;">&#128274;</div>
+                                                    <h3 style="margin-top:0;color:#1e293b;font-size:1.3rem;">Role Already Taken</h3>
+                                                    <p style="color:#64748b;line-height:1.6;font-size:0.95rem;margin-bottom:25px;">This role is currently assigned to someone else. Click OK to scroll down and remove the current leader before assigning a new one.</p>
+                                                    <button id="btnScrollTaken" style="background:#3b82f6;color:white;border:none;padding:12px 24px;border-radius:6px;cursor:pointer;font-weight:700;font-size:1rem;width:100%;transition:background 0.2s;box-shadow:0 4px 6px -1px rgba(59, 130, 246, 0.5);">OK, Scroll to Leader</button>
+                                                </div>
+                                            </div>
+                                        `;
+                                        document.body.appendChild(modal);
                                         
-                                        // Redirect to same page with anchor - most reliable scroll
-                                        window.location.href = 'admin_dashboard.php?tab=assign_roles&highlight=' + encodeURIComponent(selected.value) + '#currentlyAssignedRolesTable';
+                                        document.getElementById('btnScrollTaken').onclick = function() {
+                                            document.body.removeChild(modal);
+                                            
+                                            // Find row
+                                            const expectedVal = selected.value.toLowerCase();
+                                            let targetRow = null;
+                                            const removeLinks = document.querySelectorAll('a[href*="action=remove_role"]');
+                                            removeLinks.forEach(link => {
+                                                const match = link.href.match(/[?&]role=([^&]+)/);
+                                                if (match) {
+                                                    const linkRole = decodeURIComponent(match[1].replace(/\+/g, '%20'));
+                                                    if (linkRole.toLowerCase() === expectedVal) {
+                                                        targetRow = link.closest('tr');
+                                                    }
+                                                }
+                                            });
+                                            
+                                            const currentRolesTable = document.getElementById('currentlyAssignedRolesTable');
+                                            const scrollTarget = targetRow || currentRolesTable;
+                                            
+                                            if (scrollTarget) {
+                                                // Calculate absolute offset
+                                                const rect = scrollTarget.getBoundingClientRect();
+                                                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                                                const targetY = rect.top + scrollTop - 100;
+                                                
+                                                // Scroll the window natively
+                                                window.scrollTo({top: targetY, behavior: 'smooth'});
+                                                
+                                                if (targetRow) {
+                                                    // Flash highlight
+                                                    targetRow.style.transition = 'background-color 0.4s';
+                                                    targetRow.style.backgroundColor = '#fef3c7';
+                                                    targetRow.style.outline = '3px solid #f59e0b';
+                                                    setTimeout(() => {
+                                                        targetRow.style.backgroundColor = '';
+                                                        targetRow.style.outline = '';
+                                                    }, 5000);
+                                                }
+                                            }
+                                        };
                                         return;
                                     }
                                     const selectedVal = roleSelect.value.toLowerCase();
@@ -2307,34 +2351,6 @@ w.document.write('</div>');
                                     }
                                 });
                             })();
-                        </script>
-                        <script>
-                        (function() {
-                            var params = new URLSearchParams(window.location.search);
-                            var hlRole = params.get('highlight');
-                            if (!hlRole) return;
-                            var expected = hlRole.toLowerCase();
-                            var links = document.querySelectorAll('a[href*="action=remove_role"]');
-                            var targetRow = null;
-                            links.forEach(function(link) {
-                                var m = link.href.match(/[?&]role=([^&]+)/);
-                                if (m) {
-                                    var r = decodeURIComponent(m[1].replace(/\+/g, ' '));
-                                    if (r.toLowerCase() === expected) targetRow = link.closest('tr');
-                                }
-                            });
-                            var scrollEl = targetRow || document.getElementById('currentlyAssignedRolesTable');
-                            if (scrollEl) {
-                                var y = scrollEl.getBoundingClientRect().top + window.pageYOffset - 80;
-                                window.scrollTo({top: y, behavior: 'smooth'});
-                                if (targetRow) {
-                                    targetRow.style.transition = 'background 0.3s';
-                                    targetRow.style.background = '#fef3c7';
-                                    targetRow.style.outline = '3px solid #f59e0b';
-                                    setTimeout(function() { targetRow.style.background=''; targetRow.style.outline=''; }, 6000);
-                                }
-                            }
-                        })();
                         </script>
                     </div>
                     
