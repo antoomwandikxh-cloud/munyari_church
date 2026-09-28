@@ -2269,8 +2269,12 @@ w.document.write('</div>');
                                         `;
                                         document.body.appendChild(modal);
                                         
-                                        document.getElementById('btnScrollTaken').onclick = function() {
-                                            document.body.removeChild(modal);
+                                        const btn = modal.querySelector('button');
+                                        if (btn) {
+                                            btn.onclick = function() {
+                                                if (document.body.contains(modal)) {
+                                                    document.body.removeChild(modal);
+                                                }
                                             
                                             // Find row
                                             const expectedVal = selected.value.toLowerCase();
@@ -2290,13 +2294,19 @@ w.document.write('</div>');
                                             const scrollTarget = targetRow || currentRolesTable;
                                             
                                             if (scrollTarget) {
-                                                // Calculate absolute offset
-                                                const rect = scrollTarget.getBoundingClientRect();
-                                                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                                                const targetY = rect.top + scrollTop - 100;
-                                                
-                                                // Scroll the window natively
-                                                window.scrollTo({top: targetY, behavior: 'smooth'});
+                                                const mainContent = document.querySelector('.main-content');
+                                                if (mainContent) {
+                                                    // Calculate scroll position inside the .main-content div
+                                                    const rect = scrollTarget.getBoundingClientRect();
+                                                    const mainRect = mainContent.getBoundingClientRect();
+                                                    const targetY = mainContent.scrollTop + (rect.top - mainRect.top) - 80;
+                                                    
+                                                    // Scroll the main content container!
+                                                    mainContent.scrollTo({top: targetY, behavior: 'smooth'});
+                                                } else {
+                                                    // Fallback
+                                                    scrollTarget.scrollIntoView({behavior: 'smooth', block: 'center'});
+                                                }
                                                 
                                                 if (targetRow) {
                                                     // Flash highlight
@@ -2310,6 +2320,7 @@ w.document.write('</div>');
                                                 }
                                             }
                                         };
+                                        }
                                         return;
                                     }
                                     const selectedVal = roleSelect.value.toLowerCase();
