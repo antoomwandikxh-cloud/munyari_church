@@ -1741,7 +1741,7 @@ w.document.write('</div>');
                     
                     foreach ($dept_members_arr as $dm) {
                         $rank = (int)($dm['role_rank'] ?? 99);
-                        if ($rank > 0 && $rank < 99) {
+                        if ($rank > 0 && $rank <= 2) { // ONLY RANK 1 (Chair) or RANK 2 (Vice)
                             if (!$highest_leader) {
                                 $highest_leader = $dm;
                             } elseif (!$second_leader) {
@@ -1756,7 +1756,13 @@ w.document.write('</div>');
                     
                     $vice_name = $second_leader ? strtoupper(trim($second_leader['first_name'].' '.$second_leader['last_name'])) : 'N/A';
                     
-                    $leader_role = 'Leader';
+                    $d = strtolower(trim($dept));
+                    if ($d === 'youths') $leader_role = 'Youth Chairperson';
+                    elseif ($d === 'womens ministry') $leader_role = 'Women Chairlady';
+                    elseif ($d === 'elders') $leader_role = 'Elder Chairman';
+                    elseif ($d === 'sunday school') $leader_role = 'Sunday School Patron';
+                    else $leader_role = 'Chairperson';
+
                     if ($highest_leader && !empty($highest_leader['church_role'])) {
                         $best = get_best_role_from_string($highest_leader['church_role']);
                         if (strtolower($best) !== 'member') {
