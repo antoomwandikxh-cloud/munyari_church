@@ -3592,7 +3592,10 @@ w.document.write('</div>');
                                                 $first_row = false;
                                             }
                                             echo "<td style='padding: 12px;'><span class='badge' style='background: var(--primary); color: white; font-weight: bold;'>" . htmlspecialchars($role_label) . "</span></td>";
-                                            echo "<td style='font-weight: 500; padding: 12px;'>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</td>";
+                                            $pic = empty($member_data['profile_picture']) ? 'default_avatar.png' : $member_data['profile_picture'];
+                                            $pic_url = 'uploads/' . basename($pic);
+                                            $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;' onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
+                                            echo "<td style='font-weight: 500; padding: 12px;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
                                             echo "<td style='padding: 12px;'><a href='pastor_action.php?action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($expected_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
                                             echo "</tr>";
                                         }
@@ -3617,7 +3620,10 @@ w.document.write('</div>');
                                     $first_row = false;
                                 }
                                 echo "<td style='padding: 12px;'><span class='badge' style='background: var(--text-muted); color: white; font-weight: bold;'>" . htmlspecialchars($role_label) . "</span></td>";
-                                echo "<td style='font-weight: 500; padding: 12px;'>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</td>";
+                                $pic = empty($member_data['profile_picture']) ? 'default_avatar.png' : $member_data['profile_picture'];
+                            $pic_url = 'uploads/' . basename($pic);
+                            $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;' onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
+                            echo "<td style='font-weight: 500; padding: 12px;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
                                 echo "<td style='padding: 12px;'><a href='pastor_action.php?action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($disp_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
                                 echo "</tr>";
                             }
