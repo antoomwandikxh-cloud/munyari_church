@@ -78,7 +78,7 @@ if (file_exists($logo_path)) {
 
 // Treasurer Pic — profile_picture is stored as a bare filename, look in uploads/
 $t_pic_b64 = '';
-$default_pic = 'default_avatar.png';
+$default_pic = 'uploads/default_avatar.png';
 if ($treasurer && !empty($treasurer['profile_picture'])) {
     // Try bare path first, then uploads/ prefix
     $pic_path = file_exists($treasurer['profile_picture'])

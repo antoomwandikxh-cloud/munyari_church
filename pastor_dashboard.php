@@ -3093,18 +3093,18 @@ w.document.write('</div>');
                                 <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 500;"><?= htmlspecialchars($label) ?></div>
                                 <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin-top: 5px;">KSh <?= number_format($amt, 2) ?></div>
                             </div>
-                            <div style="margin-top: 15px; padding-top: 12px; border-top: 1px dashed var(--border-color); display: flex; align-items: center; gap: 10px;">
+                                                        <div style="margin-top: 15px; padding-top: 12px; border-top: 1px dashed var(--border-color); display: flex; align-items: center; gap: 10px;">
                                 <?php if ($t_info): ?>
-                                    <img src="uploads/<?= htmlspecialchars($t_info['pic']) ?>" alt="Treasurer" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color);">
+                                    <img src="uploads/<?= htmlspecialchars($t_info['pic']) ?>" alt="Treasurer" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); cursor: zoom-in;" onclick="viewProfileImage(this.src)">
                                     <div style="line-height: 1.2;">
                                         <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Treasurer</div>
-                                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);"><?= htmlspecialchars($t_info['name']) ?></div>
+                                        <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-main);"><?= htmlspecialchars($t_info['name']) ?></div>
                                     </div>
                                 <?php else: ?>
-                                    <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-lighter); display: flex; align-items: center; justify-content: center; font-size: 16px; opacity: 0.5;">👤</div>
+                                    <img src="uploads/default_avatar.png" alt="No Treasurer" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px dashed #cbd5e1; opacity: 0.7;">
                                     <div style="line-height: 1.2;">
                                         <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Treasurer</div>
-                                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); font-style: italic;">Not Assigned</div>
+                                        <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-muted); font-style: italic;">Not Assigned</div>
                                     </div>
                                 <?php endif; ?>
                             </div>
