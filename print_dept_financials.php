@@ -88,7 +88,7 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
     <meta charset="UTF-8">
     <title><?= htmlspecialchars($dept) ?> Financial Records</title>
     <style>
-        @media print { 
+        @media print { body { padding: 15mm !important; }  
             @page { size: A4 portrait; margin: 0; } 
             body { margin: 15mm; } 
             .no-print { display: none !important; }
@@ -181,7 +181,7 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
             st.id = 'printOriStyle';
             document.head.appendChild(st);
         }
-        st.innerHTML = '@media print { @page { size: A4 ' + ori + '; } .watermark { font-size: ' + (ori === ''landscape'' ? ''5.5rem'' : ''3.8rem'') + ' !important; } }';
+        st.innerHTML = '@media print { body { padding: 15mm !important; }  @page { size: A4 ' + ori + '; } .watermark { font-size: ' + (ori === ''landscape'' ? ''5.5rem'' : ''3.8rem'') + ' !important; } }';
         window.print();
     }
     </script>

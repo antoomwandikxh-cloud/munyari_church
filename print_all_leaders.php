@@ -124,7 +124,7 @@ function matches_group($role_norm, $raw_role, $dept, $sk){
 <title>All Church Leaders</title>
 <style>
 *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;box-sizing:border-box;margin:0;padding:0;}
-@media print{@page{size:A4 landscape;margin:7mm 10mm 16mm 10mm;}.no-print{display:none!important;}}
+@media print{@page{size:A4 landscape;margin: 0;} body{padding:15mm !important;} .no-print{display:none!important;}}
 body{font-family:Arial,sans-serif;background:#fff;padding:10px;padding-bottom:72px;font-size:0.78rem;}
 
 /* Watermark */

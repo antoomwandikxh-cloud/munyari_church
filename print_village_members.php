@@ -105,7 +105,7 @@ if (file_exists($logo_path)) {
         }
 
         /* ── Print overrides ── */
-        @media print {
+        @media print { body { padding: 15mm !important; } 
             @page { size: A4 portrait; margin: 0; }
             body { margin: 12mm; padding: 0; max-width: 100%; }
             .no-print { display: none !important; }

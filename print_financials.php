@@ -81,7 +81,7 @@ function fmt_amount($n) {
     <meta charset="UTF-8">
     <title>Financial Records — E.A.P.C Munyari Church</title>
     <style>
-        @media print {
+        @media print { body { padding: 15mm !important; } 
             @page { size: A4 portrait; margin: 0; }
             body  { margin: 15mm; }
             .no-print { display: none !important; }
@@ -205,7 +205,7 @@ function fmt_amount($n) {
             st.id = 'printOriStyle';
             document.head.appendChild(st);
         }
-        st.innerHTML = '@media print { @page { size: A4 ' + ori + '; } .watermark { font-size: ' + (ori === ''landscape'' ? ''5.5rem'' : ''3.8rem'') + ' !important; } }';
+        st.innerHTML = '@media print { body { padding: 15mm !important; }  @page { size: A4 ' + ori + '; } .watermark { font-size: ' + (ori === ''landscape'' ? ''5.5rem'' : ''3.8rem'') + ' !important; } }';
         window.print();
     }
     </script>

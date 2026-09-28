@@ -175,7 +175,7 @@ if ($report === 'all_villages') {
             font-style: italic;
         }
         @media print {
-            @page { size: A4 landscape; margin: 15mm; }
+            @page { size: A4 landscape; margin: 0; }
             body { padding: 0; }
             .no-print { display: none !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }

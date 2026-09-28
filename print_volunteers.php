@@ -65,7 +65,7 @@ $print_mode = isset($_GET['mode']) && $_GET['mode'] === 'landscape' ? 'landscape
 <style>
 * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
 @media print {
-    @page { size: A4 <?= $print_mode ?>; margin: 10mm 12mm 16mm 12mm; }
+    @page { size: A4 <?= $print_mode ?>; margin: 0; }
     .no-print  { display: none !important; }
 }
 body { font-family: Arial, sans-serif; margin: 0; padding: 14px; color: #111; font-size: 12px; }
