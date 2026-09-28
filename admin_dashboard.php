@@ -2294,19 +2294,33 @@ w.document.write('</div>');
                                             const scrollTarget = targetRow || currentRolesTable;
                                             
                                             if (scrollTarget) {
-                                                const mainContent = document.querySelector('.main-content');
-                                                if (mainContent) {
-                                                    // Calculate scroll position inside the .main-content div
-                                                    const rect = scrollTarget.getBoundingClientRect();
-                                                    const mainRect = mainContent.getBoundingClientRect();
-                                                    const targetY = mainContent.scrollTop + (rect.top - mainRect.top) - 80;
-                                                    
-                                                    // Scroll the main content container!
-                                                    mainContent.scrollTo({top: targetY, behavior: 'smooth'});
-                                                } else {
-                                                    // Fallback
+                                                // Try multiple scroll methods to guarantee it works on all devices
+                                                
+                                                // 1. Native scrollIntoView (works 99% of the time without native alerts)
+                                                try {
                                                     scrollTarget.scrollIntoView({behavior: 'smooth', block: 'center'});
+                                                } catch(e) {
+                                                    scrollTarget.scrollIntoView();
                                                 }
+                                                
+                                                // 2. Fallback: window scroll and explicit .main-content scroll
+                                                setTimeout(() => {
+                                                    const rect = scrollTarget.getBoundingClientRect();
+                                                    
+                                                    // Try explicit .main-content scroll
+                                                    const mainContent = document.querySelector('.main-content');
+                                                    if (mainContent && mainContent.scrollHeight > mainContent.clientHeight) {
+                                                        const mainRect = mainContent.getBoundingClientRect();
+                                                        mainContent.scrollTo({
+                                                            top: mainContent.scrollTop + (rect.top - mainRect.top) - 100, 
+                                                            behavior: 'smooth'
+                                                        });
+                                                    }
+                                                    
+                                                    // Try generic window scroll
+                                                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                                                    window.scrollTo({top: rect.top + scrollTop - 100, behavior: 'smooth'});
+                                                }, 50);
                                                 
                                                 if (targetRow) {
                                                     // Flash highlight
@@ -2316,7 +2330,7 @@ w.document.write('</div>');
                                                     setTimeout(() => {
                                                         targetRow.style.backgroundColor = '';
                                                         targetRow.style.outline = '';
-                                                    }, 5000);
+                                                    }, 6000);
                                                 }
                                             }
                                         };
