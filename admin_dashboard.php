@@ -783,7 +783,7 @@ if (!empty($action)) {
         }
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
         
-        header("Location: admin_dashboard.php?tab=assign_roles&success=Role removed from member");
+        header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed successfully") . "&reassign=" . urlencode($role_to_remove) . "#assignRoleSection");
         exit();
     }
     
@@ -2176,7 +2176,7 @@ w.document.write('</div>');
 
                 <div>
                     <!-- Assign Role Form -->
-                    <div class="content-card" style="flex: 1; min-width: 300px;">
+                    <div id="assignRoleSection" class="content-card" style="flex: 1; min-width: 300px;">
                         <h2>Assign to Member</h2>
                         <form method="POST" action="admin_dashboard.php?tab=assign_roles&action=assign_role">
                             <div class="form-group">
