@@ -2075,8 +2075,8 @@ w.document.write('</div>');
                     'Youths Department' => 'Youths',
                     'Women\'s Ministry' => 'Womens Ministry',
                     'Elders Department' => 'Elders',
-                    'Sunday School' => 'Sunday School',,
-                            'Building' => 'Building Dept'
+                    'Sunday School' => 'Sunday School',
+                    'Building' => 'Building'
                 ];
 
                 $all_hierarchy_roles = [];
