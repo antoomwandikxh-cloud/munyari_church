@@ -2287,7 +2287,7 @@ w.document.write('</div>');
                 <div class="content-card" style="margin-top: 20px;">
                     <h2 style="margin-bottom: 20px;">Currently Assigned Roles</h2>
                     <?php 
-                    $assigned_roles_q = $conn->query("SELECT id, first_name, last_name, department, church_role FROM members WHERE church_role IS NOT NULL AND church_role != '' AND LOWER(TRIM(church_role)) != 'member'");
+                    $assigned_roles_q = $conn->query("SELECT id, first_name, last_name, department, church_role, profile_picture FROM members WHERE church_role IS NOT NULL AND church_role != '' AND LOWER(TRIM(church_role)) != 'member'");
                     
                     // Organize fetched members into the hierarchy structure
                     $categorized_members = [];
@@ -2352,7 +2352,10 @@ w.document.write('</div>');
                                         $role_label = role_display_label($expected_role, $member_data['department'] ?? null);
                                         echo "<tr>";
                                         echo "<td><span class='badge' style='background: var(--primary); color: white; font-weight: bold;'>" . htmlspecialchars($role_label) . "</span></td>";
-                                        echo "<td style='font-weight: 500;'>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</td>";
+                                        $pic = empty($member_data['profile_picture']) ? 'default_avatar.png' : $member_data['profile_picture'];
+                                        $pic_url = 'uploads/' . basename($pic);
+                                        $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;' onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
+                                        echo "<td style='font-weight: 500; display:flex; align-items:center;'>" . $img_html . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</td>";
                                         echo "<td><a href='admin_dashboard.php?tab=assign_roles&action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($expected_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
                                         echo "</tr>";
                                     }
@@ -2373,7 +2376,10 @@ w.document.write('</div>');
                             $disp_role = $member_data['displayed_role'] ?? $member_data['church_role'];
                             echo "<tr>";
                             echo "<td><span class='badge' style='background: var(--text-muted); color: white;'>" . htmlspecialchars(role_display_label($disp_role, $member_data['department'] ?? null)) . "</span></td>";
-                            echo "<td style='font-weight: 500;'>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</td>";
+                            $pic = empty($member_data['profile_picture']) ? 'default_avatar.png' : $member_data['profile_picture'];
+                            $pic_url = 'uploads/' . basename($pic);
+                            $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;' onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
+                            echo "<td style='font-weight: 500; display:flex; align-items:center;'>" . $img_html . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</td>";
                             echo "<td><a href='admin_dashboard.php?tab=assign_roles&action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($disp_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
                             echo "</tr>";
                         }

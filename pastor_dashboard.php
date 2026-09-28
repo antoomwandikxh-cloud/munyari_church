@@ -3498,7 +3498,7 @@ w.document.write('</div>');
                 <div class="content-card">
                     <h2 style="margin-bottom: 20px;">Currently Assigned Roles</h2>
                     <?php 
-                    $assigned_roles_q = $conn->query("SELECT id, first_name, last_name, department, church_role FROM members WHERE church_role IS NOT NULL AND church_role != '' AND LOWER(TRIM(church_role)) != 'member'");
+                    $assigned_roles_q = $conn->query("SELECT id, first_name, last_name, department, church_role, profile_picture FROM members WHERE church_role IS NOT NULL AND church_role != '' AND LOWER(TRIM(church_role)) != 'member'");
                     
                     // Organize fetched members into the hierarchy structure
                     $categorized_members = [];
