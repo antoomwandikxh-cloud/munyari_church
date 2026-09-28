@@ -2294,13 +2294,9 @@ w.document.write('</div>');
                     
                     $leader_role = 'Leader';
                     if ($highest_leader && !empty($highest_leader['church_role'])) {
-                        $role_parts = explode(',', $highest_leader['church_role']);
-                        foreach ($role_parts as $r) {
-                            $tr = trim($r);
-                            if (strtolower($tr) !== 'member' && $tr !== '' && stripos($tr, 'village leader') === false) {
-                                $leader_role = $tr;
-                                break;
-                            }
+                        $best = get_best_role_from_string($highest_leader['church_role']);
+                        if (strtolower($best) !== 'member') {
+                            $leader_role = role_display_label($best, $dept, $highest_leader['gender'] ?? null);
                         }
                     }
                     
