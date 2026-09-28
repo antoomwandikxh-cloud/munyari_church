@@ -2283,15 +2283,78 @@ w.document.write('</div>');
                         </script>
                     </div>
                     
-                <!-- Currently Assigned Roles (Hierarchical) -->
-                <div class="content-card" style="margin-top: 20px;">
+                
+                <!-- Required Leaders Table -->
+                <div class="content-card" style="margin-bottom: 30px;" id="requiredLeadersCard">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
-                        <h2 style="margin:0;">Currently Assigned Roles</h2>
+                        <h2 style="margin:0;">Required Leaders Table</h2>
                         <button onclick="printRequiredLeadersTable()" style="background:#1e3a8a;color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;">
                             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                            Print Leaders Table
+                            Print Required Leaders
                         </button>
                     </div>
+                    <div class="table-responsive">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%; background: var(--bg-main); text-align: left; padding: 12px; border-bottom: 2px solid var(--border-color);">Department</th>
+                                    <th style="background: var(--bg-main); text-align: left; padding: 12px; border-bottom: 2px solid var(--border-color);">Leader Role</th>
+                                    <th style="background: var(--bg-main); text-align: left; padding: 12px; border-bottom: 2px solid var(--border-color);">Allowed Members</th>
+                                    <th style="background: var(--bg-main); text-align: left; padding: 12px; border-bottom: 2px solid var(--border-color);">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php 
+                                $assigned_role_rows = [];
+                                $assigned_lookup = $conn->query("SELECT first_name, last_name, department, church_role FROM members WHERE church_role IS NOT NULL AND church_role != ''");
+                                if ($assigned_lookup) {
+                                    while ($row = $assigned_lookup->fetch_assoc()) {
+                                        $roles_arr = array_filter(array_map('trim', explode(',', str_replace('&', ',', $row['church_role'] ?? ''))));
+                                        foreach ($roles_arr as $r) {
+                                            $norm = normalize_role_name($r);
+                                            $assigned_role_rows[$norm] = trim($row['first_name'] . ' ' . $row['last_name']);
+                                        }
+                                    }
+                                }
+                                foreach ($hierarchy as $dept => $roles):
+                                    $context_dept = $hierarchy_department_names[$dept] ?? '';
+                                    $dept_roles = [];
+                                    foreach ($roles as $expected_role) { $dept_roles[] = $expected_role; }
+                                    if (empty($dept_roles)) continue;
+                                    $dept_row_count = count($dept_roles);
+                                    $first_row = true;
+                                    foreach ($dept_roles as $role):
+                                        $norm_role = normalize_role_name($role);
+                                        $is_assigned = isset($assigned_role_rows[$norm_role]);
+                                        $assigned_to = $assigned_role_rows[$norm_role] ?? null;
+                                        $allowed_depts = role_assignment_departments($role, $context_dept);
+                                        $allowed_str = !empty($allowed_depts) ? implode(', ', $allowed_depts) : 'All Members';
+                                ?>
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <?php if ($first_row): ?>
+                                    <td rowspan="<?= $dept_row_count ?>" style="font-weight: bold; background: var(--bg-main); border-right: 1px solid var(--border-color); vertical-align: top; padding: 15px; color: var(--primary);">
+                                        <div style="font-size: 1.05rem; margin-bottom: 6px;"><?= htmlspecialchars($dept) ?></div>
+                                        <span class="badge" style="background: rgba(37, 99, 235, 0.1); color: var(--primary); font-weight: 500;"><?= $dept_row_count ?> roles</span>
+                                    </td>
+                                    <?php $first_row = false; endif; ?>
+                                    <td style="padding: 12px; font-weight: 600;"><?= htmlspecialchars(role_display_label($role, $context_dept)) ?></td>
+                                    <td style="padding: 12px; color: var(--text-muted); font-size: 0.85rem;"><?= htmlspecialchars($allowed_str) ?></td>
+                                    <td style="padding: 12px;">
+                                        <?php if ($is_assigned): ?>
+                                            <span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; font-weight: 700;">&#10003; Assigned: <?= htmlspecialchars($assigned_to) ?></span>
+                                        <?php else: ?>
+                                            <span class="badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; font-weight: 700;">&#9679; Open</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Currently Assigned Roles (Hierarchical) -->
+                <div class="content-card" style="margin-top: 20px;">
+<h2 style="margin-bottom: 20px;">Currently Assigned Roles</h2>
                     <?php 
                     $assigned_roles_q = $conn->query("SELECT id, first_name, last_name, department, church_role, profile_picture FROM members WHERE church_role IS NOT NULL AND church_role != '' AND LOWER(TRIM(church_role)) != 'member'");
                     
