@@ -32,27 +32,30 @@ function img_b64(string $filename): string {
 /* ── Logo ────────────────────────────────────────────────────── */
 $logo_b64 = img_b64('church_logo.jpg');
 
-/* ── Cleaners + Cookers ──────────────────────────────────────── */
-$cleaners_q = $conn->query(
-    "SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type
-     FROM members WHERE desired_role_pref='Church Cleaner' AND is_approved=1
-     ORDER BY church_village, first_name"
-);
-$cookers_q = $conn->query(
-    "SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type
-     FROM members WHERE desired_role_pref='Church Cooker' AND is_approved=1
-     ORDER BY church_village, first_name"
-);
+/* ── Fetch ALL roles from DB (includes Church Cleaner, Church Cooker, and customs) ── */
+$all_roles_q = $conn->query("SELECT * FROM custom_desired_roles ORDER BY id ASC");
+$all_roles = [];
+if ($all_roles_q) {
+    while ($r = $all_roles_q->fetch_assoc()) {
+        $all_roles[] = $r['role_name'];
+    }
+}
+// Fallback if table is empty
+if (empty($all_roles)) {
+    $all_roles = ['Church Cleaner', 'Church Cooker'];
+}
 
-// Also include pastors who chose cleaner/cooker
-$pastor_cleaners_q = $conn->query(
-    "SELECT first_name, last_name, church_village, department, role AS church_role, phone, profile_picture, 'Pastor' AS person_type
-     FROM pastors WHERE desired_role_pref='Church Cleaner' AND is_approved=1"
-);
-$pastor_cookers_q = $conn->query(
-    "SELECT first_name, last_name, church_village, department, role AS church_role, phone, profile_picture, 'Pastor' AS person_type
-     FROM pastors WHERE desired_role_pref='Church Cooker' AND is_approved=1"
-);
+/* ── Pre-fetch people for each role ─────────────────────────── */
+$role_data = [];
+foreach ($all_roles as $role) {
+    $esc = $conn->real_escape_string($role);
+    $members = [];
+    $mq = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type FROM members WHERE desired_role_pref='$esc' AND is_approved=1 ORDER BY church_village, first_name");
+    if ($mq) { while ($row = $mq->fetch_assoc()) $members[] = $row; }
+    $pq = $conn->query("SELECT first_name, last_name, church_village, department, role AS church_role, phone, profile_picture, 'Pastor' AS person_type FROM pastors WHERE desired_role_pref='$esc' AND is_approved=1");
+    if ($pq) { while ($row = $pq->fetch_assoc()) $members[] = $row; }
+    $role_data[$role] = $members;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -158,79 +161,44 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
     <button onclick="window.close()" style="background:#dc2626;">✕ Close</button>
 </div>
 
-<!-- ═══ COMBINED: Cleaners & Cookers Header ═══ -->
+<
+<!-- ═══ COMBINED header ═══ -->
 <div class="main-header" style="margin-top:0;">
     <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
     <div class="ct">
         <h1>E.A.P.C Munyari Church</h1>
-        <h2>Church Service Volunteers — Cleaners &amp; Cookers</h2>
+        <h2>Church Service Volunteers</h2>
         <p>Printed on: <?= $print_date ?></p>
     </div>
     <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
 </div>
 
 <?php
-/* ═══ SECTION 1 — Church Cleaners ═══ */
-$all_cleaners = [];
-if ($cleaners_q)       { while ($r = $cleaners_q->fetch_assoc())       $all_cleaners[] = $r; }
-if ($pastor_cleaners_q){ while ($r = $pastor_cleaners_q->fetch_assoc()) $all_cleaners[] = $r; }
-$cl_count = count($all_cleaners);
-?>
-<div style="margin-bottom:18px;">
-    <div class="sec-badge" style="background:#0ea5e9;">🧹 Church Cleaners — All Villages (<?= $cl_count ?> Volunteer<?= $cl_count != 1 ? 's' : '' ?>)</div>
-    <table>
-        <thead>
-            <tr><th>#</th><th>Photo</th><th>Full Name</th><th>Village</th><th>Department</th><th>Church Role</th><th>Phone</th></tr>
-        </thead>
-        <tbody>
-        <?php if ($cl_count > 0):
-            $i = 1;
-            foreach ($all_cleaners as $cl):
-                $vc     = $village_colors[$cl['church_village']] ?? '#94a3b8';
-                $pic_b64 = img_b64($cl['profile_picture'] ?? '');
-                $is_past = ($cl['person_type'] ?? '') === 'Pastor';
-        ?>
-            <tr <?= $is_past ? 'class="prow"' : '' ?>>
-                <td><?= $i++ ?></td>
-                <td class="photo-cell">
-                    <?php if ($pic_b64): ?><img src="<?= $pic_b64 ?>" alt=""><?php else: ?><div class="ph">👤</div><?php endif; ?>
-                </td>
-                <td style="font-weight:600;">
-                    <?= htmlspecialchars(ucfirst($cl['first_name']) . ' ' . ucfirst($cl['last_name'])) ?>
-                    <?php if ($is_past): ?><span class="badge" style="background:#fef08a;color:#92400e;">Pastor</span><?php endif; ?>
-                </td>
-                <td><span class="badge" style="background:<?= $vc ?>22;color:<?= $vc ?>;"><?= htmlspecialchars($cl['church_village'] ?: '—') ?></span></td>
-                <td><?= htmlspecialchars($cl['department'] ?: 'General Church') ?></td>
-                <td><?= htmlspecialchars($cl['church_role'] ?: 'Member') ?></td>
-                <td style="color:#666;"><?= htmlspecialchars($cl['phone'] ?? '—') ?></td>
-            </tr>
-        <?php endforeach; else: ?>
-            <tr><td colspan="7" style="text-align:center;color:#aaa;padding:12px;">No Church Cleaners have volunteered yet.</td></tr>
-        <?php endif; ?>
-        </tbody>
-    </table>
-</div>
+$badge_colors = ['Church Cleaner' => '#0ea5e9', 'Church Cooker' => '#f59e0b'];
+$badge_icons  = ['Church Cleaner' => '🧹', 'Church Cooker' => '🍳'];
+$section_num = 1;
 
-<?php
-/* ═══ SECTION 2 — Church Cookers ═══ */
-$all_cookers = [];
-if ($cookers_q)       { while ($r = $cookers_q->fetch_assoc())       $all_cookers[] = $r; }
-if ($pastor_cookers_q){ while ($r = $pastor_cookers_q->fetch_assoc()) $all_cookers[] = $r; }
-$ck_count = count($all_cookers);
+foreach ($role_data as $role => $people):
+    $count = count($people);
+    $color = $badge_colors[$role] ?? '#8b5cf6';
+    $icon  = $badge_icons[$role]  ?? '✨';
 ?>
 <div style="margin-bottom:18px;">
-    <div class="sec-badge" style="background:#f59e0b;">🍳 Church Cookers — All Villages (<?= $ck_count ?> Volunteer<?= $ck_count != 1 ? 's' : '' ?>)</div>
+    <div class="sec-badge" style="background:<?= $color ?>;">
+        <?= $icon ?> <?= htmlspecialchars($role) ?> — All Villages
+        (<?= $count ?> Volunteer<?= $count != 1 ? 's' : '' ?>)
+    </div>
     <table>
         <thead>
             <tr><th>#</th><th>Photo</th><th>Full Name</th><th>Village</th><th>Department</th><th>Church Role</th><th>Phone</th></tr>
         </thead>
         <tbody>
-        <?php if ($ck_count > 0):
+        <?php if ($count > 0):
             $i = 1;
-            foreach ($all_cookers as $ck):
-                $vc     = $village_colors[$ck['church_village']] ?? '#94a3b8';
-                $pic_b64 = img_b64($ck['profile_picture'] ?? '');
-                $is_past = ($ck['person_type'] ?? '') === 'Pastor';
+            foreach ($people as $p):
+                $vc      = $village_colors[$p['church_village']] ?? '#94a3b8';
+                $pic_b64 = img_b64($p['profile_picture'] ?? '');
+                $is_past = ($p['person_type'] ?? '') === 'Pastor';
         ?>
             <tr <?= $is_past ? 'class="prow"' : '' ?>>
                 <td><?= $i++ ?></td>
@@ -238,20 +206,22 @@ $ck_count = count($all_cookers);
                     <?php if ($pic_b64): ?><img src="<?= $pic_b64 ?>" alt=""><?php else: ?><div class="ph">👤</div><?php endif; ?>
                 </td>
                 <td style="font-weight:600;">
-                    <?= htmlspecialchars(ucfirst($ck['first_name']) . ' ' . ucfirst($ck['last_name'])) ?>
+                    <?= htmlspecialchars(ucfirst($p['first_name']) . ' ' . ucfirst($p['last_name'])) ?>
                     <?php if ($is_past): ?><span class="badge" style="background:#fef08a;color:#92400e;">Pastor</span><?php endif; ?>
                 </td>
-                <td><span class="badge" style="background:<?= $vc ?>22;color:<?= $vc ?>;"><?= htmlspecialchars($ck['church_village'] ?: '—') ?></span></td>
-                <td><?= htmlspecialchars($ck['department'] ?: 'General Church') ?></td>
-                <td><?= htmlspecialchars($ck['church_role'] ?: 'Member') ?></td>
-                <td style="color:#666;"><?= htmlspecialchars($ck['phone'] ?? '—') ?></td>
+                <td><span class="badge" style="background:<?= $vc ?>22;color:<?= $vc ?>;"><?= htmlspecialchars($p['church_village'] ?: '—') ?></span></td>
+                <td><?= htmlspecialchars($p['department'] ?: 'General Church') ?></td>
+                <td><?= htmlspecialchars($p['church_role'] ?: 'Member') ?></td>
+                <td style="color:#666;"><?= htmlspecialchars($p['phone'] ?? '—') ?></td>
             </tr>
         <?php endforeach; else: ?>
-            <tr><td colspan="7" style="text-align:center;color:#aaa;padding:12px;">No Church Cookers have volunteered yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:#aaa;padding:12px;">No volunteers for "<?= htmlspecialchars($role) ?>" yet.</td></tr>
         <?php endif; ?>
         </tbody>
     </table>
 </div>
+<?php endforeach; ?>
+
 
 <div class="footer">
     Generated from E.A.P.C Munyari Church Portal &nbsp;|&nbsp; Printed on: <?= $print_date ?>
