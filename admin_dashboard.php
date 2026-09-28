@@ -2251,40 +2251,54 @@ w.document.write('</div>');
                                 roleSelect.addEventListener('change', function() {
                                     const selected = roleSelect.options[roleSelect.selectedIndex];
                                     if (selected && selected.dataset.taken === 'true') {
-                                        alert('\uD83D\uDD12 This role is already assigned!\n\nYou will now be taken to the Currently Assigned Roles table so you can remove the current leader before assigning a new one.');
-                                        const currentRolesTable = document.getElementById('currentlyAssignedRolesTable');
-                                        if (currentRolesTable) {
-                                            const roleParam = 'role=' + encodeURIComponent(selected.value);
-                                            // The URL uses urlencode which might convert spaces to +, but encodeURIComponent converts to %20.
-                                            // Let's use a simpler approach: check if href includes the role name directly or just search all links
-                                            const expectedVal = selected.value.toLowerCase();
-                                            let targetRow = null;
-                                            const removeLinks = currentRolesTable.querySelectorAll('a[href*="action=remove_role"]');
-                                            removeLinks.forEach(link => {
-                                                const match = link.href.match(/[?&]role=([^&]+)/);
-                                                if (match) {
-                                                    const linkRole = decodeURIComponent(match[1].replace(/\+/g, '%20'));
-                                                    if (linkRole.toLowerCase() === expectedVal) {
-                                                        targetRow = link.closest('tr');
-                                                        targetRow.style.transition = 'background-color 0.5s';
-                                                        targetRow.style.backgroundColor = '#fef3c7';
-                                                        setTimeout(() => targetRow.style.backgroundColor = '', 3000);
-                                                    }
-                                                }
-                                            });
-                                            setTimeout(() => {
-                                                if (targetRow) {
-                                                    targetRow.id = 'targetRowHighlight';
-                                                    window.location.hash = 'targetRowHighlight';
-                                                    targetRow.scrollIntoView({behavior: 'smooth', block: 'center'});
-                                                } else {
-                                                    window.location.hash = 'currentlyAssignedRolesTable';
-                                                }
-                                            }, 300);
-                                        }
                                         roleSelect.value = '';
                                         memberSelect.innerHTML = '<option value="">-- Select Member --</option>';
                                         memberSelect.disabled = true;
+                                        
+                                        // Custom alert to avoid browser blocking
+                                        const modal = document.createElement('div');
+                                        modal.innerHTML = `
+                                            <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:999999;">
+                                                <div style="background:white;padding:25px;border-radius:10px;text-align:center;max-width:350px;box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+                                                    <div style="font-size:40px;margin-bottom:15px;">&#128274;</div>
+                                                    <h3 style="margin-top:0;color:#333;">Role Already Taken</h3>
+                                                    <p style="color:#666;line-height:1.5;">This role is assigned. Click OK to scroll down and remove the current leader.</p>
+                                                    <button id="btnScrollTaken" style="margin-top:15px;background:#2563eb;color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;font-weight:bold;font-size:16px;">OK, Got It</button>
+                                                </div>
+                                            </div>
+                                        `;
+                                        document.body.appendChild(modal);
+                                        
+                                        document.getElementById('btnScrollTaken').onclick = function() {
+                                            document.body.removeChild(modal);
+                                            const currentRolesTable = document.getElementById('currentlyAssignedRolesTable');
+                                            if (currentRolesTable) {
+                                                const expectedVal = selected.value.toLowerCase();
+                                                let targetRow = null;
+                                                const removeLinks = document.querySelectorAll('a[href*="action=remove_role"]');
+                                                removeLinks.forEach(link => {
+                                                    const match = link.href.match(/[?&]role=([^&]+)/);
+                                                    if (match) {
+                                                        const linkRole = decodeURIComponent(match[1].replace(/\+/g, '%20'));
+                                                        if (linkRole.toLowerCase() === expectedVal) {
+                                                            targetRow = link.closest('tr');
+                                                        }
+                                                    }
+                                                });
+                                                
+                                                const scrollTarget = targetRow || currentRolesTable;
+                                                const rect = scrollTarget.getBoundingClientRect();
+                                                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                                                const targetY = rect.top + scrollTop - 80;
+                                                window.scrollTo({top: targetY, behavior: 'smooth'});
+                                                
+                                                if (targetRow) {
+                                                    targetRow.style.transition = 'background-color 0.5s';
+                                                    targetRow.style.backgroundColor = '#fef3c7';
+                                                    setTimeout(() => targetRow.style.backgroundColor = '', 4000);
+                                                }
+                                            }
+                                        };
                                         return;
                                     }
                                     const selectedVal = roleSelect.value.toLowerCase();
