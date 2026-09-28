@@ -337,9 +337,7 @@ foreach ($villages as $v):
 
 
 
-<div class="footer">
-    Generated from E.A.P.C Munyari Church Portal &nbsp;|&nbsp; Printed on: <?= $print_date ?>
-</div>
+
 <script>
 window.onload = function() { setTimeout(function() { window.print(); }, 700); };
 </script>
