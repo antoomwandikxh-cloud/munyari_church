@@ -3272,61 +3272,6 @@ w.document.write('</div>');
                 <?php endif; ?>
 
                 <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                    <!-- Required Leaders Table -->
-                    <div class="content-card" style="margin-bottom:20px;" id="requiredLeadersCard">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-                            <div>
-                                <h2 style="margin:0 0 4px;">Required Leaders</h2>
-                                <small style="color:var(--text-muted);">Roles not yet assigned &mdash; these positions still need to be filled.</small>
-                            </div>
-                            <button onclick="printRequiredLeadersTable()" style="background:#dc2626;color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;">
-                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                                Print Required Leaders
-                            </button>
-                        </div>
-                        <?php
-                        $req_rows = [];
-                        foreach ($hierarchy as $dept => $roles) {
-                            $context_department = $hierarchy_department_names[$dept] ?? '';
-                            foreach ($roles as $expected_role) {
-                                if ($role_is_available($expected_role, $context_department)) {
-                                    $req_rows[$dept][] = $expected_role;
-                                }
-                            }
-                        }
-                        if (empty($req_rows)): ?>
-                            <p style="color:#10b981;font-weight:600;">&#10003; All required leadership positions are currently filled!</p>
-                        <?php else: ?>
-                        <div class="table-responsive">
-                            <table id="requiredLeadersTable">
-                                <thead>
-                                    <tr>
-                                        <th style="width:35%">Department</th>
-                                        <th>Unfilled Position</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                <?php foreach ($req_rows as $dept => $dept_roles): ?>
-                                    <?php $first = true; foreach ($dept_roles as $role): ?>
-                                    <tr>
-                                        <?php if ($first): ?>
-                                        <td rowspan="<?= count($dept_roles) ?>" style="font-weight:700;color:var(--primary);vertical-align:top;padding-top:10px;">
-                                            <?= htmlspecialchars($dept) ?>
-                                        </td>
-                                        <?php $first = false; endif; ?>
-                                        <td>
-                                            <span class="badge" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;font-weight:700;">
-                                                &#9679; <?= htmlspecialchars(role_display_label($role, $hierarchy_department_names[$dept] ?? '')) ?>
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                        <?php endif; ?>
-                    </div>
                     <!-- Assign Role Form -->
                     <div class="content-card" style="flex: 1; min-width: 300px; margin-bottom: 20px;">
                         <h2>Assign to Member</h2>
@@ -3551,7 +3496,13 @@ w.document.write('</div>');
                 </div>
                 
                 <div class="content-card">
-                    <h2 style="margin-bottom: 20px;">Currently Assigned Roles</h2>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+                        <h2 style="margin:0;">Currently Assigned Roles</h2>
+                        <button onclick="printRequiredLeadersTable()" style="background:#1e3a8a;color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                            Print Leaders Table
+                        </button>
+                    </div>
                     <?php 
                     $assigned_roles_q = $conn->query("SELECT id, first_name, last_name, department, church_role, profile_picture FROM members WHERE church_role IS NOT NULL AND church_role != '' AND LOWER(TRIM(church_role)) != 'member'");
                     
