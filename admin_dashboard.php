@@ -1609,6 +1609,7 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     var leaderName = leaderSpan ? leaderSpan.getAttribute('data-name') : 'N/A';
     var viceName   = leaderSpan ? leaderSpan.getAttribute('data-vice') : 'N/A';
     var displayNames = (viceName && viceName !== 'N/A') ? (leaderName + ' / ' + viceName) : leaderName;
+    var sigRoleTitle = (viceName && viceName !== 'N/A') ? (leaderRole + ' / VICE') : leaderRole;
     var leaderPic  = leaderSpan ? leaderSpan.getAttribute('data-pic') : 'uploads/default_avatar.png';
     var leaderRole = leaderSpan ? leaderSpan.getAttribute('data-role') : 'Chairperson';
 
@@ -1665,7 +1666,7 @@ w.document.write('</div>');
     w.document.write('<div style="font-size:0.75rem;color:#333;margin-bottom:8px;">' + pastorName + '</div>');
     w.document.write('<div style="display:flex;align-items:flex-end;gap:8px;"><span style="font-style:italic;">Sign:</span><span style="display:inline-block;border-bottom:1px solid #000;width:200px;height:14px;"></span></div>');
     w.document.write('<div style="display:flex;align-items:flex-end;gap:8px;margin-top:10px;"><span>Date:</span><span style="display:inline-block;border-bottom:1px dotted #000;width:200px;height:14px;"></span></div></div>');
-    w.document.write('<div style="text-align:center;"><div style="font-size:0.82rem;font-weight:700;text-transform:uppercase;color:#1e3a8a;">' + leaderRole + ' / VICE</div>');
+    w.document.write('<div style="text-align:center;"><div style="font-size:0.82rem;font-weight:700;text-transform:uppercase;color:#1e3a8a;">' + sigRoleTitle.toUpperCase() + '</div>');
     w.document.write('<div style="font-size:0.75rem;color:#333;margin-bottom:8px;">' + displayNames + '</div>');
     w.document.write('<div style="display:flex;align-items:flex-end;gap:8px;"><span style="font-style:italic;">Sign:</span><span style="display:inline-block;border-bottom:1px solid #000;width:200px;height:14px;"></span></div>');
     w.document.write('<div style="display:flex;align-items:flex-end;gap:8px;margin-top:10px;"><span>Date:</span><span style="display:inline-block;border-bottom:1px dotted #000;width:200px;height:14px;"></span></div></div>');
@@ -1734,32 +1735,36 @@ w.document.write('</div>');
                         return strcmp($a['first_name'], $b['first_name']);
                     });
 
-                    // Find top leader (chairman/chairperson/chairlady) for this dept
-                    $dept_leader = null;
-                    $lq = $conn->query("SELECT * FROM members WHERE is_approved=1 AND department='$dept_esc'
-                        AND LOWER(church_role) REGEXP '(^|, *)(youth |women |elder |sunday school )?(chairman|chairperson|chairlady)( *,|$)'
-                        LIMIT 1");
-                    if ($lq && $lq->num_rows > 0) $dept_leader = $lq->fetch_assoc();
-
-                    // Find vice leader
-                    $vice_leader = null;
-                    $vq = $conn->query("SELECT * FROM members WHERE is_approved=1 AND department='$dept_esc'
-                        AND LOWER(church_role) REGEXP '(^|, *)vice (youth |women |elder |sunday school )?(chairman|chairperson|chairlady)( *,|$)'
-                        LIMIT 1");
-                    if ($vq && $vq->num_rows > 0) $vice_leader = $vq->fetch_assoc();
-
-                    $leader_name = $dept_leader ? strtoupper(trim($dept_leader['first_name'].' '.$dept_leader['last_name'])) : 'N/A';
-                    $leader_pic  = $dept_leader ? ($dept_leader['profile_picture'] ?? 'default_avatar.png') : 'default_avatar.png';
+                    // Find top leaders dynamically based on rank (1 = Chair, 2 = Vice, 3 = Sec, etc.)
+                    $highest_leader = null;
+                    $second_leader = null;
                     
-                    $vice_name = $vice_leader ? strtoupper(trim($vice_leader['first_name'].' '.$vice_leader['last_name'])) : 'N/A';
+                    foreach ($dept_members_arr as $dm) {
+                        $rank = (int)($dm['role_rank'] ?? 99);
+                        if ($rank > 0 && $rank < 99) {
+                            if (!$highest_leader) {
+                                $highest_leader = $dm;
+                            } elseif (!$second_leader) {
+                                $second_leader = $dm;
+                                break;
+                            }
+                        }
+                    }
+
+                    $leader_name = $highest_leader ? strtoupper(trim($highest_leader['first_name'].' '.$highest_leader['last_name'])) : 'N/A';
+                    $leader_pic  = $highest_leader ? ($highest_leader['profile_picture'] ?? 'default_avatar.png') : 'default_avatar.png';
                     
-                    $raw_role = $dept_leader ? ($dept_leader['church_role'] ?? 'Chairperson') : 'Chairperson';
-                    $role_parts = explode(',', $raw_role);
-                    $leader_role = 'Chairperson';
-                    foreach ($role_parts as $r) {
-                        if (preg_match('/chairman|chairperson|chairlady/i', $r)) {
-                            $leader_role = trim($r);
-                            break;
+                    $vice_name = $second_leader ? strtoupper(trim($second_leader['first_name'].' '.$second_leader['last_name'])) : 'N/A';
+                    
+                    $leader_role = 'Leader';
+                    if ($highest_leader && !empty($highest_leader['church_role'])) {
+                        $role_parts = explode(',', $highest_leader['church_role']);
+                        foreach ($role_parts as $r) {
+                            $tr = trim($r);
+                            if (strtolower($tr) !== 'member' && $tr !== '' && stripos($tr, 'village leader') === false) {
+                                $leader_role = $tr;
+                                break;
+                            }
                         }
                     }
                     

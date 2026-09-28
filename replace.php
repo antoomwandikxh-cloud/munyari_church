@@ -1,60 +1,90 @@
 ﻿<?php
-$content = file_get_contents('role_departments.php');
+$content = file_get_contents('pastor_dashboard.php');
 $old = <<<'EOT'
-        CASE 
-            WHEN LOWER($column) LIKE '%youth chairperson%' OR LOWER($column) LIKE '%women chairlady%' OR LOWER($column) LIKE '%elder chairman%' OR LOWER($column) LIKE '%sunday school patron%' OR LOWER($column) LIKE '%general church secretary%' THEN 1
-            WHEN LOWER($column) LIKE '%vice youth chairperson%' OR LOWER($column) LIKE '%vice women chairlady%' OR LOWER($column) LIKE '%vice elder chairman%' OR LOWER($column) LIKE '%vice sunday school patron%' THEN 2
-            WHEN LOWER($column) LIKE '%youth secretary%' OR LOWER($column) LIKE '%women secretary%' OR LOWER($column) LIKE '%elder secretary%' OR LOWER($column) LIKE '%sunday school secretary%' THEN 3
-            WHEN LOWER($column) LIKE '%vice church secretary%' OR LOWER($column) LIKE '%vice youth secretary%' OR LOWER($column) LIKE '%vice women secretary%' OR LOWER($column) LIKE '%vice elder secretary%' OR LOWER($column) LIKE '%vice sunday school secretary%' THEN 4
-            WHEN LOWER($column) LIKE '%youth treasurer%' OR LOWER($column) LIKE '%women treasurer%' OR LOWER($column) LIKE '%elder treasurer%' OR LOWER($column) LIKE '%sunday school treasurer%' OR (LOWER($column) LIKE '%treasurer%' AND LOWER($column) NOT LIKE '%building treasurer%') THEN 5
-            WHEN LOWER($column) LIKE '%mama youth%' OR LOWER($column) LIKE '%baba youth%' THEN 6
-            WHEN LOWER($column) LIKE '%head usher%' THEN 10
-            WHEN LOWER($column) LIKE '%usher%' AND LOWER($column) NOT LIKE '%head usher%' THEN 11
-            WHEN LOWER($column) LIKE '%building chairperson%' THEN 12
-            WHEN LOWER($column) LIKE '%vice building chairperson%' THEN 13
-            WHEN LOWER($column) LIKE '%building secretary%' THEN 14
-            WHEN LOWER($column) LIKE '%vice building secretary%' THEN 15
-            WHEN LOWER($column) LIKE '%building treasurer%' THEN 16
-            WHEN LOWER($column) LIKE '%organizing secretary%' THEN 20
-            WHEN LOWER($column) LIKE '%discipline master%' THEN 21
-            WHEN LOWER($column) LIKE '%graduands secretary%' THEN 22
-            WHEN LOWER($column) LIKE '%prayer coordinator%' THEN 23
-            WHEN LOWER($column) LIKE '%sport secretary%' OR LOWER($column) LIKE '%sports secretary%' THEN 24
-            WHEN LOWER($column) LIKE '%choir leader%' THEN 25
-            WHEN LOWER(TRIM(COALESCE($column, ''))) = 'member' THEN 90
-            WHEN TRIM(COALESCE($column, '')) = '' THEN 90
-            ELSE 40
-        END
+                    // Find top leader (chairman/chairperson/chairlady) for this dept
+                    $dept_leader = null;
+                    $lq = $conn->query("SELECT * FROM members WHERE is_approved=1 AND department='$dept_esc'
+                        AND LOWER(church_role) REGEXP '(^|, *)(youth |women |elder |sunday school )?(chairman|chairperson|chairlady)( *,|$)'
+                        LIMIT 1");
+                    if ($lq && $lq->num_rows > 0) $dept_leader = $lq->fetch_assoc();
+
+                    // Find vice leader
+                    $vice_leader = null;
+                    $vq = $conn->query("SELECT * FROM members WHERE is_approved=1 AND department='$dept_esc'
+                        AND LOWER(church_role) REGEXP '(^|, *)vice (youth |women |elder |sunday school )?(chairman|chairperson|chairlady)( *,|$)'
+                        LIMIT 1");
+                    if ($vq && $vq->num_rows > 0) $vice_leader = $vq->fetch_assoc();
+
+                    $leader_name = $dept_leader ? strtoupper(trim($dept_leader['first_name'].' '.$dept_leader['last_name'])) : 'N/A';
+                    $leader_pic  = $dept_leader ? ($dept_leader['profile_picture'] ?? 'default_avatar.png') : 'default_avatar.png';
+                    
+                    $vice_name = $vice_leader ? strtoupper(trim($vice_leader['first_name'].' '.$vice_leader['last_name'])) : 'N/A';
+                    
+                    $raw_role = $dept_leader ? ($dept_leader['church_role'] ?? 'Chairperson') : 'Chairperson';
+                    $role_parts = explode(',', $raw_role);
+                    $leader_role = 'Chairperson';
+                    foreach ($role_parts as $r) {
+                        if (preg_match('/chairman|chairperson|chairlady/i', $r)) {
+                            $leader_role = trim($r);
+                            break;
+                        }
+                    }
 EOT;
 
 $old = str_replace("\r", "", $old);
 $content = str_replace("\r", "", $content);
 
 $new_repl = <<<'EOT'
-        CASE 
-            WHEN LOWER($column) REGEXP '(^|, *)(youth |women |elder |sunday school |building )?(chairman|chairperson|chairlady|patron)( *,|$)' THEN 1
-            WHEN LOWER($column) REGEXP '(^|, *)vice (youth |women |elder |sunday school |building )?(chairman|chairperson|chairlady|patron)( *,|$)' THEN 2
-            WHEN LOWER($column) REGEXP '(^|, *)(general church |youth |women |elder |sunday school |building |organizing |sport |sports |graduands |choir |prayer )?secretary( *,|$)' THEN 3
-            WHEN LOWER($column) REGEXP '(^|, *)vice (general church |youth |women |elder |sunday school |building |organizing |sport |sports |graduands |choir |prayer )?secretary( *,|$)' THEN 4
-            WHEN LOWER($column) REGEXP '(^|, *)(youth |women |elder |sunday school |building )?treasurer( *,|$)' THEN 5
-            WHEN LOWER($column) REGEXP '(^|, *)vice (youth |women |elder |sunday school |building )?treasurer( *,|$)' THEN 6
-            WHEN LOWER($column) REGEXP '(^|, *)(mama youth|baba youth)( *,|$)' THEN 7
-            WHEN LOWER($column) REGEXP '(^|, *)head usher( *,|$)' THEN 10
-            WHEN LOWER($column) REGEXP '(^|, *)usher( *,|$)' THEN 11
-            WHEN LOWER($column) REGEXP '(^|, *)discipline master( *,|$)' THEN 21
-            WHEN LOWER($column) REGEXP '(^|, *)prayer coordinator( *,|$)' THEN 23
-            WHEN LOWER($column) REGEXP '(^|, *)choir leader( *,|$)' THEN 25
-            WHEN LOWER(TRIM(COALESCE($column, ''))) = 'member' THEN 90
-            WHEN TRIM(COALESCE($column, '')) = '' THEN 90
-            ELSE 40
-        END
+                    // Find top leaders dynamically based on rank (1 = Chair, 2 = Vice, 3 = Sec, etc.)
+                    $highest_leader = null;
+                    $second_leader = null;
+                    
+                    foreach ($dept_members_arr as $dm) {
+                        $rank = (int)($dm['role_rank'] ?? 99);
+                        if ($rank > 0 && $rank < 99) {
+                            if (!$highest_leader) {
+                                $highest_leader = $dm;
+                            } elseif (!$second_leader) {
+                                $second_leader = $dm;
+                                break;
+                            }
+                        }
+                    }
+
+                    $leader_name = $highest_leader ? strtoupper(trim($highest_leader['first_name'].' '.$highest_leader['last_name'])) : 'N/A';
+                    $leader_pic  = $highest_leader ? ($highest_leader['profile_picture'] ?? 'default_avatar.png') : 'default_avatar.png';
+                    
+                    $vice_name = $second_leader ? strtoupper(trim($second_leader['first_name'].' '.$second_leader['last_name'])) : 'N/A';
+                    
+                    $leader_role = 'Leader';
+                    if ($highest_leader && !empty($highest_leader['church_role'])) {
+                        $role_parts = explode(',', $highest_leader['church_role']);
+                        foreach ($role_parts as $r) {
+                            $tr = trim($r);
+                            if (strtolower($tr) !== 'member' && $tr !== '' && stripos($tr, 'village leader') === false) {
+                                $leader_role = $tr;
+                                break;
+                            }
+                        }
+                    }
 EOT;
 
 if (strpos($content, $old) !== false) {
     $content = str_replace($old, $new_repl, $content);
-    file_put_contents('role_departments.php', $content);
-    echo "Success\n";
+    file_put_contents('pastor_dashboard.php', $content);
+    echo "Success replacing in pastor_dashboard.php\n";
 } else {
-    echo "Could not find old text\n";
+    echo "Could not find old text in pastor_dashboard.php\n";
 }
+
+$content_admin = file_get_contents('admin_dashboard.php');
+$content_admin = str_replace("\r", "", $content_admin);
+if (strpos($content_admin, $old) !== false) {
+    $content_admin = str_replace($old, $new_repl, $content_admin);
+    file_put_contents('admin_dashboard.php', $content_admin);
+    echo "Success replacing in admin_dashboard.php\n";
+} else {
+    echo "Could not find old text in admin_dashboard.php\n";
+}
+
 ?>
