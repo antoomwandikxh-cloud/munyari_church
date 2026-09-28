@@ -4,7 +4,7 @@ session_start();
 $allowed = isset($_SESSION['admin_id']) || isset($_SESSION['pastor_id']);
 if (!$allowed) { header('Location: login.php'); exit(); }
 
-require_once 'db.php';
+require_once 'db_connect.php';
 require_once 'role_departments.php';
 
 $orientation = (isset($_GET['orientation']) && $_GET['orientation'] === 'landscape') ? 'landscape' : 'portrait';
