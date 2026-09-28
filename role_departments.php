@@ -171,7 +171,8 @@ function role_assignment_departments($role, $context_department = null) {
     }
 
     if (is_building_leadership_role($role)) {
-        return []; // Building roles are open to all members
+        // Building roles open to all departments EXCEPT Sunday School
+        return ['General Church', 'Youths', 'Womens Ministry', 'Elders', 'Building'];
     }
 
     $department = department_for_role($role);

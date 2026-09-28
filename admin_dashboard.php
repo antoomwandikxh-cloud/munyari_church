@@ -2237,7 +2237,7 @@ w.document.write('</div>');
                                     'youths': ['youths', 'youth ministry', 'youth'],
                                     'elders': ['elders', 'elder ministry'],
                                     'sunday school': ['sunday school'],
-                                    'building': ['building']
+                                    'building': ['general church', 'youths', 'youth ministry', 'youth', 'womens ministry', "women's ministry", 'women ministry', 'women', 'elders', 'elder ministry', 'building']
                                 };
                                 const matchesDepartment = (memberDepartment, allowedDepartment) => {
                                     const memberNorm = normalize(memberDepartment);
