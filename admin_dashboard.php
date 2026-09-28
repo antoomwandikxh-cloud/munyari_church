@@ -3304,6 +3304,7 @@ w.document.write('</div>');
                         </div>
                     </div>
                 </div>
+                <?php
                 $villages = ['Akoritho', 'Philadelphia', 'Bethsaida'];
                 $village_colors = ['Akoritho' => '#6366f1', 'Philadelphia' => '#0ea5e9', 'Bethsaida' => '#10b981'];
                 ?>
