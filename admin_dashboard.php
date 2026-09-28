@@ -2188,12 +2188,14 @@ w.document.write('</div>');
                                         $context_department = $hierarchy_department_names[$dept] ?? '';
                                         $options_html = '';
                                         foreach ($roles as $expected_role) {
+                                            $val = htmlspecialchars($expected_role);
+                                            $allowed = htmlspecialchars(json_encode(role_assignment_departments($expected_role, $context_department)));
+                                            $assignment_department = htmlspecialchars($context_department);
+                                            $label = htmlspecialchars($expected_role);
                                             if ($role_is_available($expected_role, $context_department)) {
-                                                $val = htmlspecialchars($expected_role);
-                                                $allowed = htmlspecialchars(json_encode(role_assignment_departments($expected_role, $context_department)));
-                                                $assignment_department = htmlspecialchars($context_department);
-                                                $label = htmlspecialchars($expected_role);
                                                 $options_html .= "<option value=\"$val\" data-allowed='$allowed' data-assignment-department=\"$assignment_department\">$label</option>";
+                                            } else {
+                                                $options_html .= "<option value=\"$val\" data-taken=\"true\" style=\"color:var(--text-muted);\" data-allowed='$allowed' data-assignment-department=\"$assignment_department\">&#128274; $label (Taken)</option>";
                                             }
                                         }
                                         if ($options_html !== '') {
@@ -2248,6 +2250,26 @@ w.document.write('</div>');
 
                                 roleSelect.addEventListener('change', function() {
                                     const selected = roleSelect.options[roleSelect.selectedIndex];
+                                    if (selected && selected.dataset.taken === 'true') {
+                                        alert('🔒 This role is already assigned!\n\nYou will now be taken to the Currently Assigned Roles table so you can remove the current leader before assigning a new one.');
+                                        const currentRolesTable = document.getElementById('currentlyAssignedRolesTable');
+                                        if (currentRolesTable) {
+                                            currentRolesTable.scrollIntoView({behavior: 'smooth'});
+                                            const highlightRole = selected.value.toLowerCase();
+                                            const rows = currentRolesTable.querySelectorAll('tbody tr');
+                                            rows.forEach(row => {
+                                                if (row.innerText.toLowerCase().includes(highlightRole)) {
+                                                    row.style.transition = 'background-color 0.5s';
+                                                    row.style.backgroundColor = '#fef3c7';
+                                                    setTimeout(() => row.style.backgroundColor = '', 3000);
+                                                }
+                                            });
+                                        }
+                                        roleSelect.value = '';
+                                        memberSelect.innerHTML = '<option value="">-- Select Member --</option>';
+                                        memberSelect.disabled = true;
+                                        return;
+                                    }
                                     const selectedVal = roleSelect.value.toLowerCase();
                                     const allowed = selected && selected.dataset.allowed ? JSON.parse(selected.dataset.allowed) : [];
                                     const assignmentDepartment = selected && selected.dataset.assignmentDepartment ? selected.dataset.assignmentDepartment : '';
