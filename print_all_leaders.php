@@ -368,7 +368,7 @@ foreach($leader_sections as $sk => $section):
   </div>
 </div>
 
-
+<div class="footer">Generated from E.A.P.C Munyari Portal | Printed on: <?=htmlspecialchars($print_date)?></div>
 
 <script>
 window.addEventListener('load', function(){ window.print(); });
