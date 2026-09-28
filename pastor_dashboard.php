@@ -3412,7 +3412,7 @@ w.document.write('</div>');
                 </div>
 
                 <!-- NEW: Leaders Needed -->
-                <div class="content-card" style="margin-bottom: 30px;">
+                <div class="content-card" style="margin-bottom: 30px;" id="requiredLeadersCard">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
                         <h2 style="margin:0;">Required Leaders Table</h2>
                         <button onclick="printRequiredLeadersTable()" style="background:#1e3a8a;color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;">
