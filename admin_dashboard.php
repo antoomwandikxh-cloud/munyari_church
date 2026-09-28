@@ -2914,9 +2914,10 @@ w.document.write('</div>');
                                 <option value="Bethsaida">Bethsaida</option>
                             </select>
                         </div>
-                        <div style="flex:1; min-width:200px;">
+                        <div style="flex:1; min-width:200px; position:relative;">
                             <label style="display:block; font-size:0.85rem; font-weight:600; color:var(--text-muted); margin-bottom:6px;">Member</label>
-                            <select name="leader_id" id="avl_mem" required style="width:100%; padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-lighter); color:var(--text-main);" onmousedown="if(!document.getElementById('avl_sel').value){event.preventDefault();alert('⚠️ Please select a Church Village first!');document.getElementById('avl_sel').focus();}">
+                            <div id="avl_overlay" style="position:absolute;top:22px;left:0;right:0;bottom:0;z-index:10;cursor:pointer;" onclick="alert('⚠️ Please select a Church Village first!');document.getElementById('avl_sel').focus();"></div>
+                            <select name="leader_id" id="avl_mem" required style="width:100%; padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-lighter); color:var(--text-main); opacity:0.5;">
                                 <option value="">-- Choose Member --</option>
                                 <?php
                                 $mems = $conn->query("SELECT id, first_name, last_name, church_village FROM members WHERE is_approved = 1 AND church_village IN ('Akoritho', 'Philadelphia', 'Bethsaida') ORDER BY church_village, first_name");
@@ -2926,7 +2927,7 @@ w.document.write('</div>');
                         </div>
                         <div><button type="submit" class="btn-primary">Assign Leader</button></div>
                     </form>
-                    <script>function avlFilter(v){document.getElementById('avl_mem').querySelectorAll('option[data-v]').forEach(function(o){o.style.display=o.getAttribute('data-v')===v?'':'none';});}</script>
+                    <script>function avlFilter(v){var s=document.getElementById('avl_mem');var o=document.getElementById('avl_overlay');s.value='';if(v){o.style.display='none';s.style.opacity='1';}else{o.style.display='block';s.style.opacity='0.5';}s.querySelectorAll('option[data-v]').forEach(function(opt){opt.style.display=opt.getAttribute('data-v')===v?'':'none';});}</script>
                 </div>
                 <?php
                 $villages = ['Akoritho', 'Philadelphia', 'Bethsaida'];
