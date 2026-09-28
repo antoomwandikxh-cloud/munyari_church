@@ -1,6 +1,22 @@
 <?php
 session_start();
 require_once 'db_connect.php';
+if (isset($_POST['add_custom_role'])) {
+    $role_name = trim($_POST['custom_role_name']);
+    if (!empty($role_name)) {
+        $stmt = $conn->prepare("INSERT IGNORE INTO custom_desired_roles (role_name) VALUES (?)");
+        $stmt->bind_param("s", $role_name);
+        $stmt->execute();
+        header("Location: " . basename($_SERVER['PHP_SELF']) . "?tab=desired_roles&success=" . urlencode("Custom role '$role_name' added successfully"));
+        exit;
+    }
+}
+if (isset($_GET['delete_custom_role'])) {
+    $role_id = (int)$_GET['delete_custom_role'];
+    $conn->query("DELETE FROM custom_desired_roles WHERE id = $role_id");
+    header("Location: " . basename($_SERVER['PHP_SELF']) . "?tab=desired_roles&success=Custom role deleted");
+    exit;
+}
 require_once 'role_departments.php';
 
 // Strip (subsidiary) for display
@@ -2634,6 +2650,43 @@ w.document.write('</div>');
                 </div>
                 <?php endif; ?>
                 <?php
+                
+                ?>
+                <!-- ─── Customize Desired Roles ─── -->
+                <div class="content-card" style="margin-bottom:30px; border-left:4px solid #8b5cf6;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:20px;">
+                        <div style="flex:1; min-width:260px;">
+                            <h2 style="margin-bottom:8px; color:#4c1d95; font-size:1.1rem;">✏️ Customize Desired Roles</h2>
+                            <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 14px;">Add custom volunteer roles (e.g. <em>"Assisting elderly"</em>) that members can choose from in their profile.</p>
+                            <form method="POST" action="?tab=desired_roles" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                                <input type="text" name="custom_role_name" placeholder="e.g. Assisting elderly..." required
+                                    style="padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-lighter); color:var(--text-main); width:260px;">
+                                <button type="submit" name="add_custom_role"
+                                    style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600;">
+                                    + Add Role
+                                </button>
+                            </form>
+                        </div>
+                        <div style="flex:1; min-width:260px; background:var(--bg-main); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
+                            <h3 style="margin:0 0 10px; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Saved Roles</h3>
+                            <?php
+                            $cr_list = $conn->query("SELECT * FROM custom_desired_roles ORDER BY id ASC");
+                            if ($cr_list && $cr_list->num_rows > 0):
+                                echo '<div style="display:flex; flex-direction:column; gap:6px;">';
+                                while ($cr = $cr_list->fetch_assoc()):
+                            ?>
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-lighter); padding:8px 12px; border-radius:6px;">
+                                    <span style="font-size:0.88rem; color:var(--text-main); font-weight:500;">✨ <?= htmlspecialchars($cr['role_name']) ?></span>
+                                    <a href="?tab=desired_roles&delete_custom_role=<?= $cr['id'] ?>"
+                                        onclick="return confirm('Delete role: <?= addslashes($cr['role_name']) ?>?')"
+                                        style="color:#ef4444; text-decoration:none; font-size:1.2rem; font-weight:bold; line-height:1;">&times;</a>
+                                </div>
+                            <?php endwhile; echo '</div>'; else: ?>
+                                <p style="margin:0; font-size:0.85rem; color:var(--text-muted); font-style:italic;">No custom roles yet. Add one on the left!</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
                 $villages = ['Akoritho', 'Philadelphia', 'Bethsaida'];
                 $village_colors = ['Akoritho' => '#6366f1', 'Philadelphia' => '#0ea5e9', 'Bethsaida' => '#10b981'];
                 ?>
