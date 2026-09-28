@@ -2254,24 +2254,33 @@ w.document.write('</div>');
                                         alert('\uD83D\uDD12 This role is already assigned!\n\nYou will now be taken to the Currently Assigned Roles table so you can remove the current leader before assigning a new one.');
                                         const currentRolesTable = document.getElementById('currentlyAssignedRolesTable');
                                         if (currentRolesTable) {
-                                            const highlightRole = selected.value.toLowerCase();
-                                            const rows = currentRolesTable.querySelectorAll('tbody tr');
+                                            const roleParam = 'role=' + encodeURIComponent(selected.value);
+                                            // The URL uses urlencode which might convert spaces to +, but encodeURIComponent converts to %20.
+                                            // Let's use a simpler approach: check if href includes the role name directly or just search all links
+                                            const expectedVal = selected.value.toLowerCase();
                                             let targetRow = null;
-                                            rows.forEach(row => {
-                                                if (row.innerText.toLowerCase().includes(highlightRole)) {
-                                                    targetRow = row;
-                                                    row.style.transition = 'background-color 0.5s';
-                                                    row.style.backgroundColor = '#fef3c7';
-                                                    setTimeout(() => row.style.backgroundColor = '', 3000);
+                                            const removeLinks = currentRolesTable.querySelectorAll('a[href*="action=remove_role"]');
+                                            removeLinks.forEach(link => {
+                                                const match = link.href.match(/[?&]role=([^&]+)/);
+                                                if (match) {
+                                                    const linkRole = decodeURIComponent(match[1].replace(/\+/g, '%20'));
+                                                    if (linkRole.toLowerCase() === expectedVal) {
+                                                        targetRow = link.closest('tr');
+                                                        targetRow.style.transition = 'background-color 0.5s';
+                                                        targetRow.style.backgroundColor = '#fef3c7';
+                                                        setTimeout(() => targetRow.style.backgroundColor = '', 3000);
+                                                    }
                                                 }
                                             });
                                             setTimeout(() => {
                                                 if (targetRow) {
+                                                    targetRow.id = 'targetRowHighlight';
+                                                    window.location.hash = 'targetRowHighlight';
                                                     targetRow.scrollIntoView({behavior: 'smooth', block: 'center'});
                                                 } else {
-                                                    currentRolesTable.scrollIntoView({behavior: 'smooth', block: 'start'});
+                                                    window.location.hash = 'currentlyAssignedRolesTable';
                                                 }
-                                            }, 50);
+                                            }, 300);
                                         }
                                         roleSelect.value = '';
                                         memberSelect.innerHTML = '<option value="">-- Select Member --</option>';
