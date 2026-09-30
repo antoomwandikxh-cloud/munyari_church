@@ -2659,7 +2659,7 @@ w.document.write('</div>');
                             <h2 style="margin-bottom:8px; color:#4c1d95; font-size:1.1rem;">✏️ Customize Desired Roles</h2>
                             <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 14px;">Add custom volunteer roles (e.g. <em>"Assisting elderly"</em>) that members can choose from in their profile.</p>
                             <form method="POST" action="?tab=desired_roles" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                                <input type="text" name="custom_role_name" placeholder="e.g. Assisting elderly..." required
+                                <input type="text" name="custom_role_name" placeholder="e.g. Church Cookers" required
                                     style="padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-lighter); color:var(--text-main); width:260px;">
                                 <button type="submit" name="add_custom_role"
                                     style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600;">
