@@ -3423,141 +3423,48 @@ w.document.write('</div>');
                     <?php endif; ?>
                 </div>
                 <?php endforeach; ?>
-                
-                <hr style="border:0; border-top:2px solid var(--border-color); margin:30px 0;">
-                
-                <!-- ═══ SECTION 2: Church Cleaners ═══ -->
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+                <!-- Volunteer Roles Sections (All roles from DB) -->
+                <?php
+                $badge_colors_map = ['Church Cleaner' => '#0ea5e9', 'Church Cooker' => '#f59e0b'];
+                $badge_icons_map  = ['Church Cleaner' => '🧹', 'Church Cooker' => '🍳'];
+                ?>
+                <!-- Print Button Header -->
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
                     <h2 style="font-size:1.1rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin:0; display:flex; align-items:center; gap:10px;">
-                        <span style="font-size:1.3rem;">🧹</span> Church Cleaners &amp; Cookers
+                        <span style="font-size:1.3rem;">🙋</span> Volunteer Roles &mdash; All Villages
                     </h2>
                     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                        <span style="font-size:0.9rem; font-weight:800; color:var(--text-main); margin-right:4px;">Print Cleaners &amp; Cookers:</span>
-                        <a href="print_volunteers.php?mode=landscape" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:white;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(245,158,11,0.3);">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                            Print Landscape
-                        </a>
-                        <a href="print_volunteers.php?mode=portrait" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#d97706,#b45309);color:white;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(217,119,6,0.3);">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                            Print Portrait
-                        </a>
+                        <span style="font-size:0.9rem; font-weight:800; color:var(--text-main);">Print All:</span>
+                        <a href="print_volunteers.php?mode=landscape" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:white;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(245,158,11,0.3);">🖨 Print Landscape</a>
+                        <a href="print_volunteers.php?mode=portrait" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#d97706,#b45309);color:white;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(217,119,6,0.3);">🖨 Print Portrait</a>
                     </div>
                 </div>
-                <div class="content-card" style="margin-bottom:28px; border-top:4px solid #0ea5e9;">
-                    <?php
-                    $cleaners = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone FROM members WHERE desired_role_pref='Church Cleaner' ORDER BY church_village, first_name");
-                    $cleaners_count = $cleaners ? $cleaners->num_rows : 0;
-                    ?>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                        <h3 style="margin:0; color:#0ea5e9;">🧹 Church Cleaners</h3>
-                        <span class="badge" style="background:#0ea5e922; color:#0ea5e9; font-size:1rem; padding:6px 14px;"><?= $cleaners_count ?> Volunteers</span>
-                    </div>
-                    <?php if ($cleaners_count > 0): ?>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Full Name</th>
-                                    <th>Village</th>
-                                    <th>Department</th>
-                                    <th>Phone</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            <?php $i = 1; while($cl = $cleaners->fetch_assoc()): 
-                                $vc = $village_colors[$cl['church_village']] ?? '#94a3b8';
-                            ?>
-                            <tr>
-                                <td style="color:var(--text-muted);"><?= $i++ ?></td>
-                                <td style="font-weight:600;"><?= htmlspecialchars($cl['first_name'] . ' ' . $cl['last_name']) ?></td>
-                                <td><span class="badge" style="background:<?= $vc ?>22; color:<?= $vc ?>;"><?= htmlspecialchars($cl['church_village'] ?: '—') ?></span></td>
-                                <td><?= htmlspecialchars($cl['department'] ?: 'General Church') ?></td>
-                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($cl['phone'] ?? '—') ?></td>
-                            </tr>
-                            <?php endwhile; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                    <?php else: ?>
-                    <p style="color:var(--text-muted); text-align:center; padding:20px 0;">No members have volunteered as Church Cleaners yet.</p>
-                    <?php endif; ?>
-                </div>
-                
-                <!-- ═══ SECTION 3: Church Cookers ═══ -->
-                <h2 style="font-size:1.1rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:1.3rem;">🍳</span> Church Cookers — All Villages
-                </h2>
-                <div class="content-card" style="margin-bottom:28px; border-top:4px solid #f59e0b;">
-                    <?php
-                    $cookers = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone FROM members WHERE desired_role_pref='Church Cooker' ORDER BY church_village, first_name");
-                    $cookers_count = $cookers ? $cookers->num_rows : 0;
-                    ?>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                        <h3 style="margin:0; color:#f59e0b;">🍳 Church Cookers</h3>
-                        <span class="badge" style="background:#f59e0b22; color:#f59e0b; font-size:1rem; padding:6px 14px;"><?= $cookers_count ?> Volunteers</span>
-                    </div>
-                    <?php if ($cookers_count > 0): ?>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Full Name</th>
-                                    <th>Village</th>
-                                    <th>Department</th>
-                                    <th>Phone</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            <?php $i = 1; while($ck = $cookers->fetch_assoc()): 
-                                $vc = $village_colors[$ck['church_village']] ?? '#94a3b8';
-                            ?>
-                            <tr>
-                                <td style="color:var(--text-muted);"><?= $i++ ?></td>
-                                <td style="font-weight:600;"><?= htmlspecialchars($ck['first_name'] . ' ' . $ck['last_name']) ?></td>
-                                <td><span class="badge" style="background:<?= $vc ?>22; color:<?= $vc ?>;"><?= htmlspecialchars($ck['church_village'] ?: '—') ?></span></td>
-                                <td><?= htmlspecialchars($ck['department'] ?: 'General Church') ?></td>
-                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($ck['phone'] ?? '—') ?></td>
-                            </tr>
-                            <?php endwhile; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                    <?php else: ?>
-                    <p style="color:var(--text-muted); text-align:center; padding:20px 0;">No members have volunteered as Church Cookers yet.</p>
-                                        <?php endif; ?>
-                </div>
-
-                <!-- Custom Roles Sections -->
                 <?php
                 $cr_query = $conn->query("SELECT * FROM custom_desired_roles ORDER BY id ASC");
                 if ($cr_query && $cr_query->num_rows > 0):
                     while ($cr = $cr_query->fetch_assoc()):
-                        $c_role = $cr['role_name'];
+                        $c_role     = $cr['role_name'];
                         $c_role_esc = $conn->real_escape_string($c_role);
+                        $c_color    = $badge_colors_map[$c_role] ?? '#8b5cf6';
+                        $c_icon     = $badge_icons_map[$c_role]  ?? '✨';
                         $cmems = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone FROM members WHERE desired_role_pref='$c_role_esc' ORDER BY church_village, first_name");
+                        $c_count = $cmems ? $cmems->num_rows : 0;
                 ?>
-                <div class="content-card" style="margin-bottom: 30px;">
+                <div class="content-card" style="margin-bottom: 24px; border-top: 4px solid <?= $c_color ?>;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                        <h3 style="margin:0; color:#4c1d95; font-size:1.1rem;">
-                            <span style="font-size:1.3rem;">✨</span> <?= htmlspecialchars($c_role) ?> - All Villages
+                        <h3 style="margin:0; color:<?= $c_color ?>; font-size:1.05rem;">
+                            <?= $c_icon ?> <?= htmlspecialchars($c_role) ?> &mdash; All Villages
                         </h3>
+                        <span class="badge" style="background:<?= $c_color ?>22; color:<?= $c_color ?>; font-size:0.95rem; padding:5px 14px;"><?= $c_count ?> Volunteer<?= $c_count != 1 ? 's' : '' ?></span>
                     </div>
-                    <?php if ($cmems && $cmems->num_rows > 0): ?>
+                    <?php if ($c_count > 0): ?>
                     <div class="table-responsive">
                         <table>
                             <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Full Name</th>
-                                    <th>Village</th>
-                                    <th>Department</th>
-                                    <th>Phone</th>
-                                </tr>
+                                <tr><th>#</th><th>Full Name</th><th>Village</th><th>Department</th><th>Phone</th></tr>
                             </thead>
                             <tbody>
-                            <?php $i = 1; while($ck = $cmems->fetch_assoc()): 
+                            <?php $i = 1; while($ck = $cmems->fetch_assoc()):
                                 $vc = $village_colors[$ck['church_village']] ?? '#94a3b8';
                             ?>
                             <tr>
