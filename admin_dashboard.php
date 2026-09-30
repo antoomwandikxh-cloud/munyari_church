@@ -4602,7 +4602,28 @@ document.addEventListener("DOMContentLoaded", function () {
                         ? current.value !== ''
                         : current.value.trim().length > 0 && current.checkValidity();
                     next.disabled = !filled;
-                    if (!filled && next.tagName !== 'SELECT') next.value = '';
+                    if (!filled && next.tagName !== 'SELECT') next.value = '';        
+        // --- ADDED: Visual Activated Indicator ---
+        const label = document.querySelector('label[for="' + nextId + '"]') || (next.closest('.form-group') ? next.closest('.form-group').querySelector('label') : null);
+        if (label) {
+            let badge = label.querySelector('.activated-badge');
+            if (filled) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'activated-badge';
+                    badge.style.color = '#10b981';
+                    badge.style.fontSize = '0.75rem';
+                    badge.style.fontWeight = 'bold';
+                    badge.style.marginLeft = '8px';
+                    badge.style.animation = 'fadeIn 0.3s ease-in-out';
+                    badge.innerHTML = '&#10004; Activated';
+                    label.appendChild(badge);
+                }
+            } else {
+                if (badge) badge.remove();
+            }
+        }
+        // -----------------------------------------
                 }
                 function validateInput(input, type) {
                     let errorMsg = input.parentNode.querySelector('.err-msg');
@@ -5109,7 +5130,28 @@ function openDeclineModal(id, name) {
             ? current.value !== ''
             : current.value.trim().length > 0 && current.checkValidity();
         next.disabled = !filled;
-        if (!filled) next.value = '';
+        if (!filled) next.value = '';        
+        // --- ADDED: Visual Activated Indicator ---
+        const label = document.querySelector('label[for="' + nextId + '"]') || (next.closest('.form-group') ? next.closest('.form-group').querySelector('label') : null);
+        if (label) {
+            let badge = label.querySelector('.activated-badge');
+            if (filled) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'activated-badge';
+                    badge.style.color = '#10b981';
+                    badge.style.fontSize = '0.75rem';
+                    badge.style.fontWeight = 'bold';
+                    badge.style.marginLeft = '8px';
+                    badge.style.animation = 'fadeIn 0.3s ease-in-out';
+                    badge.innerHTML = '&#10004; Activated';
+                    label.appendChild(badge);
+                }
+            } else {
+                if (badge) badge.remove();
+            }
+        }
+        // -----------------------------------------
     }
 
     function enforceAdminGender(deptSelect, genderSelectId) {
