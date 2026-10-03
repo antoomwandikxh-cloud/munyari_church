@@ -4125,24 +4125,25 @@ w.document.write('</div>');
                             $t_role = $treasurer_role_map[$key] ?? null;
                             $t_info = $t_role ? ($treasurers[$t_role] ?? null) : null;
                         ?>
-                                                <div style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 14px;">
+                                                 <div style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 16px 20px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 14px;">
+                            <!-- Left: dept label + amount -->
                             <div>
-                                <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 500;"><?= htmlspecialchars($label) ?></div>
-                                <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin-top: 5px;">KSh <?= number_format($amt, 2) ?></div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;"><?= htmlspecialchars($label) ?></div>
+                                <div style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-top: 4px;">KSh <?= number_format($amt, 2) ?></div>
                             </div>
-                                                        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+                            <!-- Right: treasurer photo + name stacked -->
+                            <div style="display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; text-align:center;">
                                 <?php if ($t_info): ?>
-                                    <img src="uploads/<?= htmlspecialchars($t_info['pic']) ?>" alt="Treasurer" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); cursor: zoom-in;" onclick="viewProfileImage(this.src)">
-                                    <div style="line-height: 1.2;">
-                                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Treasurer</div>
-                                        <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-main);"><?= htmlspecialchars($t_info['name']) ?></div>
-                                    </div>
+                                    <img src="uploads/<?= htmlspecialchars($t_info['pic']) ?>" alt="Treasurer"
+                                         style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2.5px solid var(--primary);cursor:zoom-in;"
+                                         onclick="viewProfileImage(this.src)">
+                                    <div style="font-size:0.7rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Treasurer</div>
+                                    <div style="font-size:0.82rem;font-weight:700;color:var(--text-main);max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?= htmlspecialchars($t_info['name']) ?></div>
                                 <?php else: ?>
-                                    <img src="uploads/default_avatar.png" alt="No Treasurer" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px dashed #cbd5e1; opacity: 0.7;">
-                                    <div style="line-height: 1.2;">
-                                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Treasurer</div>
-                                        <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-muted); font-style: italic;">Not Assigned</div>
-                                    </div>
+                                    <img src="uploads/default_avatar.png" alt="No Treasurer"
+                                         style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px dashed #cbd5e1;opacity:0.6;">
+                                    <div style="font-size:0.7rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Treasurer</div>
+                                    <div style="font-size:0.78rem;color:var(--text-muted);font-style:italic;">Not Assigned</div>
                                 <?php endif; ?>
                             </div>
                         </div>
