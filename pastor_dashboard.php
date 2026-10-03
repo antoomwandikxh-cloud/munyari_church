@@ -2038,7 +2038,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                             });
                                             
                                             if (!empty($leader_labels)):
-                                                $leader_label = implode(', ', $leader_labels);
+                                                $leader_label = $leader_labels[0]; // Only show the SINGLE most relevant role
                                         ?>
                                             <br><span style="color:#2563eb; font-size:0.55rem; font-weight:700;">(<?= htmlspecialchars($leader_label) ?>)</span>
                                         <?php endif; ?>
@@ -2689,14 +2689,42 @@ w.document.write('</div>');
                                                                 return $b_match - $a_match;
                                                             });
                                                             
-                                                            $leader_label = !empty($leader_labels) ? implode(', ', $leader_labels) : strtoupper($dept . ' LEADER');
+                                                            $leader_label = !empty($leader_labels) ? $leader_labels[0] : strtoupper($dept . ' LEADER');
                                                         ?>
                                                             <br><span style="color:#2563eb; font-size:0.55rem; font-weight:700;">(<?= htmlspecialchars($leader_label) ?>)</span>
                                                         <?php endif; ?>
                                                     </span>
                                                 </td>
                                                 <td><?= htmlspecialchars($dm['phone'] ?? '-') ?></td>
-                                                <td><?= htmlspecialchars($dm['church_role'] ?? 'Member') ?></td>
+                                                <?php
+                                                    $raw_roles = explode(',', $dm['church_role'] ?? 'Member');
+                                                    $display_roles = [];
+                                                    $curr_dept = strtolower($dept);
+                                                    
+                                                    foreach ($raw_roles as $rr) {
+                                                        $rr = trim($rr);
+                                                        if (empty($rr)) continue;
+                                                        if (strtolower($rr) === 'member') { $display_roles[] = $rr; continue; }
+                                                        
+                                                        $rr_l = strtolower($rr);
+                                                        $keep = true;
+                                                        
+                                                        // If it explicitly belongs to another major department, hide it!
+                                                        if (strpos($rr_l, 'building') !== false && strpos($curr_dept, 'building') === false) $keep = false;
+                                                        if ((strpos($rr_l, 'youth') !== false || strpos($rr_l, 'youths') !== false) && strpos($curr_dept, 'youth') === false) $keep = false;
+                                                        if ((strpos($rr_l, 'women') !== false || strpos($rr_l, 'womens') !== false) && strpos($curr_dept, 'women') === false) $keep = false;
+                                                        if (strpos($rr_l, 'elder') !== false && strpos($curr_dept, 'elder') === false) $keep = false;
+                                                        if (strpos($rr_l, 'sunday') !== false && strpos($curr_dept, 'sunday') === false) $keep = false;
+                                                        if (strpos($rr_l, 'village leader') !== false) $keep = false; // Never show village leader in dept table
+                                                        
+                                                        if ($keep) {
+                                                            $display_roles[] = $rr;
+                                                        }
+                                                    }
+                                                    
+                                                    $final_role_str = !empty($display_roles) ? implode(', ', $display_roles) : 'Member';
+                                                ?>
+                                                <td><?= htmlspecialchars($final_role_str) ?></td>
                                                 <td><?= htmlspecialchars($dm['address'] ?? '-') ?></td>
                                                 <?php if ($dept === 'Youths' || $dept === 'Sunday School'): ?>
                                                     <td class="no-print">
