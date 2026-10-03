@@ -802,6 +802,44 @@ if (!empty($action)) {
         header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed successfully") . "&reassign=" . urlencode($role_to_remove) . "#assignRoleSection");
         exit();
     }
+
+    // === UNASSIGN ALL ROLES ===
+    elseif ($action === 'unassign_all' && isset($_GET['id'])) {
+        $member_id = (int)$_GET['id'];
+        $member_data = $conn->query("SELECT first_name, last_name, church_role, department FROM members WHERE id = $member_id")->fetch_assoc();
+        $old_role = $member_data['church_role'] ?? '';
+        
+        // Save backup in session for redo
+        $_SESSION['role_undo_backup'][$member_id] = [
+            'role'       => $old_role,
+            'department' => $member_data['department'] ?? '',
+        ];
+        
+        $conn->query("UPDATE members SET church_role = 'Member' WHERE id = $member_id");
+        $msg = $conn->real_escape_string("All your roles ({$old_role}) have been removed by Admin.");
+        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
+        header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("All roles removed for " . ($member_data['first_name'] ?? 'member')) . "#assignRoleSection");
+        exit();
+    }
+    
+    // === REDO (RESTORE) ROLES ===
+    elseif ($action === 'redo_roles' && isset($_GET['id'])) {
+        $member_id = (int)$_GET['id'];
+        $backup    = $_SESSION['role_undo_backup'][$member_id] ?? null;
+        
+        if ($backup && !empty($backup['role'])) {
+            $restored_role = $conn->real_escape_string($backup['role']);
+            $restored_dept = $conn->real_escape_string($backup['department']);
+            $conn->query("UPDATE members SET church_role = '$restored_role', department = '$restored_dept' WHERE id = $member_id");
+            unset($_SESSION['role_undo_backup'][$member_id]);
+            $msg = $conn->real_escape_string("Your roles ({$backup['role']}) have been restored by Admin.");
+            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
+            header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("Roles restored successfully") . "#assignRoleSection");
+        } else {
+            header("Location: admin_dashboard.php?tab=assign_roles&error=" . urlencode("No backup found to restore") . "#assignRoleSection");
+        }
+        exit();
+    }
     
     elseif ($action === 'create_role' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $new_role = $conn->real_escape_string(trim($_POST['new_role']));
@@ -2714,7 +2752,13 @@ w.document.write('</div>');
                                         $pic_url = 'uploads/' . basename($pic);
                                         $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
                                         echo "<td style='font-weight: 500;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
-                                        echo "<td><a href='admin_dashboard.php?tab=assign_roles&action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($expected_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
+                                        echo "<td><div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;'>";
+                                        echo "<a href='admin_dashboard.php?tab=assign_roles&action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($expected_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background:var(--danger);color:white;text-decoration:none;border:none;cursor:pointer;'>Remove Role</a>";
+                                        echo "<a href='admin_dashboard.php?tab=assign_roles&action=unassign_all&id=" . $member_data['id'] . "' onclick=\"return confirm('Unassign ALL roles from " . htmlspecialchars($member_data['first_name']) . "? This will reset them to plain Member.');\" class='btn-sm' style='background:#f59e0b;color:white;text-decoration:none;border:none;cursor:pointer;'>⚠ Unassign All</a>";
+                                        if (!empty($_SESSION['role_undo_backup'][$member_data['id']])) {
+                                            echo "<a href='admin_dashboard.php?tab=assign_roles&action=redo_roles&id=" . $member_data['id'] . "' onclick=\"return confirm('Restore previous roles for " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background:#10b981;color:white;text-decoration:none;border:none;cursor:pointer;'>↩ Redo</a>";
+                                        }
+                                        echo "</div></td>";
                                         echo "</tr>";
                                     }
                                 }
@@ -2738,7 +2782,13 @@ w.document.write('</div>');
                             $pic_url = 'uploads/' . basename($pic);
                             $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
                             echo "<td style='font-weight: 500;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
-                            echo "<td><a href='admin_dashboard.php?tab=assign_roles&action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($disp_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
+                            echo "<td><div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;'>";
+                            echo "<a href='admin_dashboard.php?tab=assign_roles&action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($disp_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background:var(--danger);color:white;text-decoration:none;border:none;cursor:pointer;'>Remove Role</a>";
+                            echo "<a href='admin_dashboard.php?tab=assign_roles&action=unassign_all&id=" . $member_data['id'] . "' onclick=\"return confirm('Unassign ALL roles from " . htmlspecialchars($member_data['first_name']) . "? This will reset them to plain Member.');\" class='btn-sm' style='background:#f59e0b;color:white;text-decoration:none;border:none;cursor:pointer;'>⚠ Unassign All</a>";
+                            if (!empty($_SESSION['role_undo_backup'][$member_data['id']])) {
+                                echo "<a href='admin_dashboard.php?tab=assign_roles&action=redo_roles&id=" . $member_data['id'] . "' onclick=\"return confirm('Restore previous roles for " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background:#10b981;color:white;text-decoration:none;border:none;cursor:pointer;'>↩ Redo</a>";
+                            }
+                            echo "</div></td>";
                             echo "</tr>";
                         }
                         echo "</tbody></table></div></div>";
