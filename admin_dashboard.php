@@ -1371,7 +1371,7 @@ if (!empty($action)) {
                             <thead>
                                 <!-- Thead row containing pastor & logo: Repeats on every printed page -->
                                 <tr>
-                                    <th colspan="8" style="border:none; padding: 0; font-weight:normal; background:white;">
+                                    <th colspan="9" style="border:none; padding: 0; font-weight:normal; background:white;">
                                         <div style="display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:10px;">
                                             <img src="uploads/<?= htmlspecialchars($p_pic) ?>" alt="Pastor" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid #1e3a8a;">
                                             <div>
