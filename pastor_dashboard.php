@@ -2899,7 +2899,7 @@ w.document.write('</div>');
                                     <span style="font-size:0.88rem; color:var(--text-main); font-weight:500;">✨ <?= htmlspecialchars($cr['role_name']) ?></span>
                                     <a href="?tab=desired_roles&delete_custom_role=<?= $cr['id'] ?>"
                                         onclick="return confirm('Delete role: <?= addslashes($cr['role_name']) ?>?')"
-                                        style="color:#ef4444; text-decoration:none; font-size:1.2rem; font-weight:bold; line-height:1;">&times;</a>
+                                        style="display:inline-flex;align-items:center;gap:4px;background:#ef4444;color:white;text-decoration:none;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:6px;line-height:1;white-space:nowrap;">🗑 Remove</a>
                                 </div>
                             <?php endwhile; echo '</div>'; else: ?>
                                 <p style="margin:0; font-size:0.85rem; color:var(--text-muted); font-style:italic;">No custom roles yet. Add one on the left!</p>
