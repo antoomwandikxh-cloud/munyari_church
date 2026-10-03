@@ -1981,27 +1981,23 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                         <?php if (!empty($pm['is_pastor'])): ?>
                                             <span style="color:#2563eb; font-weight:900;">(PASTOR)</span>
                                         <?php elseif ($is_dept_leader): 
-                                            // Extract the HIGHEST leadership role (prioritize department roles over village leader)
-                                            $leader_label = 'LEADER';
+                                            $leader_label = null;
                                             $r_parts = explode(',', strtolower($pm['church_role'] ?? ''));
                                             
-                                            $found_role = null;
-                                            $village_role = null;
-                                            
+                                            // Only display brackets for topmost leaders (chairperson/chairman/chairlady or patron)
+                                            // Make sure NOT to include vice chairs
                                             foreach($r_parts as $rp) {
                                                 $rp = trim($rp);
-                                                if (strpos($rp, 'chair') !== false || strpos($rp, 'patron') !== false || (strpos($rp, 'secretary') !== false && strpos($rp, 'organizing') === false && strpos($rp, 'village') === false) || strpos($rp, 'treasurer') !== false) {
-                                                    $found_role = strtoupper($rp);
-                                                    break; // Found a top department role, stop looking
-                                                } elseif (strpos($rp, 'village leader') !== false) {
-                                                    $village_role = strtoupper($rp); // Keep it just in case there's no dept role
+                                                if (strpos($rp, 'vice') === false && (strpos($rp, 'chair') !== false || strpos($rp, 'patron') !== false)) {
+                                                    $leader_label = strtoupper($rp);
+                                                    break;
                                                 }
                                             }
                                             
-                                            // Use department role if found, otherwise fallback to village leader
-                                            $leader_label = $found_role ?: ($village_role ?: 'LEADER');
+                                            if ($leader_label):
                                         ?>
                                             <br><span style="color:#2563eb; font-size:0.55rem; font-weight:700;">(<?= htmlspecialchars($leader_label) ?>)</span>
+                                        <?php endif; ?>
                                         <?php endif; ?>
                                     </td>
                                     <td style="padding:5px 8px;border:1px solid #ddd;"><?= htmlspecialchars($pm['phone'] ?? '-') ?></td>
