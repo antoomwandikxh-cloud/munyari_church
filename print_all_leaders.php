@@ -318,10 +318,10 @@ foreach($leader_sections as $sk => $section):
       <tr style="background:<?=htmlspecialchars($section['accent'])?>;">
         <th style="width:48px;">Photo</th>
         <th>Name</th>
-        <th>Role / Position</th>
         <th>Phone Number</th>
         <th>Church Village</th>
         <th>Residence / Area</th>
+        <th>Role / Position</th>
       </tr>
     </thead>
     <tbody>
@@ -335,10 +335,10 @@ foreach($leader_sections as $sk => $section):
           <?php endif; ?>
         </td>
         <td class="td-name"><?=htmlspecialchars($r['name'])?></td>
-        <td class="td-role"><?=htmlspecialchars($r['role'])?></td>
         <td class="td-meta"><?=htmlspecialchars($r['phone'])?></td>
         <td class="td-meta"><?=htmlspecialchars($r['village'])?></td>
         <td class="td-meta"><?=htmlspecialchars($r['residence'])?></td>
+        <td class="td-role"><?=htmlspecialchars($r['role'])?></td>
       </tr>
       <?php endforeach; ?>
     </tbody>
