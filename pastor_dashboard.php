@@ -2077,7 +2077,7 @@ function printMemberDirectory(orientation) {
 
                     </script>
                     <div class="table-responsive"><table id="memberMainTable">
-                        <thead><tr><th>Profile</th><th>Name</th><th>Username</th><th>Phone</th><th>Address</th><th>Church Village</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Profile</th><th>Name</th><th>Username</th><th>Phone</th><th>Area</th><th>Department</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
                         <tbody>
                             <?php
                             $ui_last_grp = -1;

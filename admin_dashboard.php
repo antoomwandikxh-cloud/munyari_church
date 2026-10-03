@@ -1538,7 +1538,7 @@ function printMemberDirectory(orientation) {
                     <div class="table-responsive">
                         <table>
                             <thead>
-                                <tr><th>Profile</th><th>Name</th><th>Username</th><th>Phone</th><th>Address</th><th>Church Village</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+                                <tr><th>Profile</th><th>Name</th><th>Username</th><th>Phone</th><th>Area</th><th>Department</th><th>Role</th><th>Status</th><th>Actions</th></tr>
                             </thead>
                             <tbody>
                             <?php
@@ -1567,17 +1567,9 @@ function printMemberDirectory(orientation) {
                                 <td><?= htmlspecialchars($m['username'] ?? '-') ?></td>
                                 <td><?= htmlspecialchars($m['phone']) ?></td>
                                 <td><?= htmlspecialchars($m['address']) ?></td>
-                                <td><span class="badge" style="background:rgba(37,99,235,0.1);color:#2563eb;font-weight:600;"><?= htmlspecialchars($m['church_village'] ?? '-') ?></span></td>
+                                <td><span class="badge" style="background:var(--border-color);color:var(--text-main);"><?= htmlspecialchars($m['department'] ?? 'General Church') ?></span></td>
                                 <td style="white-space:normal;"><?php foreach(array_map('trim', explode(',', $m['church_role'] ?? 'Member')) as $role_part) { if(trim($role_part)==='') continue; echo '<span class="badge" style="background:var(--border-color);color:var(--text-main);margin:2px 2px 2px 0;display:inline-block;white-space:nowrap;">'.htmlspecialchars($role_part).'</span>'; } ?></td>
-                                <td>
-                                <?php if ($m['is_approved'] == 1): ?>
-                                    <span style="color:#10b981;font-weight:bold;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="#10b981"/></svg>Active</span>
-                                <?php elseif ($m['is_approved'] == -1): ?>
-                                    <span style="color:#ef4444;font-weight:bold;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="#ef4444"/></svg>Deactivated</span>
-                                <?php else: ?>
-                                    <span style="color:#f59e0b;font-weight:bold;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="#f59e0b"/></svg>Pending</span>
-                                <?php endif; ?>
-                            </td>
+                                <td><span class="badge <?= $m['is_approved'] ? 'approved' : 'pending' ?>"><?= $m['is_approved'] ? 'Active' : 'Pending' ?></span></td>
                                 <td style="white-space:nowrap;">
                                     <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
                                     <?php if (!empty($m['is_pastor'])): ?>
