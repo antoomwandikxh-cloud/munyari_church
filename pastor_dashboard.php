@@ -2643,7 +2643,24 @@ w.document.write('</div>');
                                             <tr style="<?= $row_bg ?>">
                                                 <td><?= $dpi++ ?></td>
                                                 <td><img src="uploads/<?= htmlspecialchars($dm['profile_picture'] ?? 'default_avatar.png') ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #ccc;cursor:zoom-in;" onclick="viewProfileImage(this.src);"></td>
-                                                <td><?= htmlspecialchars($dm['first_name'] . ' ' . $dm['last_name']) ?></td>
+                                                <td style="text-transform:uppercase; <?= $role_r == 0 ? 'font-weight:800; color:#1e1a3a;' : 'font-weight:600;' ?>">
+                                                    <?= htmlspecialchars($dm['first_name'] . ' ' . $dm['last_name']) ?>
+                                                    <?php if ($role_r == 0): 
+                                                        // It's the top leader! Extract the exact top role name (like YOUTH CHAIRMAN)
+                                                        $leader_labels = [];
+                                                        $r_parts = explode(',', strtolower($dm['church_role'] ?? ''));
+                                                        foreach($r_parts as $rp) {
+                                                            $rp = trim($rp);
+                                                            if (strpos($rp, 'vice') === false && (strpos($rp, 'chair') !== false || strpos($rp, 'patron') !== false)) {
+                                                                $leader_labels[] = strtoupper($rp);
+                                                            }
+                                                        }
+                                                        // Default to the department name + LEADER if we couldn't parse it nicely
+                                                        $leader_label = !empty($leader_labels) ? implode(', ', $leader_labels) : strtoupper($dept . ' LEADER');
+                                                    ?>
+                                                        <br><span style="color:#2563eb; font-size:0.55rem; font-weight:700;">(<?= htmlspecialchars($leader_label) ?>)</span>
+                                                    <?php endif; ?>
+                                                </td>
                                                 <td><?= htmlspecialchars($dm['phone'] ?? '-') ?></td>
                                                 <td><?= htmlspecialchars($dm['church_role'] ?? 'Member') ?></td>
                                                 <td><?= htmlspecialchars($dm['address'] ?? '-') ?></td>
