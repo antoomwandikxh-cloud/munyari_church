@@ -1443,7 +1443,7 @@ if (!empty($action)) {
                                     ?>">
                                         <?= htmlspecialchars($pm['first_name'].' '.$pm['last_name']) ?>
                                         <?php if (!empty($pm['is_pastor'])): ?>
-                                            <span style="color:#2563eb; font-weight:900;">(PASTOR)</span>
+                                            <br><span style="color:#2563eb; font-size:0.55rem; font-weight:900;">(PASTOR)</span>
                                         <?php elseif ($is_dept_leader): 
                                             $leader_labels = [];
                                             $r_parts = explode(',', strtolower($pm['church_role'] ?? ''));
@@ -2067,7 +2067,7 @@ w.document.write('</div>');
                                                     <span class="screen-name"><?= htmlspecialchars($dm['first_name'] . ' ' . $dm['last_name']) ?></span>
                                                     
                                                     <!-- Print view (uppercase, bold if leader, blue brackets) -->
-                                                    <span class="print-only-name" style="display:none; text-transform:uppercase; <?= $role_r <= 1 ? 'font-weight:800; color:#1e1a3a;' : 'font-weight:600;' ?>">
+                                                    <span class="print-only-name" style="display:none; text-transform:uppercase; <?= $role_r == 0 ? 'font-weight:900; color:#1e3a8a; font-size:0.85rem;' : ($role_r == 1 ? 'font-weight:800; color:#1e1a3a;' : 'font-weight:600;') ?>">
                                                         <?= htmlspecialchars($dm['first_name'] . ' ' . $dm['last_name']) ?>
                                                         <?php if ($role_r == 0): // Pastor ?>
                                                             <br><span style="color:#2563eb; font-size:0.55rem; font-weight:900;">(PASTOR)</span>
