@@ -1466,7 +1466,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
         header("Location: member_dashboard.php?tab=desired_roles&error=Please select a valid church village");
         exit();
     }
-    $valid_roles = ['Worshipper', 'Church Cleaner', 'Church Cooker', ''];
+    $valid_roles = [''];
+    $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles");
+    if ($cr_q) { while($cr = $cr_q->fetch_assoc()){ $valid_roles[] = $cr['role_name']; } }
     if (!in_array($drp, $valid_roles)) { $drp = ''; }
     $drp_sql = $drp ? "'$drp'" : "NULL";
 
@@ -7923,7 +7925,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <select name="desired_role_pref" style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-lighter); color:var(--text-main);">
                         <option value="">-- None --</option>
                         <?php
-                        $roles = ['Worshipper', 'Church Cleaner', 'Church Cooker'];
+                        $roles = [];
                         $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles ORDER BY id ASC");
                         if ($cr_q) { while($cr = $cr_q->fetch_assoc()){ $roles[] = $cr['role_name']; } }
                         $curr_r = $member['desired_role_pref'] ?? '';

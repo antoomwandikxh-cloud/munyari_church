@@ -515,7 +515,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
         header("Location: ?tab=settings&error=Please select a valid church village");
         exit();
     }
-    $valid_roles = ['Worshipper', 'Church Cleaner', 'Church Cooker', ''];
+    $valid_roles = [''];
+    $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles");
+    if ($cr_q) { while($cr = $cr_q->fetch_assoc()){ $valid_roles[] = $cr['role_name']; } }
     if (!in_array($drp, $valid_roles)) { $drp = ''; }
     $conn->query("UPDATE pastors SET church_village = '$cv', desired_role_pref = '$drp' WHERE id = $pastor_id");
     header("Location: ?tab=settings&success=Village and Role saved");
@@ -2110,21 +2112,23 @@ function printMemberDirectory(orientation) {
                                         <span class="badge" style="color:#f59e0b;font-weight:bold;display:inline-flex;align-items:center;background:none;padding:0;border:none;"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><circle cx='6' cy='6' r='6' fill='%23f59e0b'/></svg>" style="width:12px;height:12px;margin-right:4px;vertical-align:middle;" alt="dot">Pending</span>
                                     <?php endif; ?>
                                 </td>
-                                <td>
+                                <td style="white-space:nowrap;">
+                                    <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
                                     <?php if (!empty($m['is_pastor'])): ?>
                                         <span class="badge" style="background:linear-gradient(135deg,#1e3a8a,#6366f1);color:white;font-size:0.75rem;">Church Pastor</span>
                                     <?php else: ?>
                                         <?php if ($m['is_approved'] == 1): ?>
-                                        <a href="?tab=manage_members&action=deactivate_member&id=<?= $m['id'] ?>" onclick="return confirm('Deactivate this member? They will not be able to log in.')" style="background:#f59e0b;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;margin-right:5px;">Deactivate</a>
+                                        <a href="?tab=manage_members&action=deactivate_member&id=<?= $m['id'] ?>" onclick="return confirm('Deactivate this member? They will not be able to log in.')" style="background:#f59e0b;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;">Deactivate</a>
                                         <?php elseif ($m['is_approved'] == 0): ?>
-                                        <a href="?tab=manage_members&action=activate_member&id=<?= $m['id'] ?>" onclick="return confirm('Approve this member?')" style="background:var(--success);color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;margin-right:5px;">Approve</a>
-                                        <a href="#" onclick="openDeclineModal(<?= $m['id'] ?>, '<?= htmlspecialchars($m['first_name'].' '.$m['last_name'], ENT_QUOTES) ?>'); return false;" style="background:#dc2626;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;margin-right:5px;">Decline</a>
+                                        <a href="?tab=manage_members&action=activate_member&id=<?= $m['id'] ?>" onclick="return confirm('Approve this member?')" style="background:var(--success);color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;">Approve</a>
+                                        <a href="#" onclick="openDeclineModal(<?= $m['id'] ?>, '<?= htmlspecialchars($m['first_name'].' '.$m['last_name'], ENT_QUOTES) ?>'); return false;" style="background:#dc2626;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;">Decline</a>
                                         <?php else: ?>
-                                        <a href="?tab=manage_members&action=activate_member&id=<?= $m['id'] ?>" onclick="return confirm('Activate this member?')" style="background:var(--success);color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;margin-right:5px;">Activate</a>
+                                        <a href="?tab=manage_members&action=activate_member&id=<?= $m['id'] ?>" onclick="return confirm('Activate this member?')" style="background:var(--success);color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;">Activate</a>
                                         <?php endif; ?>
-                                        <a href="#" onclick="openEditMemberModal(<?= $m['id'] ?>, '<?= htmlspecialchars($m['first_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['last_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['username'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($m['phone'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['address'] ?? '', ENT_QUOTES) ?>'); return false;" style="background:#3b82f6;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;margin-right:5px;display:inline-block;margin-bottom:4px;">Edit</a>
+                                        <a href="#" onclick="openEditMemberModal(<?= $m['id'] ?>, '<?= htmlspecialchars($m['first_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['last_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['username'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($m['phone'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['address'] ?? '', ENT_QUOTES) ?>'); return false;" style="background:#3b82f6;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;display:inline-block;">Edit</a>
                                         <a href="?tab=manage_members&action=delete_member&id=<?= $m['id'] ?>" onclick="return confirm('Delete this member?')" style="background:var(--danger);color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;">Delete</a>
                                     <?php endif; ?>
+                                </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -4780,9 +4784,16 @@ w.document.write('</div>');
                             <label>Desired Role (Optional)</label>
                             <select name="desired_role_pref" class="form-control">
                                 <option value="">-- No specific role --</option>
-                                <option value="Worshipper" <?= ($pastor['desired_role_pref']=='Worshipper') ? 'selected' : '' ?>>Worshipper</option>
-                                <option value="Church Cleaner" <?= ($pastor['desired_role_pref']=='Church Cleaner') ? 'selected' : '' ?>>Church Cleaner</option>
-                                <option value="Church Cooker" <?= ($pastor['desired_role_pref']=='Church Cooker') ? 'selected' : '' ?>>Church Cooker</option>
+                                <?php
+                                $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles ORDER BY id ASC");
+                                if ($cr_q) {
+                                    while($cr = $cr_q->fetch_assoc()) {
+                                        $r = $cr['role_name'];
+                                        $sel = ($pastor['desired_role_pref'] == $r) ? 'selected' : '';
+                                        echo "<option value=\"".htmlspecialchars($r)."\" $sel>".htmlspecialchars($r)."</option>";
+                                    }
+                                }
+                                ?>
                             </select>
                         </div>
                         <button type="submit" class="btn-submit" style="<?= $has_village ? 'background:var(--bg-lighter);color:var(--text-main);border:1px solid var(--border-color);' : '' ?>"><?= $has_village ? 'Update Selection' : 'Save Selection' ?></button>
@@ -4845,9 +4856,16 @@ w.document.write('</div>');
                             <label>Desired Role (Optional)</label>
                             <select name="desired_role_pref" class="form-control">
                                 <option value="">-- No specific role --</option>
-                                <option value="Worshipper" <?= ($pastor['desired_role_pref']=='Worshipper') ? 'selected' : '' ?>>Worshipper</option>
-                                <option value="Church Cleaner" <?= ($pastor['desired_role_pref']=='Church Cleaner') ? 'selected' : '' ?>>Church Cleaner</option>
-                                <option value="Church Cooker" <?= ($pastor['desired_role_pref']=='Church Cooker') ? 'selected' : '' ?>>Church Cooker</option>
+                                <?php
+                                $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles ORDER BY id ASC");
+                                if ($cr_q) {
+                                    while($cr = $cr_q->fetch_assoc()) {
+                                        $r = $cr['role_name'];
+                                        $sel = ($pastor['desired_role_pref'] == $r) ? 'selected' : '';
+                                        echo "<option value=\"".htmlspecialchars($r)."\" $sel>".htmlspecialchars($r)."</option>";
+                                    }
+                                }
+                                ?>
                             </select>
                         </div>
                         <button type="submit" class="btn-submit">Update Selection</button>

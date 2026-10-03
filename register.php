@@ -61,6 +61,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $role       = $conn->real_escape_string(trim($_POST['role'] ?? 'Pastor'));
         if (empty($role)) $role = 'Pastor';
         $gender     = $conn->real_escape_string(trim($_POST['gender'] ?? 'Male'));
+        $desired_role = $conn->real_escape_string(trim($_POST['desired_role_pref'] ?? ''));
         $department = ($gender === 'Female') ? 'Womens Ministry' : 'Elders';
 
         // Duplicate phone check
@@ -78,6 +79,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $address    = $conn->real_escape_string(trim($_POST['address'] ?? ''));
         $department = $conn->real_escape_string(trim($_POST['department'] ?? 'Youths'));
         $gender     = $conn->real_escape_string(trim($_POST['gender'] ?? 'Male'));
+        $desired_role = $conn->real_escape_string(trim($_POST['desired_role_pref'] ?? ''));
 
         // Duplicate phone check
         $chk = $conn->query("SELECT id FROM members WHERE phone = '$phone' UNION SELECT id FROM pastors WHERE phone = '$phone'");
@@ -86,8 +88,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             exit();
         }
 
-        $sql = "INSERT INTO members (first_name, last_name, phone, address, department, gender, password, is_approved)
-                VALUES ('$first_name', '$last_name', '$phone', '$address', '$department', '$gender', '$hashed_password', 0)";
+        $sql = "INSERT INTO members (first_name, last_name, phone, address, department, gender, password, is_approved, desired_role_pref)
+                VALUES ('$first_name', '$last_name', '$phone', '$address', '$department', '$gender', '$hashed_password', 0, NULLIF('$desired_role', ''))";
     }
 
     // ── Execute insert ─────────────────────────────────────────────────────────

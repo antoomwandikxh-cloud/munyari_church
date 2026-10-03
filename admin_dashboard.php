@@ -1565,13 +1565,15 @@ function printMemberDirectory(orientation) {
                                 <td><span class="badge" style="background:var(--border-color);color:var(--text-main);"><?= htmlspecialchars($m['department'] ?? 'General Church') ?></span></td>
                                 <td style="white-space:normal;"><?php foreach(array_map('trim', explode(',', $m['church_role'] ?? 'Member')) as $role_part) { if(trim($role_part)==='') continue; echo '<span class="badge" style="background:var(--border-color);color:var(--text-main);margin:2px 2px 2px 0;display:inline-block;white-space:nowrap;">'.htmlspecialchars($role_part).'</span>'; } ?></td>
                                 <td><span class="badge <?= $m['is_approved'] ? 'approved' : 'pending' ?>"><?= $m['is_approved'] ? 'Active' : 'Pending' ?></span></td>
-                                <td>
+                                <td style="white-space:nowrap;">
+                                    <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
                                     <?php if (!empty($m['is_pastor'])): ?>
                                         <span class="badge" style="background:linear-gradient(135deg,#1e3a8a,#6366f1);color:white;font-size:0.75rem;">Church Pastor</span>
                                     <?php else: ?>
-                                        <a href="#" onclick="openEditMemberModal(<?= $m['id'] ?>, '<?= htmlspecialchars($m['first_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['last_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['username'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($m['phone'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['address'] ?? '', ENT_QUOTES) ?>'); return false;" style="background:#3b82f6;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;margin-right:5px;display:inline-block;margin-bottom:4px;">Edit</a>
+                                        <a href="#" onclick="openEditMemberModal(<?= $m['id'] ?>, '<?= htmlspecialchars($m['first_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['last_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['username'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($m['phone'], ENT_QUOTES) ?>', '<?= htmlspecialchars($m['address'] ?? '', ENT_QUOTES) ?>'); return false;" style="background:#3b82f6;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;font-size:0.85rem;display:inline-block;">Edit</a>
                                         <a href="?tab=members&action=delete_member&id=<?= $m['id'] ?>" onclick="return confirm('Permanently delete this member? This cannot be undone.');" class="btn-sm" style="background: var(--danger); color: white; text-decoration:none;">Delete</a>
                                     <?php endif; ?>
+                                </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
