@@ -1272,8 +1272,8 @@ if (!empty($action)) {
                             return [1, 5];
                         }
                         if (strpos($d, 'women') !== false || strpos($r, 'women') !== false) {
-                            if (preg_match('/vice women (chairlady|chairperson|chairman)/', $r)) return [2, 0];
-                            if (preg_match('/^women (chairlady|chairperson|chairman)$/', $r)) return [2, 1];
+                            if (preg_match('/vice women (chairlady|chairperson|chairman)/', $r)) return [2, 1];
+                            if (preg_match('/(^women.*(chairlady|chairperson|chairman)$|^womens.*(chairlady|chairperson|chairman)$|^.*ministry.*(chairlady|chairperson|chairman)$)/', $r)) return [2, 0];
                             if (strpos($r, 'women secretary') !== false && strpos($r, 'vice') === false) return [2, 2];
                             if (strpos($r, 'vice women secretary') !== false) return [2, 3];
                             if (strpos($r, 'women treasurer') !== false) return [2, 4];
