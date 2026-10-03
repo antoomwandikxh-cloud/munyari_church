@@ -1445,20 +1445,33 @@ if (!empty($action)) {
                                         <?php if (!empty($pm['is_pastor'])): ?>
                                             <span style="color:#2563eb; font-weight:900;">(PASTOR)</span>
                                         <?php elseif ($is_dept_leader): 
-                                            $leader_label = null;
+                                            $leader_labels = [];
                                             $r_parts = explode(',', strtolower($pm['church_role'] ?? ''));
+                                            $user_dept = strtolower($pm['department'] ?? '');
                                             
-                                            // Only display brackets for topmost leaders (chairperson/chairman/chairlady or patron)
-                                            // Make sure NOT to include vice chairs
+                                            // Collect ALL top leadership roles
                                             foreach($r_parts as $rp) {
                                                 $rp = trim($rp);
                                                 if (strpos($rp, 'vice') === false && (strpos($rp, 'chair') !== false || strpos($rp, 'patron') !== false)) {
-                                                    $leader_label = strtoupper($rp);
-                                                    break;
+                                                    $leader_labels[] = strtoupper($rp);
                                                 }
                                             }
                                             
-                                            if ($leader_label):
+                                            // Sort them so the one matching their main department comes FIRST
+                                            usort($leader_labels, function($a, $b) use ($user_dept) {
+                                                if (!$user_dept) return 0;
+                                                // Check if role contains a word from the department (e.g. "women" or "youth")
+                                                $dept_words = explode(' ', str_replace(' ministry', '', str_replace(' department', '', $user_dept)));
+                                                $a_match = 0; $b_match = 0;
+                                                foreach ($dept_words as $w) {
+                                                    if (strlen($w) > 3 && strpos(strtolower($a), $w) !== false) $a_match = 1;
+                                                    if (strlen($w) > 3 && strpos(strtolower($b), $w) !== false) $b_match = 1;
+                                                }
+                                                return $b_match - $a_match; // Higher match comes first
+                                            });
+                                            
+                                            if (!empty($leader_labels)):
+                                                $leader_label = implode(', ', $leader_labels);
                                         ?>
                                             <br><span style="color:#2563eb; font-size:0.55rem; font-weight:700;">(<?= htmlspecialchars($leader_label) ?>)</span>
                                         <?php endif; ?>
