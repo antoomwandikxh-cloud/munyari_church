@@ -29,7 +29,7 @@ if (!$is_authorized) { die("Unauthorized access."); }
 // ── Fetch Pastor ─────────────────────────────────────────────────────────────
 $pastor_q = $conn->query("SELECT first_name, last_name, profile_picture FROM pastors WHERE is_approved = 1 LIMIT 1");
 $pastor   = $pastor_q ? $pastor_q->fetch_assoc() : null;
-$pastor_name = $pastor ? ucfirst($pastor['first_name']) . ' ' . ucfirst($pastor['last_name']) : 'Not Assigned';
+$pastor_name = $pastor ? strtoupper($pastor['first_name'] . ' ' . $pastor['last_name']) : 'Not Assigned';
 
 
 // ── Fetch Village Leader ─────────────────────────────────────────────────────
@@ -213,7 +213,7 @@ if (file_exists($logo_path)) {
     <!-- Village Leader block -->
     <div class="leader-block">
         <?php if ($l_pic_b64): ?><img src="<?= $l_pic_b64 ?>" alt="Village Leader"><?php endif; ?>
-        <div class="lb-name"><?= $leader ? htmlspecialchars(ucfirst($leader['first_name']) . ' ' . ucfirst($leader['last_name'])) : 'NOT ASSIGNED' ?></div>
+        <div class="lb-name"><span style="text-transform:uppercase;"><?= $leader ? htmlspecialchars($leader['first_name'] . ' ' . $leader['last_name']) : 'NOT ASSIGNED' ?></span></div>
         <div class="lb-role"><?= htmlspecialchars($village) ?> Village Leader</div>
     </div>
 
@@ -266,7 +266,7 @@ if (file_exists($logo_path)) {
                         <div style="width:36px;height:36px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:14px;color:#9ca3af;">👤</div>
                     <?php endif; ?>
                 </td>
-                <td style="font-weight:600;"><?= htmlspecialchars(ucfirst($m['first_name']) . ' ' . ucfirst($m['last_name'])) ?></td>
+                <td style="font-weight:600; text-transform:uppercase;"><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?></td>
                 <td><?= htmlspecialchars($m['phone'] ?? '') ?></td>
                 <td><?= htmlspecialchars($m['department'] ?? '') ?></td>
                 <td><?= htmlspecialchars($m['church_role'] ?? '') ?></td>

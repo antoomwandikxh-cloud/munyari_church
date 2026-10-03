@@ -205,9 +205,9 @@ foreach ($role_data as $role => $people):
                 <td class="photo-cell">
                     <?php if ($pic_b64): ?><img src="<?= $pic_b64 ?>" alt=""><?php else: ?><div class="ph">👤</div><?php endif; ?>
                 </td>
-                <td style="font-weight:600;">
-                    <?= htmlspecialchars(ucfirst($p['first_name']) . ' ' . ucfirst($p['last_name'])) ?>
-                    <?php if ($is_past): ?><span class="badge" style="background:#fef08a;color:#92400e;">Pastor</span><?php endif; ?>
+                <td style="font-weight:<?= $is_past ? '900' : '600' ?>; text-transform:uppercase;">
+                    <?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']) ?>
+                    <?php if ($is_past): ?><span style="color:#2563eb; font-weight:900;">(PASTOR)</span><?php endif; ?>
                 </td>
                 <td><span class="badge" style="background:<?= $vc ?>22;color:<?= $vc ?>;"><?= htmlspecialchars($p['church_village'] ?: '—') ?></span></td>
                 <td><?= htmlspecialchars($p['department'] ?: 'General Church') ?></td>

@@ -18,7 +18,7 @@ if (isset($_SESSION['pastor_id'])) {
 }
 if ($pr && $pr->num_rows > 0) $pastor = $pr->fetch_assoc();
 
-$pastor_name    = $pastor ? ucfirst($pastor['first_name']).' '.ucfirst($pastor['last_name']) : 'N/A';
+$pastor_name    = $pastor ? strtoupper($pastor['first_name'] . ' ' . $pastor['last_name']) : 'N/A';
 $pastor_phone   = $pastor['phone']   ?? '';
 $pastor_address = $pastor['address'] ?? '';
 
@@ -295,7 +295,7 @@ foreach($leader_sections as $sk => $section):
 
                 $rows[] = [
                     'pic'       => b64_img($leader['profile_picture']??''),
-                    'name'      => ucfirst($leader['first_name']).' '.ucfirst($leader['last_name']),
+                    'name'      => strtoupper($leader['first_name'] . ' ' . $leader['last_name']),
                     'role'      => $label,
                     'phone'     => $leader['phone']??'',
                     'village'   => $leader['church_village']??'',

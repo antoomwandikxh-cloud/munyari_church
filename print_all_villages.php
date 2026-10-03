@@ -309,11 +309,11 @@ foreach ($villages as $v):
                     <?php endif; ?>
                 </td>
                 <td style="font-weight:<?= $is_leader || $is_pastor ? '800' : '600' ?>;">
-                    <?= htmlspecialchars(ucfirst($row['first_name']) . ' ' . ucfirst($row['last_name'])) ?>
+                    <span style="text-transform:uppercase;"><?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) ?></span>
                     <?php if ($is_leader): ?>
                         <span class="badge" style="background:<?= $vc ?>22;color:<?= $vc ?>;">Village Leader</span>
                     <?php elseif ($is_pastor): ?>
-                        <span class="badge" style="background:#fef08a;color:#92400e;">Pastor</span>
+                        <span style="color:#2563eb; font-weight:900;">(PASTOR)</span>
                     <?php endif; ?>
                 </td>
                 <td><?= htmlspecialchars($row['department'] ?: 'General Church') ?></td>

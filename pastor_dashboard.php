@@ -1954,9 +1954,9 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                 <tr style="background:<?= $row_bg ?>;">
                                     <td style="padding:5px 8px;border:1px solid #ddd;"><?= $print_row++ ?></td>
                                     <td style="padding:4px 8px;border:1px solid #ddd;"><img src="uploads/<?= htmlspecialchars($pm['profile_picture'] ?? 'default_avatar.png') ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid #c7d2fe;display:block;" alt=""></td>
-                                    <td style="padding:5px 8px;border:1px solid #ddd;font-weight:<?= !empty($pm['is_pastor']) ? '900;color:#1e3a8a;text-transform:uppercase;font-size:0.85rem;' : '600;' ?>;">
+                                    <td style="padding:5px 8px;border:1px solid #ddd;text-transform:uppercase; font-weight:<?= !empty($pm['is_pastor']) ? '900;color:#1e3a8a;font-size:0.85rem;' : '600;' ?>;">
                                         <?= htmlspecialchars($pm['first_name'].' '.$pm['last_name']) ?>
-                                        <?= !empty($pm['is_pastor']) ? ' <span style="color:#dc2626;">(PASTOR)</span>' : '' ?>
+                                        <?= !empty($pm['is_pastor']) ? ' <span style="color:#2563eb;">(PASTOR)</span>' : '' ?>
                                     </td>
                                     <td style="padding:5px 8px;border:1px solid #ddd;"><?= htmlspecialchars($pm['phone'] ?? '-') ?></td>
                                     <td style="padding:5px 8px;border:1px solid #ddd;"><?= htmlspecialchars($pm['address'] ?? '-') ?></td>

@@ -278,7 +278,7 @@ if (file_exists($vl_pic)) {
                 <tr class="<?= $row_class ?>">
                     <td><?= $i++ ?></td>
                     <td class="photo-cell"><img src="<?= $m_b64 ?>"></td>
-                    <td><?= htmlspecialchars(ucfirst($m['first_name']) . ' ' . ucfirst($m['last_name'])) ?><?= $is_leader ? ' (LEADER)' : '' ?></td>
+                    <td><span style="text-transform:uppercase;"><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?></span><?= $is_leader ? ' <span style="color:#2563eb;font-weight:bold;">(LEADER)</span>' : '' ?></td>
                     <td><?= htmlspecialchars($m['phone'] ?? '-') ?></td>
                     <td><?= htmlspecialchars($m['church_village'] ?? '-') ?></td>
                     <td><?= htmlspecialchars($m['department'] ?? '-') ?></td>
