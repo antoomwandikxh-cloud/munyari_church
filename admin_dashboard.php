@@ -1919,8 +1919,8 @@ w.document.write('</div>');
                     $dept_mem_res = $conn->query("
                         SELECT *,
                         CASE
-                            WHEN LOWER(church_role) REGEXP '(^|, *)(youth |women |elder |sunday school )?(chairman|chairperson|chairlady)( *,|$)' THEN 1
-                            WHEN LOWER(church_role) REGEXP '(^|, *)vice (youth |women |elder |sunday school )?(chairman|chairperson|chairlady)( *,|$)' THEN 2
+                            WHEN LOWER(church_role) REGEXP '(^|, *)(youths? |womens? |elder |sunday school )?(ministry )?(chairman|chairperson|chairlady)( *,|$)' THEN 1
+                            WHEN LOWER(church_role) REGEXP '(^|, *)vice (youths? |womens? |elder |sunday school )?(ministry )?(chairman|chairperson|chairlady)( *,|$)' THEN 2
                             WHEN LOWER(church_role) REGEXP 'secretary|treasurer|organiz|disciplin|choir|sport|graduand' THEN 3
                             WHEN LOWER(church_role) REGEXP 'mama youth|baba youth' THEN 3
                             WHEN church_role IS NULL OR church_role='' OR LOWER(church_role)='member' THEN 99
@@ -2080,6 +2080,30 @@ w.document.write('</div>');
                                                                     $leader_labels[] = strtoupper($rp);
                                                                 }
                                                             }
+                                                            
+                                                            $print_section_name = strtolower($dept);
+                                                            usort($leader_labels, function($a, $b) use ($print_section_name) {
+                                                                $a_lower = strtolower($a); $b_lower = strtolower($b);
+                                                                $a_match = 0; $b_match = 0;
+                                                                if (strpos($print_section_name, 'women') !== false) {
+                                                                    if (strpos($a_lower, 'women') !== false) $a_match = 10;
+                                                                    if (strpos($b_lower, 'women') !== false) $b_match = 10;
+                                                                }
+                                                                if (strpos($print_section_name, 'youth') !== false) {
+                                                                    if (strpos($a_lower, 'youth') !== false) $a_match = 10;
+                                                                    if (strpos($b_lower, 'youth') !== false) $b_match = 10;
+                                                                }
+                                                                if (strpos($print_section_name, 'elder') !== false) {
+                                                                    if (strpos($a_lower, 'elder') !== false) $a_match = 10;
+                                                                    if (strpos($b_lower, 'elder') !== false) $b_match = 10;
+                                                                }
+                                                                if (strpos($print_section_name, 'sunday') !== false) {
+                                                                    if (strpos($a_lower, 'sunday') !== false) $a_match = 10;
+                                                                    if (strpos($b_lower, 'sunday') !== false) $b_match = 10;
+                                                                }
+                                                                return $b_match - $a_match;
+                                                            });
+                                                            
                                                             $leader_label = !empty($leader_labels) ? implode(', ', $leader_labels) : strtoupper($dept . ' LEADER');
                                                         ?>
                                                             <br><span style="color:#2563eb; font-size:0.55rem; font-weight:700;">(<?= htmlspecialchars($leader_label) ?>)</span>
