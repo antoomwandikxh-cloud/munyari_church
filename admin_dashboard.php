@@ -1607,6 +1607,8 @@ function printMemberDirectory(orientation) {
                         w.document.write('td img{width:34px;height:34px;border-radius:50%;object-fit:cover;}');
                         w.document.write('.badge{display:inline-block;padding:3px 7px;border-radius:10px;font-size:0.7rem;font-weight:600;}');
                         w.document.write('.no-print{display:none!important;}');
+    w.document.write('.screen-name{display:none!important;}');
+    w.document.write('.print-only-name{display:inline!important;}');
                         w.document.write('.print-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}');
                         w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
                         w.document.write('</style></head><body>');
@@ -1841,6 +1843,8 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     w.document.write('td{padding:6px 8px;border:1px solid #ccc;font-size:0.79rem;vertical-align:middle;}');
     w.document.write('.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:0.72rem;font-weight:600;}');
     w.document.write('.no-print{display:none!important;}');
+    w.document.write('.screen-name{display:none!important;}');
+    w.document.write('.print-only-name{display:inline!important;}');
     w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}');
     w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
     w.document.write('</style></head><body>');
@@ -2058,23 +2062,29 @@ w.document.write('</div>');
                                             <tr style="<?= $row_bg ?>">
                                                 <td><?= $dpi++ ?></td>
                                                 <td><img src="uploads/<?= htmlspecialchars($dm['profile_picture'] ?? 'default_avatar.png') ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #ccc;cursor:zoom-in;" onclick="viewProfileImage(this.src);"></td>
-                                                <td style="text-transform:uppercase; <?= $role_r == 0 ? 'font-weight:800; color:#1e1a3a;' : 'font-weight:600;' ?>">
-                                                    <?= htmlspecialchars($dm['first_name'] . ' ' . $dm['last_name']) ?>
-                                                    <?php if ($role_r == 0): 
-                                                        // It's the top leader! Extract the exact top role name (like YOUTH CHAIRMAN)
-                                                        $leader_labels = [];
-                                                        $r_parts = explode(',', strtolower($dm['church_role'] ?? ''));
-                                                        foreach($r_parts as $rp) {
-                                                            $rp = trim($rp);
-                                                            if (strpos($rp, 'vice') === false && (strpos($rp, 'chair') !== false || strpos($rp, 'patron') !== false)) {
-                                                                $leader_labels[] = strtoupper($rp);
+                                                <td>
+                                                    <!-- On-screen view (normal title case, no brackets) -->
+                                                    <span class="screen-name"><?= htmlspecialchars($dm['first_name'] . ' ' . $dm['last_name']) ?></span>
+                                                    
+                                                    <!-- Print view (uppercase, bold if leader, blue brackets) -->
+                                                    <span class="print-only-name" style="display:none; text-transform:uppercase; <?= $role_r <= 1 ? 'font-weight:800; color:#1e1a3a;' : 'font-weight:600;' ?>">
+                                                        <?= htmlspecialchars($dm['first_name'] . ' ' . $dm['last_name']) ?>
+                                                        <?php if ($role_r == 0): // Pastor ?>
+                                                            <br><span style="color:#2563eb; font-size:0.55rem; font-weight:900;">(PASTOR)</span>
+                                                        <?php elseif ($role_r == 1): // Department Chairperson
+                                                            $leader_labels = [];
+                                                            $r_parts = explode(',', strtolower($dm['church_role'] ?? ''));
+                                                            foreach($r_parts as $rp) {
+                                                                $rp = trim($rp);
+                                                                if (strpos($rp, 'vice') === false && (strpos($rp, 'chair') !== false || strpos($rp, 'patron') !== false)) {
+                                                                    $leader_labels[] = strtoupper($rp);
+                                                                }
                                                             }
-                                                        }
-                                                        // Default to the department name + LEADER if we couldn't parse it nicely
-                                                        $leader_label = !empty($leader_labels) ? implode(', ', $leader_labels) : strtoupper($dept . ' LEADER');
-                                                    ?>
-                                                        <br><span style="color:#2563eb; font-size:0.55rem; font-weight:700;">(<?= htmlspecialchars($leader_label) ?>)</span>
-                                                    <?php endif; ?>
+                                                            $leader_label = !empty($leader_labels) ? implode(', ', $leader_labels) : strtoupper($dept . ' LEADER');
+                                                        ?>
+                                                            <br><span style="color:#2563eb; font-size:0.55rem; font-weight:700;">(<?= htmlspecialchars($leader_label) ?>)</span>
+                                                        <?php endif; ?>
+                                                    </span>
                                                 </td>
                                                 <td><?= htmlspecialchars($dm['phone'] ?? '-') ?></td>
                                                 <td><?= htmlspecialchars($dm['church_role'] ?? 'Member') ?></td>
@@ -5392,6 +5402,8 @@ function printRequiredLeadersTable(orientation) {
     w.document.write('td{padding:9px 14px;border:1px solid #ccc;font-size:0.85rem;vertical-align:middle;}');
     w.document.write('.badge{display:inline-block;padding:4px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;}');
     w.document.write('.no-print{display:none!important;}');
+    w.document.write('.screen-name{display:none!important;}');
+    w.document.write('.print-only-name{display:inline!important;}');
     w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}');
     w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
     w.document.write('.btn-sm, button { display:none !important; }');
