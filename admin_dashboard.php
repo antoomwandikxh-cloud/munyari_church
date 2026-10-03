@@ -4158,7 +4158,7 @@ w.document.write('</div>');
                     $has_any_records = false;
                     foreach ($target_depts as $d):
                         $d_esc = $conn->real_escape_string($d);
-                        $fin_records = $conn->query("SELECT fr.*, COALESCE(fr.recorded_by_name, CONCAT(m.first_name, ' ', m.last_name)) AS poster_name FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE fr.department = '$d_esc' ORDER BY fr.recorded_at DESC LIMIT 30");
+                        $fin_records = $conn->query("SELECT fr.*, COALESCE(fr.recorded_by_name, CONCAT(m.first_name, ' ', m.last_name)) AS poster_name, COALESCE(m.profile_picture, 'default_avatar.png') AS poster_pic FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE fr.department = '$d_esc' ORDER BY fr.recorded_at DESC LIMIT 30");
                         if ($fin_records && $fin_records->num_rows > 0):
                             $has_any_records = true;
                     ?>
@@ -4168,7 +4168,14 @@ w.document.write('</div>');
                         <tbody>
                             <?php while($fr = $fin_records->fetch_assoc()): ?>
                             <tr>
-                                <td><span style="font-weight:600; color:var(--text-main);"><?= htmlspecialchars($fr['poster_name'] ?: 'Unknown') ?></span></td>
+                                <td>
+                                    <div style="display:flex;align-items:center;gap:9px;">
+                                        <img src="uploads/<?= htmlspecialchars($fr['poster_pic'] ?? 'default_avatar.png') ?>"
+                                             style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);cursor:zoom-in;flex-shrink:0;"
+                                             onclick="viewProfileImage(this.src)">
+                                        <span style="font-weight:600;color:var(--text-main);"><?= htmlspecialchars($fr['poster_name'] ?: 'Unknown') ?></span>
+                                    </div>
+                                </td>
                                 <td style="font-weight:700;color:#10b981;">KSh <?= number_format($fr['amount'], 2) ?></td>
                                 <td><?= htmlspecialchars($fr['description'] ?? '-') ?></td>
                                 <td style="font-size:0.85em;color:var(--text-muted);"><?= date('M j, Y', strtotime($fr['record_date'] ?: $fr['recorded_at'])) ?></td>
