@@ -1951,11 +1951,25 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                     $status_str = $pm['is_approved']==1?'Active':($pm['is_approved']==-1?'Deactivated':'Pending');
                                     $status_color = $pm['is_approved']==1?'#15803d':($pm['is_approved']==-1?'#dc2626':'#d97706');
                                     $roles_str = implode(', ', array_filter(array_map('trim', explode(',', $pm['church_role'] ?? 'Member'))));
-                                    $row_bg = ($print_row % 2 === 0) ? '#eff6ff' : '#ffffff'; ?>
+                                    $row_bg = ($print_row % 2 === 0) ? '#eff6ff' : '#ffffff';
+                                    $role_lower = strtolower($pm['church_role'] ?? '');
+                                    $is_dept_leader = !empty($pm['church_role']) && empty($pm['is_pastor']) && (
+                                        strpos($role_lower, 'chairman') !== false ||
+                                        strpos($role_lower, 'chairlady') !== false ||
+                                        strpos($role_lower, 'chairperson') !== false ||
+                                        strpos($role_lower, 'patron') !== false ||
+                                        strpos($role_lower, 'secretary') !== false ||
+                                        strpos($role_lower, 'treasurer') !== false ||
+                                        strpos($role_lower, 'village leader') !== false
+                                    ); ?>
                                 <tr style="background:<?= $row_bg ?>;">
                                     <td style="padding:5px 8px;border:1px solid #ddd;"><?= $print_row++ ?></td>
                                     <td style="padding:4px 8px;border:1px solid #ddd;"><img src="uploads/<?= htmlspecialchars($pm['profile_picture'] ?? 'default_avatar.png') ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid #c7d2fe;display:block;" alt=""></td>
-                                    <td style="padding:5px 8px;border:1px solid #ddd;text-transform:uppercase; font-weight:<?= !empty($pm['is_pastor']) ? '900;color:#1e3a8a;font-size:0.85rem;' : '600;' ?>;">
+                                    <td style="padding:5px 8px;border:1px solid #ddd;text-transform:uppercase;<?php
+                                        if (!empty($pm['is_pastor'])) { echo 'font-weight:900;color:#1e3a8a;font-size:0.85rem;'; }
+                                        elseif ($is_dept_leader) { echo 'font-weight:800;color:#1e1a3a;'; }
+                                        else { echo 'font-weight:600;'; }
+                                    ?>">
                                         <?= htmlspecialchars($pm['first_name'].' '.$pm['last_name']) ?>
                                         <?= !empty($pm['is_pastor']) ? ' <span style="color:#2563eb;">(PASTOR)</span>' : '' ?>
                                     </td>
