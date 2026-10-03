@@ -1932,6 +1932,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                 <th style="padding:7px 8px;border:1px solid #aaa;">Full Name</th>
                                 <th style="padding:7px 8px;border:1px solid #aaa;">Phone</th>
                                 <th style="padding:7px 8px;border:1px solid #aaa;">Address</th>
+                                 <th style="padding:7px 8px;border:1px solid #aaa;">Church Village</th>
                                 <th style="padding:7px 8px;border:1px solid #aaa;">Department</th>
                                 <th style="padding:7px 8px;border:1px solid #aaa;">Role(s)</th>
                                 <th style="padding:7px 8px;border:1px solid #aaa;">Status</th>

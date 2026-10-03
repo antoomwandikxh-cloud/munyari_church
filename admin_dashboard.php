@@ -1396,7 +1396,7 @@ if (!empty($action)) {
                                 <th style="padding:7px 8px;border:1px solid #aaa;text-align:left;">Full Name</th>
                                 <th style="padding:7px 8px;border:1px solid #aaa;text-align:left;">Phone</th>
                                 <th style="padding:7px 8px;border:1px solid #aaa;text-align:left;">Address</th>
-                                <th style="padding:7px 8px;border:1px solid #aaa;text-align:left;">Village</th>
+                                <th style="padding:7px 8px;border:1px solid #aaa;text-align:left;">Church Village</th>
                                 <th style="padding:7px 8px;border:1px solid #aaa;text-align:left;">Department</th>
                                 <th style="padding:7px 8px;border:1px solid #aaa;text-align:left;">Role(s)</th>
                                 <th style="padding:7px 8px;border:1px solid #aaa;text-align:left;">Status</th>
