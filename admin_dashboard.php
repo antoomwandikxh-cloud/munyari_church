@@ -1259,21 +1259,14 @@ if (!empty($action)) {
 
                 <?php
                 if (!function_exists('get_print_sort_order')) {
-                                        function get_print_sort_order($role_raw, $dept) {
+                    function get_print_sort_order($role_raw, $dept) {
                         $d = strtolower(trim($dept ?? ''));
-                        // Split roles by comma so multi-role members get their BEST rank
                         $role_parts = array_map('trim', explode(',', strtolower($role_raw ?? '')));
                         $best = [99, 99];
-
                         foreach ($role_parts as $r) {
                             $r = trim($r);
                             if ($r === '') continue;
-
-                            // --- PASTOR ---
-                            if (strpos($r, 'general church') !== false || strpos($r, 'pastor') !== false) {
-                                $rank = [0, 0];
-                            }
-                            // --- ELDERS ---
+                            if (strpos($r, 'general church') !== false || strpos($r, 'pastor') !== false) { $rank = [0, 0]; }
                             elseif (strpos($d, 'elder') !== false || strpos($r, 'elder') !== false) {
                                 if (preg_match('/chair(man|person|lady)/', $r) && strpos($r, 'vice') === false) $rank = [1, 0];
                                 elseif (strpos($r, 'vice') !== false && preg_match('/chair/', $r))               $rank = [1, 1];
@@ -1282,7 +1275,6 @@ if (!empty($action)) {
                                 elseif (strpos($r, 'treasurer') !== false)                                         $rank = [1, 4];
                                 else                                                                                 $rank = [1, 5];
                             }
-                            // --- WOMEN'S MINISTRY ---
                             elseif (strpos($d, 'women') !== false || strpos($r, 'women') !== false) {
                                 if (preg_match('/chair(man|person|lady)/', $r) && strpos($r, 'vice') === false) $rank = [2, 0];
                                 elseif (strpos($r, 'vice') !== false && preg_match('/chair/', $r))               $rank = [2, 1];
@@ -1291,7 +1283,6 @@ if (!empty($action)) {
                                 elseif (strpos($r, 'treasurer') !== false)                                         $rank = [2, 4];
                                 else                                                                                 $rank = [2, 5];
                             }
-                            // --- YOUTHS ---
                             elseif (strpos($d, 'youth') !== false || strpos($r, 'youth') !== false) {
                                 if (preg_match('/chair(man|person|lady)/', $r) && strpos($r, 'vice') === false) $rank = [3, 0];
                                 elseif (strpos($r, 'vice') !== false && preg_match('/chair/', $r))               $rank = [3, 1];
@@ -1301,7 +1292,6 @@ if (!empty($action)) {
                                 elseif (strpos($r, 'mama youth') !== false || strpos($r, 'baba youth') !== false) $rank = [3, 5];
                                 else                                                                                 $rank = [3, 6];
                             }
-                            // --- SUNDAY SCHOOL ---
                             elseif (strpos($d, 'sunday') !== false || strpos($r, 'sunday school') !== false) {
                                 if (strpos($r, 'patron') !== false && strpos($r, 'vice') === false)               $rank = [4, 0];
                                 elseif (strpos($r, 'vice') !== false && strpos($r, 'patron') !== false)           $rank = [4, 1];
@@ -1313,7 +1303,6 @@ if (!empty($action)) {
                                 elseif (strpos($r, 'teacher') !== false)                                           $rank = [5, 0];
                                 else                                                                                 $rank = [6, 0];
                             }
-                            // --- BUILDING ---
                             elseif (strpos($r, 'building') !== false) {
                                 if (preg_match('/chair(man|person|lady)/', $r) && strpos($r, 'vice') === false) $rank = [7, 0];
                                 elseif (strpos($r, 'vice') !== false && preg_match('/chair/', $r))               $rank = [7, 1];
@@ -1322,60 +1311,11 @@ if (!empty($action)) {
                                 elseif (strpos($r, 'treasurer') !== false)                                         $rank = [7, 4];
                                 else                                                                                 $rank = [7, 5];
                             }
-                            // --- OTHER NAMED ROLES ---
-                            elseif ($r !== 'member' && $r !== '') {
-                                $rank = [8, 0];
-                            }
-                            // --- PLAIN MEMBER ---
-                            else {
-                                $rank = [99, 0];
-                            }
-
-                            // Keep the best (lowest) rank found across all roles
-                            if ($rank[0] < $best[0] || ($rank[0] === $best[0] && $rank[1] < $best[1])) {
-                                $best = $rank;
-                            }
+                            elseif ($r !== 'member' && $r !== '') { $rank = [8, 0]; }
+                            else { $rank = [99, 0]; }
+                            if ($rank[0] < $best[0] || ($rank[0] === $best[0] && $rank[1] < $best[1])) { $best = $rank; }
                         }
                         return $best;
-                    }
-                        if (strpos($d, 'women') !== false || strpos($r, 'women') !== false) {
-                            if (preg_match('/vice women (chairlady|chairperson|chairman)/', $r)) return [2, 1];
-                            if (preg_match('/(^women.*(chairlady|chairperson|chairman)$|^womens.*(chairlady|chairperson|chairman)$|^.*ministry.*(chairlady|chairperson|chairman)$)/', $r)) return [2, 0];
-                            if (strpos($r, 'women secretary') !== false && strpos($r, 'vice') === false) return [2, 2];
-                            if (strpos($r, 'vice women secretary') !== false) return [2, 3];
-                            if (strpos($r, 'women treasurer') !== false) return [2, 4];
-                            return [2, 5];
-                        }
-                        if (strpos($d, 'youth') !== false || strpos($r, 'youth') !== false) {
-                            if (preg_match('/^(youth chairman|youth chairperson|youth chairlady)$/', $r)) return [3, 0];
-                            if (strpos($r, 'vice youth chair') !== false) return [3, 1];
-                            if (strpos($r, 'youth secretary') !== false && strpos($r, 'vice') === false) return [3, 2];
-                            if (strpos($r, 'vice youth secretary') !== false) return [3, 3];
-                            if (strpos($r, 'youth treasurer') !== false) return [3, 4];
-                            if (strpos($r, 'mama youth') !== false || strpos($r, 'baba youth') !== false) return [3, 5];
-                            return [3, 6];
-                        }
-                        if (strpos($d, 'sunday school') !== false || strpos($r, 'sunday school') !== false) {
-                            if (strpos($r, 'sunday school patron') !== false && strpos($r, 'vice') === false) return [4, 0];
-                            if (strpos($r, 'vice sunday school patron') !== false) return [4, 1];
-                            if (preg_match('/sunday school (chairman|chairperson|chairlady)/', $r) && strpos($r, 'vice') === false) return [4, 2];
-                            if (preg_match('/vice sunday school (chairman|chairperson|chairlady)/', $r)) return [4, 3];
-                            if (strpos($r, 'sunday school secretary') !== false && strpos($r, 'vice') === false) return [4, 4];
-                            if (strpos($r, 'vice sunday school secretary') !== false) return [4, 5];
-                            if (strpos($r, 'sunday school treasurer') !== false) return [4, 6];
-                            if (strpos($r, 'sunday school teacher') !== false) return [5, 0];
-                            return [6, 0];
-                        }
-                        if (strpos($r, 'building') !== false) {
-                            if (preg_match('/^(building chairman|building chairperson|building chairlady)$/', $r)) return [7, 0];
-                            if (strpos($r, 'vice building chair') !== false) return [7, 1];
-                            if (strpos($r, 'building secretary') !== false && strpos($r, 'vice') === false) return [7, 2];
-                            if (strpos($r, 'vice building secretary') !== false) return [7, 3];
-                            if (strpos($r, 'building treasurer') !== false) return [7, 4];
-                            return [7, 5];
-                        }
-                        if ($r !== 'member' && $r !== '') return [8, 0];
-                        return [99, 0];
                     }
                 }
                 $members->data_seek(0);
