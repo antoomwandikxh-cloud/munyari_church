@@ -4125,12 +4125,12 @@ w.document.write('</div>');
                             $t_role = $treasurer_role_map[$key] ?? null;
                             $t_info = $t_role ? ($treasurers[$t_role] ?? null) : null;
                         ?>
-                                                <div style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                                                <div style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 14px;">
                             <div>
                                 <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 500;"><?= htmlspecialchars($label) ?></div>
                                 <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin-top: 5px;">KSh <?= number_format($amt, 2) ?></div>
                             </div>
-                                                        <div style="margin-top: 15px; padding-top: 12px; border-top: 1px dashed var(--border-color); display: flex; align-items: center; gap: 10px;">
+                                                        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
                                 <?php if ($t_info): ?>
                                     <img src="uploads/<?= htmlspecialchars($t_info['pic']) ?>" alt="Treasurer" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); cursor: zoom-in;" onclick="viewProfileImage(this.src)">
                                     <div style="line-height: 1.2;">
