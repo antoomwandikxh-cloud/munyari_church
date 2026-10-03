@@ -1978,7 +1978,22 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                         else { echo 'font-weight:600;'; }
                                     ?>">
                                         <?= htmlspecialchars($pm['first_name'].' '.$pm['last_name']) ?>
-                                        <?= !empty($pm['is_pastor']) ? ' <span style="color:#2563eb;">(PASTOR)</span>' : '' ?>
+                                        <?php if (!empty($pm['is_pastor'])): ?>
+                                            <span style="color:#2563eb; font-weight:900;">(PASTOR)</span>
+                                        <?php elseif ($is_dept_leader): 
+                                            // Extract the leadership role from their comma-separated roles
+                                            $leader_label = 'LEADER';
+                                            $r_parts = explode(',', strtolower($pm['church_role'] ?? ''));
+                                            foreach($r_parts as $rp) {
+                                                $rp = trim($rp);
+                                                if (strpos($rp, 'chair') !== false || strpos($rp, 'patron') !== false || strpos($rp, 'secretary') !== false || strpos($rp, 'treasurer') !== false || strpos($rp, 'village leader') !== false) {
+                                                    $leader_label = strtoupper($rp);
+                                                    break;
+                                                }
+                                            }
+                                        ?>
+                                            <br><span style="color:#2563eb; font-size:0.65rem; font-weight:700;">(<?= htmlspecialchars($leader_label) ?>)</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td style="padding:5px 8px;border:1px solid #ddd;"><?= htmlspecialchars($pm['phone'] ?? '-') ?></td>
                                     <td style="padding:5px 8px;border:1px solid #ddd;"><?= htmlspecialchars($pm['address'] ?? '-') ?></td>
