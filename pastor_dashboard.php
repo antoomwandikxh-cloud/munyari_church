@@ -1945,7 +1945,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                     $s = get_print_sort_order($pm['church_role'] ?? '', $pm['department'] ?? '');
                                     $grp = $s[0];
                                     if ($grp !== $last_grp): $gl = $group_labels[$grp] ?? 'Other'; $gc = $group_colors[$grp] ?? '#374151'; $last_grp = $grp; ?>
-                                <tr><td colspan="8" style="padding:6px 10px;background:<?= $gc ?>;color:white;font-weight:700;font-size:0.74rem;letter-spacing:0.5px;border:1px solid <?= $gc ?>;text-align:center;"> <?= htmlspecialchars($gl) ?> </td></tr>
+                                <tr><td colspan="9" style="padding:6px 10px;background:<?= $gc ?>;color:white;font-weight:700;font-size:0.74rem;letter-spacing:0.5px;border:1px solid <?= $gc ?>;text-align:center;"> <?= htmlspecialchars($gl) ?> </td></tr>
                                 <?php endif;
                                     $status_str = $pm['is_approved']==1?'Active':($pm['is_approved']==-1?'Deactivated':'Pending');
                                     $status_color = $pm['is_approved']==1?'#15803d':($pm['is_approved']==-1?'#dc2626':'#d97706');
@@ -1954,9 +1954,13 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                 <tr style="background:<?= $row_bg ?>;">
                                     <td style="padding:5px 8px;border:1px solid #ddd;"><?= $print_row++ ?></td>
                                     <td style="padding:4px 8px;border:1px solid #ddd;"><img src="uploads/<?= htmlspecialchars($pm['profile_picture'] ?? 'default_avatar.png') ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid #c7d2fe;display:block;" alt=""></td>
-                                    <td style="padding:5px 8px;border:1px solid #ddd;font-weight:600;"><?= htmlspecialchars($pm['first_name'].' '.$pm['last_name']) ?></td>
+                                    <td style="padding:5px 8px;border:1px solid #ddd;font-weight:<?= !empty($pm['is_pastor']) ? '900;color:#1e3a8a;text-transform:uppercase;font-size:0.85rem;' : '600;' ?>;">
+                                        <?= htmlspecialchars($pm['first_name'].' '.$pm['last_name']) ?>
+                                        <?= !empty($pm['is_pastor']) ? ' <span style="color:#dc2626;">(PASTOR)</span>' : '' ?>
+                                    </td>
                                     <td style="padding:5px 8px;border:1px solid #ddd;"><?= htmlspecialchars($pm['phone'] ?? '-') ?></td>
                                     <td style="padding:5px 8px;border:1px solid #ddd;"><?= htmlspecialchars($pm['address'] ?? '-') ?></td>
+                                    <td style="padding:5px 8px;border:1px solid #ddd;"><?= htmlspecialchars($pm['church_village'] ?? '-') ?></td>
                                     <td style="padding:5px 8px;border:1px solid #ddd;"><?= htmlspecialchars($pm['department'] ?? 'General Church') ?></td>
                                     <td style="padding:5px 8px;border:1px solid #ddd;"><?= htmlspecialchars($roles_str ?: 'Member') ?></td>
                                     <td style="padding:5px 8px;border:1px solid #ddd;color:<?= $status_color ?>;font-weight:600;">
