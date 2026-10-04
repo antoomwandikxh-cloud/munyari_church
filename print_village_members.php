@@ -60,7 +60,7 @@ $v_mems_q = $conn->query("
     END AS sort_rank
     FROM members
     WHERE is_approved = 1 AND church_village = '$safe_village'
-    ORDER BY sort_rank ASC, first_name ASC
+    ORDER BY sort_rank ASC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name ASC
 ");
 
 // ── Logo ─────────────────────────────────────────────────────────────────────

@@ -2931,7 +2931,7 @@ w.document.write('</div>');
                     $v_color = $village_colors[$v] ?? '#94a3b8';
                     
                     // Fetch members
-                    $v_members_res = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, (church_role IS NOT NULL AND TRIM(church_role) != '' AND church_role != 'Member') DESC, first_name ASC");
+                    $v_members_res = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, (church_role IS NOT NULL AND TRIM(church_role) != '' AND church_role != 'Member') DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name ASC");
                     $v_count = $v_members_res ? $v_members_res->num_rows : 0;
                     
                     $v_leaders = [];
@@ -6083,7 +6083,6 @@ function openDeclineModal(id, name) {
         w.document.write('<h3 style="margin:3px 0;color:#1e3a8a;">' + villageName.toUpperCase() + ' VILLAGE — MEMBERS LIST</h3>');
         w.document.write('<p style="margin:2px 0;font-size:0.78rem;color:#555;">Printed on: ' + new Date().toLocaleString() + '</p>');
 w.document.write('</div>');
-        w.document.write(leaderHTML);
         w.document.write('<table>' + theadHTML + tbodyHTML + '</table>');
         w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
         w.document.write('</body></html>');
