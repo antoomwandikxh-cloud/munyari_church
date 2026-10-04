@@ -3559,7 +3559,7 @@ w.document.write('</div>');
                     $v_color = $village_colors[$v] ?? '#94a3b8';
                     
                     // Fetch members
-                    $v_members_res = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, (church_role IS NOT NULL AND TRIM(church_role) != '' AND church_role != 'Member') DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name ASC");
+                    $v_members_res = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, (church_role IS NOT NULL AND TRIM(church_role) != '' AND church_role != 'Member') DESC, first_name ASC");
                     $v_count = $v_members_res ? $v_members_res->num_rows : 0;
                     
                     $v_leaders = [];
@@ -3601,14 +3601,14 @@ w.document.write('</div>');
                     
                     <?php if ($v_total > 0): ?>
                     <div class="table-responsive" id="village_table_<?= str_replace(' ', '_', $v) ?>">
-                        <div class="print-leader-profile" style="display:none; text-align:center; margin-bottom:20px; background:#f8fafc; padding:15px; border-radius:10px; border:1px solid #e2e8f0;">
+                        <div class="print-leader-profile" style="display:none; text-align:center; margin:0 auto 10px; background:#f8fafc; padding:6px 12px; border-radius:6px; border:1px solid #e2e8f0; width:fit-content; min-width:200px;">
                             <?php if (!empty($v_leaders[0])): ?>
-                                <img src="uploads/<?= htmlspecialchars($v_leaders[0]['profile_picture'] ?? 'default_avatar.png') ?>" style="width:75px; height:75px; border-radius:50%; object-fit:cover; border:3px solid <?= $v_color ?>; margin-bottom:8px;">
+                                <img src="uploads/<?= htmlspecialchars($v_leaders[0]['profile_picture'] ?? 'default_avatar.png') ?>" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid <?= $v_color ?>; margin-bottom:4px;">
                                 <div style="font-size:1.1rem; font-weight:800; color:#1e3a8a; text-transform:uppercase; margin-bottom:2px;"><?= htmlspecialchars($v_leaders[0]['first_name'] . ' ' . $v_leaders[0]['last_name']) ?></div>
                                 <div style="font-size:0.85rem; font-weight:600; color:<?= $v_color ?>; margin-bottom:4px;"><?= $v ?> Village Leader</div>
                                 <div style="font-size:0.75rem; color:#64748b; font-weight:600;"><?= htmlspecialchars($v_leaders[0]['phone']) ?></div>
                             <?php else: ?>
-                                <img src="uploads/default_avatar.png" style="width:75px; height:75px; border-radius:50%; object-fit:cover; border:3px solid #cbd5e1; margin-bottom:8px; opacity:0.7; filter:grayscale(100%);">
+                                <img src="uploads/default_avatar.png" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #cbd5e1; margin-bottom:4px; opacity:0.7; filter:grayscale(100%);">
                                 <div style="font-size:1.1rem; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:2px;">(Not Assigned)</div>
                                 <div style="font-size:0.85rem; font-weight:600; color:#64748b; margin-bottom:4px;"><?= $v ?> Village Leader</div>
                             <?php endif; ?>
