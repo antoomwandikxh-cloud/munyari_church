@@ -231,12 +231,12 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
         <?php if ($pb): ?>
             <img src="<?= $pb ?>" alt="">
         <?php else: ?>
-            <div class="avatar-ph">👤</div>
+            <img src="<?= img_b64('default_avatar.png') ?>" alt="" style="opacity:0.8; filter: grayscale(50%);">
         <?php endif; ?>
         <div class="ln"><?= htmlspecialchars($l['first_name'] . ' ' . $l['last_name']) ?></div>
         <div class="lv" style="color:<?= $vc ?>;"><?= $v ?> — Village Leader</div>
         <?php else: ?>
-        <div class="avatar-ph" style="color:#aaa;">👤</div>
+        <img src="<?= img_b64('default_avatar.png') ?>" alt="" style="opacity:0.8; filter: grayscale(50%);">
         <div class="ln" style="color:#aaa;">No Leader Yet</div>
         <div class="lv" style="color:<?= $vc ?>;"><?= $v ?> Village</div>
         <?php endif; ?>
@@ -292,10 +292,10 @@ foreach ($villages as $v):
                 <th>#</th>
                 <th>Photo</th>
                 <th>Full Name</th>
-                <th>Department</th>
+                <th>Phone</th>
                 <th>Church Role</th>
                 <th>Chosen Service</th>
-                <th>Phone</th>
+                <th>Department</th>
             </tr>
         </thead>
         <tbody>
@@ -315,7 +315,7 @@ foreach ($villages as $v):
                     <?php if ($pic_b64): ?>
                         <img src="<?= $pic_b64 ?>" alt="">
                     <?php else: ?>
-                        <div class="ph">👤</div>
+                        <img src="<?= img_b64('default_avatar.png') ?>" alt="" style="opacity:0.8; filter: grayscale(50%);">
                     <?php endif; ?>
                 </td>
                 <td style="font-weight:<?= $is_leader || $is_pastor ? '800' : '600' ?>;">
@@ -326,7 +326,7 @@ foreach ($villages as $v):
                         <span style="color:#2563eb; font-weight:900;">(PASTOR)</span>
                     <?php endif; ?>
                 </td>
-                <td><?= htmlspecialchars($row['department'] ?: 'General Church') ?></td>
+                <td style="color:#666; font-weight:600;"><?= htmlspecialchars($row['phone'] ?? '—') ?></td>
                 <td><?= htmlspecialchars($row['church_role'] ?: 'Member') ?></td>
                 <td>
                     <?php if ($dsr): ?>
@@ -335,7 +335,7 @@ foreach ($villages as $v):
                         <span style="color:#bbb;">—</span>
                     <?php endif; ?>
                 </td>
-                <td style="color:#666;"><?= htmlspecialchars($row['phone'] ?? '—') ?></td>
+                <td><span class="badge" style="background:#f1f5f9; color:#475569; padding:2px 6px; border-radius:4px; font-weight:600; font-size:0.75rem;"><?= htmlspecialchars($row['department'] ?: 'General Church') ?></span></td>
             </tr>
         <?php endforeach; else: ?>
             <tr><td colspan="7" style="text-align:center;color:#aaa;padding:12px;">No members in <?= htmlspecialchars($v) ?> Village yet.</td></tr>
