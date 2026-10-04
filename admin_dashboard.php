@@ -3597,7 +3597,31 @@ w.document.write('</div>');
                                 </tr>
                             </thead>
                             <tbody>
-                            <?php $i = 1; while($vm = $v_members->fetch_assoc()):
+                            <?php $i = 1; foreach ($v_pastor_rows as $pr):
+                                $dsr = $pr['desired_role_pref'] ?? '';
+                                $dsr_color = $dsr === 'Worshipper' ? '#8b5cf6' : ($dsr === 'Church Cleaner' ? '#0ea5e9' : ($dsr === 'Church Cooker' ? '#f59e0b' : '#94a3b8'));
+                                $pic = htmlspecialchars($pr['profile_picture'] ?? 'default_avatar.png');
+                            ?>
+                            <tr style="background:rgba(251,191,36,0.08);">
+                                <td style="color:var(--text-muted);"><?= $i++ ?></td>
+                                <td>
+                                    <img src="uploads/<?= $pic ?>" alt="Photo"
+                                         style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #f59e0b;cursor:zoom-in;display:block;"
+                                         onclick="viewProfileImage(this.src);"
+                                         onerror="this.src='uploads/default_avatar.png';">
+                                </td>
+                                <td style="font-weight:700;">
+                                    <?= htmlspecialchars($pr['first_name'] . ' ' . $pr['last_name']) ?>
+                                    <span class="badge" style="background:#fef3c7;color:#92400e;margin-left:4px;border:1px solid #f59e0b;">Pastor</span>
+                                </td>
+                                <td><span class="badge" style="background:<?= $v_color ?>22;color:<?= $v_color ?>;font-weight:700;"><?= htmlspecialchars($pr['church_village'] ?: $v) ?></span></td>
+                                <td><?= htmlspecialchars($pr['department'] ?: 'Pastoral') ?></td>
+                                <td><span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary);"><?= htmlspecialchars($pr['church_role'] ?: 'Pastor') ?></span></td>
+                                <td><?php if ($dsr): ?><span class="badge" style="background:<?= $dsr_color ?>22; color:<?= $dsr_color ?>;font-weight:700;"><?= htmlspecialchars($dsr) ?></span><?php else: ?><span style="color:var(--text-muted); font-size:0.85rem;">—</span><?php endif; ?></td>
+                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($pr['phone'] ?? '—') ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <?php while($vm = $v_members->fetch_assoc()):
                                 $dsr = $vm['desired_role_pref'] ?? '';
                                 $dsr_color = $dsr === 'Worshipper' ? '#8b5cf6' : ($dsr === 'Church Cleaner' ? '#0ea5e9' : ($dsr === 'Church Cooker' ? '#f59e0b' : '#94a3b8'));
                                 $is_leader = !empty($vm['is_village_leader']);
@@ -3622,30 +3646,6 @@ w.document.write('</div>');
                                 <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($vm['phone'] ?? '—') ?></td>
                             </tr>
                             <?php endwhile; ?>
-                            <?php foreach ($v_pastor_rows as $pr):
-                                $dsr = $pr['desired_role_pref'] ?? '';
-                                $dsr_color = $dsr === 'Worshipper' ? '#8b5cf6' : ($dsr === 'Church Cleaner' ? '#0ea5e9' : ($dsr === 'Church Cooker' ? '#f59e0b' : '#94a3b8'));
-                                $pic = htmlspecialchars($pr['profile_picture'] ?? 'default_avatar.png');
-                            ?>
-                            <tr style="background:rgba(251,191,36,0.08);">
-                                <td style="color:var(--text-muted);"><?= $i++ ?></td>
-                                <td>
-                                    <img src="uploads/<?= $pic ?>" alt="Photo"
-                                         style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #f59e0b;cursor:zoom-in;display:block;"
-                                         onclick="viewProfileImage(this.src);"
-                                         onerror="this.src='uploads/default_avatar.png';">
-                                </td>
-                                <td style="font-weight:700;">
-                                    <?= htmlspecialchars($pr['first_name'] . ' ' . $pr['last_name']) ?>
-                                    <span class="badge" style="background:#fef3c7;color:#92400e;margin-left:4px;border:1px solid #f59e0b;">Pastor</span>
-                                </td>
-                                <td><span class="badge" style="background:<?= $v_color ?>22;color:<?= $v_color ?>;font-weight:700;"><?= htmlspecialchars($pr['church_village'] ?: $v) ?></span></td>
-                                <td><?= htmlspecialchars($pr['department'] ?: 'Pastoral') ?></td>
-                                <td><span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary);"><?= htmlspecialchars($pr['church_role'] ?: 'Pastor') ?></span></td>
-                                <td><?php if ($dsr): ?><span class="badge" style="background:<?= $dsr_color ?>22; color:<?= $dsr_color ?>;font-weight:700;"><?= htmlspecialchars($dsr) ?></span><?php else: ?><span style="color:var(--text-muted); font-size:0.85rem;">—</span><?php endif; ?></td>
-                                <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($pr['phone'] ?? '—') ?></td>
-                            </tr>
-                            <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
