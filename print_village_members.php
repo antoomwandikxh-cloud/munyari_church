@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once 'db_connect.php';
 
@@ -57,7 +57,7 @@ if ($leader && !empty($leader['profile_picture'])) {
 //   2  = any other named church role (worship leader, choir, etc.)
 //   99 = plain member / no role
 $v_mems_q = $conn->query("
-    SELECT id, first_name, last_name, phone, department, church_role, profile_picture, is_village_leader,
+    SELECT id, first_name, last_name, phone, address, department, church_role, profile_picture, is_village_leader,
     CASE
         WHEN is_village_leader = 1 THEN 1
         WHEN church_role IS NOT NULL AND church_role != '' AND LOWER(church_role) != 'member' THEN 2
@@ -205,18 +205,18 @@ if (file_exists($logo_path)) {
     <div class="header">
         <?php if ($logo_b64): ?><img src="<?= $logo_b64 ?>" alt="Church Logo"><?php endif; ?>
         <div class="header-text">
+            <div style="margin-bottom:6px;">
+                <img src="<?= $l_pic_b64 ?: $default_pic_b64 ?>" alt="Village Leader" style="width:72px; height:72px; border-radius:50%; object-fit:cover; border:3px solid #1e3a8a; display:inline-block; <?= empty($l_pic_b64) ? 'filter:grayscale(60%);' : '' ?>">
+            </div>
             <h1>E.A.P.C Munyari Church</h1>
             <h2><?= strtoupper(htmlspecialchars($village)) ?> Village – Members Directory</h2>
+            <div style="font-size:11px; font-weight:800; color:#1e3a8a; text-transform:uppercase; margin:3px 0;"><?= $leader ? htmlspecialchars(strtoupper($leader['first_name'] . ' ' . $leader['last_name'])) : 'LEADER NOT ASSIGNED' ?> &mdash; <?= htmlspecialchars($village) ?> Village Leader</div>
             <h3>Printed on: <?= date('l, F j, Y') ?></h3>
             <?php if ($pastor): ?>
-            <h3 style="margin-top:4px; font-weight:600; color:#1e3a8a;">Pastor: <?= htmlspecialchars($pastor_name) ?></h3>
+            <h3 style="margin-top:2px; font-weight:600; color:#1e3a8a;">Pastor: <?= htmlspecialchars($pastor_name) ?></h3>
             <?php endif; ?>
         </div>
-        <div style="text-align:center; flex-shrink:0;">
-            <img src="<?= $l_pic_b64 ?: $default_pic_b64 ?>" alt="Village Leader" style="width:75px; height:75px; border-radius:50%; object-fit:cover; border:3px solid #1e3a8a; display:block; margin:0 auto 4px; <?= empty($l_pic_b64) ? 'filter:grayscale(60%);' : '' ?>">
-            <div style="font-size:9px; font-weight:800; color:#1e3a8a; text-transform:uppercase; margin-top:3px;"><?= $leader ? htmlspecialchars($leader['first_name'] . ' ' . $leader['last_name']) : 'NOT ASSIGNED' ?></div>
-            <div style="font-size:8px; color:#64748b; font-weight:600;"><?= htmlspecialchars($village) ?> Village Leader</div>
-        </div>
+        <?php if ($logo_b64): ?><img src="<?= $logo_b64 ?>" alt="Church Logo"><?php endif; ?>
     </div>
 
     <!-- Members Table -->
@@ -230,6 +230,7 @@ if (file_exists($logo_path)) {
                 <th>Department</th>
                 <th>Role(s)</th>
                 <th>Status</th>
+                <th>Residence</th>
             </tr>
         </thead>
         <tbody>
@@ -273,12 +274,13 @@ if (file_exists($logo_path)) {
                 <td><?= htmlspecialchars($m['department'] ?? '') ?></td>
                 <td><?= htmlspecialchars($m['church_role'] ?? '') ?></td>
                 <td><?= $badge ?></td>
+                <td style="font-size:11px; color:#555; text-transform:capitalize;"><?= htmlspecialchars($m['address'] ?? '-') ?></td>
             </tr>
         <?php
             endwhile;
         else:
         ?>
-            <tr><td colspan="7" style="text-align:center; padding:20px; color:#888;">No members found in this village.</td></tr>
+            <tr><td colspan="8" style="text-align:center; padding:20px; color:#888;">No members found in this village.</td></tr>
         <?php endif; ?>
         </tbody>
     </table>
