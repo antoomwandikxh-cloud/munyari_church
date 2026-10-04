@@ -1463,7 +1463,7 @@ if (!empty($action)) {
                                 foreach ($all_print_members as $pm):
                                     $s = get_print_sort_order($pm['church_role'] ?? '', $pm['department'] ?? '');
                                     $grp = $s[0];
-                                    if ($grp !== $last_grp) { $last_grp = $grp; if ($grp !== 99) { $gl = $group_labels[$grp] ?? 'Other'; $gc = $group_colors[$grp] ?? '#374151'; echo '<tr><td colspan="9" style="padding:6px 10px;background=' . $gc . ';color:white;font-weight:700;font-size:0.74rem;letter-spacing:0.5px;border:1px solid ' . $gc . ';text-align:center;"> ' . htmlspecialchars($gl) . ' </td></tr>'; } }
+                                    if ($grp !== $last_grp) { $last_grp = $grp; if ($grp !== 99) { $gl = $group_labels[$grp] ?? 'Other'; $gc = $group_colors[$grp] ?? '#374151'; echo '<tr><td colspan="9" style="padding:8px 15px;background:' . $gc . ';color:white;font-weight:700;font-size:0.82rem;letter-spacing:0.5px;border:1px solid ' . $gc . ';text-align:center;"> ' . htmlspecialchars($gl) . ' </td></tr>'; } }
                                     $status_str = $pm['is_approved']==1?'Active':($pm['is_approved']==-1?'Deactivated':'Pending');
                                     $status_color = $pm['is_approved']==1?'#15803d':($pm['is_approved']==-1?'#dc2626':'#d97706');
                                     $roles_str = implode(', ', array_filter(array_map('trim', explode(',', $pm['church_role'] ?? 'Member'))));
@@ -1682,7 +1682,7 @@ function printMemberDirectory(orientation) {
                                 $s = get_print_sort_order($m['church_role'] ?? '', $m['department'] ?? '');
                                 $grp = $s[0];
                                 // Show dept ribbons on screen but skip group 99 plain Members label
-                                if ($grp !== $ui_last_grp && $grp !== 99) { $gl = $ui_group_labels[$grp] ?? 'Other'; $gc = $ui_group_colors[$grp] ?? '#374151'; $ui_last_grp = $grp; echo '<tr><td colspan="9" style="background:'.$gc.';color:white;padding:8px 15px;font-weight:700;font-size:0.82rem;text-align:center;">'.htmlspecialchars($gl).'</td></tr>'; } elseif ($grp === 99) { $ui_last_grp = 99; }
+                                if ($grp !== $ui_last_grp && $grp !== 99) { $gl = $ui_group_labels[$grp] ?? 'Other'; $gc = $ui_group_colors[$grp] ?? '#374151'; $ui_last_grp = $grp; echo '<tr><td colspan="9" style="background:'.$gc.';color:white;padding:10px 18px;font-weight:800;font-size:0.88rem;text-align:center;letter-spacing:1px;text-transform:uppercase;border-top:3px solid rgba(255,255,255,0.3);">&#9654; '.htmlspecialchars($gl).' &#9664;</td></tr>'; } elseif ($grp === 99) { $ui_last_grp = 99; }
                              ?>
                             <tr>
                                 <td><img src="uploads/<?= htmlspecialchars($m['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); cursor: zoom-in;" onclick="viewProfileImage(this.src);"></td>
