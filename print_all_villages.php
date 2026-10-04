@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 require_once 'db_connect.php';
 
@@ -346,6 +346,50 @@ foreach ($villages as $v):
 <?php endforeach; ?>
 
 
+
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:60px; padding:0 20px; page-break-inside:avoid; gap: 20px;">
+    
+    <div style="text-align:center; flex:1;">
+        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:15px;">Church Secretary</div>
+        <div style="font-size:0.9rem; margin-bottom:8px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
+            <span style="font-style:italic;color:#333;">Sign:</span>
+            <span style="display:inline-block; border-bottom:1px solid #000; width:150px; height:14px;"></span>
+        </div>
+        <div style="font-size:0.85rem; margin-top:12px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
+            <span style="color:#333;">Date:</span>
+            <span style="display:inline-block; border-bottom:1px dotted #000; width:150px; height:14px;"></span>
+        </div>
+    </div>
+
+    <div style="text-align:center; flex:1;">
+        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:15px;">Church Chairman</div>
+        <div style="font-size:0.9rem; margin-bottom:8px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
+            <span style="font-style:italic;color:#333;">Sign:</span>
+            <span style="display:inline-block; border-bottom:1px solid #000; width:150px; height:14px;"></span>
+        </div>
+        <div style="font-size:0.85rem; margin-top:12px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
+            <span style="color:#333;">Date:</span>
+            <span style="display:inline-block; border-bottom:1px dotted #000; width:150px; height:14px;"></span>
+        </div>
+    </div>
+
+    <div style="text-align:center; flex:1;">
+        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:15px;">Church Pastor</div>
+        <div style="font-size:0.9rem; margin-bottom:8px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
+            <span style="font-style:italic;color:#333;">Sign:</span>
+            <span style="display:inline-block; border-bottom:1px solid #000; width:150px; height:14px;"></span>
+        </div>
+        <div style="font-size:0.85rem; margin-top:12px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
+            <span style="color:#333;">Date:</span>
+            <span style="display:inline-block; border-bottom:1px dotted #000; width:150px; height:14px;"></span>
+        </div>
+    </div>
+
+    <div style="text-align:center; margin-left: 20px;">
+        <div style="border:2px dashed #aaa; width:120px; height:120px; border-radius:50%; margin:0 auto; display:flex; align-items:center; justify-content:center; color:#ccc; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; line-height:1.4;">Official<br>Stamp</div>
+    </div>
+
+</div>
 
 <div class="footer">
     Generated from E.A.P.C Munyari Church Portal &nbsp;|&nbsp; Printed on: <?= $print_date ?>
