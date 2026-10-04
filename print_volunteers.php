@@ -50,7 +50,7 @@ $role_data = [];
 foreach ($all_roles as $role) {
     $esc = $conn->real_escape_string($role);
     $members = [];
-    $mq = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type FROM members WHERE desired_role_pref='$esc' AND is_approved=1 ORDER BY church_village, first_name");
+    $mq = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type FROM members WHERE desired_role_pref='$esc' AND is_approved=1 ORDER BY church_village, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name");
     if ($mq) { while ($row = $mq->fetch_assoc()) $members[] = $row; }
     $pq = $conn->query("SELECT first_name, last_name, church_village, department, role AS church_role, phone, profile_picture, 'Pastor' AS person_type FROM pastors WHERE desired_role_pref='$esc' AND is_approved=1");
     if ($pq) { while ($row = $pq->fetch_assoc()) $members[] = $row; }

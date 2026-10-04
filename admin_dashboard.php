@@ -3486,7 +3486,7 @@ w.document.write('</div>');
                             <select name="leader_id" id="avl_mem" required style="width:100%; padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-lighter); color:var(--text-main); opacity:0.5;">
                                 <option value="">-- Choose Member --</option>
                                 <?php
-                                $mems = $conn->query("SELECT id, first_name, last_name, church_village FROM members WHERE is_approved = 1 AND church_village IN ('Akoritho', 'Philadelphia', 'Bethsaida') ORDER BY church_village, first_name");
+                                $mems = $conn->query("SELECT id, first_name, last_name, church_village FROM members WHERE is_approved = 1 AND church_village IN ('Akoritho', 'Philadelphia', 'Bethsaida') ORDER BY church_village, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name");
                                 if ($mems) { while ($m = $mems->fetch_assoc()) { echo '<option value="'.(int)$m['id'].'" data-v="'.htmlspecialchars($m['church_village']).'" style="display:none;">'.htmlspecialchars($m['first_name'].' '.$m['last_name']).'</option>'; } }
                                 ?>
                             </select>
@@ -3563,7 +3563,7 @@ w.document.write('</div>');
                     $v_color = $village_colors[$v] ?? '#94a3b8';
                     
                     // Fetch members
-                    $v_members_res = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, (church_role IS NOT NULL AND TRIM(church_role) != '' AND church_role != 'Member') DESC, department, first_name");
+                    $v_members_res = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, (church_role IS NOT NULL AND TRIM(church_role) != '' AND church_role != 'Member') DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name ASC");
                     $v_count = $v_members_res ? $v_members_res->num_rows : 0;
                     
                     $v_leaders = [];
@@ -3689,7 +3689,7 @@ w.document.write('</div>');
                         $c_role_esc = $conn->real_escape_string($c_role);
                         $c_color    = $badge_colors_map[$c_role] ?? '#8b5cf6';
                         $c_icon     = $badge_icons_map[$c_role]  ?? '✨';
-                        $cmems = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone FROM members WHERE desired_role_pref='$c_role_esc' ORDER BY church_village, first_name");
+                        $cmems = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone FROM members WHERE desired_role_pref='$c_role_esc' ORDER BY church_village, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name");
                         $c_count = $cmems ? $cmems->num_rows : 0;
                 ?>
                 <div class="content-card" style="margin-bottom: 24px; border-top: 4px solid <?= $c_color ?>;">

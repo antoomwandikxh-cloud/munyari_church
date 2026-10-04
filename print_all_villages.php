@@ -62,12 +62,12 @@ if ($pq) {
 $cleaners_q = $conn->query(
     "SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type
      FROM members WHERE desired_role_pref='Church Cleaner' AND is_approved=1
-     ORDER BY church_village, first_name"
+     ORDER BY church_village, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name"
 );
 $cookers_q = $conn->query(
     "SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type
      FROM members WHERE desired_role_pref='Church Cooker' AND is_approved=1
-     ORDER BY church_village, first_name"
+     ORDER BY church_village, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name"
 );
 
 // Also include pastors who chose cleaner/cooker
@@ -259,7 +259,7 @@ foreach ($villages as $v):
                 'member' AS ptype
          FROM members
          WHERE church_village='$vs' AND is_approved=1
-         ORDER BY is_village_leader DESC, (church_role IS NOT NULL AND TRIM(church_role) != '' AND church_role != 'Member') DESC, first_name ASC"
+         ORDER BY is_village_leader DESC, (church_role IS NOT NULL AND TRIM(church_role) != '' AND church_role != 'Member') DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name ASC"
     );
     $members_arr = [];
     if ($mq) { while ($r = $mq->fetch_assoc()) $members_arr[] = $r; }
