@@ -3892,12 +3892,7 @@ w.document.write('</div>');
                                             $pic_url = 'uploads/' . basename($pic);
                                             $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
                                             echo "<td style='font-weight: 500; padding: 12px;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
-                                            echo "<td style='padding:12px;'><div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;'>";
-                                            echo "<a href='pastor_action.php?action=unassign_all&id=" . $member_data['id'] . "' onclick=\"return confirm('Delete ALL roles from " . htmlspecialchars($member_data['first_name']) . "? They will become a plain Member. This can be undone with the Redo button.');\" class='btn-sm' style='background:#ef4444;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;'>🗑 Delete All</a>";
-                                            if (!empty($_SESSION['role_undo_backup'][$member_data['id']])) {
-                                                echo "<a href='pastor_action.php?action=redo_roles&id=" . $member_data['id'] . "' onclick=\"return confirm('Restore previous roles for " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background:#10b981;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;'>↩ Redo</a>";
-                                            }
-                                            echo "</div></td>";
+                                            echo "<td style='padding: 12px;'><a href='pastor_action.php?action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($expected_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
                                             echo "</tr>";
                                         }
                                     }
@@ -3925,12 +3920,7 @@ w.document.write('</div>');
                             $pic_url = 'uploads/' . basename($pic);
                             $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
                             echo "<td style='font-weight: 500; padding: 12px;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
-                                echo "<td style='padding:12px;'><div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;'>";
-                                echo "<a href='pastor_action.php?action=unassign_all&id=" . $member_data['id'] . "' onclick=\"return confirm('Delete ALL roles from " . htmlspecialchars($member_data['first_name']) . "? They will become a plain Member. This can be undone with the Redo button.');\" class='btn-sm' style='background:#ef4444;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;'>🗑 Delete All</a>";
-                                if (!empty($_SESSION['role_undo_backup'][$member_data['id']])) {
-                                    echo "<a href='pastor_action.php?action=redo_roles&id=" . $member_data['id'] . "' onclick=\"return confirm('Restore previous roles for " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background:#10b981;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;'>↩ Redo</a>";
-                                }
-                                echo "</div></td>";
+                                echo "<td style='padding: 12px;'><a href='pastor_action.php?action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($disp_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
                                 echo "</tr>";
                             }
                         }
@@ -3940,6 +3930,24 @@ w.document.write('</div>');
                         echo "<p style='color: var(--text-muted); text-align: center; padding: 30px 0;'>No roles have been assigned yet.</p>";
                     }
                     ?>
+
+                    <?php if (isset($has_any_roles) && $has_any_roles): ?>
+                        <div style="margin-top: 30px; display:flex; gap:15px; justify-content:center; align-items:center; background:var(--bg-lighter); padding:20px; border-radius:8px; border:1px solid var(--border-color);">
+                            <a href="pastor_action.php?action=unassign_all_global" 
+                               onclick="return confirm('WARNING: This will reset ALL assigned roles for EVERY member back to plain Member. This affects the entire church. Are you absolutely sure?');" 
+                               class="btn-sm" style="background:#ef4444;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;padding:10px 20px;font-size:1rem;display:inline-flex;align-items:center;gap:8px;">
+                               🗑 Delete All Roles Globally
+                            </a>
+                            <?php if (!empty($_SESSION['global_role_undo_backup'])): ?>
+                                <a href="pastor_action.php?action=redo_roles_global" 
+                                   onclick="return confirm('Restore all roles that were just deleted?');" 
+                                   class="btn-sm" style="background:#10b981;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;padding:10px 20px;font-size:1rem;display:inline-flex;align-items:center;gap:8px;">
+                                   ↩ Redo Deletion
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                    
                 </div>
             <?php elseif ($tab == 'general_leadership'): ?>
                 <?php

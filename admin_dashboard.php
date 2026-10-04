@@ -803,38 +803,40 @@ if (!empty($action)) {
         exit();
     }
 
-    // === UNASSIGN ALL ROLES ===
-    elseif ($action === 'unassign_all' && isset($_GET['id'])) {
-        $member_id = (int)$_GET['id'];
-        $member_data = $conn->query("SELECT first_name, last_name, church_role, department FROM members WHERE id = $member_id")->fetch_assoc();
-        $old_role = $member_data['church_role'] ?? '';
-        
-        // Save backup in session for redo
-        $_SESSION['role_undo_backup'][$member_id] = [
-            'role'       => $old_role,
-            'department' => $member_data['department'] ?? '',
-        ];
-        
-        $conn->query("UPDATE members SET church_role = 'Member' WHERE id = $member_id");
-        $msg = $conn->real_escape_string("All your roles ({$old_role}) have been removed by Admin.");
-        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
-        header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("All roles removed for " . ($member_data['first_name'] ?? 'member')) . "#assignRoleSection");
+    // === UNASSIGN ALL ROLES GLOBALLY ===
+    elseif ($action === 'unassign_all_global') {
+        $members = $conn->query("SELECT id, first_name, last_name, church_role, department FROM members WHERE church_role != 'Member' AND church_role IS NOT NULL AND church_role != ''");
+        $_SESSION['global_role_undo_backup'] = [];
+        if ($members && $members->num_rows > 0) {
+            while ($md = $members->fetch_assoc()) {
+                $_SESSION['global_role_undo_backup'][$md['id']] = [
+                    'role'       => $md['church_role'],
+                    'department' => $md['department']
+                ];
+                $mid = (int)$md['id'];
+                $conn->query("UPDATE members SET church_role = 'Member' WHERE id = $mid");
+                $msg = $conn->real_escape_string("All your roles have been removed by Admin in a global reset.");
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($mid, 'member', '$msg')");
+            }
+        }
+        header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("All assigned roles have been globally removed.") . "#assignRoleSection");
         exit();
     }
     
-    // === REDO (RESTORE) ROLES ===
-    elseif ($action === 'redo_roles' && isset($_GET['id'])) {
-        $member_id = (int)$_GET['id'];
-        $backup    = $_SESSION['role_undo_backup'][$member_id] ?? null;
-        
-        if ($backup && !empty($backup['role'])) {
-            $restored_role = $conn->real_escape_string($backup['role']);
-            $restored_dept = $conn->real_escape_string($backup['department']);
-            $conn->query("UPDATE members SET church_role = '$restored_role', department = '$restored_dept' WHERE id = $member_id");
-            unset($_SESSION['role_undo_backup'][$member_id]);
-            $msg = $conn->real_escape_string("Your roles ({$backup['role']}) have been restored by Admin.");
-            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
-            header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("Roles restored successfully") . "#assignRoleSection");
+    // === REDO (RESTORE) ALL ROLES GLOBALLY ===
+    elseif ($action === 'redo_roles_global') {
+        $backup = $_SESSION['global_role_undo_backup'] ?? [];
+        if (!empty($backup)) {
+            foreach ($backup as $mid => $data) {
+                $mid = (int)$mid;
+                $restored_role = $conn->real_escape_string($data['role']);
+                $restored_dept = $conn->real_escape_string($data['department']);
+                $conn->query("UPDATE members SET church_role = '$restored_role', department = '$restored_dept' WHERE id = $mid");
+                $msg = $conn->real_escape_string("Your roles have been restored by Admin following a global reset.");
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($mid, 'member', '$msg')");
+            }
+            unset($_SESSION['global_role_undo_backup']);
+            header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("All previously deleted roles have been restored.") . "#assignRoleSection");
         } else {
             header("Location: admin_dashboard.php?tab=assign_roles&error=" . urlencode("No backup found to restore") . "#assignRoleSection");
         }
@@ -2752,12 +2754,7 @@ w.document.write('</div>');
                                         $pic_url = 'uploads/' . basename($pic);
                                         $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
                                         echo "<td style='font-weight: 500;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
-                                        echo "<td><div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;'>";
-                                        echo "<a href='admin_dashboard.php?tab=assign_roles&action=unassign_all&id=" . $member_data['id'] . "' onclick=\"return confirm('Delete ALL roles from " . htmlspecialchars($member_data['first_name']) . "? They will become a plain Member. This can be undone with the Redo button.');\" class='btn-sm' style='background:#ef4444;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;'>🗑 Delete All</a>";
-                                        if (!empty($_SESSION['role_undo_backup'][$member_data['id']])) {
-                                            echo "<a href='admin_dashboard.php?tab=assign_roles&action=redo_roles&id=" . $member_data['id'] . "' onclick=\"return confirm('Restore previous roles for " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background:#10b981;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;'>↩ Redo</a>";
-                                        }
-                                        echo "</div></td>";
+                                        echo "<td><a href='admin_dashboard.php?tab=assign_roles&action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($expected_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
                                         echo "</tr>";
                                     }
                                 }
@@ -2781,12 +2778,7 @@ w.document.write('</div>');
                             $pic_url = 'uploads/' . basename($pic);
                             $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
                             echo "<td style='font-weight: 500;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
-                            echo "<td><div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;'>";
-                            echo "<a href='admin_dashboard.php?tab=assign_roles&action=unassign_all&id=" . $member_data['id'] . "' onclick=\"return confirm('Delete ALL roles from " . htmlspecialchars($member_data['first_name']) . "? They will become a plain Member. This can be undone with the Redo button.');\" class='btn-sm' style='background:#ef4444;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;'>🗑 Delete All</a>";
-                            if (!empty($_SESSION['role_undo_backup'][$member_data['id']])) {
-                                echo "<a href='admin_dashboard.php?tab=assign_roles&action=redo_roles&id=" . $member_data['id'] . "' onclick=\"return confirm('Restore previous roles for " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background:#10b981;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;'>↩ Redo</a>";
-                            }
-                            echo "</div></td>";
+                            echo "<td><a href='admin_dashboard.php?tab=assign_roles&action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($disp_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
                             echo "</tr>";
                         }
                         echo "</tbody></table></div></div>";
@@ -2796,6 +2788,24 @@ w.document.write('</div>');
                         echo "<p style='color: var(--text-muted); padding: 15px 0;'>No roles are currently assigned.</p>";
                     }
                     ?>
+
+                    <?php if (isset($has_any_roles) && $has_any_roles): ?>
+                        <div style="margin-top: 30px; display:flex; gap:15px; justify-content:center; align-items:center; background:var(--bg-lighter); padding:20px; border-radius:8px; border:1px solid var(--border-color);">
+                            <a href="admin_dashboard.php?tab=assign_roles&action=unassign_all_global" 
+                               onclick="return confirm('WARNING: This will reset ALL assigned roles for EVERY member back to plain Member. This affects the entire church. Are you absolutely sure?');" 
+                               class="btn-sm" style="background:#ef4444;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;padding:10px 20px;font-size:1rem;display:inline-flex;align-items:center;gap:8px;">
+                               🗑 Delete All Roles Globally
+                            </a>
+                            <?php if (!empty($_SESSION['global_role_undo_backup'])): ?>
+                                <a href="admin_dashboard.php?tab=assign_roles&action=redo_roles_global" 
+                                   onclick="return confirm('Restore all roles that were just deleted?');" 
+                                   class="btn-sm" style="background:#10b981;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;padding:10px 20px;font-size:1rem;display:inline-flex;align-items:center;gap:8px;">
+                                   ↩ Redo Deletion
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                    
                 </div>
 
             <?php elseif ($tab == 'audit'): ?>
