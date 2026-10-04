@@ -327,7 +327,7 @@ foreach ($villages as $v):
                     <?php endif; ?>
                 </td>
                 <td style="color:#666; font-weight:600;"><?= htmlspecialchars($row['phone'] ?? '—') ?></td>
-                <td><span class="badge" style="<?= $is_pastor ? 'background:#fef3c7; color:#92400e; padding:3px 8px; border-radius:12px; font-weight:700; font-size:0.75rem;' : 'background:#e0e7ff; color:#1e3a8a; padding:3px 8px; border-radius:12px; font-weight:700; font-size:0.75rem;' ?>"><?= htmlspecialchars($is_pastor ? 'Pastor' : ($row['church_role'] ?: 'Member')) ?></span></td>
+                <td><span class="badge" style="background:#e0e7ff; color:#1e3a8a; padding:3px 8px; border-radius:12px; font-weight:700; font-size:0.75rem;"><?= htmlspecialchars($is_pastor ? 'Pastor' : ($row['church_role'] ?: 'Member')) ?></span></td>
                 <td>
                     <?php if ($dsr): ?>
                         <span class="badge" style="background:<?= $dsr_c ?>22;color:<?= $dsr_c ?>;"><?= htmlspecialchars($dsr) ?></span>
