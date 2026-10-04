@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 require_once 'db_connect.php';
 if (isset($_POST['add_custom_role'])) {
@@ -1378,6 +1378,13 @@ if (!empty($action)) {
                     $rb = get_print_sort_order($b['church_role'] ?? '', $b['department'] ?? '');
                     if ($ra[0] !== $rb[0]) return $ra[0] - $rb[0];
                     if ($ra[1] !== $rb[1]) return $ra[1] - $rb[1];
+                     // Within plain Members (group 99), sub-sort by department
+                     if ($ra[0] === 99) {
+                         $drank = ['Elders'=>1,'Womens Ministry'=>2,'Youths'=>3,'Sunday School'=>4];
+                         $da = $drank[$a['department'] ?? ''] ?? 5;
+                         $db = $drank[$b['department'] ?? ''] ?? 5;
+                         if ($da !== $db) return $da - $db;
+                     }
                     return strcmp($a['first_name'].$a['last_name'], $b['first_name'].$b['last_name']);
                 });
                 ?>
@@ -1676,18 +1683,8 @@ function printMemberDirectory(orientation) {
                             foreach($all_print_members as $m): 
                                 $s = get_print_sort_order($m['church_role'] ?? '', $m['department'] ?? '');
                                 $grp = $s[0];
-                                if ($grp !== $ui_last_grp):
-                                    $gl = $ui_group_labels[$grp] ?? 'Other';
-                                    $gc = $ui_group_colors[$grp] ?? 'var(--border-color)';
-                                    $text_col = 'white';
-                                    $ui_last_grp = $grp;
-                            ?>
-                            <tr>
-                                <td colspan="9" style="background: <?= $gc ?>; color: <?= $text_col ?>; padding: 10px 15px; font-weight: 700; font-size: 0.9rem; letter-spacing: 0.5px; border-bottom: 2px solid white; text-align: center;">
-                                    <?= htmlspecialchars($gl) ?>
-                                </td>
-                            </tr>
-                            <?php endif; ?>
+                                // (group ribbons only in printout)
+                             ?>
                             <tr>
                                 <td><img src="uploads/<?= htmlspecialchars($m['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); cursor: zoom-in;" onclick="viewProfileImage(this.src);"></td>
                                 <td style="font-weight: 500;"><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?></td>
