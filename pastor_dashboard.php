@@ -3931,7 +3931,7 @@ w.document.write('</div>');
                     }
                     ?>
 
-                    <?php if (isset($has_any_roles) && $has_any_roles): ?>
+                    <?php if ((isset($has_any_roles) && $has_any_roles) || !empty($_SESSION['global_role_undo_backup'])): ?>
                         <div style="margin-top: 30px; display:flex; gap:15px; justify-content:center; align-items:center; background:var(--bg-lighter); padding:20px; border-radius:8px; border:1px solid var(--border-color);">
                             <a href="pastor_action.php?action=unassign_all_global" 
                                onclick="return confirm('WARNING: This will reset ALL assigned roles for EVERY member back to plain Member. This affects the entire church. Are you absolutely sure?');" 
