@@ -3024,7 +3024,7 @@ w.document.write('</div>');
                                 </td>
                                 <td><span class="badge" style="background:<?= $v_color ?>22;color:<?= $v_color ?>;font-weight:700;"><?= htmlspecialchars($row['church_village'] ?: $v) ?></span></td>
                                 <td><?= htmlspecialchars($row['department'] ?: 'General Church') ?></td>
-                                <td><span class="badge" style="<?= $is_pastor ? 'background:rgba(245,158,11,0.15); color:#d97706;' : 'background:rgba(37,99,235,0.1); color:var(--primary);' ?>"><?= htmlspecialchars($row['church_role'] ?: ($is_pastor ? 'Pastor' : 'Member')) ?></span></td>
+                                <td><span class="badge" style="<?= $is_pastor ? 'background:rgba(245,158,11,0.15); color:#d97706;' : 'background:rgba(37,99,235,0.1); color:var(--primary);' ?>"><?= htmlspecialchars($is_pastor ? 'Pastor' : ($row['church_role'] ?: 'Member')) ?></span></td>
                                 <td><?php if ($dsr): ?><span class="badge" style="background:<?= $dsr_color ?>22; color:<?= $dsr_color ?>;font-weight:700;"><?= htmlspecialchars($dsr) ?></span><?php else: ?><span style="color:var(--text-muted); font-size:0.85rem;">—</span><?php endif; ?></td>
                                 <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($row['phone'] ?? '—') ?></td>
                             </tr>
