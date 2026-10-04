@@ -4891,34 +4891,21 @@ document.addEventListener("DOMContentLoaded", function () {
                     </div>
                                     <script>
                 function seqUnlock(currentId, nextId) {
-                    const current = document.getElementById(currentId);
-                    const next    = document.getElementById(nextId);
-                    if (!current || !next) return;
-                    const filled = current.tagName === 'SELECT'
-                        ? current.value !== ''
-                        : current.value.trim().length > 0 && current.checkValidity();
-                    next.disabled = !filled;
-                    if (!filled && next.tagName !== 'SELECT') next.value = '';        
-                // --- ADDED: Visual Activated Indicator ---
-        const currLabel = document.querySelector('label[for="' + currentId + '"]') || (current.closest('.form-group') ? current.closest('.form-group').querySelector('label') : null);
-        if (currLabel) {
-            let currBadge = currLabel.querySelector('.activated-badge');
-            if (filled) {
-                if (!currBadge) {
-                    currBadge = document.createElement('span');
-                    currBadge.className = 'activated-badge';
-                    currBadge.style.fontSize = '0.75rem';
-                    currBadge.style.fontWeight = 'bold';
-                    currBadge.style.marginLeft = '8px';
-                    currBadge.style.animation = 'fadeIn 0.3s ease-in-out';
-                    currLabel.appendChild(currBadge);
-                }
-                currBadge.innerHTML = '&#10004; Filled';
-                currBadge.style.color = '#10b981';
+    var cur = document.getElementById(currentId), nxt = document.getElementById(nextId);
+    if (!cur || !nxt) return;
+    var filled = cur.tagName==="SELECT" ? cur.value!=="" : cur.value.trim().length>0 && cur.checkValidity();
+    var wasDis = nxt.disabled;
+    nxt.disabled = !filled;
+    if (!filled && nxt.tagName==="INPUT") nxt.value = "";
+    if (typeof setFieldStatus === "function") {
+        if (filled) {
+            setFieldStatus(currentId, "FILLED");
+            if (wasDis && !nxt.disabled && nxt.value.trim()==="") setFieldStatus(nextId, "ACTIVATED");
+        } else { setFieldStatus(nextId, "EMPTY"); }
+    }
+}
             } else {
                 if (currBadge) {
-                    currBadge.innerHTML = '&#10004; Activated';
-                    currBadge.style.color = '#f59e0b';
                 }
             }
         }
@@ -5445,34 +5432,21 @@ function openDeclineModal(id, name) {
     }
 
     function seqUnlock(currentId, nextId) {
-        const current = document.getElementById(currentId);
-        const next    = document.getElementById(nextId);
-        if (!current || !next) return;
-        const filled = current.tagName === 'SELECT'
-            ? current.value !== ''
-            : current.value.trim().length > 0 && current.checkValidity();
-        next.disabled = !filled;
-        if (!filled) next.value = '';        
-                // --- ADDED: Visual Activated Indicator ---
-        const currLabel = document.querySelector('label[for="' + currentId + '"]') || (current.closest('.form-group') ? current.closest('.form-group').querySelector('label') : null);
-        if (currLabel) {
-            let currBadge = currLabel.querySelector('.activated-badge');
-            if (filled) {
-                if (!currBadge) {
-                    currBadge = document.createElement('span');
-                    currBadge.className = 'activated-badge';
-                    currBadge.style.fontSize = '0.75rem';
-                    currBadge.style.fontWeight = 'bold';
-                    currBadge.style.marginLeft = '8px';
-                    currBadge.style.animation = 'fadeIn 0.3s ease-in-out';
-                    currLabel.appendChild(currBadge);
-                }
-                currBadge.innerHTML = '&#10004; Filled';
-                currBadge.style.color = '#10b981';
+    var cur = document.getElementById(currentId), nxt = document.getElementById(nextId);
+    if (!cur || !nxt) return;
+    var filled = cur.tagName==="SELECT" ? cur.value!=="" : cur.value.trim().length>0 && cur.checkValidity();
+    var wasDis = nxt.disabled;
+    nxt.disabled = !filled;
+    if (!filled && nxt.tagName==="INPUT") nxt.value = "";
+    if (typeof setFieldStatus === "function") {
+        if (filled) {
+            setFieldStatus(currentId, "FILLED");
+            if (wasDis && !nxt.disabled && nxt.value.trim()==="") setFieldStatus(nextId, "ACTIVATED");
+        } else { setFieldStatus(nextId, "EMPTY"); }
+    }
+}
             } else {
                 if (currBadge) {
-                    currBadge.innerHTML = '&#10004; Activated';
-                    currBadge.style.color = '#f59e0b';
                 }
             }
         }
