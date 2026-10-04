@@ -286,7 +286,7 @@ foreach ($villages as $v):
     $total    = count($all_rows);
 ?>
 <div style="margin-bottom:18px;">
-    <div class="sec-badge" style="background:<?= $vc ?>;"><?= htmlspecialchars($v) ?> Village — <?= $total ?> Participant<?= $total != 1 ? 's' : '' ?></div>
+    <div style="text-align:center;"><div class="sec-badge" style="background:<?= $vc ?>;"><?= htmlspecialchars($v) ?> Village — <?= $total ?> Member<?= $total != 1 ? 's' : '' ?></div></div>
     <table>
         <thead>
             <tr>
