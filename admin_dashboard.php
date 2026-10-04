@@ -1683,7 +1683,8 @@ function printMemberDirectory(orientation) {
                             foreach($all_print_members as $m): 
                                 $s = get_print_sort_order($m['church_role'] ?? '', $m['department'] ?? '');
                                 $grp = $s[0];
-                                // (group ribbons only in printout)
+                                // Show dept ribbons on screen but skip group 99 plain Members label
+                                if ($grp !== $ui_last_grp && $grp !== 99) { $gl = $ui_group_labels[$grp] ?? 'Other'; $gc = $ui_group_colors[$grp] ?? '#374151'; $ui_last_grp = $grp; echo '<tr><td colspan="9" style="background:'.$gc.';color:white;padding:8px 15px;font-weight:700;font-size:0.82rem;text-align:center;">'.htmlspecialchars($gl).'</td></tr>'; } elseif ($grp === 99) { $ui_last_grp = 99; }
                              ?>
                             <tr>
                                 <td><img src="uploads/<?= htmlspecialchars($m['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); cursor: zoom-in;" onclick="viewProfileImage(this.src);"></td>
