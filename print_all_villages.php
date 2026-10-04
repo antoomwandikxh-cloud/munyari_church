@@ -271,7 +271,18 @@ foreach ($villages as $v):
     unset($pr);
 
     // Merge: members first (leader already at top), pastors after
-    $all_rows = array_merge($pastors_this, $members_arr);
+    
+    $leader_arr = [];
+    $reg_members = [];
+    foreach ($members_arr as $m) {
+        if (!empty($m['is_village_leader'])) {
+            $leader_arr[] = $m;
+        } else {
+            $reg_members[] = $m;
+        }
+    }
+    $all_rows = array_merge($leader_arr, $pastors_this, $reg_members);
+
     $total    = count($all_rows);
 ?>
 <div style="margin-bottom:18px;">
