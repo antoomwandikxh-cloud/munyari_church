@@ -88,7 +88,7 @@ if (file_exists($logo_path)) {
         }
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            padding: 20px;
+            padding: 8px;
             max-width: 820px;
             margin: 0 auto;
             position: relative;
@@ -110,9 +110,9 @@ if (file_exists($logo_path)) {
         }
 
         /* ── Print overrides ── */
-        @media print { body { padding: 15mm !important; } 
-            @page { size: A4 <?= $orientation ?>; margin: 0; }
-            body { margin: 12mm; padding: 0; max-width: 100%; }
+        @media print { body { padding: 0 !important; }
+            @page { size: A4 <?= $orientation ?>; margin: 8mm; }
+            body { margin: 0; padding: 0; max-width: 100%; }
             .no-print { display: none !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .watermark { color: rgba(0,0,0,0.12) !important; z-index: 9999 !important; pointer-events: none; }
@@ -123,16 +123,16 @@ if (file_exists($logo_path)) {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 3px solid #1e3a8a;
-            padding-bottom: 18px;
-            margin-bottom: 24px;
-            margin-top: 16px;
+            border-bottom: 2px solid #1e3a8a;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            margin-top: 4px;
         }
-        .header img { height: 85px; border-radius: 50%; }
-        .header-text { text-align: center; flex: 1; padding: 0 16px; }
-        .header-text h1 { margin: 0 0 4px; color: #1e3a8a; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
-        .header-text h2 { margin: 0 0 4px; color: #333; font-size: 16px; font-weight: 700; text-transform: uppercase; }
-        .header-text h3 { margin: 0; color: #555; font-size: 12px; font-weight: 400; }
+        .header img { height: 60px; border-radius: 50%; }
+        .header-text { text-align: center; flex: 1; padding: 0 8px; }
+        .header-text h1 { margin: 0 0 1px; color: #1e3a8a; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; }
+        .header-text h2 { margin: 0 0 1px; color: #333; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+        .header-text h3 { margin: 0; color: #555; font-size: 10px; font-weight: 400; }
 
         /* ── Leader profile block ── */
         .leader-block {
@@ -150,15 +150,15 @@ if (file_exists($logo_path)) {
         .leader-block .lb-role { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
 
         /* ── Table ── */
-        table { width: 100%; border-collapse: collapse; margin-bottom: 28px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; }
         thead tr { background: #1e3a8a; color: #fff; }
-        th { padding: 9px 8px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #1e3a8a; }
-        td { border: 1px solid #d1d5db; padding: 8px; vertical-align: middle; }
+        th { padding: 5px 6px; text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #1e3a8a; }
+        td { border: 1px solid #d1d5db; padding: 4px 6px; vertical-align: middle; }
         tr:nth-child(even) td { background: #f9fafb; }
         .leader-row td { background: #eff6ff !important; font-weight: 600; }
         .role-row td { background: #f0fdf4 !important; }
 
-        .member-photo { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid #1e3a8a; display: block; }
+        .member-photo { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; border: 1px solid #1e3a8a; display: block; }
         .badge {
             display: inline-block;
             padding: 2px 7px;
@@ -205,15 +205,14 @@ if (file_exists($logo_path)) {
     <div class="header">
         <?php if ($logo_b64): ?><img src="<?= $logo_b64 ?>" alt="Church Logo"><?php endif; ?>
         <div class="header-text">
-            <div style="margin-bottom:6px;">
-                <img src="<?= $l_pic_b64 ?: $default_pic_b64 ?>" alt="Village Leader" style="width:72px; height:72px; border-radius:50%; object-fit:cover; border:3px solid #1e3a8a; display:inline-block; <?= empty($l_pic_b64) ? 'filter:grayscale(60%);' : '' ?>">
-            </div>
+            <img src="<?= $l_pic_b64 ?: $default_pic_b64 ?>" alt="Village Leader" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #1e3a8a; display:inline-block; margin-bottom:2px; <?= empty($l_pic_b64) ? 'filter:grayscale(60%);' : '' ?>">
+            <div style="font-size:10px; font-weight:800; color:#1e3a8a; text-transform:uppercase; line-height:1.2; margin-bottom:1px;"><?= $leader ? htmlspecialchars(strtoupper($leader['first_name'] . ' ' . $leader['last_name'])) : 'LEADER NOT ASSIGNED' ?></div>
+            <div style="font-size:9px; color:#64748b; font-weight:600; margin-bottom:3px;"><?= htmlspecialchars($village) ?> Village Leader</div>
             <h1>E.A.P.C Munyari Church</h1>
             <h2><?= strtoupper(htmlspecialchars($village)) ?> Village – Members Directory</h2>
-            <div style="font-size:11px; font-weight:800; color:#1e3a8a; text-transform:uppercase; margin:3px 0;"><?= $leader ? htmlspecialchars(strtoupper($leader['first_name'] . ' ' . $leader['last_name'])) : 'LEADER NOT ASSIGNED' ?> &mdash; <?= htmlspecialchars($village) ?> Village Leader</div>
             <h3>Printed on: <?= date('l, F j, Y') ?></h3>
             <?php if ($pastor): ?>
-            <h3 style="margin-top:2px; font-weight:600; color:#1e3a8a;">Pastor: <?= htmlspecialchars($pastor_name) ?></h3>
+            <h3 style="margin-top:1px; font-weight:600; color:#1e3a8a;">Pastor: <?= htmlspecialchars($pastor_name) ?></h3>
             <?php endif; ?>
         </div>
         <?php if ($logo_b64): ?><img src="<?= $logo_b64 ?>" alt="Church Logo"><?php endif; ?>
