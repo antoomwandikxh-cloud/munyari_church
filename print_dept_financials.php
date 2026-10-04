@@ -100,7 +100,7 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
     <meta charset="UTF-8">
     <title><?= htmlspecialchars($dept) ?> Financial Records</title>
     <style>
-        @media print { body { padding: 15mm !important; }  
+        @media print { body { padding: 0 !important; }  
             @page { size: A4 portrait; margin: 0; } 
             body { margin: 15mm; } 
             .no-print { display: none !important; }
@@ -134,7 +134,7 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
         .treasurer-profile { text-align: center; margin-bottom: 20px; }
         .treasurer-profile img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #1e3a8a; }
         .treasurer-profile .name { font-weight: bold; font-size: 16px; margin-top: 5px; text-transform: uppercase; }
-        .treasurer-profile .role { font-size: 12px; color: #666; }
+        .treasurer-profile .role { font-size: 10px; color: #666; }
 
         table { width: 100%; border-collapse: collapse; margin-bottom: 40px; box-shadow: 0 0 0 1px #ccc; }
         th, td { padding: 10px 12px; border: 1px solid #ccc; text-align: left; font-size: 13px; }
@@ -146,7 +146,7 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
         .sig { width: 35%; text-align: center; z-index: 2; }
         .sig-line { border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px; }
         .date-line { border-bottom: 1px dashed #000; width: 100%; height: 25px; margin-top: 15px; }
-        .sig-label { font-weight: bold; text-transform: uppercase; font-size: 12px; margin-bottom: 5px; }
+        .sig-label { font-weight: bold; text-transform: uppercase; font-size: 10px; margin-bottom: 5px; }
         
         .stamp-box {
             position: absolute;
@@ -161,13 +161,13 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
             justify-content: center;
             text-align: center;
             color: #999;
-            font-size: 11px;
+            font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 1px;
             z-index: 1;
         }
 
-        .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 11px; color: #666; font-style: italic; border-top: 1px solid #eee; padding: 10px 0; background: rgba(255,255,255,0.9); }
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9px; color: #666; font-style: italic; border-top: 1px solid #eee; padding: 10px 0; background: rgba(255,255,255,0.9); }
     </style>
 </head>
 <body>
@@ -193,7 +193,7 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
             st.id = 'printOriStyle';
             document.head.appendChild(st);
         }
-        st.innerHTML = '@media print { body { padding: 15mm !important; }  @page { size: A4 ' + ori + '; } .watermark { font-size: ' + (ori === ''landscape'' ? ''5.5rem'' : ''3.8rem'') + ' !important; } }';
+        st.innerHTML = '@media print { body { padding: 0 !important; }  @page { size: A4 ' + ori + '; } .watermark { font-size: ' + (ori === ''landscape'' ? ''5.5rem'' : ''3.8rem'') + ' !important; } }';
         window.print();
     }
     </script>
@@ -259,24 +259,24 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
 
         <!-- Treasurer Signature -->
         <div style="width: 42%; text-align:left;">
-            <div style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; text-align:center; margin-bottom: 4px;">Treasurer</div>
+            <div style="font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; text-align:center; margin-bottom: 4px;">Treasurer</div>
             <div style="font-weight: bold; font-size: 14px; text-transform: uppercase; text-align:center; margin-bottom: 20px;">
                 <?= $treasurer ? htmlspecialchars(ucfirst($treasurer['first_name']) . ' ' . ucfirst($treasurer['last_name'])) : '___________________' ?>
             </div>
             
             <div style="display:flex; align-items:flex-end; margin-bottom:16px;">
-                <span style="font-size:11px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Signature :</span>
+                <span style="font-size: 9px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Signature :</span>
                 <div style="flex:1; border-bottom:1px solid #000; height:22px;"></div>
             </div>
             <div style="display:flex; align-items:flex-end;">
-                <span style="font-size:11px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Date :</span>
+                <span style="font-size: 9px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Date :</span>
                 <div style="flex:1; border-bottom:1px dashed #555; height:22px;"></div>
             </div>
         </div>
 
         <!-- Chairman / Vice Chairman Signature -->
         <div style="width: 42%; text-align:left;">
-            <div style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; text-align:center; margin-bottom: 4px;">
+            <div style="font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; text-align:center; margin-bottom: 4px;">
                 <?= htmlspecialchars($chairman_title) ?>
             </div>
             <div style="font-weight: bold; font-size: 14px; text-transform: uppercase; text-align:center; margin-bottom: 20px;">
@@ -284,11 +284,11 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
             </div>
             
             <div style="display:flex; align-items:flex-end; margin-bottom:16px;">
-                <span style="font-size:11px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Signature :</span>
+                <span style="font-size: 9px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Signature :</span>
                 <div style="flex:1; border-bottom:1px solid #000; height:22px;"></div>
             </div>
             <div style="display:flex; align-items:flex-end;">
-                <span style="font-size:11px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Date :</span>
+                <span style="font-size: 9px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Date :</span>
                 <div style="flex:1; border-bottom:1px dashed #555; height:22px;"></div>
             </div>
         </div>
@@ -297,7 +297,7 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
 
     <!-- Official Stamp — centred below signatures -->
     <div style="display: flex; justify-content: center; margin-top: 30px; margin-bottom: 20px;">
-        <div style="width: 150px; height: 150px; border: 2px dashed #aaa; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #aaa; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; line-height: 1.8;">
+        <div style="width: 150px; height: 150px; border: 2px dashed #aaa; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #aaa; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; line-height: 1.8;">
             Official<br>Church Stamp
         </div>
     </div>

@@ -71,7 +71,7 @@ $print_mode = isset($_GET['mode']) && $_GET['mode'] === 'landscape' ? 'landscape
     @page { size: A4 <?= $print_mode ?>; margin: 0; }
     .no-print  { display: none !important; }
 }
-body { font-family: Arial, sans-serif; margin: 0; padding: 14px; color: #111; font-size: 12px; }
+body { font-family: Arial, sans-serif; margin: 0; padding: 14px; color: #111; font-size: 10px; }
 
 /* Watermark */
 .watermark {

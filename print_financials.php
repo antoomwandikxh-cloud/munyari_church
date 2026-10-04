@@ -81,7 +81,7 @@ function fmt_amount($n) {
     <meta charset="UTF-8">
     <title>Financial Records — E.A.P.C Munyari Church</title>
     <style>
-        @media print { body { padding: 15mm !important; } 
+        @media print { body { padding: 0 !important; } 
             @page { size: A4 portrait; margin: 0; }
             body  { margin: 15mm; }
             .no-print { display: none !important; }
@@ -167,7 +167,7 @@ function fmt_amount($n) {
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
             text-align: center; color: #bbb;
-            font-size: 11px; text-transform: uppercase;
+            font-size: 9px; text-transform: uppercase;
             letter-spacing: 1px; line-height: 1.7;
         }
 
@@ -205,7 +205,7 @@ function fmt_amount($n) {
             st.id = 'printOriStyle';
             document.head.appendChild(st);
         }
-        st.innerHTML = '@media print { body { padding: 15mm !important; }  @page { size: A4 ' + ori + '; } .watermark { font-size: ' + (ori === ''landscape'' ? ''5.5rem'' : ''3.8rem'') + ' !important; } }';
+        st.innerHTML = '@media print { body { padding: 0 !important; }  @page { size: A4 ' + ori + '; } .watermark { font-size: ' + (ori === ''landscape'' ? ''5.5rem'' : ''3.8rem'') + ' !important; } }';
         window.print();
     }
     </script>
@@ -244,7 +244,7 @@ function fmt_amount($n) {
         <div style="text-align:center; flex:1; min-width:90px;">
             <img src="<?= $t_pic_b64 ?>" style="width:64px; height:64px; border-radius:50%; object-fit:cover; border:2px solid #1e3a8a; margin-bottom:5px;">
             <div style="font-size:10px; color:#555; text-transform:uppercase; font-weight:bold;"><?= str_replace(' Department', '', $label) ?></div>
-            <div style="font-size:11px; font-weight:800; color:#111; text-transform:uppercase; margin-top:2px;"><?= htmlspecialchars($t['name']) ?></div>
+            <div style="font-size: 9px; font-weight:800; color:#111; text-transform:uppercase; margin-top:2px;"><?= htmlspecialchars($t['name']) ?></div>
             <div style="font-size:10px; color:#888; font-style:italic;">Treasurer</div>
         </div>
         <?php endforeach; ?>
@@ -288,11 +288,11 @@ function fmt_amount($n) {
             <div class="sig-name" style="text-align:center; margin-bottom:20px;"><?= htmlspecialchars($gc_tres_name) ?></div>
             
             <div style="display:flex; align-items:flex-end; margin-bottom:16px;">
-                <span style="font-size:11px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Signature :</span>
+                <span style="font-size: 9px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Signature :</span>
                 <div style="flex:1; border-bottom:1px solid #000; height:22px;"></div>
             </div>
             <div style="display:flex; align-items:flex-end;">
-                <span style="font-size:11px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Date :</span>
+                <span style="font-size: 9px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Date :</span>
                 <div style="flex:1; border-bottom:1px dashed #555; height:22px;"></div>
             </div>
         </div>
@@ -302,11 +302,11 @@ function fmt_amount($n) {
             <div class="sig-name" style="text-align:center; margin-bottom:20px;"><?= htmlspecialchars($pastor_name) ?></div>
             
             <div style="display:flex; align-items:flex-end; margin-bottom:16px;">
-                <span style="font-size:11px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Signature :</span>
+                <span style="font-size: 9px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Signature :</span>
                 <div style="flex:1; border-bottom:1px solid #000; height:22px;"></div>
             </div>
             <div style="display:flex; align-items:flex-end;">
-                <span style="font-size:11px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Date :</span>
+                <span style="font-size: 9px; color:#555; white-space:nowrap; margin-right:8px; padding-bottom:2px; font-weight:600;">Date :</span>
                 <div style="flex:1; border-bottom:1px dashed #555; height:22px;"></div>
             </div>
         </div>

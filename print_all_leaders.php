@@ -206,7 +206,7 @@ thead tr{color:#fff;}
 thead th{padding:6px 7px;text-align:left;font-weight:700;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;}
 tbody tr:nth-child(even){background:#f9fafb;}
 tbody td{padding:6px 7px;border-bottom:1px solid #e5e7eb;vertical-align:middle;}
-.td-photo img,.td-photo .avatar-ph{width:40px;height:40px;border-radius:50%;object-fit:cover;}
+.td-photo img,.td-photo .avatar-ph{width: 30px; height: 30px;border-radius:50%;object-fit:cover;}
 .td-photo .avatar-ph{background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
 .td-name{font-weight:700;color:#1e3a8a;}
 .td-role{color:#374151;}

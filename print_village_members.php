@@ -158,7 +158,7 @@ if (file_exists($logo_path)) {
         .leader-row td { background: #eff6ff !important; font-weight: 600; }
         .role-row td { background: #f0fdf4 !important; }
 
-        .member-photo { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; border: 1px solid #1e3a8a; display: block; }
+        .member-photo { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid #1e3a8a; display: block; }
         .badge {
             display: inline-block;
             padding: 2px 7px;
