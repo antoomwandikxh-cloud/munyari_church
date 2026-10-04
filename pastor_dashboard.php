@@ -2969,7 +2969,7 @@ w.document.write('</div>');
                     $v_color = $village_colors[$v] ?? '#94a3b8';
                     
                     // Fetch members
-                    $v_members_res = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name ASC");
+                    $v_members_res = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type, " . role_rank_case_sql('church_role') . " AS role_rank FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, role_rank ASC, first_name ASC");
                     $v_count = $v_members_res ? $v_members_res->num_rows : 0;
                     
                     $v_leaders = [];

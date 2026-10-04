@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'db_connect.php';
+require_once 'role_departments.php';
 
 if (!isset($_SESSION['pastor_id']) && !isset($_SESSION['admin_id']) && !isset($_SESSION['member_id'])) {
     die("Unauthorized access.");
@@ -57,15 +58,10 @@ if ($leader && !empty($leader['profile_picture'])) {
 //   2  = any other named church role (worship leader, choir, etc.)
 //   99 = plain member / no role
 $v_mems_q = $conn->query("
-    SELECT id, first_name, last_name, phone, address, department, church_role, profile_picture, is_village_leader,
-    CASE
-        WHEN is_village_leader = 1 THEN 1
-        WHEN church_role IS NOT NULL AND church_role != '' AND LOWER(church_role) != 'member' THEN 2
-        ELSE 99
-    END AS sort_rank
+    SELECT id, first_name, last_name, phone, address, department, church_role, profile_picture, is_village_leader, " . role_rank_case_sql('church_role') . " AS role_rank
     FROM members
     WHERE is_approved = 1 AND TRIM(church_village) = '$safe_village'
-    ORDER BY is_village_leader DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name ASC
+    ORDER BY is_village_leader DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, role_rank ASC, first_name ASC
 ");
 
 // ── Logo ─────────────────────────────────────────────────────────────────────
