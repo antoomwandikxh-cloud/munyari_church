@@ -259,7 +259,7 @@ foreach ($villages as $v):
                 'member' AS ptype
          FROM members
          WHERE church_village='$vs' AND is_approved=1
-         ORDER BY is_village_leader DESC, first_name ASC"
+         ORDER BY is_village_leader DESC, (church_role IS NOT NULL AND TRIM(church_role) != '' AND church_role != 'Member') DESC, first_name ASC"
     );
     $members_arr = [];
     if ($mq) { while ($r = $mq->fetch_assoc()) $members_arr[] = $r; }
