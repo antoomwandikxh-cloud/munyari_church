@@ -350,7 +350,7 @@ foreach ($villages as $v):
 <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:60px; padding:0 20px; page-break-inside:avoid; gap: 20px;">
     
     <div style="text-align:center; flex:1;">
-        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:15px;">Church Secretary</div>
+        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:15px;">Akoritho Village Leader</div>
         <div style="font-size:0.9rem; margin-bottom:8px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
             <span style="font-style:italic;color:#333;">Sign:</span>
             <span style="display:inline-block; border-bottom:1px solid #000; width:150px; height:14px;"></span>
@@ -362,7 +362,7 @@ foreach ($villages as $v):
     </div>
 
     <div style="text-align:center; flex:1;">
-        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:15px;">Church Chairman</div>
+        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:15px;">Bethsaida Village Leader</div>
         <div style="font-size:0.9rem; margin-bottom:8px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
             <span style="font-style:italic;color:#333;">Sign:</span>
             <span style="display:inline-block; border-bottom:1px solid #000; width:150px; height:14px;"></span>
@@ -374,7 +374,7 @@ foreach ($villages as $v):
     </div>
 
     <div style="text-align:center; flex:1;">
-        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:15px;">Church Pastor</div>
+        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:15px;">Philadelphia Village Leader</div>
         <div style="font-size:0.9rem; margin-bottom:8px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
             <span style="font-style:italic;color:#333;">Sign:</span>
             <span style="display:inline-block; border-bottom:1px solid #000; width:150px; height:14px;"></span>
