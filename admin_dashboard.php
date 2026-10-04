@@ -1463,9 +1463,7 @@ if (!empty($action)) {
                                 foreach ($all_print_members as $pm):
                                     $s = get_print_sort_order($pm['church_role'] ?? '', $pm['department'] ?? '');
                                     $grp = $s[0];
-                                    if ($grp !== $last_grp): $gl = $group_labels[$grp] ?? 'Other'; $gc = $group_colors[$grp] ?? '#374151'; $last_grp = $grp; ?>
-                                <tr><td colspan="9" style="padding:6px 10px;background:<?= $gc ?>;color:white;font-weight:700;font-size:0.74rem;letter-spacing:0.5px;border:1px solid <?= $gc ?>;text-align:center;"> <?= htmlspecialchars($gl) ?> </td></tr>
-                                <?php endif;
+                                    if ($grp !== $last_grp) { $last_grp = $grp; if ($grp !== 99) { $gl = $group_labels[$grp] ?? 'Other'; $gc = $group_colors[$grp] ?? '#374151'; echo '<tr><td colspan="9" style="padding:6px 10px;background=' . $gc . ';color:white;font-weight:700;font-size:0.74rem;letter-spacing:0.5px;border:1px solid ' . $gc . ';text-align:center;"> ' . htmlspecialchars($gl) . ' </td></tr>'; } }
                                     $status_str = $pm['is_approved']==1?'Active':($pm['is_approved']==-1?'Deactivated':'Pending');
                                     $status_color = $pm['is_approved']==1?'#15803d':($pm['is_approved']==-1?'#dc2626':'#d97706');
                                     $roles_str = implode(', ', array_filter(array_map('trim', explode(',', $pm['church_role'] ?? 'Member'))));
