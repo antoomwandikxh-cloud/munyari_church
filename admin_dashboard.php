@@ -5656,7 +5656,13 @@ function openDeclineModal(id, name) {
         if (!w) { alert('Popup blocked!'); return; }
         var theadHTML = container.querySelector('thead') ? container.querySelector('thead').outerHTML : '';
         var tbodyHTML = container.querySelector('tbody') ? container.querySelector('tbody').outerHTML : '';
-        var leaderHTML = container.querySelector('.print-leader-profile') ? container.querySelector('.print-leader-profile').outerHTML.replace(/display:\s*none/i, 'display:block') : '';
+        var leaderNode = container.querySelector('.print-leader-profile');
+        var leaderHTML = '';
+        if (leaderNode) {
+            var clone = leaderNode.cloneNode(true);
+            clone.style.display = 'block';
+            leaderHTML = clone.outerHTML;
+        }
         var wmSize = orientation === 'landscape' ? '3.2rem' : '2.0rem';
         var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
         w.document.write('<!doctype html><html><head><title>' + villageName + ' Village</title>');
