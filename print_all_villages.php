@@ -347,10 +347,16 @@ foreach ($villages as $v):
 
 
 
+<?php
+$ak_name = !empty($leaders['Akoritho']) ? strtoupper($leaders['Akoritho']['first_name'].' '.$leaders['Akoritho']['last_name']) : 'NOT ASSIGNED';
+$be_name = !empty($leaders['Bethsaida']) ? strtoupper($leaders['Bethsaida']['first_name'].' '.$leaders['Bethsaida']['last_name']) : 'NOT ASSIGNED';
+$ph_name = !empty($leaders['Philadelphia']) ? strtoupper($leaders['Philadelphia']['first_name'].' '.$leaders['Philadelphia']['last_name']) : 'NOT ASSIGNED';
+?>
 <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:60px; padding:0 20px; page-break-inside:avoid; gap: 20px;">
     
     <div style="text-align:center; flex:1;">
-        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:15px;">Akoritho Village Leader</div>
+        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:2px;">Akoritho Village Leader</div>
+        <div style="font-size:0.75rem; font-weight:bold; color:#444; margin-bottom:15px;">(<?= htmlspecialchars($ak_name) ?>)</div>
         <div style="font-size:0.9rem; margin-bottom:8px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
             <span style="font-style:italic;color:#333;">Sign:</span>
             <span style="display:inline-block; border-bottom:1px solid #000; width:150px; height:14px;"></span>
@@ -362,7 +368,8 @@ foreach ($villages as $v):
     </div>
 
     <div style="text-align:center; flex:1;">
-        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:15px;">Bethsaida Village Leader</div>
+        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:2px;">Bethsaida Village Leader</div>
+        <div style="font-size:0.75rem; font-weight:bold; color:#444; margin-bottom:15px;">(<?= htmlspecialchars($be_name) ?>)</div>
         <div style="font-size:0.9rem; margin-bottom:8px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
             <span style="font-style:italic;color:#333;">Sign:</span>
             <span style="display:inline-block; border-bottom:1px solid #000; width:150px; height:14px;"></span>
@@ -374,7 +381,8 @@ foreach ($villages as $v):
     </div>
 
     <div style="text-align:center; flex:1;">
-        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:15px;">Philadelphia Village Leader</div>
+        <div style="font-size:0.85rem; font-weight:bold; text-transform:uppercase; color:#1e3a8a; margin-bottom:2px;">Philadelphia Village Leader</div>
+        <div style="font-size:0.75rem; font-weight:bold; color:#444; margin-bottom:15px;">(<?= htmlspecialchars($ph_name) ?>)</div>
         <div style="font-size:0.9rem; margin-bottom:8px; display:flex; align-items:flex-end; justify-content:center; gap:8px;">
             <span style="font-style:italic;color:#333;">Sign:</span>
             <span style="display:inline-block; border-bottom:1px solid #000; width:150px; height:14px;"></span>
@@ -391,7 +399,7 @@ foreach ($villages as $v):
 
 </div>
 
-<div class="footer">
+<div class="footer"><div class="footer">
     Generated from E.A.P.C Munyari Church Portal &nbsp;|&nbsp; Printed on: <?= $print_date ?>
 </div>
 <script>
