@@ -6062,9 +6062,7 @@ function openDeclineModal(id, name) {
         var leaderNode = container.querySelector('.print-leader-profile');
         var leaderHTML = '';
         if (leaderNode) {
-            var clone = leaderNode.cloneNode(true);
-            clone.style.display = 'block';
-            leaderHTML = clone.outerHTML;
+            leaderHTML = '<div style="text-align:center; margin:0 auto 10px; background:#f8fafc; padding:6px 12px; border-radius:6px; border:1px solid #e2e8f0; width:fit-content; min-width:200px;">' + leaderNode.innerHTML + '</div>';
         }
         var wmSize = orientation === 'landscape' ? '3.2rem' : '2.0rem';
         var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
