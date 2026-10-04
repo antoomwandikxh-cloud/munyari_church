@@ -37,6 +37,10 @@ $leader_q = $conn->query("SELECT * FROM members WHERE church_village = '$safe_vi
 $leader   = $leader_q ? $leader_q->fetch_assoc() : null;
 
 $l_pic_b64 = '';
+$default_pic_b64 = '';
+if (file_exists('uploads/default_avatar.png')) {
+    $default_pic_b64 = "data:image/png;base64," . base64_encode(file_get_contents('uploads/default_avatar.png'));
+}
 if ($leader && !empty($leader['profile_picture'])) {
     $lp = 'uploads/' . basename($leader['profile_picture']);
     if (file_exists($lp)) {
@@ -196,7 +200,14 @@ if (file_exists($logo_path)) {
         </button>
     </div>
 
-    <!-- Header with logos -->
+        <!-- Village Leader block -->
+    <div class="leader-block" style="text-align:center; margin:0 auto 10px; background:#f8fafc; padding:6px 12px; border-radius:6px; border:1px solid #e2e8f0; width:fit-content; min-width:200px;">
+        <img src="<?= $l_pic_b64 ?: $default_pic_b64 ?>" alt="Village Leader" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #1e3a8a; margin-bottom:4px; <?= empty($l_pic_b64) ? 'opacity:0.7; filter:grayscale(100%); border-color:#cbd5e1;' : '' ?>">
+        <div class="lb-name" style="font-size:1.1rem; font-weight:800; color:#1e3a8a; text-transform:uppercase; margin-bottom:2px;"><?= $leader ? htmlspecialchars($leader['first_name'] . ' ' . $leader['last_name']) : 'NOT ASSIGNED' ?></div>
+        <div class="lb-role" style="font-size:0.85rem; font-weight:600; color:#64748b; margin-bottom:4px;"><?= htmlspecialchars($village) ?> Village Leader</div>
+    </div>
+    
+<!-- Header with logos -->
     <div class="header">
         <?php if ($logo_b64): ?><img src="<?= $logo_b64 ?>" alt="Church Logo"><?php endif; ?>
         <div class="header-text">
@@ -208,13 +219,6 @@ if (file_exists($logo_path)) {
             <?php endif; ?>
         </div>
         <?php if ($logo_b64): ?><img src="<?= $logo_b64 ?>" alt="Church Logo"><?php endif; ?>
-    </div>
-
-    <!-- Village Leader block -->
-    <div class="leader-block">
-        <?php if ($l_pic_b64): ?><img src="<?= $l_pic_b64 ?>" alt="Village Leader"><?php endif; ?>
-        <div class="lb-name"><span style="text-transform:uppercase;"><?= $leader ? htmlspecialchars($leader['first_name'] . ' ' . $leader['last_name']) : 'NOT ASSIGNED' ?></span></div>
-        <div class="lb-role"><?= htmlspecialchars($village) ?> Village Leader</div>
     </div>
 
     <!-- Members Table -->
