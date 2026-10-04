@@ -201,13 +201,6 @@ if (file_exists($logo_path)) {
         </button>
     </div>
 
-        <!-- Village Leader block -->
-    <div class="leader-block" style="text-align:center; margin:0 auto 10px; background:#f8fafc; padding:6px 12px; border-radius:6px; border:1px solid #e2e8f0; width:fit-content; min-width:200px;">
-        <img src="<?= $l_pic_b64 ?: $default_pic_b64 ?>" alt="Village Leader" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #1e3a8a; margin-bottom:4px; <?= empty($l_pic_b64) ? 'opacity:0.7; filter:grayscale(100%); border-color:#cbd5e1;' : '' ?>">
-        <div class="lb-name" style="font-size:1.1rem; font-weight:800; color:#1e3a8a; text-transform:uppercase; margin-bottom:2px;"><?= $leader ? htmlspecialchars($leader['first_name'] . ' ' . $leader['last_name']) : 'NOT ASSIGNED' ?></div>
-        <div class="lb-role" style="font-size:0.85rem; font-weight:600; color:#64748b; margin-bottom:4px;"><?= htmlspecialchars($village) ?> Village Leader</div>
-    </div>
-    
 <!-- Header with logos -->
     <div class="header">
         <?php if ($logo_b64): ?><img src="<?= $logo_b64 ?>" alt="Church Logo"><?php endif; ?>
@@ -219,7 +212,11 @@ if (file_exists($logo_path)) {
             <h3 style="margin-top:4px; font-weight:600; color:#1e3a8a;">Pastor: <?= htmlspecialchars($pastor_name) ?></h3>
             <?php endif; ?>
         </div>
-        <?php if ($logo_b64): ?><img src="<?= $logo_b64 ?>" alt="Church Logo"><?php endif; ?>
+        <div style="text-align:center; flex-shrink:0;">
+            <img src="<?= $l_pic_b64 ?: $default_pic_b64 ?>" alt="Village Leader" style="width:75px; height:75px; border-radius:50%; object-fit:cover; border:3px solid #1e3a8a; display:block; margin:0 auto 4px; <?= empty($l_pic_b64) ? 'filter:grayscale(60%);' : '' ?>">
+            <div style="font-size:9px; font-weight:800; color:#1e3a8a; text-transform:uppercase; margin-top:3px;"><?= $leader ? htmlspecialchars($leader['first_name'] . ' ' . $leader['last_name']) : 'NOT ASSIGNED' ?></div>
+            <div style="font-size:8px; color:#64748b; font-weight:600;"><?= htmlspecialchars($village) ?> Village Leader</div>
+        </div>
     </div>
 
     <!-- Members Table -->
