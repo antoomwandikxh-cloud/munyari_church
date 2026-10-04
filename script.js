@@ -84,3 +84,78 @@ function validateInput(input, type) {
         }
     }
 }
+
+// Initialize real-time status feedback
+document.addEventListener('DOMContentLoaded', () => {
+    const inputs = document.querySelectorAll('input, select');
+    
+    inputs.forEach(input => {
+        // Only target inputs in form-groups
+        if (!input.closest('.form-group')) return;
+        if (input.type === 'radio' || input.type === 'checkbox' || input.type === 'hidden') return;
+        
+        // Add onfocus/oninput to set FILLING
+        input.addEventListener('input', () => {
+            if (input.value.trim().length > 0) {
+                setFieldStatus(input.id, 'FILLING');
+            } else {
+                setFieldStatus(input.id, 'EMPTY');
+            }
+        });
+        
+        // Add blur to set FILLED
+        input.addEventListener('blur', () => {
+            if (input.value.trim().length > 0 && input.checkValidity()) {
+                setFieldStatus(input.id, 'FILLED');
+            }
+        });
+    });
+});
+
+function getStatusBadge(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return null;
+    const group = input.closest('.form-group');
+    if (!group) return null;
+    let label = group.querySelector('label');
+    if (!label) return null;
+    
+    let badge = label.querySelector('.status-badge');
+    if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'status-badge';
+        badge.style.marginLeft = '8px';
+        badge.style.fontSize = '0.7rem';
+        badge.style.padding = '2px 6px';
+        badge.style.borderRadius = '4px';
+        badge.style.fontWeight = '800';
+        badge.style.textTransform = 'uppercase';
+        badge.style.letterSpacing = '0.5px';
+        badge.style.transition = 'all 0.3s ease';
+        label.appendChild(badge);
+    }
+    return badge;
+}
+
+function setFieldStatus(inputId, status) {
+    const badge = getStatusBadge(inputId);
+    if (!badge) return;
+    
+    if (status === 'FILLING') {
+        badge.textContent = 'FILLING';
+        badge.style.backgroundColor = '#fef08a'; 
+        badge.style.color = '#854d0e';
+    } else if (status === 'FILLED') {
+        badge.textContent = 'FILLED';
+        badge.style.backgroundColor = '#dcfce7'; 
+        badge.style.color = '#166534';
+    } else if (status === 'ACTIVATED') {
+        badge.textContent = 'ACTIVATED';
+        badge.style.backgroundColor = '#dbeafe'; 
+        badge.style.color = '#1e40af';
+    } else if (status === 'EMPTY') {
+        badge.textContent = '';
+        badge.style.backgroundColor = 'transparent';
+        badge.style.color = 'transparent';
+    }
+}
