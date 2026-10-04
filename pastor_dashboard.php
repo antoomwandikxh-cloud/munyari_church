@@ -3308,11 +3308,11 @@ w.document.write('</div>');
                         </div>
                         <?php
                         $target_depts = [
-                            'General Church' => 'General Church',
-                            'Youths' => 'Youth Ministry',
+                            'General Church'  => 'General Church',
+                            'Elders'          => 'Elders',
                             'Womens Ministry' => "Women's Ministry",
-                            'Elders' => 'Elders',
-                            'Sunday School' => 'Sunday School',
+                            'Youths'          => 'Youth Ministry',
+                            'Sunday School'   => 'Sunday School',
                             'Building' => 'Building Dept'
                         ];
                         $all_totals = array_sum($dept_totals);
@@ -3351,7 +3351,7 @@ w.document.write('</div>');
                                         <h2 style="margin-bottom: 5px;">Department Financial Records</h2>
                     <p style="margin-top:0; color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">Detailed finances per department, displaying amounts and who posted them.</p>
                     <?php
-                    $target_depts = ['General Church', 'Youths', 'Womens Ministry', 'Elders', 'Sunday School', 'Building'];
+                    $target_depts = ['General Church', 'Elders', 'Womens Ministry', 'Youths', 'Sunday School', 'Building'];
                     $has_any_records = false;
                     foreach ($target_depts as $d):
                         $d_esc = $conn->real_escape_string($d);
