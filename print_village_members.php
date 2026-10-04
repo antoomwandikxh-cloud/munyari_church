@@ -6,7 +6,8 @@ if (!isset($_SESSION['pastor_id']) && !isset($_SESSION['admin_id']) && !isset($_
     die("Unauthorized access.");
 }
 
-$village = $_GET['village'] ?? '';
+$village = trim($_GET['village'] ?? '');
+$orientation = ($_GET['orientation'] ?? 'portrait') === 'landscape' ? 'landscape' : 'portrait';
 if (empty($village)) { die("Village is required."); }
 $safe_village = $conn->real_escape_string($village);
 
@@ -33,7 +34,7 @@ $pastor_name = $pastor ? strtoupper($pastor['first_name'] . ' ' . $pastor['last_
 
 
 // ── Fetch Village Leader ─────────────────────────────────────────────────────
-$leader_q = $conn->query("SELECT * FROM members WHERE church_village = '$safe_village' AND is_village_leader = 1 AND is_approved = 1 LIMIT 1");
+$leader_q = $conn->query("SELECT * FROM members WHERE TRIM(church_village) = '$safe_village' AND is_village_leader = 1 AND is_approved = 1 LIMIT 1");
 $leader   = $leader_q ? $leader_q->fetch_assoc() : null;
 
 $l_pic_b64 = '';
@@ -63,7 +64,7 @@ $v_mems_q = $conn->query("
         ELSE 99
     END AS sort_rank
     FROM members
-    WHERE is_approved = 1 AND church_village = '$safe_village'
+    WHERE is_approved = 1 AND TRIM(church_village) = '$safe_village'
     ORDER BY sort_rank ASC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name ASC
 ");
 
@@ -110,7 +111,7 @@ if (file_exists($logo_path)) {
 
         /* ── Print overrides ── */
         @media print { body { padding: 15mm !important; } 
-            @page { size: A4 portrait; margin: 0; }
+            @page { size: A4 <?= $orientation ?>; margin: 0; }
             body { margin: 12mm; padding: 0; max-width: 100%; }
             .no-print { display: none !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
