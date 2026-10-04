@@ -1458,12 +1458,31 @@ if (!empty($action)) {
                             <tbody>
                                 <?php
                                 $print_row = 1; $last_grp = -1;
+                                    $last_dept = '';
                                 $group_labels = [0=>'General Church Leaders',1=>'Elders Department',2=>"Women's Ministry",3=>'Youths Department',4=>'Sunday School — Main Leaders',5=>'Sunday School Teachers',6=>'Sunday School — Subsidiary Leaders',7=>'Building Department',8=>'Other Roles',99=>'Members'];
                                 $group_colors = [0=>'#1e3a8a',1=>'#6d28d9',2=>'#be185d',3=>'#b45309',4=>'#0e7490',5=>'#047857',6=>'#0369a1',7=>'#92400e',8=>'#4b5563',99=>'#374151'];
                                 foreach ($all_print_members as $pm):
                                     $s = get_print_sort_order($pm['church_role'] ?? '', $pm['department'] ?? '');
                                     $grp = $s[0];
-                                    if ($grp !== $last_grp) { $last_grp = $grp; if ($grp !== 99) { $gl = $group_labels[$grp] ?? 'Other'; $gc = $group_colors[$grp] ?? '#374151'; echo '<tr><td colspan="9" style="padding:8px 15px;background:' . $gc . ';color:white;font-weight:700;font-size:0.82rem;letter-spacing:0.5px;border:1px solid ' . $gc . ';text-align:center;"> ' . htmlspecialchars($gl) . ' </td></tr>'; } }
+                                    $dept = $pm['department'] ?? 'General Church';
+        if ($grp !== 99) {
+            if ($grp !== $last_grp) {
+                $last_grp = $grp;
+                $last_dept = '';
+                $gl = $group_labels[$grp] ?? 'Other';
+                $gc = $group_colors[$grp] ?? '#374151';
+                echo '<tr><td colspan="9" style="padding:8px 15px;background:' . $gc . ';color:white;font-weight:700;font-size:0.82rem;letter-spacing:0.5px;border:1px solid ' . $gc . ';text-align:center;"> ' . htmlspecialchars($gl) . ' </td></tr>';
+            }
+        } else {
+            if ($grp !== $last_grp || $dept !== $last_dept) {
+                $last_grp = 99;
+                $last_dept = $dept;
+                $dept_colors = ['Elders'=>'#6d28d9', 'Womens Ministry'=>'#be185d', 'Youths'=>'#b45309', 'Sunday School'=>'#0e7490', 'Building'=>'#92400e'];
+                $gc = $dept_colors[$dept] ?? '#374151';
+                $gl = $dept . ' Members';
+                echo '<tr><td colspan="9" style="padding:8px 15px;background:' . $gc . ';color:white;font-weight:700;font-size:0.82rem;letter-spacing:0.5px;border:1px solid ' . $gc . ';text-align:center;"> ' . htmlspecialchars($gl) . ' </td></tr>';
+            }
+        }
                                     $status_str = $pm['is_approved']==1?'Active':($pm['is_approved']==-1?'Deactivated':'Pending');
                                     $status_color = $pm['is_approved']==1?'#15803d':($pm['is_approved']==-1?'#dc2626':'#d97706');
                                     $roles_str = implode(', ', array_filter(array_map('trim', explode(',', $pm['church_role'] ?? 'Member'))));
@@ -1675,6 +1694,7 @@ function printMemberDirectory(orientation) {
                             <tbody>
                             <?php
                             $ui_last_grp = -1;
+                            $ui_last_dept = '';
                             $ui_group_labels = [0=>'General Church Leaders',1=>'Elders Department',2=>"Women's Ministry",3=>'Youths Department',4=>'Sunday School — Main Leaders',5=>'Sunday School Teachers',6=>'Sunday School — Subsidiary Leaders',7=>'Building Department',8=>'Other Roles',99=>'Members'];
                             $ui_group_colors = [0=>'#1e3a8a',1=>'#6d28d9',2=>'#be185d',3=>'#b45309',4=>'#0e7490',5=>'#047857',6=>'#0369a1',7=>'#92400e',8=>'#4b5563',99=>'#374151'];
                             
@@ -1682,7 +1702,25 @@ function printMemberDirectory(orientation) {
                                 $s = get_print_sort_order($m['church_role'] ?? '', $m['department'] ?? '');
                                 $grp = $s[0];
                                 // Show dept ribbons on screen but skip group 99 plain Members label
-                                if ($grp !== $ui_last_grp && $grp !== 99) { $gl = $ui_group_labels[$grp] ?? 'Other'; $gc = $ui_group_colors[$grp] ?? '#374151'; $ui_last_grp = $grp; echo '<tr><td colspan="9" style="background:'.$gc.';color:white;padding:10px 18px;font-weight:800;font-size:0.88rem;text-align:center;letter-spacing:1px;text-transform:uppercase;border-top:3px solid rgba(255,255,255,0.3);">&#9654; '.htmlspecialchars($gl).' &#9664;</td></tr>'; } elseif ($grp === 99) { $ui_last_grp = 99; }
+                                $dept = $m['department'] ?? 'General Church';
+        if ($grp !== 99) {
+            if ($grp !== $ui_last_grp) {
+                $gl = $ui_group_labels[$grp] ?? 'Other';
+                $gc = $ui_group_colors[$grp] ?? '#374151';
+                $ui_last_grp = $grp;
+                $ui_last_dept = '';
+                echo '<tr><td colspan="9" style="background:'.$gc.';color:white;padding:10px 18px;font-weight:800;font-size:0.88rem;text-align:center;letter-spacing:1px;text-transform:uppercase;border-top:3px solid rgba(255,255,255,0.3);">&#9654; '.htmlspecialchars($gl).' &#9664;</td></tr>';
+            }
+        } else {
+            if ($grp !== $ui_last_grp || $dept !== $ui_last_dept) {
+                $ui_last_grp = 99;
+                $ui_last_dept = $dept;
+                $dept_colors = ['Elders'=>'#6d28d9', 'Womens Ministry'=>'#be185d', 'Youths'=>'#b45309', 'Sunday School'=>'#0e7490', 'Building'=>'#92400e'];
+                $gc = $dept_colors[$dept] ?? '#374151';
+                $gl = $dept . ' Members';
+                echo '<tr><td colspan="9" style="background:'.$gc.';color:white;padding:10px 18px;font-weight:800;font-size:0.88rem;text-align:center;letter-spacing:1px;text-transform:uppercase;border-top:3px solid rgba(255,255,255,0.3);">&#9654; '.htmlspecialchars($gl).' &#9664;</td></tr>';
+            }
+        }
                              ?>
                             <tr>
                                 <td><img src="uploads/<?= htmlspecialchars($m['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); cursor: zoom-in;" onclick="viewProfileImage(this.src);"></td>
