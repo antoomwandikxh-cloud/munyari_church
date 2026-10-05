@@ -1080,7 +1080,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
     <meta charset="UTF-8">
     <title>Pastor Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
-    <script src="script.js"></script>
+    <script src="script.js?v=1791214386"></script>
 </head>
 <body>
     <div class="dashboard-layout">

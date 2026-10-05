@@ -173,7 +173,7 @@ session_start();
             </div>
         </div>
     </div>
-    <script src="script.js"></script>
+    <script src="script.js?v=1791214386"></script>
     <style>
     input:disabled, select:disabled {
         opacity: 0.45;
@@ -246,63 +246,7 @@ session_start();
         seqUnlock(input.id, nextId);
     }
 
-    function seqUnlock(currentId, nextId) {
-        const current = document.getElementById(currentId);
-        const next    = document.getElementById(nextId);
-        if (!current || !next) return;
-        const filled = current.tagName === 'SELECT'
-            ? current.value !== ''
-            : current.value.trim().length > 0 && current.checkValidity();
-        next.disabled = !filled;
-        if (!filled) next.value = '';        
-                // --- ADDED: Visual Activated Indicator ---
-        const currLabel = document.querySelector('label[for="' + currentId + '"]') || (current.closest('.form-group') ? current.closest('.form-group').querySelector('label') : null);
-        if (currLabel) {
-            let currBadge = currLabel.querySelector('.activated-badge');
-            if (filled) {
-                if (!currBadge) {
-                    currBadge = document.createElement('span');
-                    currBadge.className = 'activated-badge';
-                    currBadge.style.fontSize = '0.75rem';
-                    currBadge.style.fontWeight = 'bold';
-                    currBadge.style.marginLeft = '8px';
-                    currBadge.style.animation = 'fadeIn 0.3s ease-in-out';
-                    currLabel.appendChild(currBadge);
-                }
-                currBadge.innerHTML = '&#10004; Filled';
-                currBadge.style.color = '#10b981';
-            } else {
-                if (currBadge) {
-                    currBadge.innerHTML = '&#10004; Activated';
-                    currBadge.style.color = '#f59e0b';
-                }
-            }
-        }
-
-        const label = document.querySelector('label[for="' + nextId + '"]') || (next.closest('.form-group') ? next.closest('.form-group').querySelector('label') : null);
-        if (label) {
-            let badge = label.querySelector('.activated-badge');
-            if (filled) {
-                if (!badge) {
-                    badge = document.createElement('span');
-                    badge.className = 'activated-badge';
-                    badge.style.fontSize = '0.75rem';
-                    badge.style.fontWeight = 'bold';
-                    badge.style.marginLeft = '8px';
-                    badge.style.animation = 'fadeIn 0.3s ease-in-out';
-                    label.appendChild(badge);
-                }
-                const nextFilled = next.tagName === 'SELECT' ? next.value !== '' : next.value.trim().length > 0 && next.checkValidity();
-                if (!nextFilled) {
-                    badge.innerHTML = '&#10004; Activated';
-                    badge.style.color = '#f59e0b';
-                }
-            } else {
-                if (badge) badge.remove();
-            }
-        }
-        // -----------------------------------------
-    }
+    /* seqUnlock now in script.js */
 
     function enforceGender(deptValue) {
         const maleRadio = document.querySelector('input[name="gender"][value="Male"]');
