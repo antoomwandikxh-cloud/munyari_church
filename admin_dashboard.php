@@ -1783,7 +1783,7 @@ function printMemberDirectory(orientation) {
                                 <td><?= htmlspecialchars($m['phone']) ?></td>
                                 <td><?= htmlspecialchars($m['address']) ?></td>
                                 <td><span class="badge" style="background:var(--border-color);color:var(--text-main);"><?= htmlspecialchars($m['department'] ?? 'General Church') ?></span></td>
-                                <td style="white-space:normal;"><?php foreach(array_map('trim', explode(',', $m['church_role'] ?? 'Member')) as $role_part) { if(trim($role_part)==='') continue; echo '<span class="badge" style="background:var(--border-color);color:var(--text-main);margin:2px 2px 2px 0;display:inline-block;white-space:nowrap;">'.htmlspecialchars($role_part).'</span>'; } ?></td>
+                                <td style="white-space:normal;"><?= render_role_pills($m['church_role'] ?? '') ?></td>
                                 <td><span class="badge <?= $m['is_approved'] ? 'approved' : 'pending' ?>"><?= $m['is_approved'] ? 'Active' : 'Pending' ?></span></td>
                                 <td style="white-space:nowrap;">
                                     <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">

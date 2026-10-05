@@ -2227,7 +2227,7 @@ function printMemberDirectory(orientation) {
                                 <td><?= htmlspecialchars($m['phone']) ?></td>
                                 <td><?= htmlspecialchars($m['address'] ?? '-') ?></td>
                                 <td><span class="badge" style="background:var(--border-color);color:var(--text-main);"><?= htmlspecialchars($m['department'] ?? 'General Church') ?></span></td>
-                                <td style="white-space:normal;"><?php foreach(array_map('trim', explode(',', $m['church_role'] ?? 'Member')) as $role_part) { if(trim($role_part)==='') continue; echo '<span class="badge" style="background:var(--border-color);color:var(--text-main);margin:2px 2px 2px 0;display:inline-block;white-space:nowrap;">'.htmlspecialchars($role_part).'</span>'; } ?></td>
+                                <td style="white-space:normal;"><?= render_role_pills($m['church_role'] ?? '') ?></td>
                                 <td>
                                     <?php if ($m['is_approved'] == 1): ?>
                                         <span class="badge" style="color:#10b981;font-weight:bold;display:inline-flex;align-items:center;background:none;padding:0;border:none;"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><circle cx='6' cy='6' r='6' fill='%2310b981'/></svg>" style="width:12px;height:12px;margin-right:4px;vertical-align:middle;" alt="dot">Active</span>
