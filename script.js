@@ -159,3 +159,34 @@ function setFieldStatus(inputId, status) {
         badge.style.color = 'transparent';
     }
 }
+
+// Shorthand helpers called from inline oninput/onblur on dashboard forms
+function setFieldStatus_filling(id) {
+    var el = document.getElementById(id); if (!el) return;
+    var g = el.closest('.form-group'); if (!g) return;
+    var lbl = g.querySelector('label'); if (!lbl) return;
+    var b = lbl.querySelector('.sb');
+    if (!b) { b = document.createElement('span'); b.className = 'sb'; b.style.cssText = 'margin-left:8px;font-size:0.68rem;padding:2px 7px;border-radius:4px;font-weight:800;text-transform:uppercase;vertical-align:middle;display:inline-block;transition:all 0.2s;'; lbl.appendChild(b); }
+    if (el.value.trim().length > 0) { b.textContent = 'FILLING'; b.style.background = '#fef08a'; b.style.color = '#854d0e'; }
+    else { b.textContent = ''; b.style.background = 'transparent'; b.style.color = 'transparent'; }
+}
+
+function setFieldStatus_blur(el) {
+    if (!el) return;
+    var g = el.closest('.form-group'); if (!g) return;
+    var lbl = g.querySelector('label'); if (!lbl) return;
+    var b = lbl.querySelector('.sb');
+    if (!b) { b = document.createElement('span'); b.className = 'sb'; b.style.cssText = 'margin-left:8px;font-size:0.68rem;padding:2px 7px;border-radius:4px;font-weight:800;text-transform:uppercase;vertical-align:middle;display:inline-block;transition:all 0.2s;'; lbl.appendChild(b); }
+    if (el.value.trim().length > 0 && el.checkValidity()) { b.textContent = '\u2713 FILLED'; b.style.background = '#dcfce7'; b.style.color = '#166534'; }
+    else if (!el.value.trim().length) { b.textContent = ''; b.style.background = 'transparent'; b.style.color = 'transparent'; }
+}
+
+function seqUnlock_badge_next(nextId, wasDis) {
+    var nxt = document.getElementById(nextId); if (!nxt) return;
+    var g = nxt.closest('.form-group'); if (!g) return;
+    var lbl = g.querySelector('label'); if (!lbl) return;
+    var b = lbl.querySelector('.sb');
+    if (!b) { b = document.createElement('span'); b.className = 'sb'; b.style.cssText = 'margin-left:8px;font-size:0.68rem;padding:2px 7px;border-radius:4px;font-weight:800;text-transform:uppercase;vertical-align:middle;display:inline-block;transition:all 0.2s;'; lbl.appendChild(b); }
+    if (wasDis && !nxt.disabled) { b.textContent = 'ACTIVATED'; b.style.background = '#dbeafe'; b.style.color = '#1e40af'; }
+    else if (nxt.disabled) { b.textContent = ''; b.style.background = 'transparent'; b.style.color = 'transparent'; }
+}
