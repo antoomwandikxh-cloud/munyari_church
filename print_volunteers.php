@@ -249,7 +249,6 @@ foreach ($role_data as $role => $people):
     <div class="sig-box">
         <div class="sig-title">Church Pastor</div>
         <div class="sig-name"><?= htmlspecialchars($pastor_name) ?></div>
-        <div class="sig-row"><span class="sig-label">Name :</span><div class="sig-line"></div></div>
         <div class="sig-row"><span class="sig-label">Signature :</span><div class="sig-line"></div></div>
         <div class="sig-row"><span class="sig-label">Date :</span><div class="sig-line-dashed"></div></div>
     </div>
