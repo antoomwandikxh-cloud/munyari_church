@@ -3898,7 +3898,7 @@ w.document.write('</div>');
                             </div>
                         </div>
                         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                            <input type="text" id="worshipperSearch" placeholder="Search worshippers..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" onkeyup="filterWorshippersTable()">
+                            <input type="text" id="worshipperSearch" placeholder="Search worshippers..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" oninput="filterWorshippersTable()">
                             <a href="print_worshippers.php?mode=landscape" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;padding:8px 16px;border-radius:8px;font-size:0.85rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(139,92,246,0.3);">
                                 <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                 Print Landscape
