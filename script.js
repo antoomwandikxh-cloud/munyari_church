@@ -75,7 +75,7 @@ function getStatusBadge(el) {
     if (!badge) {
         badge = document.createElement('span');
         badge.className = 'sb';
-        badge.style.cssText = 'margin-left:8px;font-size:0.68rem;padding:2px 7px;border-radius:4px;font-weight:800;text-transform:uppercase;vertical-align:middle;display:inline-block;transition:all 0.2s;';
+        badge.style.cssText = 'margin-left:8px; font-size:0.7rem; padding:2px 8px; border-radius:12px; font-weight:600; vertical-align:middle; display:none; transition:all 0.3s ease; border:1px solid transparent; letter-spacing:0.2px;';
         label.appendChild(badge);
     }
     return badge;
@@ -86,12 +86,9 @@ function setFieldStatus_filling(id) {
     const b = getStatusBadge(el);
     if (!b) return;
     if (el.value.trim().length > 0) {
-        b.textContent = 'FILLING';
-        b.style.background = '#fef08a';
-        b.style.color = '#854d0e';
+        b.style.display = 'inline-block'; b.textContent = 'Filling...'; b.style.background = '#fef9c3'; b.style.color = '#a16207'; b.style.borderColor = '#fde047';
     } else {
-        b.textContent = '';
-        b.style.background = 'transparent';
+        b.textContent = ''; b.style.display = 'none';
     }
 }
 
@@ -100,12 +97,9 @@ function setFieldStatus_blur(el) {
     const b = getStatusBadge(el);
     if (!b) return;
     if (el.value.trim().length > 0 && el.checkValidity()) {
-        b.textContent = '\u2713 FILLED';
-        b.style.background = '#dcfce7';
-        b.style.color = '#166534';
+        b.textContent = '✓ Filled'; b.style.background = '#f0fdf4'; b.style.color = '#15803d'; b.style.borderColor = '#bbf7d0';
     } else if (!el.value.trim().length) {
-        b.textContent = '';
-        b.style.background = 'transparent';
+        b.textContent = ''; b.style.display = 'none';
     }
 }
 
@@ -114,12 +108,9 @@ function seqUnlock_badge_next(nextId, unlocked) {
     const b = getStatusBadge(el);
     if (!b) return;
     if (unlocked && el.value.trim() === '') {
-        b.textContent = 'ACTIVATED';
-        b.style.background = '#dbeafe';
-        b.style.color = '#1e40af';
+        b.style.display = 'inline-block'; b.textContent = 'Activated'; b.style.background = '#eff6ff'; b.style.color = '#1d4ed8'; b.style.borderColor = '#bfdbfe';
     } else if (!unlocked) {
-        b.textContent = '';
-        b.style.background = 'transparent';
+        b.textContent = ''; b.style.display = 'none';
     }
 }
 
