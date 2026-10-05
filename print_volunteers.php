@@ -50,7 +50,7 @@ $role_data = [];
 foreach ($all_roles as $role) {
     $esc = $conn->real_escape_string($role);
     $members = [];
-    $mq = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type FROM members WHERE desired_role_pref='$esc' AND is_approved=1 ORDER BY church_village, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name");
+    $mq = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type FROM members WHERE desired_role_pref='$esc' AND is_approved=1 ORDER BY CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name ASC, last_name ASC");
     if ($mq) { while ($row = $mq->fetch_assoc()) $members[] = $row; }
     $pq = $conn->query("SELECT first_name, last_name, church_village, department, role AS church_role, phone, profile_picture, 'Pastor' AS person_type FROM pastors WHERE desired_role_pref='$esc' AND is_approved=1");
     if ($pq) { while ($row = $pq->fetch_assoc()) $members[] = $row; }
@@ -145,6 +145,18 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
     font-size: 13px; font-weight: bold; color: white; text-decoration: none;
     display: inline-flex; align-items: center; gap: 6px; font-family: Arial, sans-serif;
 }
+        /* Signatures */
+        .sig-section { display: flex; justify-content: space-between; margin-top: 50px; page-break-inside: avoid; }
+        .sig-box { width: 45%; }
+        .sig-title { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; margin-bottom: 3px; }
+        .sig-name  { font-size: 13px; font-weight: 700; text-transform: uppercase; text-align: center; margin-bottom: 18px; }
+        .sig-row   { display: flex; align-items: flex-end; margin-bottom: 14px; }
+        .sig-label { width: 70px; font-size: 13px; font-weight: 600; color: #333; text-align:left; }
+        .sig-line  { flex: 1; border-bottom: 1px solid #000; height: 20px; }
+        .sig-line-dashed { flex: 1; border-bottom: 1px dashed #555; height: 20px; }
+
+        /* Stamp */
+        .stamp-circle { width: 140px; height: 140px; border: 2px dashed #aaa; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #aaa; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; line-height: 2; margin: 0 auto; }
 </style>
 </head>
 <body>
@@ -185,7 +197,7 @@ foreach ($role_data as $role => $people):
 ?>
 <div style="margin-bottom:18px;">
     <div class="sec-badge" style="background:<?= $color ?>;">
-        <?= $icon ?> <?= htmlspecialchars($role) ?> — All Villages
+        <?= $icon ?> <?= htmlspecialchars($role) ?> 
         (<?= $count ?> Member<?= $count != 1 ? 's' : '' ?>)
     </div>
     <table>
@@ -223,15 +235,18 @@ foreach ($role_data as $role => $people):
 <?php endforeach; ?>
 
 
-<div style="margin-top: 40px; margin-bottom: 30px; display: flex; justify-content: space-around; text-align: center; font-size: 0.9rem; page-break-inside: avoid;">
-    <div>
-        <p style="margin-bottom: 20px; font-weight: bold; color: var(--text-main);">Official Church Stamp:</p>
-        <div style="width: 110px; height: 110px; border: 2px dashed #cbd5e1; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #94a3b8; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 1px;">Stamp Here</div>
+<div class="sig-section">
+    <div class="sig-box" style="display: flex; justify-content: center; align-items: center;">
+        <div class="stamp-circle">
+            Official<br>Church<br>Stamp
+        </div>
     </div>
-    <div>
-        <p style="margin-bottom: 70px; font-weight: bold; color: var(--text-main);">Pastor's Signature:</p>
-        <div style="width: 220px; border-bottom: 2px solid #333; margin: 0 auto;"></div>
-        <p style="margin-top: 8px; color: #555; font-style: italic;">Sign & Date</p>
+    <div class="sig-box">
+        <div class="sig-title">Church Pastor</div>
+        <div class="sig-name">__________________________</div>
+        <div class="sig-row"><span class="sig-label">Name :</span><div class="sig-line"></div></div>
+        <div class="sig-row"><span class="sig-label">Signature :</span><div class="sig-line"></div></div>
+        <div class="sig-row"><span class="sig-label">Date :</span><div class="sig-line-dashed"></div></div>
     </div>
 </div>
 
