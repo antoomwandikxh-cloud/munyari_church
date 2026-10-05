@@ -1,4 +1,28 @@
 ﻿<?php
+
+function render_role_pills($church_role_raw, $is_pastor = false, $is_leader = false) {
+    if ($is_pastor) { return '<span class="role-pill rp-pastor">&#9962; Pastor</span>'; }
+    $raw = trim($church_role_raw ?? '');
+    if ($raw === '' || strtolower($raw) === 'member') { return '<span class="role-pill rp-member">Member</span>'; }
+    $parts = array_values(array_filter(array_map('trim', explode(',', str_replace('&', ',', $raw)))));
+    $out = '';
+    foreach ($parts as $role) {
+        $rl = strtolower($role);
+        if (strpos($rl,'village leader')!==false){ $cls='rp-leader'; }
+        elseif(strpos($rl,'chairperson')!==false||strpos($rl,'chair')!==false){ $cls='rp-chair'; }
+        elseif(strpos($rl,'vice')!==false){ $cls='rp-vice'; }
+        elseif(strpos($rl,'secretary')!==false){ $cls='rp-secretary'; }
+        elseif(strpos($rl,'treasurer')!==false){ $cls='rp-treasurer'; }
+        elseif(strpos($rl,'elder')!==false||strpos($rl,'deacon')!==false){ $cls='rp-elder'; }
+        elseif(strpos($rl,'worship')!==false||strpos($rl,'praise')!==false){ $cls='rp-worship'; }
+        elseif(strpos($rl,'usher')!==false){ $cls='rp-usher'; }
+        elseif(strpos($rl,'pastor')!==false){ $cls='rp-pastor'; }
+        else{ $cls='rp-other'; }
+        $out .= '<span class="role-pill '.$cls.'">'  . htmlspecialchars($role) . '</span>';
+    }
+    return '<div class="role-pills-wrap">'.$out.'</div>';
+}
+
 session_start();
 require_once 'db_connect.php';
 if (isset($_POST['add_custom_role'])) {
@@ -899,6 +923,21 @@ if (!empty($action)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
+<style>
+.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}
+.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}
+.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}
+.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}
+.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}
+.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}
+.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}
+.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}
+.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}
+.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}
+</style>
 </head>
 <body>
     <div class="dashboard-layout">
@@ -1675,7 +1714,22 @@ function printMemberDirectory(orientation) {
     w.document.write('.print-only-name{display:inline!important;}');
                         w.document.write('.print-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}');
                         w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
-                        w.document.write('</style></head><body>');
+                        w.document.write('</style><style>
+.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}
+.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}
+.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}
+.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}
+.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}
+.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}
+.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}
+.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}
+.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}
+.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}
+</style>
+</head><body>');
                         w.document.write(printDiv.innerHTML);
                         w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
                         w.document.write('</body></html>');
@@ -1819,7 +1873,22 @@ function printAllLeaders(orientation) {
     w.document.write('.avatar{width:50px;height:50px;border-radius:50%;object-fit:cover;flex-shrink:0;}');
     w.document.write('.name{font-weight:700;font-size:0.85rem;color:#1e3a8a;}');
     w.document.write('.role{font-size:0.75rem;color:#555;margin-top:2px;}');
-    w.document.write('</style></head><body>');
+    w.document.write('</style><style>
+.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}
+.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}
+.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}
+.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}
+.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}
+.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}
+.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}
+.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}
+.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}
+.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}
+</style>
+</head><body>');
 
     w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
 
@@ -1921,7 +1990,22 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     w.document.write('.print-only-name{display:inline!important;}');
     w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}');
     w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
-    w.document.write('</style></head><body>');
+    w.document.write('</style><style>
+.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}
+.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}
+.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}
+.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}
+.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}
+.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}
+.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}
+.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}
+.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}
+.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}
+</style>
+</head><body>');
 
     w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
 
@@ -3698,7 +3782,7 @@ w.document.write('</div>');
                                 </td>
                                 <td><span class="badge" style="background:<?= $v_color ?>22;color:<?= $v_color ?>;font-weight:700;"><?= htmlspecialchars($row['church_village'] ?: $v) ?></span></td>
                                 <td><?= htmlspecialchars($row['department'] ?: 'General Church') ?></td>
-                                <td><span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary);"><?= htmlspecialchars($is_pastor ? 'Pastor' : ($row['church_role'] ?: 'Member')) ?></span></td>
+                                <td><?= render_role_pills($row['church_role'] ?? '', $is_pastor, $is_leader) ?></td>
                                 <td><?php if ($dsr): ?><span class="badge" style="background:<?= $dsr_color ?>22; color:<?= $dsr_color ?>;font-weight:700;"><?= htmlspecialchars($dsr) ?></span><?php else: ?><span style="color:var(--text-muted); font-size:0.85rem;">—</span><?php endif; ?></td>
                                 <td style="color:var(--text-muted); font-size:0.85rem;"><?= htmlspecialchars($row['phone'] ?? '—') ?></td>
                             </tr>
@@ -4737,7 +4821,22 @@ w.document.write('</div>');
                             const rowHtml = rows.length ? rows.map((row, index) => `<div class="student-row ${row.dataset.status === 'Absent' ? 'is-absent' : ''}"><span class="student-number">${index + 1}</span><span class="student-photo-cell">${row.dataset.photo ? `<img src="${escapeHtml(absUrl(row.dataset.photo))}" alt="">` : ''}</span><span class="student-name">${escapeHtml(row.dataset.name)}</span><span>${escapeHtml(row.dataset.gender)}</span><span>${escapeHtml(row.dataset.phone)}</span><span class="student-status">${escapeHtml(row.dataset.status)}</span></div>`).join('') : '<p class="empty-roster">No attendance entries were saved for this register.</p>';
                             const win = window.open('', '_blank');
                             if (!win) return;
-                            win.document.write('<!doctype html><html><head><title>Sunday School Attendance</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#111}.report-shell{max-width:900px;margin:0 auto}.report-header{text-align:center;border-bottom:2px solid #111;padding-bottom:14px;margin-bottom:22px}.report-header h1{margin:0;font-size:24px;letter-spacing:.08em;text-transform:uppercase}.report-header h2{margin:8px 0 12px;font-size:18px}.teacher-block{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px 0}.teacher-block img{width:58px;height:58px;border-radius:50%;object-fit:cover;border:2px solid #2563eb}.teacher-name{margin:2px 0 0;color:#2563eb;font-weight:800;text-transform:uppercase;font-size:15px;letter-spacing:.03em}.teacher-label{margin:0;color:#555;font-size:12px;text-transform:uppercase;font-weight:700}.report-header p{margin:3px 0;color:#555;font-size:13px}.student-heading,.student-row{display:grid;grid-template-columns:44px minmax(86px,.5fr) minmax(210px,1.25fr) minmax(100px,.6fr) minmax(140px,.9fr) minmax(110px,.7fr);align-items:center;column-gap:12px;padding:9px 0;border-bottom:1px solid #ddd}.student-heading{font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.04em;border-bottom:2px solid #111}.student-row{font-size:14px}.student-row.is-absent{color:#777}.student-number{font-weight:700;color:#555}.student-photo-cell img{width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #bbb}.student-name{font-weight:600}.student-status{font-weight:700}.empty-roster{text-align:center;color:#666;padding:30px 0}.print-footer{margin-top:26px;color:#555;font-size:12px;text-align:center}</style></head><body><main class="report-shell"><section class="report-header"><h1>Munyari EAPC</h1><h2>' + escapeHtml(meta.dataset.className) + ' Sunday School Attendance Register</h2><div class="teacher-block"><img src="' + escapeHtml(absUrl(meta.dataset.teacherPhoto)) + '" alt=""><div><p class="teacher-label">Teacher</p><p class="teacher-name">' + escapeHtml(meta.dataset.teacherName).toUpperCase() + '</p></div></div><p>Date: ' + escapeHtml(meta.dataset.attendanceDate) + '</p>' + (meta.dataset.notes ? '<p>Notes: ' + escapeHtml(meta.dataset.notes) + '</p>' : '') + '</section><section><div class="student-heading"><span>No.</span><span>Profile Photo</span><span>Name</span><span>Gender</span><span>Phone Number</span><span>Attendance Status</span></div>' + rowHtml + '</section><p class="print-footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + new Date().toLocaleString() + '</p></main><!-- Edit Member Modal -->
+                            win.document.write('<!doctype html><html><head><title>Sunday School Attendance</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#111}.report-shell{max-width:900px;margin:0 auto}.report-header{text-align:center;border-bottom:2px solid #111;padding-bottom:14px;margin-bottom:22px}.report-header h1{margin:0;font-size:24px;letter-spacing:.08em;text-transform:uppercase}.report-header h2{margin:8px 0 12px;font-size:18px}.teacher-block{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px 0}.teacher-block img{width:58px;height:58px;border-radius:50%;object-fit:cover;border:2px solid #2563eb}.teacher-name{margin:2px 0 0;color:#2563eb;font-weight:800;text-transform:uppercase;font-size:15px;letter-spacing:.03em}.teacher-label{margin:0;color:#555;font-size:12px;text-transform:uppercase;font-weight:700}.report-header p{margin:3px 0;color:#555;font-size:13px}.student-heading,.student-row{display:grid;grid-template-columns:44px minmax(86px,.5fr) minmax(210px,1.25fr) minmax(100px,.6fr) minmax(140px,.9fr) minmax(110px,.7fr);align-items:center;column-gap:12px;padding:9px 0;border-bottom:1px solid #ddd}.student-heading{font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.04em;border-bottom:2px solid #111}.student-row{font-size:14px}.student-row.is-absent{color:#777}.student-number{font-weight:700;color:#555}.student-photo-cell img{width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #bbb}.student-name{font-weight:600}.student-status{font-weight:700}.empty-roster{text-align:center;color:#666;padding:30px 0}.print-footer{margin-top:26px;color:#555;font-size:12px;text-align:center}</style><style>
+.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}
+.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}
+.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}
+.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}
+.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}
+.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}
+.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}
+.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}
+.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}
+.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}
+</style>
+</head><body><main class="report-shell"><section class="report-header"><h1>Munyari EAPC</h1><h2>' + escapeHtml(meta.dataset.className) + ' Sunday School Attendance Register</h2><div class="teacher-block"><img src="' + escapeHtml(absUrl(meta.dataset.teacherPhoto)) + '" alt=""><div><p class="teacher-label">Teacher</p><p class="teacher-name">' + escapeHtml(meta.dataset.teacherName).toUpperCase() + '</p></div></div><p>Date: ' + escapeHtml(meta.dataset.attendanceDate) + '</p>' + (meta.dataset.notes ? '<p>Notes: ' + escapeHtml(meta.dataset.notes) + '</p>' : '') + '</section><section><div class="student-heading"><span>No.</span><span>Profile Photo</span><span>Name</span><span>Gender</span><span>Phone Number</span><span>Attendance Status</span></div>' + rowHtml + '</section><p class="print-footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + new Date().toLocaleString() + '</p></main><!-- Edit Member Modal -->
 <div id="editMemberModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:white;padding:24px;border-radius:8px;width:90%;max-width:500px;box-shadow:0 10px 25px rgba(0,0,0,0.2);">
         <h2 style="margin-top:0;color:#1e3a8a;border-bottom:2px solid #eee;padding-bottom:10px;">Edit Member</h2>
@@ -5472,7 +5571,22 @@ function printRequiredLeadersTable(orientation) {
     w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}');
     w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
     w.document.write('.btn-sm, button { display:none !important; }');
-    w.document.write('</style></head><body>');
+    w.document.write('</style><style>
+.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}
+.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}
+.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}
+.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}
+.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}
+.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}
+.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}
+.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}
+.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}
+.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}
+</style>
+</head><body>');
 
     w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
 
@@ -5526,7 +5640,22 @@ function printRequiredTable() {
     w.document.write('.dept-cell { font-weight:800; color:#1e3a8a; }');
     w.document.write('img { width:32px; height:32px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:8px; border:1px solid #ccc; }');
     w.document.write('.btn-sm { display:none; }');
-    w.document.write('</style></head><body>');
+    w.document.write('</style><style>
+.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}
+.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}
+.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}
+.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}
+.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}
+.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}
+.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}
+.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}
+.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}
+.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}
+</style>
+</head><body>');
     w.document.write('<h2 style="text-align:center; border-bottom:2px solid #1e3a8a; padding-bottom:8px;">E.A.P.C MUNYARI CHURCH &mdash; Currently Assigned Leaders</h2>');
     w.document.write('<p style="text-align:center;color:#555;margin-bottom:16px;">Printed on: ' + new Date().toLocaleDateString('en-GB', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) + '</p>');
     w.document.write(card.innerHTML);
@@ -5601,7 +5730,22 @@ function openDeclineModal(id, name) {
         w.document.write('.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:0.72rem;font-weight:600;}');
         w.document.write('.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:' + wmSize + '!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}');
         w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
-        w.document.write('</style></head><body>');
+        w.document.write('</style><style>
+.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}
+.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}
+.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}
+.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}
+.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}
+.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}
+.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}
+.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}
+.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}
+.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}
+</style>
+</head><body>');
         w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
         w.document.write(leaderHTML);
         w.document.write('<div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #1e3a8a;padding-bottom:10px;margin-bottom:18px;gap:10px;">');
