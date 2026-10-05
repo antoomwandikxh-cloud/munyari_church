@@ -6056,7 +6056,12 @@ function openDeclineModal(id, name) {
 w.document.write('</div>');
         w.document.write('<table>' + theadHTML + tbodyHTML + '</table>');
         w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
-        w.document.write('<script>
+        w.document.write('</body></html>');
+        w.document.close();
+        w.focus();
+        setTimeout(function(){ w.print(); }, 500);
+    }
+
 function filterDeptTable(inputElement, tableContainerId) {
     let filter = inputElement.value.toLowerCase();
     let container = document.getElementById(tableContainerId);
@@ -6072,10 +6077,5 @@ function filterDeptTable(inputElement, tableContainerId) {
     }
 }
 </script>
-</body></html>');
-        w.document.close();
-        w.focus();
-        setTimeout(function(){ w.print(); }, 500);
-    }
-</script>
+</body>
 </html>
