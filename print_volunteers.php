@@ -32,6 +32,11 @@ function img_b64(string $filename): string {
 /* ── Logo ────────────────────────────────────────────────────── */
 $logo_b64 = img_b64('church_logo.jpg');
 
+/* Fetch active pastor */
+$pastor_q    = $conn->query("SELECT first_name, last_name FROM pastors WHERE is_approved = 1 ORDER BY id ASC LIMIT 1");
+$pastor_row  = $pastor_q ? $pastor_q->fetch_assoc() : null;
+$pastor_name = $pastor_row ? strtoupper($pastor_row['first_name'] . ' ' . $pastor_row['last_name']) : 'Not Assigned';
+
 /* ── Fetch ALL roles from DB (includes Church Cleaner, Church Cooker, and customs) ── */
 $all_roles_q = $conn->query("SELECT * FROM custom_desired_roles ORDER BY id ASC");
 $all_roles = [];
@@ -243,7 +248,7 @@ foreach ($role_data as $role => $people):
     </div>
     <div class="sig-box">
         <div class="sig-title">Church Pastor</div>
-        <div class="sig-name">__________________________</div>
+        <div class="sig-name"><?= htmlspecialchars($pastor_name) ?></div>
         <div class="sig-row"><span class="sig-label">Name :</span><div class="sig-line"></div></div>
         <div class="sig-row"><span class="sig-label">Signature :</span><div class="sig-line"></div></div>
         <div class="sig-row"><span class="sig-label">Date :</span><div class="sig-line-dashed"></div></div>
