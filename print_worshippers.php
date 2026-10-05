@@ -2,7 +2,25 @@
 session_start();
 require_once 'db_connect.php';
 
-if (!isset($_SESSION['pastor_id']) && !isset($_SESSION['admin_id'])) {
+if (!isset($_SESSION['pastor_id']) && !isset($_SESSION['admin_id']) && !isset($_SESSION['member_id'])) {
+    die("Unauthorized access.");
+}
+
+// If member, verify they are Worship Leader or Vice
+if (isset($_SESSION['member_id']) && !isset($_SESSION['pastor_id']) && !isset($_SESSION['admin_id'])) {
+    $mid = (int)$_SESSION['member_id'];
+    $mq = $conn->query("SELECT church_role FROM members WHERE id = $mid AND is_approved = 1");
+    if ($mq && $mq->num_rows > 0) {
+        $mr = $mq->fetch_assoc()['church_role'] ?? '';
+        if (strpos(strtolower($mr), 'worship leader') === false) {
+            die("Unauthorized access. Only Worship Leaders can print this list.");
+        }
+    } else {
+        die("Unauthorized access.");
+    }
+}
+
+if (false) {
     die("Unauthorized access.");
 }
 
