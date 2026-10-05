@@ -1,64 +1,24 @@
 <?php
-$files = ['C:\\xampp\\htdocs\\munyari_church\\admin_dashboard.php', 'C:\\xampp\\htdocs\\munyari_church\\pastor_dashboard.php'];
-
-$js_fix = <<<'HTML'
-                    </form>
-                    <script>
-                    if (typeof window.validateInput === 'undefined') {
-                        window.validateInput = function(input, type) {
-                            let errorMsg = input.nextElementSibling;
-                            if (!errorMsg || !errorMsg.classList.contains('err-msg')) {
-                                errorMsg = document.createElement('span');
-                                errorMsg.className = 'err-msg';
-                                errorMsg.style.color = '#ef4444';
-                                errorMsg.style.fontSize = '0.8rem';
-                                errorMsg.style.display = 'block';
-                                errorMsg.style.marginTop = '4px';
-                                input.parentNode.appendChild(errorMsg);
-                            }
-                            if (type === 'name') {
-                                if (/[^A-Za-z\s,.-]/.test(input.value)) {
-                                    errorMsg.innerText = 'Only characters allowed - numbers are not permitted.';
-                                    errorMsg.style.color = '#ef4444';
-                                    input.setCustomValidity('Invalid');
-                                    setTimeout(() => { input.value = input.value.replace(/[^A-Za-z\s,.-]/g, ''); }, 800);
-                                } else {
-                                    errorMsg.innerText = '';
-                                    input.setCustomValidity('');
-                                }
-                            } else if (type === 'phone') {
-                                if (/[^\d]/.test(input.value)) {
-                                    errorMsg.innerText = 'Only digits allowed.';
-                                    errorMsg.style.color = '#ef4444';
-                                    input.setCustomValidity('Invalid');
-                                    setTimeout(() => { input.value = input.value.replace(/[^\d]/g, ''); }, 800);
-                                } else {
-                                    errorMsg.innerText = '';
-                                    input.setCustomValidity('');
-                                }
-                            }
-                        };
-                    }
-                    if (typeof window.seqUnlock === 'undefined') {
-                        window.seqUnlock = function(currentId, nextId) {
-                            const current = document.getElementById(currentId);
-                            const next    = document.getElementById(nextId);
-                            if (!current || !next) return;
-                            const filled = current.tagName === 'SELECT'
-                                ? current.value !== ''
-                                : current.value.trim().length > 0 && current.checkValidity();
-                            next.disabled = !filled;
-                            if (!filled) next.value = '';
-                        };
-                    }
-                    </script>
-HTML;
-
-foreach ($files as $f) {
-    $c = file_get_contents($f);
-    // Insert JS right after the ssRegForm closes
-    $c = preg_replace('/<\/form>\s*<!-- Class Sections -->/', $js_fix . "\n                <!-- Class Sections -->", $c);
-    file_put_contents($f, $c);
-    echo "Fixed JS in " . basename($f) . "\n";
+$files = ['admin_dashboard.php', 'pastor_dashboard.php'];
+foreach ($files as $file) {
+    $c = file_get_contents($file);
+    
+    // The broken injected CSS inside JS has this exact structure:
+    $broken_injection = "</style><style>\n.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}\n.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}\n.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}\n.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}\n.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}\n.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}\n.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}\n.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}\n.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}\n.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}\n.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}\n.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}\n.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}\n</style>\n</head>";
+    
+    $c = str_replace($broken_injection, "</head>", $c);
+    
+    // Sometimes it's without \r, let's just do a regex replace to be safe
+    $c = preg_replace('/<\/style><style>\s*\.role-pills-wrap[\s\S]*?<\/style>\s*<\/head>/m', '</head>', $c);
+    
+    // Wait, the print popups need the pill CSS, but we can't use raw newlines in JS strings!
+    // So we should re-inject the CSS into the JS print popups, but as ONE SINGLE LINE string!
+    $css_oneline = "<style>.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}</style>";
+    
+    // Inject it just before </head> in the JS document writes
+    $c = preg_replace('/w\.document\.write\(\'(.*?)<\/head>\'/m', "w.document.write('$1" . $css_oneline . "</head>'", $c);
+    
+    file_put_contents($file, $c);
+    echo "Fixed $file\n";
 }
 ?>

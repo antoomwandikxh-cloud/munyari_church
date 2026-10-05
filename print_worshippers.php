@@ -127,7 +127,7 @@ table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
 thead tr th { background: #8b5cf6; color: white; padding: 5px 7px; font-size: 0.71rem; text-align: left; }
 tbody tr td { padding: 4px 7px; border-bottom: 1px solid #e2e8f0; font-size: 0.73rem; vertical-align: middle; }
 tbody tr:nth-child(even) td { background: #faf5ff; }
-.photo-cell img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid #c4b5fd; display: block; }
+.photo-cell img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; display: block; border: none; }
 .badge { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 0.65rem; font-weight: 700; }
 
 /* Signatures */
@@ -233,7 +233,7 @@ $vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) .
     <tr>
         <td style="color:#888;"><?= $i++ ?></td>
         <td class="photo-cell">
-            <?php if ($pic_b64): ?><img src="<?= $pic_b64 ?>" alt=""><?php else: ?><img src="<?= img_b64('uploads/default_avatar.png') ?>" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid #c4b5fd;"><?php endif; ?>
+            <?php if ($pic_b64): ?><img src="<?= $pic_b64 ?>" alt=""><?php else: ?><img src="<?= img_b64('uploads/default_avatar.png') ?>" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:none;"><?php endif; ?>
         </td>
         <td style="font-weight:700;text-transform:uppercase;"><?= htmlspecialchars($ws['first_name'] . ' ' . $ws['last_name']) ?></td>
         <td><span class="badge" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;"><?= htmlspecialchars($ws['church_village'] ?: '-') ?></span></td>
