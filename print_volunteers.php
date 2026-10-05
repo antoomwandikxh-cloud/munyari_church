@@ -167,7 +167,7 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
     <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
     <div class="ct">
         <h1>E.A.P.C Munyari Church</h1>
-        <h2>Church Service Volunteers</h2>
+        <h2>Church Service Roles List</h2>
         <p>Printed on: <?= $print_date ?></p>
     </div>
     <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
@@ -186,7 +186,7 @@ foreach ($role_data as $role => $people):
 <div style="margin-bottom:18px;">
     <div class="sec-badge" style="background:<?= $color ?>;">
         <?= $icon ?> <?= htmlspecialchars($role) ?> — All Villages
-        (<?= $count ?> Volunteer<?= $count != 1 ? 's' : '' ?>)
+        (<?= $count ?> Member<?= $count != 1 ? 's' : '' ?>)
     </div>
     <table>
         <thead>
@@ -215,13 +215,25 @@ foreach ($role_data as $role => $people):
                 <td style="color:#666;"><?= htmlspecialchars($p['phone'] ?? '—') ?></td>
             </tr>
         <?php endforeach; else: ?>
-            <tr><td colspan="7" style="text-align:center;color:#aaa;padding:12px;">No volunteers for "<?= htmlspecialchars($role) ?>" yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:#aaa;padding:12px;">No members for "<?= htmlspecialchars($role) ?>" yet.</td></tr>
         <?php endif; ?>
         </tbody>
     </table>
 </div>
 <?php endforeach; ?>
 
+
+<div style="margin-top: 40px; margin-bottom: 30px; display: flex; justify-content: space-around; text-align: center; font-size: 0.9rem; page-break-inside: avoid;">
+    <div>
+        <p style="margin-bottom: 20px; font-weight: bold; color: var(--text-main);">Official Church Stamp:</p>
+        <div style="width: 110px; height: 110px; border: 2px dashed #cbd5e1; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #94a3b8; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 1px;">Stamp Here</div>
+    </div>
+    <div>
+        <p style="margin-bottom: 70px; font-weight: bold; color: var(--text-main);">Pastor's Signature:</p>
+        <div style="width: 220px; border-bottom: 2px solid #333; margin: 0 auto;"></div>
+        <p style="margin-top: 8px; color: #555; font-style: italic;">Sign & Date</p>
+    </div>
+</div>
 
 <div class="footer">
     Generated from E.A.P.C Munyari Church Portal &nbsp;|&nbsp; Printed on: <?= $print_date ?>
