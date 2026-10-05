@@ -171,16 +171,8 @@ tbody tr:nth-child(even) td { background: #faf5ff; }
     <button onclick="window.close()" style="background:#dc2626;">&#10006; Close</button>
 </div>
 
-<div class="main-header">
-    <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
-    <div class="ct">
-        <h1>E.A.P.C Munyari Church</h1>
-        <h2>Worship Department &mdash; Members List</h2>
-        <p>Printed on: <?= $print_date ?></p>
-    </div>
-    <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
-</div>
 
+    
 <!-- Worship Leaders Banner — always shown -->
 <?php
 $default_b64 = img_b64('uploads/default_avatar.png') ?: img_b64('default_avatar.png');
@@ -207,6 +199,17 @@ $vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) .
             <div class="lname"><?= htmlspecialchars($vwl_name) ?></div>
         </div>
     </div>
+</div>
+
+<div class="main-header">
+    <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
+    <div class="ct">
+        <h1>E.A.P.C Munyari Church</h1>
+        <h2>Worship Department &mdash; Members List</h2>
+        <p>Printed on: <?= $print_date ?></p>
+    </div>
+
+<?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
 </div>
 
 <!-- Stats -->
