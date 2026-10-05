@@ -3935,7 +3935,7 @@ w.document.write('</div>');
                             <tbody>
                                 <?php while($ws = $all_worshippers->fetch_assoc()): ?>
                                 <tr>
-                                    <td><img src="uploads/<?= htmlspecialchars($ws['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:none;cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="Click to view"></td>
+                                    <td><div style="width:38px;height:38px;border-radius:50%;overflow:hidden;border:none;display:inline-block;vertical-align:middle;background:#f5f3ff;"><img src="uploads/<?= htmlspecialchars($ws['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width:100%;height:100%;object-fit:cover;border:none;cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="Click to view"></div></td>
                                     <td style="font-weight:500;"><?= htmlspecialchars($ws['first_name'] . ' ' . $ws['last_name']) ?></td>
                                     <td><?= htmlspecialchars($ws['phone']) ?></td>
                                     <td><span class="badge" style="background:var(--border-color);color:var(--text-main);"><?= htmlspecialchars($ws['department'] ?? 'General') ?></span></td>

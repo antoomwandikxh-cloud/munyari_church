@@ -97,15 +97,15 @@ body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background:
 .leaders-bar {
     display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;
     margin-bottom: 14px; padding: 10px 16px;
-    background: linear-gradient(135deg, #f5f3ff, #ede9fe);
-    border-radius: 10px; border: 1px solid #ddd6fe;
+    background: transparent;
+    border: none;
 }
 .leader-card {
     display: flex; align-items: center; gap: 10px;
-    background: white; border-radius: 10px; padding: 8px 16px;
-    border: 1.5px solid #c4b5fd; min-width: 200px;
+    background: transparent; border-radius: 0; padding: 8px 16px;
+    border: none; min-width: 200px;
 }
-.leader-card img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: none; }
+.leader-card img { width: 44px; height: 44px; border-radius: 50% !important; object-fit: cover !important; border: none !important; overflow: hidden !important; -webkit-clip-path: circle(50% at 50% 50%) !important; clip-path: circle(50% at 50% 50%) !important; }
 .leader-card .ph { width: 44px; height: 44px; border-radius: 50%; background: #ede9fe; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; border: none; flex-shrink: 0; }
 .leader-card .lrole { font-size: 0.65rem; font-weight: 800; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.5px; }
 .leader-card .lname { font-size: 0.88rem; font-weight: 700; color: #1e1b4b; }
@@ -127,7 +127,7 @@ table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
 thead tr th { background: #8b5cf6; color: white; padding: 5px 7px; font-size: 0.71rem; text-align: left; }
 tbody tr td { padding: 4px 7px; border-bottom: 1px solid #e2e8f0; font-size: 0.73rem; vertical-align: middle; }
 tbody tr:nth-child(even) td { background: #faf5ff; }
-.photo-cell img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; display: block; border: none; }
+.photo-cell img { width: 32px; height: 32px; border-radius: 50% !important; object-fit: cover !important; display: block; border: none !important; overflow: hidden !important; -webkit-clip-path: circle(50% at 50% 50%) !important; clip-path: circle(50% at 50% 50%) !important; }
 .badge { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 0.65rem; font-weight: 700; }
 
 /* Signatures */
@@ -194,14 +194,14 @@ $vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) .
 ?>
 <div class="leaders-bar">
     <div class="leader-card">
-        <?php if ($wl_pic): ?><img src="<?= $wl_pic ?>" alt=""><?php else: ?><div class="ph">&#127925;</div><?php endif; ?>
+        <?php if ($wl_pic): ?><div style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:none;flex-shrink:0;"><img src="<?= $wl_pic ?>" alt="" style="width:100%;height:100%;object-fit:cover;border:none;"></div><?php else: ?><div class="ph">&#127925;</div><?php endif; ?>
         <div>
             <div class="lrole">Worship Leader</div>
             <div class="lname"><?= htmlspecialchars($wl_name) ?></div>
         </div>
     </div>
     <div class="leader-card">
-        <?php if ($vwl_pic): ?><img src="<?= $vwl_pic ?>" alt=""><?php else: ?><div class="ph">&#127926;</div><?php endif; ?>
+        <?php if ($vwl_pic): ?><div style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:none;flex-shrink:0;"><img src="<?= $vwl_pic ?>" alt="" style="width:100%;height:100%;object-fit:cover;border:none;"></div><?php else: ?><div class="ph">&#127926;</div><?php endif; ?>
         <div>
             <div class="lrole">Vice Worship Leader</div>
             <div class="lname"><?= htmlspecialchars($vwl_name) ?></div>
@@ -233,7 +233,9 @@ $vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) .
     <tr>
         <td style="color:#888;"><?= $i++ ?></td>
         <td class="photo-cell">
-            <?php if ($pic_b64): ?><img src="<?= $pic_b64 ?>" alt=""><?php else: ?><img src="<?= img_b64('uploads/default_avatar.png') ?>" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:none;"><?php endif; ?>
+            <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;border:none;display:inline-block;vertical-align:middle;background:#f5f3ff;">
+                <?php if ($pic_b64): ?><img src="<?= $pic_b64 ?>" alt="" style="width:100%;height:100%;object-fit:cover;border:none;"><?php else: ?><img src="<?= img_b64('uploads/default_avatar.png') ?>" alt="" style="width:100%;height:100%;object-fit:cover;border:none;"><?php endif; ?>
+            </div>
         </td>
         <td style="font-weight:700;text-transform:uppercase;"><?= htmlspecialchars($ws['first_name'] . ' ' . $ws['last_name']) ?></td>
         <td><span class="badge" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;"><?= htmlspecialchars($ws['church_village'] ?: '-') ?></span></td>
