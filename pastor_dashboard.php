@@ -2787,7 +2787,7 @@ w.document.write('</div>');
                                                     
                                                     $final_role_str = !empty($display_roles) ? implode(', ', $display_roles) : 'Member';
                                                 ?>
-                                                <td><?= htmlspecialchars($final_role_str) ?></td>
+                                                <td><?= render_role_pills($final_role_str) ?></td>
                                                 <td><?= htmlspecialchars($dm['address'] ?? '-') ?></td>
                                                 <?php if ($dept === 'Youths' || $dept === 'Sunday School'): ?>
                                                     <td class="no-print">
