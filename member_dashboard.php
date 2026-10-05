@@ -5028,7 +5028,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         <th style="width:50px;">Photo</th>
                         <th>Name</th>
                         <th>Role</th>
-                        <th>Department</th>
+                        <th>Department <span style="font-size:0.6rem;color:var(--text-muted);">(New!)</span></th>
                         <th>Phone</th>
                     </tr>
                 </thead>
@@ -7833,7 +7833,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             <thead>
                                 <tr>
                                     <th>Date</th>
-                                    <th>Department</th>
+                                    <th>Department <span style="font-size:0.6rem;color:var(--text-muted);">(New!)</span></th>
                                     <th>Amount (KSh)</th>
                                     <th>Source / Note</th>
                                     <th>Treasurer</th>
