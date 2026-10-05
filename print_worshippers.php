@@ -214,7 +214,7 @@ $vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) .
     <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
     <div class="ct">
         <h1>E.A.P.C Munyari Church</h1>
-        <h2>Worship Department &mdash; Members List</h2>
+        <h2>Worship Department &mdash; Members List (<?= ucfirst($mode) ?>)</h2>
         <p>Printed on: <?= $print_date ?></p>
     </div>
 
@@ -233,7 +233,7 @@ $vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) .
     <thead>
         <tr>
             <th>#</th><th>Photo</th><th>Full Name</th><th>Village</th>
-            <th>Dept</th><th>Phone</th><th>Residence</th><th>Preference</th>
+            <th>Department</th><th>Phone</th><th>Residence</th><th>Preference</th>
         </tr>
     </thead>
     <tbody>
