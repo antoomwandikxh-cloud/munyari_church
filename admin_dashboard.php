@@ -1204,11 +1204,11 @@ if (!empty($action)) {
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                             <div class="form-group">
                                 <label>First Name <span style="color:var(--danger);">*</span></label>
-                                <input type="text" id="a_first_name" name="first_name" class="form-control" placeholder="e.g. Peter" pattern="[A-Za-z\s]+" oninput="setFieldStatus_filling(this.id); validateInput(this,'name'); seqUnlock('a_first_name','a_last_name')" required onblur="setFieldStatus_blur(this)">
+                                <input type="text" id="a_first_name" name="first_name" class="form-control" placeholder="e.g. Peter" pattern="[A-Za-z\s]+" oninput="validateInput(this,'name'); seqUnlock('a_first_name','a_last_name')" required>
                             </div>
                             <div class="form-group">
                                 <label>Last Name <span style="color:var(--danger);">*</span></label>
-                                <input type="text" id="a_last_name" name="last_name" class="form-control" placeholder="e.g. Ntoiti" pattern="[A-Za-z\s]+" oninput="setFieldStatus_filling(this.id); validateInput(this,'name'); seqUnlock('a_last_name','a_phone')" disabled required onblur="setFieldStatus_blur(this)">
+                                <input type="text" id="a_last_name" name="last_name" class="form-control" placeholder="e.g. Ntoiti" pattern="[A-Za-z\s]+" oninput="validateInput(this,'name'); seqUnlock('a_last_name','a_phone')" disabled required>
                             </div>
 
                             <div class="form-group">
@@ -1241,12 +1241,12 @@ if (!empty($action)) {
                             </div>
                             <div class="form-group" style="grid-column:1/-1;">
                                 <label>Residential Address</label>
-                                <input type="text" id="a_address" name="address" class="form-control" placeholder="e.g. Mugui" pattern="[A-Za-z\s,]+" oninput="setFieldStatus_filling(this.id); validateInput(this,'name'); seqUnlock('a_address','adminRegPwd')" disabled onblur="setFieldStatus_blur(this)">
+                                <input type="text" id="a_address" name="address" class="form-control" placeholder="e.g. Mugui" pattern="[A-Za-z\s,]+" oninput="validateInput(this,'name'); seqUnlock('a_address','adminRegPwd')" disabled>
                             </div>
                             <div class="form-group">
                                 <label>Login Password <span style="color:var(--danger);">*</span></label>
                                 <div style="position:relative;">
-                                    <input type="password" name="password" id="adminRegPwd" class="form-control" placeholder="At least 6 characters" minlength="6" oninput="setFieldStatus_filling(this.id); seqUnlock('adminRegPwd','adminRegPwdConfirm')" disabled required style="padding-right:46px;" onblur="setFieldStatus_blur(this)">
+                                    <input type="password" name="password" id="adminRegPwd" class="form-control" placeholder="At least 6 characters" minlength="6" oninput="seqUnlock('adminRegPwd','adminRegPwdConfirm')" disabled required style="padding-right:46px;">
                                     <span onclick="var i=document.getElementById('adminRegPwd');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);">
                                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </span>
@@ -4890,63 +4890,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         </div>
                     </div>
                                     <script>
-                function seqUnlock(currentId, nextId) {
-                    const current = document.getElementById(currentId);
-                    const next    = document.getElementById(nextId);
-                    if (!current || !next) return;
-                    const filled = current.tagName === 'SELECT'
-                        ? current.value !== ''
-                        : current.value.trim().length > 0 && current.checkValidity();
-                    next.disabled = !filled;
-                    if (!filled && next.tagName !== 'SELECT') next.value = '';        
-                // --- ADDED: Visual Activated Indicator ---
-        const currLabel = document.querySelector('label[for="' + currentId + '"]') || (current.closest('.form-group') ? current.closest('.form-group').querySelector('label') : null);
-        if (currLabel) {
-            let currBadge = currLabel.querySelector('.activated-badge');
-            if (filled) {
-                if (!currBadge) {
-                    currBadge = document.createElement('span');
-                    currBadge.className = 'activated-badge';
-                    currBadge.style.fontSize = '0.75rem';
-                    currBadge.style.fontWeight = 'bold';
-                    currBadge.style.marginLeft = '8px';
-                    currBadge.style.animation = 'fadeIn 0.3s ease-in-out';
-                    currLabel.appendChild(currBadge);
-                }
-                currBadge.innerHTML = '&#10004; Filled';
-                currBadge.style.color = '#10b981';
-            } else {
-                if (currBadge) {
-                    currBadge.innerHTML = '&#10004; Activated';
-                    currBadge.style.color = '#f59e0b';
-                }
-            }
-        }
-
-        const label = document.querySelector('label[for="' + nextId + '"]') || (next.closest('.form-group') ? next.closest('.form-group').querySelector('label') : null);
-        if (label) {
-            let badge = label.querySelector('.activated-badge');
-            if (filled) {
-                if (!badge) {
-                    badge = document.createElement('span');
-                    badge.className = 'activated-badge';
-                    badge.style.fontSize = '0.75rem';
-                    badge.style.fontWeight = 'bold';
-                    badge.style.marginLeft = '8px';
-                    badge.style.animation = 'fadeIn 0.3s ease-in-out';
-                    label.appendChild(badge);
-                }
-                const nextFilled = next.tagName === 'SELECT' ? next.value !== '' : next.value.trim().length > 0 && next.checkValidity();
-                if (!nextFilled) {
-                    badge.innerHTML = '&#10004; Activated';
-                    badge.style.color = '#f59e0b';
-                }
-            } else {
-                if (badge) badge.remove();
-            }
-        }
-        // -----------------------------------------
-                }
+                /* seqUnlock now in script.js */
                 function validateInput(input, type) {
                     let errorMsg = input.parentNode.querySelector('.err-msg');
                     if (!errorMsg) {
@@ -4986,14 +4930,14 @@ document.addEventListener("DOMContentLoaded", function () {
                                 <label>First Name <span style="color:var(--danger);">*</span></label>
                                 <div style="position:relative;">
                                     <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#10b981; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span>
-                                    <input type="text" id="ss_first_name" name="first_name" class="form-control" placeholder="e.g. John" pattern="[A-Za-z\s]+" oninput="setFieldStatus_filling(this.id); validateInput(this,'name'); seqUnlock('ss_first_name','ss_last_name')" style="padding-left:36px;" required onblur="setFieldStatus_blur(this)">
+                                    <input type="text" id="ss_first_name" name="first_name" class="form-control" placeholder="e.g. John" pattern="[A-Za-z\s]+" oninput="validateInput(this,'name'); seqUnlock('ss_first_name','ss_last_name')" style="padding-left:36px;" required>
                                 </div>
                             </div>
                             <div class="form-group">
                                 <label>Last Name <span style="color:var(--danger);">*</span></label>
                                 <div style="position:relative;">
                                     <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#10b981; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span>
-                                    <input type="text" id="ss_last_name" name="last_name" class="form-control" placeholder="e.g. Kamau" pattern="[A-Za-z\s]+" oninput="setFieldStatus_filling(this.id); validateInput(this,'name'); seqUnlock('ss_last_name','ss_class'); document.getElementById('ss_phone').disabled=false;" style="padding-left:36px;" disabled required onblur="setFieldStatus_blur(this)">
+                                    <input type="text" id="ss_last_name" name="last_name" class="form-control" placeholder="e.g. Kamau" pattern="[A-Za-z\s]+" oninput="validateInput(this,'name'); seqUnlock('ss_last_name','ss_class'); document.getElementById('ss_phone').disabled=false;" style="padding-left:36px;" disabled required>
                                 </div>
                             </div>
                             <div class="form-group">
@@ -5030,14 +4974,14 @@ document.addEventListener("DOMContentLoaded", function () {
                                 <label>Residential Area <span style="color:var(--danger);">*</span></label>
                                 <div style="position:relative;">
                                     <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#3b82f6; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span>
-                                    <input type="text" id="ss_address" name="address" class="form-control" placeholder="e.g. Mugui" pattern="[A-Za-z0-9\s,.-]+" oninput="setFieldStatus_filling(this.id); validateInput(this,'name'); seqUnlock('ss_address','ss_password')" style="padding-left:36px;" required disabled onblur="setFieldStatus_blur(this)">
+                                    <input type="text" id="ss_address" name="address" class="form-control" placeholder="e.g. Mugui" pattern="[A-Za-z0-9\s,.-]+" oninput="validateInput(this,'name'); seqUnlock('ss_address','ss_password')" style="padding-left:36px;" required disabled>
                                 </div>
                             </div>
                             <div class="form-group">
                                 <label>Login Password <span style="color:var(--danger);">*</span></label>
                                 <div style="position:relative;">
                                     <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#ef4444; pointer-events:none;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>
-                                    <input type="password" name="password" id="ss_password" class="form-control" placeholder="At least 6 characters" required style="padding-left:36px; padding-right:46px;" minlength="6" oninput="setFieldStatus_filling(this.id); seqUnlock('ss_password','ss_confirm_password')" disabled onblur="setFieldStatus_blur(this)">
+                                    <input type="password" name="password" id="ss_password" class="form-control" placeholder="At least 6 characters" required style="padding-left:36px; padding-right:46px;" minlength="6" oninput="seqUnlock('ss_password','ss_confirm_password')" disabled>
                                     <span onclick="var i=document.getElementById('ss_password');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);">
                                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </span>
@@ -5057,7 +5001,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         </div>
                         <button type="submit" class="btn-submit" style="margin-top:10px; display:flex; align-items:center; gap:8px; width:auto; padding:0 28px;">
                             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-                            Register Member
+                            Register Sunday School Member
                         </button>
                     </form>
                 </div>
@@ -5444,63 +5388,7 @@ function openDeclineModal(id, name) {
         seqUnlock(input.id, nextId);
     }
 
-    function seqUnlock(currentId, nextId) {
-        const current = document.getElementById(currentId);
-        const next    = document.getElementById(nextId);
-        if (!current || !next) return;
-        const filled = current.tagName === 'SELECT'
-            ? current.value !== ''
-            : current.value.trim().length > 0 && current.checkValidity();
-        next.disabled = !filled;
-        if (!filled) next.value = '';        
-                // --- ADDED: Visual Activated Indicator ---
-        const currLabel = document.querySelector('label[for="' + currentId + '"]') || (current.closest('.form-group') ? current.closest('.form-group').querySelector('label') : null);
-        if (currLabel) {
-            let currBadge = currLabel.querySelector('.activated-badge');
-            if (filled) {
-                if (!currBadge) {
-                    currBadge = document.createElement('span');
-                    currBadge.className = 'activated-badge';
-                    currBadge.style.fontSize = '0.75rem';
-                    currBadge.style.fontWeight = 'bold';
-                    currBadge.style.marginLeft = '8px';
-                    currBadge.style.animation = 'fadeIn 0.3s ease-in-out';
-                    currLabel.appendChild(currBadge);
-                }
-                currBadge.innerHTML = '&#10004; Filled';
-                currBadge.style.color = '#10b981';
-            } else {
-                if (currBadge) {
-                    currBadge.innerHTML = '&#10004; Activated';
-                    currBadge.style.color = '#f59e0b';
-                }
-            }
-        }
-
-        const label = document.querySelector('label[for="' + nextId + '"]') || (next.closest('.form-group') ? next.closest('.form-group').querySelector('label') : null);
-        if (label) {
-            let badge = label.querySelector('.activated-badge');
-            if (filled) {
-                if (!badge) {
-                    badge = document.createElement('span');
-                    badge.className = 'activated-badge';
-                    badge.style.fontSize = '0.75rem';
-                    badge.style.fontWeight = 'bold';
-                    badge.style.marginLeft = '8px';
-                    badge.style.animation = 'fadeIn 0.3s ease-in-out';
-                    label.appendChild(badge);
-                }
-                const nextFilled = next.tagName === 'SELECT' ? next.value !== '' : next.value.trim().length > 0 && next.checkValidity();
-                if (!nextFilled) {
-                    badge.innerHTML = '&#10004; Activated';
-                    badge.style.color = '#f59e0b';
-                }
-            } else {
-                if (badge) badge.remove();
-            }
-        }
-        // -----------------------------------------
-    }
+    /* seqUnlock now in script.js */
 
     function enforceAdminGender(deptSelect, genderSelectId) {
         const deptValue = deptSelect.value;

@@ -34,16 +34,115 @@ function seqUnlock(currentId, nextId) {
     const current = document.getElementById(currentId);
     const next    = document.getElementById(nextId);
     if (!current || !next) return;
-    // Just check if field has content — don't call checkValidity() here
-    // because validateInput() may have set a temporary custom validity
-    // that would block unlocking even on valid input.
+    
+    // Check if filled
     const filled = current.tagName === 'SELECT'
         ? current.value !== ''
         : current.value.trim().length > 0 && current.checkValidity();
+        
+    const wasDisabled = next.disabled;
     next.disabled = !filled;
-    // Only clear value for text/password inputs, not buttons or selects
+    
     if (!filled && next.tagName === 'INPUT') next.value = '';
+    
+    // Badge UI logic
+    if (typeof setFieldStatus_filling === 'function') {
+        if (filled) {
+            setFieldStatus_blur(current);
+            if (wasDisabled && !next.disabled) {
+                seqUnlock_badge_next(nextId, true);
+            }
+        } else {
+            setFieldStatus_blur(current);
+            seqUnlock_badge_next(nextId, false);
+        }
+    }
 }
+
+// Single unified badge helper functions
+function getStatusBadge(el) {
+    if (!el) return null;
+    const group = el.closest('.form-group');
+    if (!group) return null;
+    const label = group.querySelector('label');
+    if (!label) return null;
+    
+    // Remove old conflicting badges if they exist
+    const oldBadges = label.querySelectorAll('.status-badge');
+    oldBadges.forEach(b => b.remove());
+    
+    let badge = label.querySelector('.sb');
+    if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'sb';
+        badge.style.cssText = 'margin-left:8px;font-size:0.68rem;padding:2px 7px;border-radius:4px;font-weight:800;text-transform:uppercase;vertical-align:middle;display:inline-block;transition:all 0.2s;';
+        label.appendChild(badge);
+    }
+    return badge;
+}
+
+function setFieldStatus_filling(id) {
+    const el = document.getElementById(id);
+    const b = getStatusBadge(el);
+    if (!b) return;
+    if (el.value.trim().length > 0) {
+        b.textContent = 'FILLING';
+        b.style.background = '#fef08a';
+        b.style.color = '#854d0e';
+    } else {
+        b.textContent = '';
+        b.style.background = 'transparent';
+    }
+}
+
+function setFieldStatus_blur(el) {
+    if (typeof el === 'string') el = document.getElementById(el);
+    const b = getStatusBadge(el);
+    if (!b) return;
+    if (el.value.trim().length > 0 && el.checkValidity()) {
+        b.textContent = '\u2713 FILLED';
+        b.style.background = '#dcfce7';
+        b.style.color = '#166534';
+    } else if (!el.value.trim().length) {
+        b.textContent = '';
+        b.style.background = 'transparent';
+    }
+}
+
+function seqUnlock_badge_next(nextId, unlocked) {
+    const el = document.getElementById(nextId);
+    const b = getStatusBadge(el);
+    if (!b) return;
+    if (unlocked && el.value.trim() === '') {
+        b.textContent = 'ACTIVATED';
+        b.style.background = '#dbeafe';
+        b.style.color = '#1e40af';
+    } else if (!unlocked) {
+        b.textContent = '';
+        b.style.background = 'transparent';
+    }
+}
+
+// Automatically attach listeners to all form-group inputs globally
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.form-group input, .form-group select').forEach(el => {
+        if (['radio', 'checkbox', 'hidden', 'submit', 'button'].includes(el.type)) return;
+        
+        el.addEventListener('input', () => {
+            setFieldStatus_filling(el.id);
+        });
+        
+        el.addEventListener('blur', () => {
+            setFieldStatus_blur(el);
+        });
+        
+        el.addEventListener('change', () => {
+            if (el.tagName === 'SELECT' && el.value !== '') {
+                setFieldStatus_blur(el);
+            }
+        });
+    });
+});
 
 function validateInput(input, type) {
     let errorMsg = input.parentNode.querySelector('.err-msg');
@@ -85,108 +184,3 @@ function validateInput(input, type) {
     }
 }
 
-// Initialize real-time status feedback
-document.addEventListener('DOMContentLoaded', () => {
-    const inputs = document.querySelectorAll('input, select');
-    
-    inputs.forEach(input => {
-        // Only target inputs in form-groups
-        if (!input.closest('.form-group')) return;
-        if (input.type === 'radio' || input.type === 'checkbox' || input.type === 'hidden') return;
-        
-        // Add onfocus/oninput to set FILLING
-        input.addEventListener('input', () => {
-            if (input.value.trim().length > 0) {
-                setFieldStatus(input.id, 'FILLING');
-            } else {
-                setFieldStatus(input.id, 'EMPTY');
-            }
-        });
-        
-        // Add blur to set FILLED
-        input.addEventListener('blur', () => {
-            if (input.value.trim().length > 0 && input.checkValidity()) {
-                setFieldStatus(input.id, 'FILLED');
-            }
-        });
-    });
-});
-
-function getStatusBadge(inputId) {
-    const input = document.getElementById(inputId);
-    if (!input) return null;
-    const group = input.closest('.form-group');
-    if (!group) return null;
-    let label = group.querySelector('label');
-    if (!label) return null;
-    
-    let badge = label.querySelector('.status-badge');
-    if (!badge) {
-        badge = document.createElement('span');
-        badge.className = 'status-badge';
-        badge.style.marginLeft = '8px';
-        badge.style.fontSize = '0.7rem';
-        badge.style.padding = '2px 6px';
-        badge.style.borderRadius = '4px';
-        badge.style.fontWeight = '800';
-        badge.style.textTransform = 'uppercase';
-        badge.style.letterSpacing = '0.5px';
-        badge.style.transition = 'all 0.3s ease';
-        label.appendChild(badge);
-    }
-    return badge;
-}
-
-function setFieldStatus(inputId, status) {
-    const badge = getStatusBadge(inputId);
-    if (!badge) return;
-    
-    if (status === 'FILLING') {
-        badge.textContent = 'FILLING';
-        badge.style.backgroundColor = '#fef08a'; 
-        badge.style.color = '#854d0e';
-    } else if (status === 'FILLED') {
-        badge.textContent = 'FILLED';
-        badge.style.backgroundColor = '#dcfce7'; 
-        badge.style.color = '#166534';
-    } else if (status === 'ACTIVATED') {
-        badge.textContent = 'ACTIVATED';
-        badge.style.backgroundColor = '#dbeafe'; 
-        badge.style.color = '#1e40af';
-    } else if (status === 'EMPTY') {
-        badge.textContent = '';
-        badge.style.backgroundColor = 'transparent';
-        badge.style.color = 'transparent';
-    }
-}
-
-// Shorthand helpers called from inline oninput/onblur on dashboard forms
-function setFieldStatus_filling(id) {
-    var el = document.getElementById(id); if (!el) return;
-    var g = el.closest('.form-group'); if (!g) return;
-    var lbl = g.querySelector('label'); if (!lbl) return;
-    var b = lbl.querySelector('.sb');
-    if (!b) { b = document.createElement('span'); b.className = 'sb'; b.style.cssText = 'margin-left:8px;font-size:0.68rem;padding:2px 7px;border-radius:4px;font-weight:800;text-transform:uppercase;vertical-align:middle;display:inline-block;transition:all 0.2s;'; lbl.appendChild(b); }
-    if (el.value.trim().length > 0) { b.textContent = 'FILLING'; b.style.background = '#fef08a'; b.style.color = '#854d0e'; }
-    else { b.textContent = ''; b.style.background = 'transparent'; b.style.color = 'transparent'; }
-}
-
-function setFieldStatus_blur(el) {
-    if (!el) return;
-    var g = el.closest('.form-group'); if (!g) return;
-    var lbl = g.querySelector('label'); if (!lbl) return;
-    var b = lbl.querySelector('.sb');
-    if (!b) { b = document.createElement('span'); b.className = 'sb'; b.style.cssText = 'margin-left:8px;font-size:0.68rem;padding:2px 7px;border-radius:4px;font-weight:800;text-transform:uppercase;vertical-align:middle;display:inline-block;transition:all 0.2s;'; lbl.appendChild(b); }
-    if (el.value.trim().length > 0 && el.checkValidity()) { b.textContent = '\u2713 FILLED'; b.style.background = '#dcfce7'; b.style.color = '#166534'; }
-    else if (!el.value.trim().length) { b.textContent = ''; b.style.background = 'transparent'; b.style.color = 'transparent'; }
-}
-
-function seqUnlock_badge_next(nextId, wasDis) {
-    var nxt = document.getElementById(nextId); if (!nxt) return;
-    var g = nxt.closest('.form-group'); if (!g) return;
-    var lbl = g.querySelector('label'); if (!lbl) return;
-    var b = lbl.querySelector('.sb');
-    if (!b) { b = document.createElement('span'); b.className = 'sb'; b.style.cssText = 'margin-left:8px;font-size:0.68rem;padding:2px 7px;border-radius:4px;font-weight:800;text-transform:uppercase;vertical-align:middle;display:inline-block;transition:all 0.2s;'; lbl.appendChild(b); }
-    if (wasDis && !nxt.disabled) { b.textContent = 'ACTIVATED'; b.style.background = '#dbeafe'; b.style.color = '#1e40af'; }
-    else if (nxt.disabled) { b.textContent = ''; b.style.background = 'transparent'; b.style.color = 'transparent'; }
-}
