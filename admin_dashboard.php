@@ -3671,6 +3671,7 @@ w.document.write('</div>');
                             <?= $v ?> Village
                         </h2>
                         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <input type="text" placeholder="Search <?= htmlspecialchars($v) ?> members..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" onkeyup="filterDeptTable(this, 'village_table_<?= str_replace(' ', '_', $v) ?>')">
                             <span class="badge" style="background:<?= $v_color ?>22; color:<?= $v_color ?>; font-weight:700; font-size:1rem; padding:6px 14px;"><?= $v_total ?> Members</span>
                             <a href="print_village_members.php?village=<?= urlencode($v) ?>&orientation=landscape" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#2563eb,#6366f1);color:white;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;text-decoration:none;">Print Landscape</a>
                             <a href="print_village_members.php?village=<?= urlencode($v) ?>&orientation=portrait" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:white;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;text-decoration:none;">Print Portrait</a>
