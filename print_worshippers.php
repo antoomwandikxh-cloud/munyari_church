@@ -105,8 +105,8 @@ body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background:
     background: white; border-radius: 10px; padding: 8px 16px;
     border: 1.5px solid #c4b5fd; min-width: 200px;
 }
-.leader-card img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid #8b5cf6; }
-.leader-card .ph { width: 44px; height: 44px; border-radius: 50%; background: #ede9fe; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; border: 2px solid #8b5cf6; flex-shrink: 0; }
+.leader-card img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: none; }
+.leader-card .ph { width: 44px; height: 44px; border-radius: 50%; background: #ede9fe; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; border: none; flex-shrink: 0; }
 .leader-card .lrole { font-size: 0.65rem; font-weight: 800; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.5px; }
 .leader-card .lname { font-size: 0.88rem; font-weight: 700; color: #1e1b4b; }
 
