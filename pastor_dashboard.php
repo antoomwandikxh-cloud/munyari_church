@@ -3204,13 +3204,26 @@ w.document.write('</div>');
 
                 <!-- Registered Worshippers List -->
                 <div class="content-card" style="margin-top:20px;">
-                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-                        <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            </div>
+                            <div>
+                                <h2 style="margin:0;">Registered Worshippers</h2>
+                                <p style="margin:0;font-size:0.85rem;color:var(--text-muted);">All members who registered as Worshippers or have the Worshipper role.</p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 style="margin:0;">Registered Worshippers</h2>
-                            <p style="margin:0;font-size:0.85rem;color:var(--text-muted);">All members who registered as Worshippers or have the Worshipper role.</p>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                            <input type="text" id="worshipperSearch" placeholder="Search worshippers..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" onkeyup="filterWorshippersTable()">
+                            <a href="print_worshippers.php?mode=landscape" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;padding:8px 16px;border-radius:8px;font-size:0.85rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(139,92,246,0.3);">
+                                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                Print Landscape
+                            </a>
+                            <a href="print_worshippers.php?mode=portrait" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#6d28d9,#4c1d95);color:white;padding:8px 16px;border-radius:8px;font-size:0.85rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(109,40,217,0.3);">
+                                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                Print Portrait
+                            </a>
                         </div>
                     </div>
                     <?php
@@ -3224,7 +3237,7 @@ w.document.write('</div>');
                     ");
                     ?>
                     <?php if ($all_worshippers && $all_worshippers->num_rows > 0): ?>
-                    <div class="table-responsive">
+                    <div class="table-responsive" id="worshippersTable">
                         <table>
                             <thead>
                                 <tr>
@@ -6078,6 +6091,19 @@ function filterDeptTable(inputElement, tableContainerId) {
         } else {
             trs[i].style.display = "none";
         }
+    }
+}
+
+function filterWorshippersTable() {
+    let input = document.getElementById("worshipperSearch");
+    if (!input) return;
+    let filter = input.value.toLowerCase();
+    let container = document.getElementById("worshippersTable");
+    if (!container) return;
+    let trs = container.querySelectorAll("tbody tr");
+    for (let i = 0; i < trs.length; i++) {
+        let text = trs[i].textContent || trs[i].innerText;
+        trs[i].style.display = text.toLowerCase().indexOf(filter) > -1 ? "" : "none";
     }
 }
 </script>
