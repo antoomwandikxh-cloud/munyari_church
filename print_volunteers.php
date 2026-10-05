@@ -241,16 +241,16 @@ foreach ($role_data as $role => $people):
 
 
 <div class="sig-section">
-    <div class="sig-box" style="display: flex; justify-content: center; align-items: center;">
-        <div class="stamp-circle">
-            Official<br>Church<br>Stamp
-        </div>
-    </div>
     <div class="sig-box">
         <div class="sig-title">Church Pastor</div>
         <div class="sig-name"><?= htmlspecialchars($pastor_name) ?></div>
         <div class="sig-row"><span class="sig-label">Signature :</span><div class="sig-line"></div></div>
         <div class="sig-row"><span class="sig-label">Date :</span><div class="sig-line-dashed"></div></div>
+    </div>
+    <div class="sig-box" style="display: flex; justify-content: center; align-items: center;">
+        <div class="stamp-circle">
+            Official<br>Church<br>Stamp
+        </div>
     </div>
 </div>
 
