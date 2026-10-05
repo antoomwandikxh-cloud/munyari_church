@@ -254,21 +254,46 @@ $vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) .
 <p style="text-align:center;color:#aaa;padding:30px;">No worshippers registered yet.</p>
 <?php endif; ?>
 
-<!-- Signature and Stamp — Worship Leader signs, not pastor -->
+<!-- Signature Block: Pastor (left) | Stamp (center) | Head of Worship (right) -->
 <?php
-$signer_name  = $worship_leader ? strtoupper($worship_leader['first_name'] . ' ' . $worship_leader['last_name']) : 'Worship Leader';
+$signer_name  = $worship_leader ? strtoupper($worship_leader['first_name'] . ' ' . $worship_leader['last_name']) : 'NOT ASSIGNED';
 $signer_title = 'Head of Worship';
 ?>
-<div class="sig-section">
-    <div class="sig-box">
-        <div class="sig-title"><?= htmlspecialchars($signer_title) ?></div>
-        <div class="sig-name"><?= htmlspecialchars($signer_name) ?></div>
-        <div class="sig-row"><span class="sig-label">Signature :</span><div class="sig-line"></div></div>
-        <div class="sig-row"><span class="sig-label">Date :</span><div class="sig-line-dashed"></div></div>
+<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:50px;page-break-inside:avoid;gap:10px;">
+
+    <!-- LEFT: Pastor -->
+    <div style="width:30%;text-align:center;">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">Church Pastor</div>
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;margin-bottom:18px;"><?= htmlspecialchars($pastor_name) ?></div>
+        <div style="display:flex;align-items:flex-end;margin-bottom:14px;">
+            <span style="font-size:10px;color:#888;white-space:nowrap;margin-right:6px;">Signature :</span>
+            <div style="flex:1;border-bottom:1px solid #000;height:14px;"></div>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+            <span style="font-size:10px;color:#888;white-space:nowrap;margin-right:6px;">Date :</span>
+            <div style="flex:1;border-bottom:1px dotted #000;height:14px;"></div>
+        </div>
     </div>
-    <div class="sig-box" style="display:flex;justify-content:center;align-items:center;">
+
+    <!-- CENTER: Stamp -->
+    <div style="width:30%;display:flex;justify-content:center;align-items:center;">
         <div class="stamp-circle">Official<br>Church<br>Stamp</div>
     </div>
+
+    <!-- RIGHT: Head of Worship -->
+    <div style="width:30%;text-align:center;">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;"><?= htmlspecialchars($signer_title) ?></div>
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;margin-bottom:18px;"><?= htmlspecialchars($signer_name) ?></div>
+        <div style="display:flex;align-items:flex-end;margin-bottom:14px;">
+            <span style="font-size:10px;color:#888;white-space:nowrap;margin-right:6px;">Signature :</span>
+            <div style="flex:1;border-bottom:1px solid #000;height:14px;"></div>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+            <span style="font-size:10px;color:#888;white-space:nowrap;margin-right:6px;">Date :</span>
+            <div style="flex:1;border-bottom:1px dotted #000;height:14px;"></div>
+        </div>
+    </div>
+
 </div>
 
 <div class="footer">
