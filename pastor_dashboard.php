@@ -3101,10 +3101,13 @@ w.document.write('</div>');
                         <h3 style="margin:0; color:<?= $c_color ?>; font-size:1.05rem;">
                             <?= $c_icon ?> <?= htmlspecialchars($c_role) ?> &mdash; All Villages
                         </h3>
-                        <span class="badge" style="background:<?= $c_color ?>22; color:<?= $c_color ?>; font-size:0.95rem; padding:5px 14px;"><?= $c_count ?> Volunteer<?= $c_count != 1 ? 's' : '' ?></span>
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <input type="text" placeholder="Search <?= htmlspecialchars($c_role) ?> volunteers..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" onkeyup="filterDeptTable(this, 'vol_table_<?= md5($c_role) ?>')">
+                            <span class="badge" style="background:<?= $c_color ?>22; color:<?= $c_color ?>; font-size:0.95rem; padding:5px 14px;"><?= $c_count ?> Volunteer<?= $c_count != 1 ? 's' : '' ?></span>
+                        </div>
                     </div>
                     <?php if ($c_count > 0): ?>
-                    <div class="table-responsive">
+                    <div class="table-responsive" id="vol_table_<?= md5($c_role) ?>">
                         <table>
                             <thead>
                                 <tr><th>#</th><th>Full Name</th><th>Village</th><th>Department</th><th>Phone</th></tr>
