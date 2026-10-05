@@ -2163,7 +2163,7 @@ w.document.write('</div>');
                             </div>
                             <div class="table-responsive" id="dept_print_<?= str_replace(' ', '', $dept) ?>">
                                 <table>
-                                    <thead><tr><th>#</th><th>Photo</th><th>Name</th><th>Phone</th><th>Role</th><th>Residence</th><?php if ($dept === 'Youths' || $dept === 'Sunday School') echo "<th class='no-print'>Actions</th>"; ?></tr></thead>
+                                    <thead><tr><th>#</th><th>Photo</th><th>Name</th><th>Phone</th><th>Role</th><th>Residence</th><th>Church Village</th><?php if ($dept === 'Youths' || $dept === 'Sunday School') echo "<th class='no-print'>Actions</th>"; ?></tr></thead>
                                     <tbody>
                                         <?php $dpi=1; foreach($dept_members_arr as $dm):
                                             $role_r = (int)($dm['role_rank'] ?? 99);
@@ -2255,6 +2255,7 @@ w.document.write('</div>');
                                                 ?>
                                                 <td><?= render_role_pills($final_role_str) ?></td>
                                                 <td><?= htmlspecialchars($dm['address'] ?? '-') ?></td>
+                                                <td><span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#eff6ff;color:#1d4ed8;font-size:0.72rem;font-weight:600;"><?= htmlspecialchars($dm['church_village'] ?? '-') ?></span></td>
                                                 <?php if ($dept === 'Youths' || $dept === 'Sunday School'): ?>
                                                     <td class="no-print">
                                                         <?php if ($dm['is_pastor']): ?>
