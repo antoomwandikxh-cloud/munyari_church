@@ -4327,7 +4327,15 @@ w.document.write('</div>');
                 </div>
                 <div class="content-card">
                                         <h2 style="margin-bottom: 5px;">Department Financial Records</h2>
-                    <p style="margin-top:0; color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">Detailed finances per department, displaying amounts and who posted them.</p>
+                    <p style="margin-top:0; color:var(--text-muted); font-size:0.9rem; margin-bottom:16px;">Detailed finances per department, displaying amounts and who posted them.</p>
+                    <div style="margin-bottom:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                        <div style="position:relative;flex:1;min-width:220px;max-width:380px;">
+                            <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);opacity:0.4;" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/></svg>
+                            <input type="text" id="financeSearch" placeholder="Search by name, amount, description..." oninput="filterFinanceRecords()" style="width:100%;padding:9px 12px 9px 36px;border:1px solid var(--border-color);border-radius:8px;font-size:0.88rem;background:var(--bg-main);color:var(--text-main);box-sizing:border-box;">
+                        </div>
+                        <button onclick="document.getElementById('financeSearch').value='';filterFinanceRecords();" style="padding:9px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-main);color:var(--text-muted);cursor:pointer;font-size:0.85rem;">&#x2715; Clear</button>
+                        <span id="financeSearchCount" style="font-size:0.82rem;color:var(--text-muted);"></span>
+                    </div>
                     <?php
                     $target_depts = ['General Church', 'Elders', 'Womens Ministry', 'Youths', 'Sunday School', 'Building'];
                     $has_any_records = false;
@@ -4337,12 +4345,11 @@ w.document.write('</div>');
                         if ($fin_records && $fin_records->num_rows > 0):
                             $has_any_records = true;
                     ?>
-                    <h3 style="margin-top: 10px; color: #1e3a8a; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; margin-bottom: 12px;"><?= $d ?> Finances</h3>
-                    <div class="table-responsive" style="margin-bottom: 30px;"><table>
+                    <div class="fin-dept-section"><h3 style="margin-top: 10px; color: #1e3a8a; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; margin-bottom: 12px;"><?= $d ?> Finances</h3><div class="table-responsive" style="margin-bottom: 30px;"><table>
                         <thead><tr><th>Posted By</th><th>Amount (KSh)</th><th>Description</th><th>Date</th><th>Change Reason</th><th>Status</th></tr></thead>
                         <tbody>
                             <?php while($fr = $fin_records->fetch_assoc()): ?>
-                            <tr>
+                            <tr class="fin-record-row" data-dept="<?= htmlspecialchars($d) ?>" data-poster="<?= htmlspecialchars($fr['poster_name'] ?? '') ?>" data-desc="<?= htmlspecialchars($fr['description'] ?? '') ?>" data-amount="<?= htmlspecialchars($fr['amount'] ?? '') ?>">
                                 <td>
                                     <div style="display:flex;align-items:center;gap:9px;">
                                         <img src="uploads/<?= htmlspecialchars($fr['poster_pic'] ?? 'default_avatar.png') ?>"
@@ -4359,7 +4366,7 @@ w.document.write('</div>');
                             </tr>
                             <?php endwhile; ?>
                         </tbody>
-                    </table></div>
+                    </table></div></div>
                     <?php 
                         endif;
                     endforeach; 
@@ -5692,6 +5699,32 @@ function filterDeptTable(inputElement, tableContainerId) {
             trs[i].style.display = "none";
         }
     }
+}
+
+function filterFinanceRecords() {
+    var q = document.getElementById("financeSearch").value.toLowerCase().trim();
+    var rows = document.querySelectorAll(".fin-record-row");
+    var shown = 0;
+    var lastSection = null;
+    rows.forEach(function(row) {
+        var poster = (row.getAttribute("data-poster") || "").toLowerCase();
+        var desc   = (row.getAttribute("data-desc")   || "").toLowerCase();
+        var amount = (row.getAttribute("data-amount") || "").toLowerCase();
+        var dept   = (row.getAttribute("data-dept")   || "").toLowerCase();
+        var match = !q || poster.indexOf(q) > -1 || desc.indexOf(q) > -1 || amount.indexOf(q) > -1 || dept.indexOf(q) > -1;
+        row.style.display = match ? "" : "none";
+        if (match) shown++;
+    });
+    // Show/hide dept headings based on whether they have visible rows
+    document.querySelectorAll(".fin-dept-section").forEach(function(sec) {
+        var visible = sec.querySelectorAll(".fin-record-row:not([style*=\"none\"])");
+        // Count actually visible rows
+        var hasVisible = false;
+        sec.querySelectorAll(".fin-record-row").forEach(function(r) { if (r.style.display !== "none") hasVisible = true; });
+        sec.style.display = hasVisible ? "" : "none";
+    });
+    var el = document.getElementById("financeSearchCount");
+    if (el) el.textContent = q ? shown + " result(s) found" : "";
 }
 
 function filterWorshippersTable() {
