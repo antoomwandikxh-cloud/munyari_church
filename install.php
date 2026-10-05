@@ -42,12 +42,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 $conn->query("SET FOREIGN_KEY_CHECKS = 1");
-                
+
+                // ── Seed default admin if table is empty ──────────────────
+                $adminCheck = $conn->query("SELECT COUNT(*) as cnt FROM admins");
+                $adminRow   = $adminCheck ? $adminCheck->fetch_assoc() : ['cnt' => 1];
+                if ((int)$adminRow['cnt'] === 0) {
+                    $default_hash = password_hash('admin123', PASSWORD_DEFAULT);
+                    $conn->query("INSERT INTO admins (username, password, profile_picture)
+                                  VALUES ('admin', '$default_hash', 'default_avatar.png')");
+                }
+                // ──────────────────────────────────────────────────────────
+
                 if ($error_count == 0) {
-                    $message = '<div class="alert success"><strong>Success!</strong> Database and tables created successfully. The system is ready to use!</div>';
+                    $message = '<div class="alert success"><strong>✅ Installation Complete!</strong><br><br>
+                    Database and all tables were created successfully.<br><br>
+                    <b>Default Admin Account:</b><br>
+                    👤 Username: <code>admin</code><br>
+                    🔑 Password: <code>admin123</code><br><br>
+                    <span style="color:#166534;">Please log in and change the password immediately after first login.</span></div>';
                     $step = 2;
                 } else {
                     $message = '<div class="alert warning">Database created, but ' . $error_count . ' errors occurred during table import. It might still work, but check error logs.</div>';
+
                     $step = 2;
                 }
             } else {
@@ -114,9 +130,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button type="submit" class="btn">Install Database</button>
             </form>
         <?php else: ?>
-            <p>The system has been successfully installed and is ready for use on this computer!</p>
-            <a href="index.php" class="btn btn-success">Go to Homepage</a>
-            <a href="login.php" class="btn" style="margin-top: 10px; background: #4b5563;">Go to Login</a>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:22px;margin-bottom:20px;text-align:left;">
+                <p style="margin:0 0 14px;font-weight:700;font-size:1rem;color:#166534;">🎉 Installation Complete!</p>
+                <p style="margin:0 0 14px;font-size:0.9rem;color:#4b5563;">Use the credentials below to log in as Admin. The admin must then approve the Pastor account before members can be activated.</p>
+                <table style="width:100%;border-collapse:collapse;font-size:0.92rem;">
+                    <tr>
+                        <td style="padding:8px 12px;background:#dcfce7;border-radius:6px 6px 0 0;font-weight:600;color:#15803d;border-bottom:1px solid #bbf7d0;">👤 Username</td>
+                        <td style="padding:8px 12px;background:#dcfce7;border-radius:6px 6px 0 0;border-bottom:1px solid #bbf7d0;"><code style="font-size:1rem;font-weight:700;letter-spacing:1px;">admin</code></td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 12px;background:#f0fdf4;border-radius:0 0 6px 6px;font-weight:600;color:#15803d;">🔑 Password</td>
+                        <td style="padding:8px 12px;background:#f0fdf4;border-radius:0 0 6px 6px;"><code style="font-size:1rem;font-weight:700;letter-spacing:1px;">admin123</code></td>
+                    </tr>
+                </table>
+                <p style="margin:14px 0 0;font-size:0.82rem;color:#dc2626;font-weight:500;">⚠️ Please change the password immediately after logging in for the first time.</p>
+            </div>
+            <a href="login.php" class="btn" style="background:#10b981;">Go to Login &rarr;</a>
+            <a href="index.php" class="btn" style="margin-top:10px;background:#4b5563;">Go to Homepage</a>
         <?php endif; ?>
     </div>
 </body>
