@@ -41,7 +41,7 @@ $vice_worship_leader = $vwl_q ? $vwl_q->fetch_assoc() : null;
 
 // Fetch all worshippers sorted by department then alphabetically A-Z
 $all_worshippers = $conn->query("
-    SELECT id, first_name, last_name, phone, address, department, church_role, desired_role_pref, is_approved, profile_picture
+    SELECT id, first_name, last_name, phone, address, church_village, department, church_role, desired_role_pref, is_approved, profile_picture
     FROM members
     WHERE (LOWER(TRIM(church_role)) LIKE '%worshipper%'
        OR LOWER(TRIM(department)) LIKE '%worship%'
@@ -147,7 +147,13 @@ tbody tr:nth-child(even) td { background: #faf5ff; }
 /* No-print toolbar */
 .no-print { display: flex; justify-content: center; gap: 12px; padding: 10px; background: #f1f5f9; margin-bottom: 14px; border-radius: 8px; }
 .no-print button, .no-print a { padding: 9px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; color: white; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-family: Arial, sans-serif; }
-@media print { .no-print { display: none !important; } }
+/* Role pills */
+.role-pill { display:inline-flex;align-items:center;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;border:1px solid transparent;margin:1px; }
+.rp-worship { background:#fdf2f8;color:#be185d;border-color:#fbcfe8; }
+.rp-vice    { background:#fdf4ff;color:#9333ea;border-color:#f0abfc; }
+.rp-member  { background:#f1f5f9;color:#64748b;border-color:#cbd5e1; }
+.rp-other   { background:#f8fafc;color:#475569;border-color:#e2e8f0; }
+.role-pills-wrap { display:flex;flex-wrap:wrap;gap:2px; }
 </style>
 </head>
 <body>
@@ -173,33 +179,33 @@ tbody tr:nth-child(even) td { background: #faf5ff; }
     <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
 </div>
 
-<!-- Worship Leaders Banner -->
-<?php if ($worship_leader || $vice_worship_leader): ?>
+<!-- Worship Leaders Banner — always shown -->
+<?php
+$default_b64 = img_b64('uploads/default_avatar.png') ?: img_b64('default_avatar.png');
+$wl_pic  = $worship_leader       ? img_b64($worship_leader['profile_picture'] ?? '')       : '';
+$vwl_pic = $vice_worship_leader  ? img_b64($vice_worship_leader['profile_picture'] ?? '')  : '';
+// Fallback to default avatar
+if (!$wl_pic)  $wl_pic  = $default_b64;
+if (!$vwl_pic) $vwl_pic = $default_b64;
+$wl_name  = $worship_leader      ? ucfirst($worship_leader['first_name'])      . ' ' . ucfirst($worship_leader['last_name'])      : 'Not Assigned';
+$vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) . ' ' . ucfirst($vice_worship_leader['last_name']) : 'Not Assigned';
+?>
 <div class="leaders-bar">
-    <?php if ($worship_leader):
-        $wl_pic = img_b64($worship_leader['profile_picture'] ?? '');
-    ?>
     <div class="leader-card">
         <?php if ($wl_pic): ?><img src="<?= $wl_pic ?>" alt=""><?php else: ?><div class="ph">&#127925;</div><?php endif; ?>
         <div>
             <div class="lrole">Worship Leader</div>
-            <div class="lname"><?= htmlspecialchars(ucfirst($worship_leader['first_name']) . ' ' . ucfirst($worship_leader['last_name'])) ?></div>
+            <div class="lname"><?= htmlspecialchars($wl_name) ?></div>
         </div>
     </div>
-    <?php endif; ?>
-    <?php if ($vice_worship_leader):
-        $vwl_pic = img_b64($vice_worship_leader['profile_picture'] ?? '');
-    ?>
     <div class="leader-card">
         <?php if ($vwl_pic): ?><img src="<?= $vwl_pic ?>" alt=""><?php else: ?><div class="ph">&#127926;</div><?php endif; ?>
         <div>
             <div class="lrole">Vice Worship Leader</div>
-            <div class="lname"><?= htmlspecialchars(ucfirst($vice_worship_leader['first_name']) . ' ' . ucfirst($vice_worship_leader['last_name'])) ?></div>
+            <div class="lname"><?= htmlspecialchars($vwl_name) ?></div>
         </div>
     </div>
-    <?php endif; ?>
 </div>
-<?php endif; ?>
 
 <!-- Stats -->
 <div class="stats-row">
@@ -212,26 +218,40 @@ tbody tr:nth-child(even) td { background: #faf5ff; }
 <table>
     <thead>
         <tr>
-            <th>#</th><th>Photo</th><th>Full Name</th><th>Department</th>
-            <th>Church Role</th><th>Phone</th><th>Status</th>
+            <th>#</th><th>Photo</th><th>Full Name</th><th>Village</th>
+            <th>Dept</th><th>Church Role</th><th>Phone</th><th>Residence</th>
         </tr>
     </thead>
     <tbody>
-    <?php $i = 1; foreach ($worshippers as $ws):
+    <?php
+    function worship_role_pill(string $role): string {
+        $rl = strtolower($role);
+        if (strpos($rl,'vice worship')!==false)   { $cls='rp-vice'; }
+        elseif (strpos($rl,'worship')!==false)    { $cls='rp-worship'; }
+        elseif ($rl === '' || $rl === 'member')   { $cls='rp-member'; }
+        else                                       { $cls='rp-other'; }
+        return '<span class="role-pill '.$cls.'">'.htmlspecialchars($role).'</span>';
+    }
+    $i = 1;
+    foreach ($worshippers as $ws):
         $pic_b64 = img_b64($ws['profile_picture'] ?? '');
-        $status_color = $ws['is_approved'] == 1 ? '#10b981' : ($ws['is_approved'] == -1 ? '#ef4444' : '#f59e0b');
-        $status_label = $ws['is_approved'] == 1 ? 'Active' : ($ws['is_approved'] == -1 ? 'Deactivated' : 'Pending');
+        $roles_raw = trim($ws['church_role'] ?? '');
+        $role_parts = $roles_raw ? array_filter(array_map('trim', explode(',', str_replace('&', ',', $roles_raw)))) : ['Worshipper'];
+        $pills = '<div class="role-pills-wrap">';
+        foreach ($role_parts as $rp) { $pills .= worship_role_pill($rp); }
+        $pills .= '</div>';
     ?>
     <tr>
         <td style="color:#888;"><?= $i++ ?></td>
         <td class="photo-cell">
-            <?php if ($pic_b64): ?><img src="<?= $pic_b64 ?>" alt=""><?php else: ?><span style="font-size:1.1rem;">&#128100;</span><?php endif; ?>
+            <?php if ($pic_b64): ?><img src="<?= $pic_b64 ?>" alt=""><?php else: ?><img src="<?= img_b64('uploads/default_avatar.png') ?>" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid #c4b5fd;"><?php endif; ?>
         </td>
         <td style="font-weight:700;text-transform:uppercase;"><?= htmlspecialchars($ws['first_name'] . ' ' . $ws['last_name']) ?></td>
-        <td><span class="badge" style="background:#ede9fe;color:#6d28d9;"><?= htmlspecialchars($ws['department'] ?: 'General Church') ?></span></td>
-        <td><?= htmlspecialchars($ws['church_role'] ?: 'Worshipper') ?></td>
+        <td><span class="badge" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;"><?= htmlspecialchars($ws['church_village'] ?: '-') ?></span></td>
+        <td><span class="badge" style="background:#ede9fe;color:#6d28d9;"><?= htmlspecialchars($ws['department'] ?: 'General') ?></span></td>
+        <td><?= $pills ?></td>
         <td style="color:#666;"><?= htmlspecialchars($ws['phone'] ?? '-') ?></td>
-        <td><span class="badge" style="background:<?= $status_color ?>22;color:<?= $status_color ?>;"><?= $status_label ?></span></td>
+        <td style="color:#555;font-size:0.7rem;"><?= htmlspecialchars($ws['address'] ?? '-') ?></td>
     </tr>
     <?php endforeach; ?>
     </tbody>
@@ -240,11 +260,15 @@ tbody tr:nth-child(even) td { background: #faf5ff; }
 <p style="text-align:center;color:#aaa;padding:30px;">No worshippers registered yet.</p>
 <?php endif; ?>
 
-<!-- Signature and Stamp -->
+<!-- Signature and Stamp — Worship Leader signs, not pastor -->
+<?php
+$signer_name  = $worship_leader ? strtoupper($worship_leader['first_name'] . ' ' . $worship_leader['last_name']) : 'Worship Leader';
+$signer_title = 'Head of Worship';
+?>
 <div class="sig-section">
     <div class="sig-box">
-        <div class="sig-title">Church Pastor</div>
-        <div class="sig-name"><?= htmlspecialchars($pastor_name) ?></div>
+        <div class="sig-title"><?= htmlspecialchars($signer_title) ?></div>
+        <div class="sig-name"><?= htmlspecialchars($signer_name) ?></div>
         <div class="sig-row"><span class="sig-label">Signature :</span><div class="sig-line"></div></div>
         <div class="sig-row"><span class="sig-label">Date :</span><div class="sig-line-dashed"></div></div>
     </div>
@@ -259,3 +283,4 @@ tbody tr:nth-child(even) td { background: #faf5ff; }
 <script>window.onload = function() { setTimeout(function() { window.print(); }, 700); };</script>
 </body>
 </html>
+
