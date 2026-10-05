@@ -2755,7 +2755,7 @@ w.document.write('</div>');
                                                             ?>
                                                             <a href="?tab=departments&action=transfer_youth&id=<?= $dm['id'] ?>&dest=<?= urlencode($t_dest) ?>" onclick="return confirm('Transfer this member to <?= $t_dest ?>?')" style="background:#0ea5e9;color:white;padding:4px 8px;border-radius:4px;text-decoration:none;font-size:0.75rem;">Transfer</a>
                                                         <?php else: ?>
-                                                            <a href="?tab=manage_sunday_school&highlight_member_id=<?= $dm['id'] ?>" style="background:#0ea5e9;color:white;padding:4px 8px;border-radius:4px;text-decoration:none;font-size:0.75rem;">View in SS</a>
+                                                            <a href="?tab=manage_sunday_school&highlight_member_id=<?= $dm['id'] ?>" style="background:#0ea5e9;color:white;padding:4px 8px;border-radius:4px;text-decoration:none;font-size:0.75rem;">Manage Sunday School</a>
                                                         <?php endif; ?>
                                                     </td>
                                                 <?php endif; ?>
