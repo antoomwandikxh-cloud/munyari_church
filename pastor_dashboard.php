@@ -2639,7 +2639,8 @@ w.document.write('</div>');
                                     <?php endif; ?>
                                 </div>
                                 </div>
-                                <div style="display:flex;gap:10px;">
+                                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                                    <input type="text" placeholder="Search <?= htmlspecialchars($dept) ?>..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" onkeyup="filterDeptTable(this, 'dept_print_<?= str_replace(' ', '', $dept) ?>')">
                                     <button onclick="printDepartment('<?= htmlspecialchars($dept, ENT_QUOTES) ?>', 'dept_print_<?= str_replace(' ', '', $dept) ?>', '<?= $leader_id ?>', 'landscape')" class="btn-submit" style="width:auto; margin:0; padding:8px 16px; background:linear-gradient(135deg,#2563eb,#6366f1); border:none; box-shadow:0 2px 8px rgba(37,99,235,0.3); font-weight:600; display:inline-flex; align-items:center; gap:8px; color:white; cursor:pointer; border-radius:8px;">
                                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                         Print Landscape
@@ -6055,7 +6056,23 @@ function openDeclineModal(id, name) {
 w.document.write('</div>');
         w.document.write('<table>' + theadHTML + tbodyHTML + '</table>');
         w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
-        w.document.write('</body></html>');
+        w.document.write('<script>
+function filterDeptTable(inputElement, tableContainerId) {
+    let filter = inputElement.value.toLowerCase();
+    let container = document.getElementById(tableContainerId);
+    if (!container) return;
+    let trs = container.querySelectorAll("tbody tr");
+    for (let i = 0; i < trs.length; i++) {
+        let text = trs[i].textContent || trs[i].innerText;
+        if (text.toLowerCase().indexOf(filter) > -1) {
+            trs[i].style.display = "";
+        } else {
+            trs[i].style.display = "none";
+        }
+    }
+}
+</script>
+</body></html>');
         w.document.close();
         w.focus();
         setTimeout(function(){ w.print(); }, 500);
