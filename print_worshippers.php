@@ -147,6 +147,7 @@ tbody tr:nth-child(even) td { background: #faf5ff; }
 /* No-print toolbar */
 .no-print { display: flex; justify-content: center; gap: 12px; padding: 10px; background: #f1f5f9; margin-bottom: 14px; border-radius: 8px; }
 .no-print button, .no-print a { padding: 9px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; color: white; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-family: Arial, sans-serif; }
+@media print { .no-print { display: none !important; } }
 /* Role pills */
 .role-pill { display:inline-flex;align-items:center;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;border:1px solid transparent;margin:1px; }
 .rp-worship { background:#fdf2f8;color:#be185d;border-color:#fbcfe8; }
@@ -154,6 +155,7 @@ tbody tr:nth-child(even) td { background: #faf5ff; }
 .rp-member  { background:#f1f5f9;color:#64748b;border-color:#cbd5e1; }
 .rp-other   { background:#f8fafc;color:#475569;border-color:#e2e8f0; }
 .role-pills-wrap { display:flex;flex-wrap:wrap;gap:2px; }
+.pref-pill { display:inline-block;font-size:0.67rem;font-weight:700;padding:2px 8px;border-radius:12px;background:#fef3c7;color:#92400e;border:1px solid #fde68a; }
 </style>
 </head>
 <body>
@@ -219,27 +221,14 @@ $vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) .
     <thead>
         <tr>
             <th>#</th><th>Photo</th><th>Full Name</th><th>Village</th>
-            <th>Dept</th><th>Church Role</th><th>Phone</th><th>Residence</th>
+            <th>Dept</th><th>Phone</th><th>Residence</th><th>Preference</th>
         </tr>
     </thead>
     <tbody>
     <?php
-    function worship_role_pill(string $role): string {
-        $rl = strtolower($role);
-        if (strpos($rl,'vice worship')!==false)   { $cls='rp-vice'; }
-        elseif (strpos($rl,'worship')!==false)    { $cls='rp-worship'; }
-        elseif ($rl === '' || $rl === 'member')   { $cls='rp-member'; }
-        else                                       { $cls='rp-other'; }
-        return '<span class="role-pill '.$cls.'">'.htmlspecialchars($role).'</span>';
-    }
     $i = 1;
     foreach ($worshippers as $ws):
         $pic_b64 = img_b64($ws['profile_picture'] ?? '');
-        $roles_raw = trim($ws['church_role'] ?? '');
-        $role_parts = $roles_raw ? array_filter(array_map('trim', explode(',', str_replace('&', ',', $roles_raw)))) : ['Worshipper'];
-        $pills = '<div class="role-pills-wrap">';
-        foreach ($role_parts as $rp) { $pills .= worship_role_pill($rp); }
-        $pills .= '</div>';
     ?>
     <tr>
         <td style="color:#888;"><?= $i++ ?></td>
@@ -249,9 +238,9 @@ $vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) .
         <td style="font-weight:700;text-transform:uppercase;"><?= htmlspecialchars($ws['first_name'] . ' ' . $ws['last_name']) ?></td>
         <td><span class="badge" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;"><?= htmlspecialchars($ws['church_village'] ?: '-') ?></span></td>
         <td><span class="badge" style="background:#ede9fe;color:#6d28d9;"><?= htmlspecialchars($ws['department'] ?: 'General') ?></span></td>
-        <td><?= $pills ?></td>
         <td style="color:#666;"><?= htmlspecialchars($ws['phone'] ?? '-') ?></td>
         <td style="color:#555;font-size:0.7rem;"><?= htmlspecialchars($ws['address'] ?? '-') ?></td>
+        <td><span class="pref-pill"><?= htmlspecialchars($ws['desired_role_pref'] ?: '-') ?></span></td>
     </tr>
     <?php endforeach; ?>
     </tbody>
