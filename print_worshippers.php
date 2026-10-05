@@ -47,16 +47,7 @@ $all_worshippers = $conn->query("
        OR LOWER(TRIM(department)) LIKE '%worship%'
        OR desired_role_pref = 'Worshipper')
     AND is_approved = 1
-    ORDER BY
-        CASE department
-            WHEN 'Elders' THEN 1
-            WHEN 'Womens Ministry' THEN 2
-            WHEN 'Youths' THEN 3
-            WHEN 'Sunday School' THEN 4
-            ELSE 5
-        END ASC,
-        first_name ASC,
-        last_name ASC
+    ORDER BY department ASC, first_name ASC, last_name ASC
 ");
 $worshippers = [];
 if ($all_worshippers) {

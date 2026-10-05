@@ -4988,41 +4988,71 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 </div>
 
                 <div class="content-card" style="margin-bottom:20px;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-                        <div>
-                            <p style="margin:0;color:var(--text-muted);font-size:0.78rem;text-transform:uppercase;font-weight:800;letter-spacing:0.05em;">Worship Team</p>
-                            <h2 style="margin:4px 0 0;color:var(--text-main);">Worshippers Profiles</h2>
-                        </div>
-                    </div>
-                    <?php
-                    $worshippers_profiles = $conn->query("
-                        SELECT id, first_name, last_name, phone, department, church_role, desired_role_pref, profile_picture
-                        FROM members
-                        WHERE is_approved = 1
-                          AND (LOWER(church_role) LIKE '%worshipper%' OR LOWER(department) LIKE '%worship%' OR desired_role_pref = 'Worshipper')
-                        ORDER BY first_name ASC, last_name ASC
-                    ");
-                    ?>
-                    <?php if ($worshippers_profiles && $worshippers_profiles->num_rows > 0): ?>
-                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
-                            <?php while($wp = $worshippers_profiles->fetch_assoc()): ?>
-                                <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-main);">
-                                    <img src="uploads/<?= htmlspecialchars($wp['profile_picture'] ?? 'default_avatar.png') ?>" alt="Worshipper profile" style="width:58px;height:58px;border-radius:50%;object-fit:cover;border:2px solid #d946ef;cursor:zoom-in;flex-shrink:0;" onclick="viewProfileImage(this.src);">
-                                    <div style="min-width:0;">
-                                        <p style="margin:0 0 3px;color:var(--text-main);font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?= htmlspecialchars($wp['first_name'] . ' ' . $wp['last_name']) ?></p>
-                                        <p style="margin:0 0 4px;color:var(--text-muted);font-size:0.82rem;line-height:1.35;"><?= htmlspecialchars($wp['church_role'] ?: ($wp['desired_role_pref'] ?: 'Worshipper')) ?></p>
-                                        <p style="margin:0;color:var(--text-muted);font-size:0.78rem;line-height:1.35;"><?= htmlspecialchars($wp['department'] ?: 'General Church') ?><?= !empty($wp['phone']) ? ' · ' . htmlspecialchars($wp['phone']) : '' ?></p>
-                                    </div>
-                                </div>
-                            <?php endwhile; ?>
-                        </div>
-                    <?php else: ?>
-                        <p style="margin:0;color:var(--text-muted);">No worshippers have chosen the worship role yet.</p>
-                    <?php endif; ?>
-                </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+        <div>
+            <p style="margin:0;color:var(--text-muted);font-size:0.78rem;text-transform:uppercase;font-weight:800;letter-spacing:0.05em;">Worship Team</p>
+            <h2 style="margin:4px 0 0;color:var(--text-main);">Worshippers Profiles</h2>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <div style="position:relative;">
+                <svg style="position:absolute;left:9px;top:50%;transform:translateY(-50%);opacity:0.4;" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/></svg>
+                <input type="text" id="wTeamSearch" placeholder="Search worshipper..." oninput="filterWTeam()" style="padding:7px 10px 7px 30px;border:1px solid var(--border-color);border-radius:8px;font-size:0.83rem;width:190px;background:var(--bg-main);color:var(--text-main);">
+            </div>
+            <?php if ($is_worship_leader || $is_vice_worship_leader): ?>
+            <a href="print_worshippers.php?mode=landscape" target="_blank" style="display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;padding:7px 13px;border-radius:8px;font-size:0.82rem;font-weight:700;text-decoration:none;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                Landscape
+            </a>
+            <a href="print_worshippers.php?mode=portrait" target="_blank" style="display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,#6d28d9,#4c1d95);color:white;padding:7px 13px;border-radius:8px;font-size:0.82rem;font-weight:700;text-decoration:none;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                Portrait
+            </a>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
+    $worshippers_profiles = $conn->query("
+        SELECT id, first_name, last_name, phone, department, church_role, desired_role_pref, profile_picture
+        FROM members
+        WHERE is_approved = 1
+          AND (LOWER(church_role) LIKE '%worshipper%' OR LOWER(department) LIKE '%worship%' OR desired_role_pref = 'Worshipper')
+        ORDER BY department ASC, first_name ASC, last_name ASC
+    ");
+    ?>
+    <?php if ($worshippers_profiles && $worshippers_profiles->num_rows > 0): ?>
+        <div class="table-responsive">
+            <table id="wTeamList">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th style="width:50px;">Photo</th>
+                        <th>Name</th>
+                        <th>Role</th>
+                        <th>Department</th>
+                        <th>Phone</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php $wt_i=1; while($wp = $worshippers_profiles->fetch_assoc()): ?>
+                        <tr class="wt-row">
+                            <td style="text-align:center;color:var(--text-muted);font-weight:700;"><?= $wt_i++ ?></td>
+                            <td><img src="uploads/<?= htmlspecialchars($wp['profile_picture'] ?? 'default_avatar.png') ?>" alt="Worshipper" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid #d946ef;cursor:zoom-in;" onclick="viewProfileImage(this.src);"></td>
+                            <td style="font-weight:700;color:var(--text-main);" class="wt-name"><?= htmlspecialchars($wp['first_name'] . ' ' . $wp['last_name']) ?></td>
+                            <td class="wt-role"><?= htmlspecialchars($wp['church_role'] ?: ($wp['desired_role_pref'] ?: 'Worshipper')) ?></td>
+                            <td class="wt-dept"><span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(139,92,246,0.12);color:#7c3aed;font-size:0.75rem;font-weight:700;"><?= htmlspecialchars($wp['department'] ?: 'General Church') ?></span></td>
+                            <td style="color:var(--text-muted);"><?= htmlspecialchars($wp['phone'] ?? '-') ?></td>
+                        </tr>
+                    <?php endwhile; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php else: ?>
+        <p style="margin:0;color:var(--text-muted);">No worshippers have chosen the worship role yet.</p>
+    <?php endif; ?>
+</div>
 
-                <div class="content-card" style="margin-bottom:20px;">
-                    <h2>Allocate Task</h2>
+<div class="content-card" style="margin-bottom:20px;">
+    <h2>Allocate Task</h2>
                     <form method="POST">
                         <div class="form-group">
                             <label>Worshipper</label>
