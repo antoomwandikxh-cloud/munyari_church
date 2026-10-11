@@ -3,8 +3,18 @@ function notification_badge_tabs($message, $user_type) {
     $msg  = strtolower($message);
     $tabs = [];
 
-    // ─── WORSHIP TASKS & CONTROL PANEL ──────────────────────────────────────
-    if (strpos($msg, 'worship task') !== false || strpos($msg, 'worship assignment') !== false || strpos($msg, 'worship control panel') !== false) {
+    // ─── WORSHIP TASKS & TEAM NOTIFICATIONS ────────────────────────────────
+    if (strpos($msg, 'worship task') !== false 
+        || strpos($msg, 'worship assignment') !== false 
+        || strpos($msg, 'worship team update') !== false
+        || strpos($msg, 'worship control panel') !== false
+    ) {
+        // If member accepted/agreed to task, or leader team update -> route to manage_worshippers
+        if (strpos($msg, 'worship team update') !== false || strpos($msg, 'agreed to do') !== false) {
+            $tabs[] = 'manage_worshippers';
+            return array_values(array_unique($tabs));
+        }
+
         if ($user_type === 'member') {
             $tabs[] = 'my_worship_tasks';
         } elseif ($user_type === 'pastor' || $user_type === 'admin') {

@@ -61,6 +61,8 @@ $conn->query("
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
 ");
+@$conn->query("ALTER TABLE worship_tasks MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'Pending'");
+
 // Handle Sunday School member registration (Sunday School Patron and Vice)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register_ss_member'])) {
     $role_check = $conn->query("SELECT church_role FROM members WHERE id = $member_id")->fetch_assoc();
@@ -1715,30 +1717,42 @@ if (isset($_GET['delete_worship_suggestion']) && ($is_worship_leader || $is_vice
     }
 }
 
-// Worshipper marks own task as Done → notify Pastor + Admin
+// Worshipper marks own task as Done / Accepted → notify Pastor + Admin + Worship Leader
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['mark_task_done'])) {
     $task_id = intval($_POST['task_id']);
-    // Only allow the assigned member to mark it done
-    $upd = $conn->query("UPDATE worship_tasks SET status='Done' WHERE id=$task_id AND member_id=$member_id");
     
-    if ($upd && $conn->affected_rows > 0) {
-        // Fetch task details for notification
-        $done_task_q = $conn->query("SELECT task_name FROM worship_tasks WHERE id=$task_id LIMIT 1");
-        $done_task = $done_task_q ? $done_task_q->fetch_assoc() : null;
-        $done_task_name = $done_task ? $done_task['task_name'] : 'worship task';
+    // Fetch task details and leader
+    $done_task_q = $conn->query("SELECT wt.task_name, wt.assigned_by FROM worship_tasks wt WHERE wt.id=$task_id AND wt.member_id=$member_id LIMIT 1");
+    if ($done_task_q && $done_task_q->num_rows > 0) {
+        $done_task = $done_task_q->fetch_assoc();
+        $done_task_name = $done_task['task_name'] ?: 'worship task';
+        $assigned_by_id = (int)$done_task['assigned_by'];
+        
+        $conn->query("UPDATE worship_tasks SET status='Completed' WHERE id=$task_id AND member_id=$member_id");
+        
         $member_display = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
         if (empty($member_display)) $member_display = 'A worshipper';
 
-        $notif_msg = $conn->real_escape_string("$member_display has accepted and completed the worship task: \"$done_task_name\".");
-        // Notify all Pastors
+        // 1. Notification to Pastor(s)
+        $pastor_admin_msg = $conn->real_escape_string("Worship task accepted: $member_display has agreed to do and completed the worship task: \"$done_task_name\".");
         $pas_q = $conn->query("SELECT id FROM pastors");
-        if ($pas_q) { while ($p = $pas_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$p['id']}, 'pastor', '$notif_msg')"); } }
-        // Notify all Admins
+        if ($pas_q) { while ($p = $pas_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$p['id']}, 'pastor', '$pastor_admin_msg')"); } }
+        
+        // 2. Notification to Admin(s)
         $adm_q = $conn->query("SELECT id FROM admins");
-        if ($adm_q) { while ($a = $adm_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$a['id']}, 'admin', '$notif_msg')"); } }
+        if ($adm_q) { while ($a = $adm_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$a['id']}, 'admin', '$pastor_admin_msg')"); } }
+        
+        // 3. Notification to the Worship Leader who assigned it
+        $leader_msg = $conn->real_escape_string("Worship team update: $member_display has agreed to do the worship task: \"$done_task_name\".");
+        if ($assigned_by_id > 0 && $assigned_by_id != $member_id) {
+            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($assigned_by_id, 'member', '$leader_msg')");
+        }
+        // Also notify other worship leaders in department
+        $wl_q = $conn->query("SELECT id FROM members WHERE is_approved=1 AND LOWER(church_role) LIKE '%worship leader%' AND id != $member_id AND id != $assigned_by_id");
+        if ($wl_q) { while ($wl = $wl_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$wl['id']}, 'member', '$leader_msg')"); } }
     }
     
-    header("Location: member_dashboard.php?tab=my_worship_tasks&success=Task accepted and marked as done");
+    header("Location: member_dashboard.php?tab=my_worship_tasks&success=" . urlencode("Task agreed and marked as completed."));
     exit();
 }
 
@@ -1746,16 +1760,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['mark_task_done'])) {
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['accept_self_worship_task']) && ($is_worship_leader || $is_vice_worship_leader)) {
     $task_id = intval($_POST['task_id'] ?? 0);
     if ($task_id > 0) {
-        // Only accept tasks that are self-assigned (assigned_by == member_id)
-        $upd_self = $conn->query("UPDATE worship_tasks SET status='Done' WHERE id=$task_id AND member_id=$member_id AND assigned_by=$member_id");
-        if ($upd_self && $conn->affected_rows > 0) {
-            $self_task_q = $conn->query("SELECT task_name FROM worship_tasks WHERE id=$task_id LIMIT 1");
-            $self_task = $self_task_q ? $self_task_q->fetch_assoc() : null;
-            $self_task_name = $self_task ? $self_task['task_name'] : 'worship task';
+        $self_task_q = $conn->query("SELECT task_name FROM worship_tasks WHERE id=$task_id LIMIT 1");
+        if ($self_task_q && $self_task_q->num_rows > 0) {
+            $self_task = $self_task_q->fetch_assoc();
+            $self_task_name = $self_task['task_name'] ?: 'worship task';
+            
+            $conn->query("UPDATE worship_tasks SET status='Completed' WHERE id=$task_id");
+            
             $leader_display = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
             if (empty($leader_display)) $leader_display = 'Worship Leader';
 
-            $self_msg = $conn->real_escape_string("Worship Leader $leader_display accepted their self-assigned task: \"$self_task_name\" and marked it as Done.");
+            $self_msg = $conn->real_escape_string("Worship Leader $leader_display accepted their self-assigned worship task: \"$self_task_name\" and marked it as Completed.");
             $pas_q2 = $conn->query("SELECT id FROM pastors");
             if ($pas_q2) { while ($p2 = $pas_q2->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$p2['id']}, 'pastor', '$self_msg')"); } }
             $adm_q2 = $conn->query("SELECT id FROM admins");
@@ -5464,9 +5479,9 @@ function submitNewSuggestion() {
                                                     <span style="background: <?= ($t['status'] === 'Completed' || $t['status'] === 'Done') ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)' ?>; color: <?= ($t['status'] === 'Completed' || $t['status'] === 'Done') ? 'var(--success)' : 'var(--warning)' ?>; padding: 3px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; display:inline-flex; align-items:center; gap:4px;">
                                                         <?= ($t['status'] === 'Completed' || $t['status'] === 'Done') ? '✅ Done' : '⏳ Pending' ?>
                                                     </span>
-                                                    <?php if ($t['status'] !== 'Done' && $t['status'] !== 'Completed' && $t['assigned_by'] == $t['member_id'] && $t['member_id'] == $member_id): ?>
-                                                    <!-- Accept button for self-assigned pending tasks -->
-                                                    <form method="POST" style="display:inline;" onsubmit="return confirm('Accept this self-assigned task and mark it as Done?')">
+                                                    <?php if ($t['status'] !== 'Done' && $t['status'] !== 'Completed' && $t['member_id'] == $member_id): ?>
+                                                    <!-- Accept button for pending task assigned to leader -->
+                                                    <form method="POST" style="display:inline;" onsubmit="return confirm('Accept this task and mark it as Done?')">
                                                         <input type="hidden" name="task_id" value="<?= (int)$t['id'] ?>">
                                                         <button type="submit" name="accept_self_worship_task"
                                                             style="background:linear-gradient(135deg,#10b981,#059669); color:white; border:none; padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
@@ -8608,7 +8623,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 $done_tasks_q = $conn->query("SELECT wt.*, m.first_name as a_fn, m.last_name as a_ln
                                                FROM worship_tasks wt
                                                JOIN members m ON wt.assigned_by = m.id
-                                               WHERE wt.member_id=$member_id AND wt.status='Done'
+                                               WHERE wt.member_id=$member_id AND (wt.status='Done' OR wt.status='Completed')
                                                ORDER BY wt.assigned_at DESC LIMIT 20");
                 if ($done_tasks_q && $done_tasks_q->num_rows > 0):
                 ?>
@@ -8626,7 +8641,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <?php while($dt = $done_tasks_q->fetch_assoc()): ?>
                         <tr>
                             <td><?= htmlspecialchars($dt['task_name']) ?></td>
-                            <td><?= htmlspecialchars($dt['a_fn'] . ' ' . $dt['a_ln']) ?></td>
+                            <td>
+                                <?php if ($dt['assigned_by'] == $dt['member_id']): ?>
+                                    <span class="badge" style="background:#ede9fe; color:#7c3aed; font-weight:700; border:1px solid #ddd6fe; padding:2px 8px; border-radius:10px;">👤 Assigned Himself</span>
+                                <?php else: ?>
+                                    <?= htmlspecialchars($dt['a_fn'] . ' ' . $dt['a_ln']) ?>
+                                <?php endif; ?>
+                            </td>
                             <td><?= date('M j, Y', strtotime($dt['assigned_at'])) ?></td>
                             <td><span class="badge" style="background:rgba(16,185,129,0.15); color:var(--success);">✅ Done</span></td>
                         </tr>
