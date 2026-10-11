@@ -80,16 +80,62 @@ function whatsapp_player_assets() {
 
     return '
 <style>
+@keyframes wa-bar-dance {
+    0%, 100% { transform: scaleY(0.35); opacity: 0.6; }
+    50%       { transform: scaleY(1);    opacity: 1;   }
+}
 .whatsapp-voice-player {
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+    position: relative;
 }
 .whatsapp-voice-player:hover {
-    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+    box-shadow: 0 6px 22px rgba(37,211,102,0.25) !important;
+    transform: translateY(-1px);
 }
 [data-theme="dark"] .whatsapp-voice-player {
-    background: #1e293b !important;
-    border-color: rgba(37,211,102,0.4) !important;
+    background: #1a2e22 !important;
+    border-color: rgba(37,211,102,0.5) !important;
 }
+.wa-play-btn:hover {
+    transform: scale(1.1);
+    background: #1db954 !important;
+}
+.wa-play-btn:active { transform: scale(0.95); }
+.wa-bar {
+    display: inline-block;
+    flex: 1;
+    min-width: 2.5px;
+    border-radius: 4px;
+    transition: background 0.15s, height 0.1s;
+    transform-origin: bottom center;
+}
+.wa-bar.dancing {
+    animation: wa-bar-dance var(--wa-delay, 0.8s) ease-in-out infinite;
+}
+.wa-download-btn {
+    background: rgba(37,211,102,0.12);
+    color: #15803d;
+    border: 1.5px solid rgba(37,211,102,0.35);
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    text-decoration: none;
+}
+.wa-download-btn:hover {
+    background: #25d366;
+    color: #ffffff;
+    transform: scale(1.12);
+    box-shadow: 0 3px 10px rgba(37,211,102,0.45);
+    border-color: #25d366;
+}
+.wa-download-btn:active { transform: scale(0.95); }
+[data-theme="dark"] .wa-download-btn { color: #4ade80; border-color: rgba(74,222,128,0.4); }
 </style>
 <script>
 function initWhatsAppAudioPlayers() {
@@ -97,21 +143,35 @@ function initWhatsAppAudioPlayers() {
         if (player.dataset.waInitialized) return;
         player.dataset.waInitialized = "true";
 
-        var audio = player.querySelector(".wa-audio");
-        var playBtn = player.querySelector(".wa-play-btn");
-        var iconPlay = player.querySelector(".wa-icon-play");
-        var iconPause = player.querySelector(".wa-icon-pause");
-        var seekBar = player.querySelector(".wa-seek-bar");
+        var audio       = player.querySelector(".wa-audio");
+        var playBtn     = player.querySelector(".wa-play-btn");
+        var iconPlay    = player.querySelector(".wa-icon-play");
+        var iconPause   = player.querySelector(".wa-icon-pause");
+        var seekBar     = player.querySelector(".wa-seek-bar");
         var currentTimeEl = player.querySelector(".wa-current-time");
-        var durationEl = player.querySelector(".wa-duration");
-        var speedBtn = player.querySelector(".wa-speed-btn");
+        var durationEl  = player.querySelector(".wa-duration");
+        var speedBtn    = player.querySelector(".wa-speed-btn");
         var waveformBars = player.querySelectorAll(".wa-bar");
+        var totalBars   = waveformBars.length;
+
+        // Assign random animation delays so bars feel organic
+        waveformBars.forEach(function(bar, idx) {
+            var delay = (0.05 + (idx % 7) * 0.09).toFixed(2);
+            bar.style.setProperty("--wa-delay", delay + "s");
+        });
 
         function fmt(sec) {
             if (isNaN(sec) || !isFinite(sec)) return "0:00";
             var m = Math.floor(sec / 60);
             var s = Math.floor(sec % 60);
             return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        function startDancing() {
+            waveformBars.forEach(function(bar) { bar.classList.add("dancing"); });
+        }
+        function stopDancing() {
+            waveformBars.forEach(function(bar) { bar.classList.remove("dancing"); });
         }
 
         if (audio) {
@@ -125,25 +185,38 @@ function initWhatsAppAudioPlayers() {
                     if (seekBar) seekBar.value = pct;
                     if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
 
-                    var totalBars = waveformBars.length;
                     var activeCount = Math.floor((pct / 100) * totalBars);
                     waveformBars.forEach(function(bar, idx) {
-                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                        if (idx <= activeCount) {
+                            bar.style.backgroundColor = "#25d366";
+                            bar.style.boxShadow = "0 0 4px rgba(37,211,102,0.6)";
+                        } else {
+                            bar.style.backgroundColor = "#9ca3af";
+                            bar.style.boxShadow = "none";
+                        }
                     });
                 }
             });
 
             audio.addEventListener("ended", function() {
-                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPlay)  iconPlay.style.display  = "block";
                 if (iconPause) iconPause.style.display = "none";
-                if (seekBar) seekBar.value = 0;
+                if (seekBar)   seekBar.value = 0;
                 if (currentTimeEl) currentTimeEl.textContent = "0:00";
-                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+                waveformBars.forEach(function(bar) {
+                    bar.style.backgroundColor = "#9ca3af";
+                    bar.style.boxShadow = "none";
+                });
+                stopDancing();
             });
+
+            audio.addEventListener("pause",  function() { stopDancing(); });
+            audio.addEventListener("playing", function() { startDancing(); });
         }
 
         if (playBtn && audio) {
             playBtn.addEventListener("click", function() {
+                // Pause any other playing audio
                 document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
                     if (otherAudio !== audio && !otherAudio.paused) {
                         otherAudio.pause();
@@ -159,12 +232,12 @@ function initWhatsAppAudioPlayers() {
 
                 if (audio.paused) {
                     audio.play().then(function() {
-                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPlay)  iconPlay.style.display  = "none";
                         if (iconPause) iconPause.style.display = "block";
                     }).catch(function(e) { console.error("Playback error:", e); });
                 } else {
                     audio.pause();
-                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPlay)  iconPlay.style.display  = "block";
                     if (iconPause) iconPause.style.display = "none";
                 }
             });
@@ -198,7 +271,7 @@ if (document.readyState === "loading") {
 }
 
 /**
- * Render a WhatsApp-style voice note player
+ * Render a professional WhatsApp-style voice note player with animated bars and download button
  */
 function render_whatsapp_voice_player($audio_path, $speaker_name = 'Pastor', $speaker_pic = null, $created_at = null) {
     if (empty($audio_path)) return '';
@@ -208,52 +281,71 @@ function render_whatsapp_voice_player($audio_path, $speaker_name = 'Pastor', $sp
     $pic_url    = !empty($speaker_pic) ? htmlspecialchars($speaker_pic) : 'uploads/default_avatar.png';
     $uid        = 'wa_audio_' . substr(md5($audio_path . microtime()), 0, 10);
 
-    // Dynamic wave heights to look like realistic WhatsApp speech waveform
-    $wave_heights = [8, 14, 22, 10, 18, 24, 16, 20, 12, 15, 22, 18, 14, 20, 24, 16, 12, 19, 14, 10, 16, 22, 15, 8];
+    // Varied heights: realistic speech waveform pattern
+    $wave_heights = [5,10,18,8,22,14,26,10,16,24,12,20,8,22,18,14,24,10,16,20,12,8,18,22,14,8];
 
     $assets = whatsapp_player_assets();
 
     ob_start();
     echo $assets;
     ?>
-    <div class="whatsapp-voice-player" id="<?= $uid ?>" data-audio-src="<?= $safe_audio ?>" style="background:var(--bg-main, #f0fdf4); border:1.5px solid rgba(37,211,102,0.35); border-radius:18px; padding:12px 16px; margin:12px 0; max-width:480px; box-shadow:0 3px 12px rgba(37,211,102,0.12); display:flex; align-items:center; gap:12px; position:relative;">
-        <!-- Avatar with green mic badge -->
+    <div class="whatsapp-voice-player" id="<?= $uid ?>" style="background:linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border:1.5px solid rgba(37,211,102,0.4); border-radius:18px; padding:14px 16px; margin:14px 0; max-width:520px; box-shadow:0 4px 16px rgba(37,211,102,0.14); display:flex; align-items:center; gap:12px; position:relative; overflow:hidden;">
+        <!-- Subtle green shimmer overlay -->
+        <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent 0%,rgba(37,211,102,0.04) 50%,transparent 100%);pointer-events:none;border-radius:18px;"></div>
+
+        <!-- Avatar with animated ring when playing -->
         <div style="position:relative; width:44px; height:44px; flex-shrink:0;">
-            <img src="<?= $pic_url ?>" alt="<?= $safe_name ?>" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid #25d366; display:block;">
-            <span style="position:absolute; bottom:-2px; right:-2px; background:#25d366; color:#ffffff; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; box-shadow:0 1px 3px rgba(0,0,0,0.3);" title="Voice Note">🎙️</span>
+            <img src="<?= $pic_url ?>" alt="<?= $safe_name ?>" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2.5px solid #25d366; display:block; box-shadow:0 2px 8px rgba(37,211,102,0.3);">
+            <span style="position:absolute; bottom:-2px; right:-2px; background:linear-gradient(135deg,#25d366,#16a34a); color:#ffffff; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; box-shadow:0 1px 4px rgba(0,0,0,0.25); border:1.5px solid #ffffff;" title="Voice Note">🎙️</span>
         </div>
 
         <!-- Play / Pause Button -->
-        <button type="button" class="wa-play-btn" aria-label="Play Voice Note" style="background:#25d366; color:#ffffff; border:none; width:40px; height:40px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 3px 8px rgba(37,211,102,0.45); transition:transform 0.1s, background 0.15s;">
+        <button type="button" class="wa-play-btn" aria-label="Play Voice Note" style="background:linear-gradient(135deg,#25d366,#16a34a); color:#ffffff; border:none; width:42px; height:42px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 12px rgba(37,211,102,0.5);">
             <svg class="wa-icon-play" width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             <svg class="wa-icon-pause" width="18" height="18" fill="currentColor" viewBox="0 0 24 24" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
         </button>
 
         <!-- Waveform & Track -->
-        <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;">
-            <div class="wa-track-area" style="position:relative; height:24px; display:flex; align-items:center; cursor:pointer;">
-                <!-- Waveform Bars -->
-                <div class="wa-waveform" style="display:flex; align-items:center; gap:2.5px; width:100%; height:24px;">
-                    <?php foreach ($wave_heights as $h): ?>
-                        <span class="wa-bar" style="display:inline-block; flex:1; min-width:2px; height:<?= $h ?>px; background:#9ca3af; border-radius:3px; transition:background 0.1s;"></span>
+        <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:5px;">
+            <!-- Animated waveform bars -->
+            <div class="wa-track-area" style="position:relative; height:32px; display:flex; align-items:center; cursor:pointer;">
+                <div class="wa-waveform" style="display:flex; align-items:center; gap:2px; width:100%; height:32px; padding:2px 0;">
+                    <?php foreach ($wave_heights as $idx => $h): ?>
+                        <span class="wa-bar" style="height:<?= $h ?>px; background:#9ca3af; border-radius:4px; flex:1; min-width:2px;"></span>
                     <?php endforeach; ?>
                 </div>
-                <input type="range" class="wa-seek-bar" min="0" max="100" value="0" step="0.1" style="position:absolute; width:100%; height:24px; opacity:0; cursor:pointer; margin:0; left:0; top:0; z-index:3;">
+                <input type="range" class="wa-seek-bar" min="0" max="100" value="0" step="0.1" style="position:absolute; width:100%; height:32px; opacity:0; cursor:pointer; margin:0; left:0; top:0; z-index:3;">
             </div>
 
-            <!-- Time and Speed -->
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--text-muted, #64748b); font-weight:700;">
-                <span class="wa-current-time">0:00</span>
-                <span style="font-size:0.7rem; color:#15803d; font-weight:800; letter-spacing:0.3px;">VOICE NOTE</span>
-                <span class="wa-duration">--:--</span>
+            <!-- Time row -->
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted, #64748b); font-weight:700; letter-spacing:0.2px;">
+                <span class="wa-current-time" style="font-variant-numeric:tabular-nums;">0:00</span>
+                <span style="font-size:0.65rem; color:#15803d; font-weight:900; letter-spacing:1px; text-transform:uppercase; opacity:0.8;">Voice Note</span>
+                <span class="wa-duration" style="font-variant-numeric:tabular-nums;">--:--</span>
             </div>
         </div>
 
-        <!-- Playback speed pill (1x, 1.5x, 2x) -->
-        <button type="button" class="wa-speed-btn" title="Toggle Speed" style="background:rgba(37,211,102,0.15); color:#15803d; border:1px solid rgba(37,211,102,0.3); border-radius:12px; padding:3px 8px; font-size:0.72rem; font-weight:800; cursor:pointer; flex-shrink:0;">1x</button>
+        <!-- Speed pill -->
+        <button type="button" class="wa-speed-btn" title="Toggle Speed (1x / 1.5x / 2x)" style="background:rgba(37,211,102,0.13); color:#15803d; border:1.5px solid rgba(37,211,102,0.35); border-radius:12px; padding:4px 9px; font-size:0.7rem; font-weight:900; cursor:pointer; flex-shrink:0; transition:background 0.15s;">1x</button>
+
+        <!-- Download Button -->
+        <a href="<?= $safe_audio ?>" download title="Download Voice Note" class="wa-download-btn" style="background:rgba(37,211,102,0.12);color:#15803d;border:1.5px solid rgba(37,211,102,0.35);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background 0.15s,transform 0.1s,box-shadow 0.15s;text-decoration:none;">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3v12m0 0l-4-4m4 4l4-4"/>
+                <path d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
+            </svg>
+        </a>
 
         <!-- Hidden Audio Element -->
         <audio class="wa-audio" preload="metadata" src="<?= $safe_audio ?>" style="display:none;"></audio>
+    </div>
+    <!-- Speaker name label -->
+    <div style="margin-top:-8px;margin-bottom:8px;margin-left:4px;font-size:0.72rem;color:var(--text-muted,#64748b);display:flex;align-items:center;gap:5px;">
+        <span style="color:#25d366;font-size:10px;">●</span>
+        <?= $safe_name ?>
+        <?php if (!empty($created_at)): ?>
+            <span style="opacity:0.6;">· <?= date('g:i A', strtotime($created_at)) ?></span>
+        <?php endif; ?>
     </div>
     <?php
     return ob_get_clean();
