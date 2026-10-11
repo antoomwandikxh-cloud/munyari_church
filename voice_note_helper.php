@@ -307,8 +307,8 @@ function render_voice_note_recorder() {
                     🎙️
                 </div>
                 <div>
-                    <strong style="font-size:0.95rem; color:var(--text-main); display:block;">WhatsApp-Style Voice Note</strong>
-                    <span style="font-size:0.78rem; color:var(--text-muted);">Record a voice announcement for all church members</span>
+                    <strong style="font-size:0.95rem; color:var(--text-main); display:block;">🎙️ Record Audio Here</strong>
+                    <span style="font-size:0.78rem; color:var(--text-muted);">Tap the button below to record a voice note for all church members</span>
                 </div>
             </div>
             <span id="vn_status_badge" style="display:none; font-size:0.78rem; font-weight:800; padding:4px 12px; border-radius:20px; background:#fee2e2; color:#ef4444; border:1px solid #fca5a5;">

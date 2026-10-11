@@ -23,6 +23,17 @@ function notification_badge_tabs($message, $user_type) {
         return array_values(array_unique($tabs));
     }
 
+    // ─── PASTOR GENERAL CHURCH ANNOUNCEMENT (MUST be before contact_pastor rules) ─────────
+    // Notification text: "General Church Announcement from Pastor <name>[Voice Note]: ..."
+    // These MUST route to announcements (members) or general_announcements (admin/pastor). NEVER contact_pastor.
+    if (strpos($msg, 'general church announcement') !== false) {
+        if ($user_type === 'member') {
+            return ['announcements'];
+        } else {
+            return ['general_announcements'];
+        }
+    }
+
     // ─── APPOINTMENTS & CONTACT PASTOR & DIRECT MESSAGES ─────────────────────
     if (strpos($msg, 'reply from member') !== false
         || strpos($msg, 'member reply') !== false
