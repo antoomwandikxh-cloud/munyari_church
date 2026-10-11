@@ -329,12 +329,15 @@ function render_whatsapp_voice_player($audio_path, $speaker_name = 'Pastor', $sp
         <button type="button" class="wa-speed-btn" title="Toggle Speed (1x / 1.5x / 2x)" style="background:rgba(37,211,102,0.13); color:#15803d; border:1.5px solid rgba(37,211,102,0.35); border-radius:12px; padding:4px 9px; font-size:0.7rem; font-weight:900; cursor:pointer; flex-shrink:0; transition:background 0.15s;">1x</button>
 
         <!-- Download Button -->
-        <a href="<?= $safe_audio ?>" download title="Download Voice Note" class="wa-download-btn" style="background:rgba(37,211,102,0.12);color:#15803d;border:1.5px solid rgba(37,211,102,0.35);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background 0.15s,transform 0.1s,box-shadow 0.15s;text-decoration:none;">
-            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 3v12m0 0l-4-4m4 4l4-4"/>
-                <path d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
-            </svg>
-        </a>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
+            <a href="<?= $safe_audio ?>" download title="Download Voice Note" class="wa-download-btn" style="background:rgba(37,211,102,0.12);color:#15803d;border:1.5px solid rgba(37,211,102,0.35);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s,transform 0.1s,box-shadow 0.15s;text-decoration:none;">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3v12m0 0l-4-4m4 4l4-4"/>
+                    <path d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
+                </svg>
+            </a>
+            <span style="font-size:0.55rem;font-weight:700;color:#15803d;letter-spacing:0.3px;text-transform:uppercase;opacity:0.8;line-height:1;">Download</span>
+        </div>
 
         <!-- Hidden Audio Element -->
         <audio class="wa-audio" preload="metadata" src="<?= $safe_audio ?>" style="display:none;"></audio>
