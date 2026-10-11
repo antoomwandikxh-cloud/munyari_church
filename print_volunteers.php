@@ -37,17 +37,15 @@ $pastor_q    = $conn->query("SELECT first_name, last_name FROM pastors WHERE is_
 $pastor_row  = $pastor_q ? $pastor_q->fetch_assoc() : null;
 $pastor_name = $pastor_row ? strtoupper($pastor_row['first_name'] . ' ' . $pastor_row['last_name']) : 'Not Assigned';
 
-/* ── Fetch ALL roles from DB (includes Church Cleaner, Church Cooker, and customs) ── */
+/* ── Fetch ALL roles from DB (includes Worshipper, Church Cleaner, Church Cooker, and customs) ── */
+$all_roles = ['Worshipper'];
 $all_roles_q = $conn->query("SELECT * FROM custom_desired_roles ORDER BY id ASC");
-$all_roles = [];
 if ($all_roles_q) {
     while ($r = $all_roles_q->fetch_assoc()) {
-        $all_roles[] = $r['role_name'];
+        if (!in_array($r['role_name'], $all_roles)) {
+            $all_roles[] = $r['role_name'];
+        }
     }
-}
-// Fallback if table is empty
-if (empty($all_roles)) {
-    $all_roles = ['Church Cleaner', 'Church Cooker'];
 }
 
 /* ── Pre-fetch people for each role ─────────────────────────── */
@@ -201,8 +199,8 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
 </div>
 
 <?php
-$badge_colors = ['Church Cleaner' => '#0ea5e9', 'Church Cooker' => '#f59e0b'];
-$badge_icons  = ['Church Cleaner' => '🧹', 'Church Cooker' => '🍳'];
+$badge_colors = ['Worshipper' => '#8b5cf6', 'Church Cleaner' => '#0ea5e9', 'Church Cooker' => '#f59e0b'];
+$badge_icons  = ['Worshipper' => '🎵', 'Church Cleaner' => '🧹', 'Church Cooker' => '🍳'];
 $section_num = 1;
 
 foreach ($role_data as $role => $people):

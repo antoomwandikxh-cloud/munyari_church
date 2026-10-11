@@ -539,7 +539,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
         header("Location: ?tab=settings&error=Please select a valid church village");
         exit();
     }
-    $valid_roles = [''];
+    $valid_roles = ['', 'Worshipper'];
     $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles");
     if ($cr_q) { while($cr = $cr_q->fetch_assoc()){ $valid_roles[] = $cr['role_name']; } }
     if (!in_array($drp, $valid_roles)) { $drp = ''; }
@@ -5070,12 +5070,14 @@ w.document.write('</div>');
                             <label>Desired Role (Optional)</label>
                             <select name="desired_role_pref" class="form-control">
                                 <option value="">-- No specific role --</option>
+                                <option value="Worshipper" <?= (($pastor['desired_role_pref'] ?? '') === 'Worshipper') ? 'selected' : '' ?>>Worshipper</option>
                                 <?php
                                 $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles ORDER BY id ASC");
                                 if ($cr_q) {
                                     while($cr = $cr_q->fetch_assoc()) {
                                         $r = $cr['role_name'];
-                                        $sel = ($pastor['desired_role_pref'] == $r) ? 'selected' : '';
+                                        if ($r === 'Worshipper') continue;
+                                        $sel = (($pastor['desired_role_pref'] ?? '') === $r) ? 'selected' : '';
                                         echo "<option value=\"".htmlspecialchars($r)."\" $sel>".htmlspecialchars($r)."</option>";
                                     }
                                 }
@@ -5142,12 +5144,14 @@ w.document.write('</div>');
                             <label>Desired Role (Optional)</label>
                             <select name="desired_role_pref" class="form-control">
                                 <option value="">-- No specific role --</option>
+                                <option value="Worshipper" <?= (($pastor['desired_role_pref'] ?? '') === 'Worshipper') ? 'selected' : '' ?>>Worshipper</option>
                                 <?php
                                 $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles ORDER BY id ASC");
                                 if ($cr_q) {
                                     while($cr = $cr_q->fetch_assoc()) {
                                         $r = $cr['role_name'];
-                                        $sel = ($pastor['desired_role_pref'] == $r) ? 'selected' : '';
+                                        if ($r === 'Worshipper') continue;
+                                        $sel = (($pastor['desired_role_pref'] ?? '') === $r) ? 'selected' : '';
                                         echo "<option value=\"".htmlspecialchars($r)."\" $sel>".htmlspecialchars($r)."</option>";
                                     }
                                 }
