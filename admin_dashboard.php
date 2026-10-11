@@ -37,6 +37,13 @@ if (isset($_POST['add_custom_role'])) {
 }
 if (isset($_GET['delete_custom_role'])) {
     $role_id = (int)$_GET['delete_custom_role'];
+    // Guard: never allow deletion of the hardcoded Worshipper role
+    $chk = $conn->query("SELECT role_name FROM custom_desired_roles WHERE id = $role_id LIMIT 1");
+    $chk_row = $chk ? $chk->fetch_assoc() : null;
+    if ($chk_row && strtolower(trim($chk_row['role_name'])) === 'worshipper') {
+        header("Location: " . basename($_SERVER['PHP_SELF']) . "?tab=desired_roles&error=" . urlencode("Worshipper is a system role and cannot be deleted."));
+        exit;
+    }
     $conn->query("DELETE FROM custom_desired_roles WHERE id = $role_id");
     header("Location: " . basename($_SERVER['PHP_SELF']) . "?tab=desired_roles&success=Custom role deleted");
     exit;
@@ -3622,11 +3629,15 @@ w.document.write('</div>');
                             ?>
                                 <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-lighter); padding:8px 12px; border-radius:6px;">
                                     <span style="font-size:0.88rem; color:var(--text-main); font-weight:500;">✨ <?= htmlspecialchars($cr['role_name']) ?></span>
-                                    <a href="?tab=desired_roles&delete_custom_role=<?= $cr['id'] ?>"
-                                        onclick="return confirm('Delete role: <?= addslashes($cr['role_name']) ?>?')"
-                                        style="display:inline-flex;align-items:center;gap:4px;background:#ef4444;color:white;text-decoration:none;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:6px;line-height:1;white-space:nowrap;">
-                                        🗑 Remove
-                                    </a>
+                                    <?php if (strtolower(trim($cr['role_name'])) === 'worshipper'): ?>
+                                        <span title="This is a system role and cannot be removed" style="display:inline-flex;align-items:center;gap:4px;background:#8b5cf6;color:white;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:6px;line-height:1;white-space:nowrap;cursor:default;">🔒 System Role</span>
+                                    <?php else: ?>
+                                        <a href="?tab=desired_roles&delete_custom_role=<?= $cr['id'] ?>"
+                                            onclick="return confirm('Delete role: <?= addslashes($cr['role_name']) ?>?')"
+                                            style="display:inline-flex;align-items:center;gap:4px;background:#ef4444;color:white;text-decoration:none;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:6px;line-height:1;white-space:nowrap;">
+                                            🗑 Remove
+                                        </a>
+                                    <?php endif; ?>
                                 </div>
                             <?php endwhile; echo '</div>'; else: ?>
                                 <p style="margin:0; font-size:0.85rem; color:var(--text-muted); font-style:italic;">No custom roles yet. Add one on the left!</p>

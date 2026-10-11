@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 function render_role_pills($church_role_raw, $is_pastor = false, $is_leader = false) {
     if ($is_pastor) { return '<span class="role-pill rp-pastor">&#9962; Pastor</span>'; }
@@ -37,6 +37,13 @@ if (isset($_POST['add_custom_role'])) {
 }
 if (isset($_GET['delete_custom_role'])) {
     $role_id = (int)$_GET['delete_custom_role'];
+    // Guard: never allow deletion of the hardcoded Worshipper role
+    $chk = $conn->query("SELECT role_name FROM custom_desired_roles WHERE id = $role_id LIMIT 1");
+    $chk_row = $chk ? $chk->fetch_assoc() : null;
+    if ($chk_row && strtolower(trim($chk_row['role_name'])) === 'worshipper') {
+        header("Location: " . basename($_SERVER['PHP_SELF']) . "?tab=desired_roles&error=" . urlencode("Worshipper is a system role and cannot be deleted."));
+        exit;
+    }
     $conn->query("DELETE FROM custom_desired_roles WHERE id = $role_id");
     header("Location: " . basename($_SERVER['PHP_SELF']) . "?tab=desired_roles&success=Custom role deleted");
     exit;
