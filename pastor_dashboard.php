@@ -4893,10 +4893,13 @@ w.document.write('</div>');
                             
                             <!-- Search row: big textbox + tiny Search button -->
                             <style>
+                                /* ===== Search Row ===== */
                                 #msb-wrap { display:flex; gap:6px; align-items:stretch; }
+
+                                /* Input: always white bg, dark text so text is ALWAYS visible */
                                 #member_search_textbox {
                                     flex:1;
-                                    padding: 0 40px 0 44px;
+                                    padding: 0 42px 0 46px;
                                     height: 52px;
                                     font-size: 1.08rem;
                                     font-weight: 600;
@@ -4907,60 +4910,93 @@ w.document.write('</div>');
                                     outline: none;
                                     background: #ffffff !important;
                                     color: #111827 !important;
-                                    caret-color: #111827 !important;
+                                    caret-color: #2563eb !important;
                                     letter-spacing: 0.2px;
-                                    transition: border-color 0.2s;
+                                    transition: border-color 0.2s, box-shadow 0.2s;
                                 }
-                                #member_search_textbox::placeholder {
-                                    color: #9ca3af;
-                                    font-weight: 400;
-                                    font-size: 0.93rem;
-                                }
+                                #member_search_textbox::placeholder { color:#9ca3af; font-weight:400; font-size:0.9rem; }
                                 #member_search_textbox:focus {
                                     border-color: #1d4ed8 !important;
-                                    box-shadow: 0 0 0 3px rgba(37,99,235,0.18) !important;
+                                    box-shadow: 0 0 0 3px rgba(37,99,235,0.2) !important;
                                     background: #ffffff !important;
                                     color: #111827 !important;
                                 }
-                                /* Override any dark-theme form-control rules */
                                 [data-theme="dark"] #member_search_textbox {
                                     background: #ffffff !important;
                                     color: #111827 !important;
-                                    caret-color: #111827 !important;
-                                    border-color: #2563eb !important;
+                                    caret-color: #2563eb !important;
                                 }
+
+                                /* Go button: large, vivid, clearly labelled */
                                 #member_search_btn {
                                     flex-shrink: 0;
-                                    padding: 0 10px;
-                                    font-size: 0.75rem;
-                                    font-weight: 700;
+                                    min-width: 56px;
+                                    padding: 0 14px;
+                                    font-size: 0.85rem;
+                                    font-weight: 800;
                                     height: 52px;
                                     border-radius: 10px;
                                     white-space: nowrap;
-                                    background: var(--primary);
-                                    color: #fff;
-                                    border: none;
+                                    background: #2563eb;
+                                    color: #ffffff;
+                                    border: 2px solid #1d4ed8;
                                     cursor: pointer;
                                     display: inline-flex;
                                     align-items: center;
-                                    gap: 4px;
+                                    justify-content: center;
+                                    gap: 5px;
+                                    letter-spacing: 0.5px;
+                                    text-transform: uppercase;
+                                    box-shadow: 0 2px 8px rgba(37,99,235,0.35);
+                                    transition: background 0.15s, box-shadow 0.15s;
                                 }
-                                #member_search_btn:hover { background: var(--primary-hover, #1d4ed8); }
-                                /* Dropdown always light bg with visible text */
+                                #member_search_btn:hover {
+                                    background: #1d4ed8;
+                                    box-shadow: 0 4px 14px rgba(37,99,235,0.45);
+                                }
+
+                                /* ===== Dropdown: adapts to system theme ===== */
                                 #member_dropdown_menu {
-                                    background: #ffffff !important;
-                                    color: #111827 !important;
+                                    background: var(--bg-card, #ffffff);
+                                    color: var(--text-main, #111827);
+                                    border: 1px solid var(--border-color, #e2e8f0);
                                 }
                                 #member_dropdown_menu .dropdown-member-row {
-                                    color: #111827 !important;
+                                    background: transparent;
+                                    color: var(--text-main, #111827) !important;
+                                    border-bottom: 1px solid var(--border-color, #e5e7eb);
                                 }
+                                #member_dropdown_menu .dropdown-member-row:hover {
+                                    background: rgba(37,99,235,0.08) !important;
+                                }
+                                #member_dropdown_menu .dropdown-member-row .member-name-text {
+                                    color: var(--text-main, #111827) !important;
+                                    font-weight: 700;
+                                }
+                                #member_dropdown_menu .dropdown-member-row .member-dept-text {
+                                    color: var(--text-muted, #6b7280) !important;
+                                }
+                                /* Dark theme dropdown: dark card bg, light text */
                                 [data-theme="dark"] #member_dropdown_menu {
-                                    background: #ffffff !important;
-                                    color: #111827 !important;
+                                    background: #1e293b !important;
+                                    color: #f1f5f9 !important;
+                                    border-color: #334155 !important;
                                 }
-                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row,
-                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row div {
-                                    color: #111827 !important;
+                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row {
+                                    border-bottom-color: #334155 !important;
+                                    color: #f1f5f9 !important;
+                                }
+                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row:hover {
+                                    background: rgba(96,165,250,0.12) !important;
+                                }
+                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row .member-name-text {
+                                    color: #f1f5f9 !important;
+                                }
+                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row .member-dept-text {
+                                    color: #94a3b8 !important;
+                                }
+                                [data-theme="dark"] #member_dropdown_menu .dept-ribbon-header {
+                                    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
                                 }
                             </style>
                             <div id="msb-wrap" style="position:relative;">
@@ -5022,14 +5058,14 @@ w.document.write('</div>');
                                                          data-dept="<?= htmlspecialchars(strtolower($m['department'])) ?>"
                                                          data-role="<?= htmlspecialchars(strtolower($m['church_role'] ?? '')) ?>"
                                                          onclick="selectMemberFromDropdown(this);"
-                                                         style="display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; border-bottom:1px solid #e5e7eb; background:<?= $is_sel ? '#dbeafe' : '#ffffff' ?>; transition:background 0.15s ease;" onmouseover="this.style.background='#eff6ff';" onmouseout="this.style.background='<?= $is_sel ? '#dbeafe' : '#ffffff' ?>'">
+                                                         style="display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; border-bottom:1px solid var(--border-color,#e5e7eb); background:<?= $is_sel ? "rgba(37,99,235,0.1)" : "transparent" ?>; transition:background 0.15s ease;">
                                                         <img src="<?= $m_pic ?>" alt="<?= $m_full ?>" 
                                                              style="width:30px; height:30px; border-radius:50%; object-fit:cover; border:1.5px solid <?= $grp['ribbon_color'] ?>; flex-shrink:0;">
                                                         <div style="flex:1; min-width:0;">
-                                                            <div style="font-size:0.88rem; font-weight:700; color:<?= $is_sel ? '#1d4ed8' : '#111827' ?>; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                            <div style="font-size:0.88rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" class="member-name-text">
                                                                 <?= $m_full ?>
                                                             </div>
-                                                            <div style="font-size:0.72rem; color:#6b7280; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                            <div style="font-size:0.72rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" class="member-dept-text">
                                                                 <?= htmlspecialchars($m['department']) ?><?= !empty($m['church_role']) ? ' • ' . htmlspecialchars($m['church_role']) : '' ?>
                                                             </div>
                                                         </div>
