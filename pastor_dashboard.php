@@ -49,6 +49,7 @@ if (isset($_GET['delete_custom_role'])) {
     exit;
 }
 require_once 'role_departments.php';
+require_once 'voice_note_helper.php';
 
 // Strip (subsidiary) for display
 function clean_role_display($role) {
@@ -1098,23 +1099,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['pastor_leader_chat']))
     exit();
 }
 
-// Handle Pastor posting a General Church announcement
+// Handle Pastor posting a General Church announcement (with text, image, and WhatsApp-style voice note)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_pastor_announcement'])) {
-    $ann_msg = $conn->real_escape_string(trim($_POST['pastor_announcement_message'] ?? ''));
-    if (!empty($ann_msg)) {
-        // Save in department_announcements as 'General Church' — using pastor_id as a negative to distinguish, 
-        // but we need a member record. We'll put it in a separate table or store pastor_id in a dedicated column.
-        // Use pastor_announcements table (auto-create)
-        $conn->query("
-            CREATE TABLE IF NOT EXISTS pastor_announcements (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                pastor_id INT NOT NULL,
-                message TEXT NOT NULL,
-                image_path VARCHAR(255) NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ");
-        // Handle image upload
+    $raw_msg = trim($_POST['pastor_announcement_message'] ?? '');
+    
+    // Auto-create / ensure pastor_announcements table exists with audio_path
+    $conn->query("
+        CREATE TABLE IF NOT EXISTS pastor_announcements (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            pastor_id INT NOT NULL,
+            message TEXT NOT NULL,
+            image_path VARCHAR(255) NULL,
+            audio_path VARCHAR(255) NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    $col_chk = $conn->query("SHOW COLUMNS FROM pastor_announcements LIKE 'audio_path'");
+    if ($col_chk && $col_chk->num_rows == 0) {
+        $conn->query("ALTER TABLE pastor_announcements ADD COLUMN audio_path VARCHAR(255) NULL AFTER image_path");
+    }
+
+    // Handle Voice Note upload / recorded blob
+    $audio_path = save_voice_note($_POST['pastor_voice_note_blob'] ?? null, $_FILES['pastor_voice_note'] ?? null);
+
+    // If message is empty but voice note was recorded, create appropriate default text
+    if (empty($raw_msg) && !empty($audio_path)) {
+        $raw_msg = '🎙️ Voice Message from Pastor ' . $pastor['first_name'] . ' ' . $pastor['last_name'];
+    }
+
+    $ann_msg = $conn->real_escape_string($raw_msg);
+
+    if (!empty($ann_msg) || !empty($audio_path)) {
+        // Handle optional image upload
         $img_path = null;
         if (!empty($_FILES['pastor_ann_image']['name']) && $_FILES['pastor_ann_image']['error'] === UPLOAD_ERR_OK) {
             $upload_dir = __DIR__ . '/uploads/announcements/';
@@ -1127,17 +1143,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_pastor_announceme
                 }
             }
         }
-        $img_sql = $img_path ? "'" . $conn->real_escape_string($img_path) . "'" : "NULL";
-        $conn->query("INSERT INTO pastor_announcements (pastor_id, message, image_path) VALUES ($pastor_id, '$ann_msg', $img_sql)");
+        $img_sql   = $img_path ? "'" . $conn->real_escape_string($img_path) . "'" : "NULL";
+        $audio_sql = $audio_path ? "'" . $conn->real_escape_string($audio_path) . "'" : "NULL";
+
+        $conn->query("INSERT INTO pastor_announcements (pastor_id, message, image_path, audio_path) VALUES ($pastor_id, '$ann_msg', $img_sql, $audio_sql)");
         
         $pastor_display_name = $conn->real_escape_string($pastor['first_name'] . ' ' . $pastor['last_name']);
-        $preview = substr($ann_msg, 0, 80) . (strlen($ann_msg) > 80 ? '...' : '');
-        $notif_text = $conn->real_escape_string("General Church Announcement from Pastor $pastor_display_name: $preview");
+        $preview = substr($raw_msg, 0, 80) . (strlen($raw_msg) > 80 ? '...' : '');
+        $vn_badge = !empty($audio_path) ? ' 🎙️ [Voice Note]' : '';
+        $notif_text = $conn->real_escape_string("General Church Announcement from Pastor $pastor_display_name$vn_badge: $preview");
         
-        // Notify ALL members
+        // Notify ALL approved members -> opens to Announcements tab with RED BADGE
         $all_members = $conn->query("SELECT id FROM members WHERE is_approved = 1");
-        while ($am = $all_members->fetch_assoc()) {
-            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$am['id']}, 'member', '$notif_text')");
+        if ($all_members) {
+            while ($am = $all_members->fetch_assoc()) {
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$am['id']}, 'member', '$notif_text')");
+            }
+        }
+
+        // Notify Admins -> opens to General Announcements tab with RED BADGE
+        $all_admins = $conn->query("SELECT id FROM admins");
+        if ($all_admins) {
+            while ($adm = $all_admins->fetch_assoc()) {
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$adm['id']}, 'admin', '$notif_text')");
+            }
         }
     }
     header("Location: pastor_dashboard.php?tab=general_announcements&success=Announcement posted to entire church");
@@ -1444,16 +1473,100 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                 <div class="content-card" style="margin-bottom:28px;border-left:4px solid var(--primary);">
                     <h2 style="font-size:1.1rem;margin-top:0;color:var(--primary);">📢 Post Announcement to Entire Church</h2>
                     <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:15px;">This will be sent to every member's Announcements tab and they will receive a notification.</p>
-                    <form method="POST" action="pastor_dashboard.php?tab=general_announcements" enctype="multipart/form-data" onsubmit="this.querySelector('button[type=submit]').disabled=true; this.querySelector('button[type=submit]').innerHTML='Posting...';">
+                    <form method="POST" action="pastor_dashboard.php?tab=general_announcements" enctype="multipart/form-data" id="pastor_ann_form" onsubmit="handlePastorAnnFormSubmit(this, event);">
                         <input type="hidden" name="post_pastor_announcement" value="1">
                         <div class="form-group">
-                            <textarea name="pastor_announcement_message" class="form-control" rows="4" placeholder="Write your announcement to the entire church..." required style="margin-bottom:10px;"></textarea>
+                            <label style="font-size:0.88rem;font-weight:700;color:var(--text-main);display:block;margin-bottom:6px;">Written Announcement (optional if voice note is recorded)</label>
+                            <textarea id="pastor_ann_textarea" name="pastor_announcement_message" class="form-control" rows="3" placeholder="Write your announcement to the entire church, or speak into the voice recorder below..." style="margin-bottom:10px;"></textarea>
                         </div>
+
+                        <!-- WhatsApp-Style Voice Recorder Section -->
+                        <div class="voice-note-recorder-card" style="background:var(--bg-card, #ffffff); border:2px dashed #25d366; border-radius:14px; padding:16px; margin-bottom:18px; box-shadow:0 3px 10px rgba(37,211,102,0.08);">
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div style="width:36px; height:36px; border-radius:50%; background:#25d366; display:flex; align-items:center; justify-content:center; color:#ffffff; font-size:18px; box-shadow:0 2px 6px rgba(37,211,102,0.4);">
+                                        🎙️
+                                    </div>
+                                    <div>
+                                        <strong style="font-size:0.95rem; color:var(--text-main); display:block;">WhatsApp-Style Voice Note</strong>
+                                        <span style="font-size:0.78rem; color:var(--text-muted);">Record a voice announcement for all church members</span>
+                                    </div>
+                                </div>
+                                <span id="vn_status_badge" style="display:none; font-size:0.78rem; font-weight:800; padding:4px 12px; border-radius:20px; background:#fee2e2; color:#ef4444; border:1px solid #fca5a5;">
+                                    <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#ef4444; margin-right:6px; animation:wa-pulse 1s infinite;"></span>
+                                    RECORDING <span id="vn_timer">0:00</span>
+                                </span>
+                            </div>
+
+                            <!-- Recorder Controls Area -->
+                            <div id="vn_controls_area">
+                                <!-- 1. Idle State: Big WhatsApp Mic Button -->
+                                <div id="vn_idle_state" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                                    <button type="button" id="vn_start_btn" onclick="startVoiceRecording();" style="background:#25d366; color:#ffffff; border:none; padding:11px 22px; border-radius:26px; font-size:0.9rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 3px 12px rgba(37,211,102,0.4); letter-spacing:0.3px; transition:transform 0.1s, background 0.15s;">
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 003-3V5a3 3 0 00-6 0v6a3 3 0 003 3z"/></svg>
+                                        Record Voice Note
+                                    </button>
+                                    <span style="font-size:0.82rem; color:var(--text-muted);">Tap to record your pastoral voice note</span>
+                                </div>
+
+                                <!-- 2. Recording State: Animated WhatsApp Sound Waves, Stop & Cancel -->
+                                <div id="vn_recording_state" style="display:none; align-items:center; gap:12px; flex-wrap:wrap;">
+                                    <div class="vn-live-waveform" style="display:flex; align-items:center; gap:4px; height:36px; padding:0 14px; background:rgba(239,68,68,0.08); border-radius:20px; border:1px solid rgba(239,68,68,0.25);">
+                                        <span class="bar bar-1"></span>
+                                        <span class="bar bar-2"></span>
+                                        <span class="bar bar-3"></span>
+                                        <span class="bar bar-4"></span>
+                                        <span class="bar bar-5"></span>
+                                        <span class="bar bar-6"></span>
+                                        <span class="bar bar-7"></span>
+                                        <span class="bar bar-8"></span>
+                                        <span class="bar bar-9"></span>
+                                        <span class="bar bar-10"></span>
+                                        <span class="bar bar-11"></span>
+                                        <span class="bar bar-12"></span>
+                                    </div>
+                                    <button type="button" onclick="stopVoiceRecording();" style="background:#ef4444; color:#ffffff; border:none; padding:10px 18px; border-radius:22px; font-size:0.86rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 3px 10px rgba(239,68,68,0.45);">
+                                        <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                                        Stop &amp; Review
+                                    </button>
+                                    <button type="button" onclick="cancelVoiceRecording();" style="background:transparent; color:#6b7280; border:1px solid #d1d5db; padding:9px 15px; border-radius:20px; font-size:0.82rem; font-weight:600; cursor:pointer;">
+                                        Cancel
+                                    </button>
+                                </div>
+
+                                <!-- 3. Review State: Playable Voice Note Preview + Discard Button -->
+                                <div id="vn_preview_state" style="display:none; align-items:center; gap:12px; flex-wrap:wrap;">
+                                    <audio id="vn_preview_audio" controls style="display:none;"></audio>
+                                    <div style="background:var(--bg-main, #f0fdf4); border:1.5px solid #25d366; border-radius:22px; padding:8px 16px; display:inline-flex; align-items:center; gap:12px; box-shadow:0 3px 10px rgba(37,211,102,0.2);">
+                                        <button type="button" id="vn_preview_play_btn" onclick="toggleVnPreview();" style="background:#25d366; color:#ffffff; border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(37,211,102,0.4);">
+                                            <svg id="vn_preview_icon_play" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                            <svg id="vn_preview_icon_pause" width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                        </button>
+                                        <div>
+                                            <span style="font-size:0.85rem; font-weight:800; color:#15803d; display:block;">Voice Note Ready</span>
+                                            <span id="vn_preview_duration" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">0:00</span>
+                                        </div>
+                                    </div>
+                                    <button type="button" onclick="discardVoiceRecording();" style="background:#fee2e2; color:#ef4444; border:1px solid #fca5a5; padding:8px 14px; border-radius:20px; font-size:0.82rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                                        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        Delete &amp; Re-record
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Hidden Base64 blob input -->
+                            <input type="hidden" name="pastor_voice_note_blob" id="pastor_voice_note_blob" value="">
+                        </div>
+
                         <div class="form-group">
                             <label style="font-size:0.85rem;color:var(--text-muted);display:block;margin-bottom:8px;">Attach Image (optional)</label>
                             <input type="file" name="pastor_ann_image" accept="image/*" class="form-control" style="font-size:0.85rem;">
                         </div>
-                        <button type="submit" class="btn-submit" style="background:var(--primary);">Send to Entire Church</button>
+
+                        <button type="submit" id="pastor_ann_submit_btn" class="btn-submit" style="background:var(--primary); font-size:0.95rem; font-weight:700; padding:12px 24px; border-radius:10px; display:inline-flex; align-items:center; gap:8px;">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                            Send to Entire Church
+                        </button>
                     </form>
                 </div>
 
@@ -1543,6 +1656,9 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                 <small style="color:var(--text-muted);font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($pa['created_at'])) ?></small>
                             </div>
                             <p style="margin:8px 0 0;white-space:pre-wrap;font-size:0.9rem;"><?= htmlspecialchars($pa['message']) ?></p>
+                            <?php if (!empty($pa['audio_path'])): ?>
+                                <?= render_whatsapp_voice_player($pa['audio_path'], 'Pastor ' . $pa['first_name'] . ' ' . $pa['last_name'], $pastor['profile_picture'] ?? null, $pa['created_at']) ?>
+                            <?php endif; ?>
                             <?php if (!empty($pa['image_path'])): ?>
                                 <a href="<?= htmlspecialchars($pa['image_path']) ?>" target="_blank" style="display:block;margin-top:10px;">
                                     <img src="<?= htmlspecialchars($pa['image_path']) ?>" alt="Announcement" style="width:100%;max-height:320px;object-fit:cover;border-radius:10px;border:1px solid var(--border-color);">
@@ -2220,7 +2336,328 @@ function printMemberDirectory(orientation) {
                         w.document.write('<style>.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}</style></head><body>');
                         w.document.write(printDiv.innerHTML);
                         w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
-                        w.document.write('</body></html>');
+                        w.document.write('
+<!-- WhatsApp Voice Note Styles & Recorder Script -->
+<style>
+@keyframes wa-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.8); }
+}
+@keyframes wa-wave {
+    0%, 100% { height: 6px; }
+    50% { height: 26px; }
+}
+.vn-live-waveform .bar {
+    display: inline-block;
+    width: 3.5px;
+    background: #ef4444;
+    border-radius: 3px;
+    animation: wa-wave 0.9s ease-in-out infinite;
+}
+.vn-live-waveform .bar-1  { animation-delay: 0.05s; }
+.vn-live-waveform .bar-2  { animation-delay: 0.2s; }
+.vn-live-waveform .bar-3  { animation-delay: 0.35s; }
+.vn-live-waveform .bar-4  { animation-delay: 0.15s; }
+.vn-live-waveform .bar-5  { animation-delay: 0.4s; }
+.vn-live-waveform .bar-6  { animation-delay: 0.25s; }
+.vn-live-waveform .bar-7  { animation-delay: 0.5s; }
+.vn-live-waveform .bar-8  { animation-delay: 0.1s; }
+.vn-live-waveform .bar-9  { animation-delay: 0.3s; }
+.vn-live-waveform .bar-10 { animation-delay: 0.45s; }
+.vn-live-waveform .bar-11 { animation-delay: 0.18s; }
+.vn-live-waveform .bar-12 { animation-delay: 0.32s; }
+
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+[data-theme="dark"] .voice-note-recorder-card {
+    background: #1e293b !important;
+}
+</style>
+
+<script>
+// WhatsApp Voice Note Recorder State
+var vnMediaRecorder = null;
+var vnAudioChunks = [];
+var vnTimerInterval = null;
+var vnSecondsRecorded = 0;
+var vnAudioBlob = null;
+
+function formatVnTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = Math.floor(sec % 60);
+    return m + ":" + (s < 10 ? "0" : "") + s;
+}
+
+function startVoiceRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Audio recording is not supported in this browser. Please use Chrome, Edge, or Firefox.");
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            vnAudioChunks = [];
+            var mimeType = "";
+            var supportedTypes = [
+                "audio/webm;codecs=opus",
+                "audio/webm",
+                "audio/ogg;codecs=opus",
+                "audio/ogg",
+                "audio/mp4"
+            ];
+            for (var i = 0; i < supportedTypes.length; i++) {
+                if (MediaRecorder.isTypeSupported(supportedTypes[i])) {
+                    mimeType = supportedTypes[i];
+                    break;
+                }
+            }
+
+            vnMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+
+            vnMediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) {
+                    vnAudioChunks.push(e.data);
+                }
+            };
+
+            vnMediaRecorder.onstop = function() {
+                stream.getTracks().forEach(function(track) { track.stop(); });
+                var finalType = mimeType || "audio/webm";
+                vnAudioBlob = new Blob(vnAudioChunks, { type: finalType });
+
+                // Convert blob to base64 for hidden input
+                var reader = new FileReader();
+                reader.readAsDataURL(vnAudioBlob);
+                reader.onloadend = function() {
+                    var base64Data = reader.result;
+                    document.getElementById("pastor_voice_note_blob").value = base64Data;
+                };
+
+                // Setup preview audio
+                var previewAudio = document.getElementById("vn_preview_audio");
+                var blobUrl = URL.createObjectURL(vnAudioBlob);
+                previewAudio.src = blobUrl;
+                document.getElementById("vn_preview_duration").textContent = formatVnTime(vnSecondsRecorded);
+
+                // Switch UI to preview state
+                document.getElementById("vn_recording_state").style.display = "none";
+                document.getElementById("vn_status_badge").style.display = "none";
+                document.getElementById("vn_preview_state").style.display = "flex";
+            };
+
+            vnMediaRecorder.start(200); // 200ms slice
+
+            // Switch UI to recording state
+            document.getElementById("vn_idle_state").style.display = "none";
+            document.getElementById("vn_preview_state").style.display = "none";
+            document.getElementById("vn_recording_state").style.display = "flex";
+            document.getElementById("vn_status_badge").style.display = "inline-flex";
+
+            // Start timer
+            vnSecondsRecorded = 0;
+            document.getElementById("vn_timer").textContent = "0:00";
+            clearInterval(vnTimerInterval);
+            vnTimerInterval = setInterval(function() {
+                vnSecondsRecorded++;
+                document.getElementById("vn_timer").textContent = formatVnTime(vnSecondsRecorded);
+            }, 1000);
+        })
+        .catch(function(err) {
+            console.error("Microphone access error:", err);
+            alert("Could not access microphone. Please allow microphone permissions in your browser.");
+        });
+}
+
+function stopVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+}
+
+function cancelVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function discardVoiceRecording() {
+    var previewAudio = document.getElementById("vn_preview_audio");
+    if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.src = "";
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function toggleVnPreview() {
+    var audio = document.getElementById("vn_preview_audio");
+    var iconPlay = document.getElementById("vn_preview_icon_play");
+    var iconPause = document.getElementById("vn_preview_icon_pause");
+    if (!audio) return;
+
+    if (audio.paused) {
+        audio.play();
+        iconPlay.style.display = "none";
+        iconPause.style.display = "block";
+    } else {
+        audio.pause();
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    }
+
+    audio.onended = function() {
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    };
+}
+
+function handlePastorAnnFormSubmit(form, event) {
+    var textarea = document.getElementById("pastor_ann_textarea");
+    var voiceBlob = document.getElementById("pastor_voice_note_blob").value;
+    var hasText = textarea && textarea.value.trim().length > 0;
+    var hasVoice = voiceBlob && voiceBlob.length > 50;
+
+    if (!hasText && !hasVoice) {
+        event.preventDefault();
+        alert("Please write a message or record a voice note announcement before sending.");
+        return false;
+    }
+
+    var submitBtn = document.getElementById("pastor_ann_submit_btn");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = "Sending to Entire Church...";
+    }
+    return true;
+}
+
+// Global WhatsApp Voice Note Player Handler
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    // Color bars according to playhead
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                // Pause all other audio players on page
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>');
                         w.document.close();
                         w.focus();
                         setTimeout(function(){ w.print(); }, 600);
@@ -2454,7 +2891,328 @@ function printAllLeaders(orientation) {
     w.document.write('</div>');
 
     w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal | Printed on: ' + printDate + '</div>');
-    w.document.write('</body></html>');
+    w.document.write('
+<!-- WhatsApp Voice Note Styles & Recorder Script -->
+<style>
+@keyframes wa-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.8); }
+}
+@keyframes wa-wave {
+    0%, 100% { height: 6px; }
+    50% { height: 26px; }
+}
+.vn-live-waveform .bar {
+    display: inline-block;
+    width: 3.5px;
+    background: #ef4444;
+    border-radius: 3px;
+    animation: wa-wave 0.9s ease-in-out infinite;
+}
+.vn-live-waveform .bar-1  { animation-delay: 0.05s; }
+.vn-live-waveform .bar-2  { animation-delay: 0.2s; }
+.vn-live-waveform .bar-3  { animation-delay: 0.35s; }
+.vn-live-waveform .bar-4  { animation-delay: 0.15s; }
+.vn-live-waveform .bar-5  { animation-delay: 0.4s; }
+.vn-live-waveform .bar-6  { animation-delay: 0.25s; }
+.vn-live-waveform .bar-7  { animation-delay: 0.5s; }
+.vn-live-waveform .bar-8  { animation-delay: 0.1s; }
+.vn-live-waveform .bar-9  { animation-delay: 0.3s; }
+.vn-live-waveform .bar-10 { animation-delay: 0.45s; }
+.vn-live-waveform .bar-11 { animation-delay: 0.18s; }
+.vn-live-waveform .bar-12 { animation-delay: 0.32s; }
+
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+[data-theme="dark"] .voice-note-recorder-card {
+    background: #1e293b !important;
+}
+</style>
+
+<script>
+// WhatsApp Voice Note Recorder State
+var vnMediaRecorder = null;
+var vnAudioChunks = [];
+var vnTimerInterval = null;
+var vnSecondsRecorded = 0;
+var vnAudioBlob = null;
+
+function formatVnTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = Math.floor(sec % 60);
+    return m + ":" + (s < 10 ? "0" : "") + s;
+}
+
+function startVoiceRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Audio recording is not supported in this browser. Please use Chrome, Edge, or Firefox.");
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            vnAudioChunks = [];
+            var mimeType = "";
+            var supportedTypes = [
+                "audio/webm;codecs=opus",
+                "audio/webm",
+                "audio/ogg;codecs=opus",
+                "audio/ogg",
+                "audio/mp4"
+            ];
+            for (var i = 0; i < supportedTypes.length; i++) {
+                if (MediaRecorder.isTypeSupported(supportedTypes[i])) {
+                    mimeType = supportedTypes[i];
+                    break;
+                }
+            }
+
+            vnMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+
+            vnMediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) {
+                    vnAudioChunks.push(e.data);
+                }
+            };
+
+            vnMediaRecorder.onstop = function() {
+                stream.getTracks().forEach(function(track) { track.stop(); });
+                var finalType = mimeType || "audio/webm";
+                vnAudioBlob = new Blob(vnAudioChunks, { type: finalType });
+
+                // Convert blob to base64 for hidden input
+                var reader = new FileReader();
+                reader.readAsDataURL(vnAudioBlob);
+                reader.onloadend = function() {
+                    var base64Data = reader.result;
+                    document.getElementById("pastor_voice_note_blob").value = base64Data;
+                };
+
+                // Setup preview audio
+                var previewAudio = document.getElementById("vn_preview_audio");
+                var blobUrl = URL.createObjectURL(vnAudioBlob);
+                previewAudio.src = blobUrl;
+                document.getElementById("vn_preview_duration").textContent = formatVnTime(vnSecondsRecorded);
+
+                // Switch UI to preview state
+                document.getElementById("vn_recording_state").style.display = "none";
+                document.getElementById("vn_status_badge").style.display = "none";
+                document.getElementById("vn_preview_state").style.display = "flex";
+            };
+
+            vnMediaRecorder.start(200); // 200ms slice
+
+            // Switch UI to recording state
+            document.getElementById("vn_idle_state").style.display = "none";
+            document.getElementById("vn_preview_state").style.display = "none";
+            document.getElementById("vn_recording_state").style.display = "flex";
+            document.getElementById("vn_status_badge").style.display = "inline-flex";
+
+            // Start timer
+            vnSecondsRecorded = 0;
+            document.getElementById("vn_timer").textContent = "0:00";
+            clearInterval(vnTimerInterval);
+            vnTimerInterval = setInterval(function() {
+                vnSecondsRecorded++;
+                document.getElementById("vn_timer").textContent = formatVnTime(vnSecondsRecorded);
+            }, 1000);
+        })
+        .catch(function(err) {
+            console.error("Microphone access error:", err);
+            alert("Could not access microphone. Please allow microphone permissions in your browser.");
+        });
+}
+
+function stopVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+}
+
+function cancelVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function discardVoiceRecording() {
+    var previewAudio = document.getElementById("vn_preview_audio");
+    if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.src = "";
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function toggleVnPreview() {
+    var audio = document.getElementById("vn_preview_audio");
+    var iconPlay = document.getElementById("vn_preview_icon_play");
+    var iconPause = document.getElementById("vn_preview_icon_pause");
+    if (!audio) return;
+
+    if (audio.paused) {
+        audio.play();
+        iconPlay.style.display = "none";
+        iconPause.style.display = "block";
+    } else {
+        audio.pause();
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    }
+
+    audio.onended = function() {
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    };
+}
+
+function handlePastorAnnFormSubmit(form, event) {
+    var textarea = document.getElementById("pastor_ann_textarea");
+    var voiceBlob = document.getElementById("pastor_voice_note_blob").value;
+    var hasText = textarea && textarea.value.trim().length > 0;
+    var hasVoice = voiceBlob && voiceBlob.length > 50;
+
+    if (!hasText && !hasVoice) {
+        event.preventDefault();
+        alert("Please write a message or record a voice note announcement before sending.");
+        return false;
+    }
+
+    var submitBtn = document.getElementById("pastor_ann_submit_btn");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = "Sending to Entire Church...";
+    }
+    return true;
+}
+
+// Global WhatsApp Voice Note Player Handler
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    // Color bars according to playhead
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                // Pause all other audio players on page
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>');
     w.document.close();
     setTimeout(function(){ w.print(); }, 600);
 }
@@ -2553,7 +3311,328 @@ w.document.write('</div>');
     w.document.write('</div>');
 
     w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
-    w.document.write('</body></html>');
+    w.document.write('
+<!-- WhatsApp Voice Note Styles & Recorder Script -->
+<style>
+@keyframes wa-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.8); }
+}
+@keyframes wa-wave {
+    0%, 100% { height: 6px; }
+    50% { height: 26px; }
+}
+.vn-live-waveform .bar {
+    display: inline-block;
+    width: 3.5px;
+    background: #ef4444;
+    border-radius: 3px;
+    animation: wa-wave 0.9s ease-in-out infinite;
+}
+.vn-live-waveform .bar-1  { animation-delay: 0.05s; }
+.vn-live-waveform .bar-2  { animation-delay: 0.2s; }
+.vn-live-waveform .bar-3  { animation-delay: 0.35s; }
+.vn-live-waveform .bar-4  { animation-delay: 0.15s; }
+.vn-live-waveform .bar-5  { animation-delay: 0.4s; }
+.vn-live-waveform .bar-6  { animation-delay: 0.25s; }
+.vn-live-waveform .bar-7  { animation-delay: 0.5s; }
+.vn-live-waveform .bar-8  { animation-delay: 0.1s; }
+.vn-live-waveform .bar-9  { animation-delay: 0.3s; }
+.vn-live-waveform .bar-10 { animation-delay: 0.45s; }
+.vn-live-waveform .bar-11 { animation-delay: 0.18s; }
+.vn-live-waveform .bar-12 { animation-delay: 0.32s; }
+
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+[data-theme="dark"] .voice-note-recorder-card {
+    background: #1e293b !important;
+}
+</style>
+
+<script>
+// WhatsApp Voice Note Recorder State
+var vnMediaRecorder = null;
+var vnAudioChunks = [];
+var vnTimerInterval = null;
+var vnSecondsRecorded = 0;
+var vnAudioBlob = null;
+
+function formatVnTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = Math.floor(sec % 60);
+    return m + ":" + (s < 10 ? "0" : "") + s;
+}
+
+function startVoiceRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Audio recording is not supported in this browser. Please use Chrome, Edge, or Firefox.");
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            vnAudioChunks = [];
+            var mimeType = "";
+            var supportedTypes = [
+                "audio/webm;codecs=opus",
+                "audio/webm",
+                "audio/ogg;codecs=opus",
+                "audio/ogg",
+                "audio/mp4"
+            ];
+            for (var i = 0; i < supportedTypes.length; i++) {
+                if (MediaRecorder.isTypeSupported(supportedTypes[i])) {
+                    mimeType = supportedTypes[i];
+                    break;
+                }
+            }
+
+            vnMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+
+            vnMediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) {
+                    vnAudioChunks.push(e.data);
+                }
+            };
+
+            vnMediaRecorder.onstop = function() {
+                stream.getTracks().forEach(function(track) { track.stop(); });
+                var finalType = mimeType || "audio/webm";
+                vnAudioBlob = new Blob(vnAudioChunks, { type: finalType });
+
+                // Convert blob to base64 for hidden input
+                var reader = new FileReader();
+                reader.readAsDataURL(vnAudioBlob);
+                reader.onloadend = function() {
+                    var base64Data = reader.result;
+                    document.getElementById("pastor_voice_note_blob").value = base64Data;
+                };
+
+                // Setup preview audio
+                var previewAudio = document.getElementById("vn_preview_audio");
+                var blobUrl = URL.createObjectURL(vnAudioBlob);
+                previewAudio.src = blobUrl;
+                document.getElementById("vn_preview_duration").textContent = formatVnTime(vnSecondsRecorded);
+
+                // Switch UI to preview state
+                document.getElementById("vn_recording_state").style.display = "none";
+                document.getElementById("vn_status_badge").style.display = "none";
+                document.getElementById("vn_preview_state").style.display = "flex";
+            };
+
+            vnMediaRecorder.start(200); // 200ms slice
+
+            // Switch UI to recording state
+            document.getElementById("vn_idle_state").style.display = "none";
+            document.getElementById("vn_preview_state").style.display = "none";
+            document.getElementById("vn_recording_state").style.display = "flex";
+            document.getElementById("vn_status_badge").style.display = "inline-flex";
+
+            // Start timer
+            vnSecondsRecorded = 0;
+            document.getElementById("vn_timer").textContent = "0:00";
+            clearInterval(vnTimerInterval);
+            vnTimerInterval = setInterval(function() {
+                vnSecondsRecorded++;
+                document.getElementById("vn_timer").textContent = formatVnTime(vnSecondsRecorded);
+            }, 1000);
+        })
+        .catch(function(err) {
+            console.error("Microphone access error:", err);
+            alert("Could not access microphone. Please allow microphone permissions in your browser.");
+        });
+}
+
+function stopVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+}
+
+function cancelVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function discardVoiceRecording() {
+    var previewAudio = document.getElementById("vn_preview_audio");
+    if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.src = "";
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function toggleVnPreview() {
+    var audio = document.getElementById("vn_preview_audio");
+    var iconPlay = document.getElementById("vn_preview_icon_play");
+    var iconPause = document.getElementById("vn_preview_icon_pause");
+    if (!audio) return;
+
+    if (audio.paused) {
+        audio.play();
+        iconPlay.style.display = "none";
+        iconPause.style.display = "block";
+    } else {
+        audio.pause();
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    }
+
+    audio.onended = function() {
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    };
+}
+
+function handlePastorAnnFormSubmit(form, event) {
+    var textarea = document.getElementById("pastor_ann_textarea");
+    var voiceBlob = document.getElementById("pastor_voice_note_blob").value;
+    var hasText = textarea && textarea.value.trim().length > 0;
+    var hasVoice = voiceBlob && voiceBlob.length > 50;
+
+    if (!hasText && !hasVoice) {
+        event.preventDefault();
+        alert("Please write a message or record a voice note announcement before sending.");
+        return false;
+    }
+
+    var submitBtn = document.getElementById("pastor_ann_submit_btn");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = "Sending to Entire Church...";
+    }
+    return true;
+}
+
+// Global WhatsApp Voice Note Player Handler
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    // Color bars according to playhead
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                // Pause all other audio players on page
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>');
     w.document.close();
     w.focus();
     setTimeout(function(){ w.print(); }, 600);
@@ -6230,6 +7309,327 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 
 
+
+<!-- WhatsApp Voice Note Styles & Recorder Script -->
+<style>
+@keyframes wa-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.8); }
+}
+@keyframes wa-wave {
+    0%, 100% { height: 6px; }
+    50% { height: 26px; }
+}
+.vn-live-waveform .bar {
+    display: inline-block;
+    width: 3.5px;
+    background: #ef4444;
+    border-radius: 3px;
+    animation: wa-wave 0.9s ease-in-out infinite;
+}
+.vn-live-waveform .bar-1  { animation-delay: 0.05s; }
+.vn-live-waveform .bar-2  { animation-delay: 0.2s; }
+.vn-live-waveform .bar-3  { animation-delay: 0.35s; }
+.vn-live-waveform .bar-4  { animation-delay: 0.15s; }
+.vn-live-waveform .bar-5  { animation-delay: 0.4s; }
+.vn-live-waveform .bar-6  { animation-delay: 0.25s; }
+.vn-live-waveform .bar-7  { animation-delay: 0.5s; }
+.vn-live-waveform .bar-8  { animation-delay: 0.1s; }
+.vn-live-waveform .bar-9  { animation-delay: 0.3s; }
+.vn-live-waveform .bar-10 { animation-delay: 0.45s; }
+.vn-live-waveform .bar-11 { animation-delay: 0.18s; }
+.vn-live-waveform .bar-12 { animation-delay: 0.32s; }
+
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+[data-theme="dark"] .voice-note-recorder-card {
+    background: #1e293b !important;
+}
+</style>
+
+<script>
+// WhatsApp Voice Note Recorder State
+var vnMediaRecorder = null;
+var vnAudioChunks = [];
+var vnTimerInterval = null;
+var vnSecondsRecorded = 0;
+var vnAudioBlob = null;
+
+function formatVnTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = Math.floor(sec % 60);
+    return m + ":" + (s < 10 ? "0" : "") + s;
+}
+
+function startVoiceRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Audio recording is not supported in this browser. Please use Chrome, Edge, or Firefox.");
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            vnAudioChunks = [];
+            var mimeType = "";
+            var supportedTypes = [
+                "audio/webm;codecs=opus",
+                "audio/webm",
+                "audio/ogg;codecs=opus",
+                "audio/ogg",
+                "audio/mp4"
+            ];
+            for (var i = 0; i < supportedTypes.length; i++) {
+                if (MediaRecorder.isTypeSupported(supportedTypes[i])) {
+                    mimeType = supportedTypes[i];
+                    break;
+                }
+            }
+
+            vnMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+
+            vnMediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) {
+                    vnAudioChunks.push(e.data);
+                }
+            };
+
+            vnMediaRecorder.onstop = function() {
+                stream.getTracks().forEach(function(track) { track.stop(); });
+                var finalType = mimeType || "audio/webm";
+                vnAudioBlob = new Blob(vnAudioChunks, { type: finalType });
+
+                // Convert blob to base64 for hidden input
+                var reader = new FileReader();
+                reader.readAsDataURL(vnAudioBlob);
+                reader.onloadend = function() {
+                    var base64Data = reader.result;
+                    document.getElementById("pastor_voice_note_blob").value = base64Data;
+                };
+
+                // Setup preview audio
+                var previewAudio = document.getElementById("vn_preview_audio");
+                var blobUrl = URL.createObjectURL(vnAudioBlob);
+                previewAudio.src = blobUrl;
+                document.getElementById("vn_preview_duration").textContent = formatVnTime(vnSecondsRecorded);
+
+                // Switch UI to preview state
+                document.getElementById("vn_recording_state").style.display = "none";
+                document.getElementById("vn_status_badge").style.display = "none";
+                document.getElementById("vn_preview_state").style.display = "flex";
+            };
+
+            vnMediaRecorder.start(200); // 200ms slice
+
+            // Switch UI to recording state
+            document.getElementById("vn_idle_state").style.display = "none";
+            document.getElementById("vn_preview_state").style.display = "none";
+            document.getElementById("vn_recording_state").style.display = "flex";
+            document.getElementById("vn_status_badge").style.display = "inline-flex";
+
+            // Start timer
+            vnSecondsRecorded = 0;
+            document.getElementById("vn_timer").textContent = "0:00";
+            clearInterval(vnTimerInterval);
+            vnTimerInterval = setInterval(function() {
+                vnSecondsRecorded++;
+                document.getElementById("vn_timer").textContent = formatVnTime(vnSecondsRecorded);
+            }, 1000);
+        })
+        .catch(function(err) {
+            console.error("Microphone access error:", err);
+            alert("Could not access microphone. Please allow microphone permissions in your browser.");
+        });
+}
+
+function stopVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+}
+
+function cancelVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function discardVoiceRecording() {
+    var previewAudio = document.getElementById("vn_preview_audio");
+    if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.src = "";
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function toggleVnPreview() {
+    var audio = document.getElementById("vn_preview_audio");
+    var iconPlay = document.getElementById("vn_preview_icon_play");
+    var iconPause = document.getElementById("vn_preview_icon_pause");
+    if (!audio) return;
+
+    if (audio.paused) {
+        audio.play();
+        iconPlay.style.display = "none";
+        iconPause.style.display = "block";
+    } else {
+        audio.pause();
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    }
+
+    audio.onended = function() {
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    };
+}
+
+function handlePastorAnnFormSubmit(form, event) {
+    var textarea = document.getElementById("pastor_ann_textarea");
+    var voiceBlob = document.getElementById("pastor_voice_note_blob").value;
+    var hasText = textarea && textarea.value.trim().length > 0;
+    var hasVoice = voiceBlob && voiceBlob.length > 50;
+
+    if (!hasText && !hasVoice) {
+        event.preventDefault();
+        alert("Please write a message or record a voice note announcement before sending.");
+        return false;
+    }
+
+    var submitBtn = document.getElementById("pastor_ann_submit_btn");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = "Sending to Entire Church...";
+    }
+    return true;
+}
+
+// Global WhatsApp Voice Note Player Handler
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    // Color bars according to playhead
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                // Pause all other audio players on page
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
 </body></html>');
                             win.document.close();
                             win.focus();
@@ -6559,7 +7959,328 @@ function printRequiredLeadersTable(orientation) {
     w.document.write('</div>');
 
     w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + printDate + '</div>');
-    w.document.write('</body></html>');
+    w.document.write('
+<!-- WhatsApp Voice Note Styles & Recorder Script -->
+<style>
+@keyframes wa-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.8); }
+}
+@keyframes wa-wave {
+    0%, 100% { height: 6px; }
+    50% { height: 26px; }
+}
+.vn-live-waveform .bar {
+    display: inline-block;
+    width: 3.5px;
+    background: #ef4444;
+    border-radius: 3px;
+    animation: wa-wave 0.9s ease-in-out infinite;
+}
+.vn-live-waveform .bar-1  { animation-delay: 0.05s; }
+.vn-live-waveform .bar-2  { animation-delay: 0.2s; }
+.vn-live-waveform .bar-3  { animation-delay: 0.35s; }
+.vn-live-waveform .bar-4  { animation-delay: 0.15s; }
+.vn-live-waveform .bar-5  { animation-delay: 0.4s; }
+.vn-live-waveform .bar-6  { animation-delay: 0.25s; }
+.vn-live-waveform .bar-7  { animation-delay: 0.5s; }
+.vn-live-waveform .bar-8  { animation-delay: 0.1s; }
+.vn-live-waveform .bar-9  { animation-delay: 0.3s; }
+.vn-live-waveform .bar-10 { animation-delay: 0.45s; }
+.vn-live-waveform .bar-11 { animation-delay: 0.18s; }
+.vn-live-waveform .bar-12 { animation-delay: 0.32s; }
+
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+[data-theme="dark"] .voice-note-recorder-card {
+    background: #1e293b !important;
+}
+</style>
+
+<script>
+// WhatsApp Voice Note Recorder State
+var vnMediaRecorder = null;
+var vnAudioChunks = [];
+var vnTimerInterval = null;
+var vnSecondsRecorded = 0;
+var vnAudioBlob = null;
+
+function formatVnTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = Math.floor(sec % 60);
+    return m + ":" + (s < 10 ? "0" : "") + s;
+}
+
+function startVoiceRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Audio recording is not supported in this browser. Please use Chrome, Edge, or Firefox.");
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            vnAudioChunks = [];
+            var mimeType = "";
+            var supportedTypes = [
+                "audio/webm;codecs=opus",
+                "audio/webm",
+                "audio/ogg;codecs=opus",
+                "audio/ogg",
+                "audio/mp4"
+            ];
+            for (var i = 0; i < supportedTypes.length; i++) {
+                if (MediaRecorder.isTypeSupported(supportedTypes[i])) {
+                    mimeType = supportedTypes[i];
+                    break;
+                }
+            }
+
+            vnMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+
+            vnMediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) {
+                    vnAudioChunks.push(e.data);
+                }
+            };
+
+            vnMediaRecorder.onstop = function() {
+                stream.getTracks().forEach(function(track) { track.stop(); });
+                var finalType = mimeType || "audio/webm";
+                vnAudioBlob = new Blob(vnAudioChunks, { type: finalType });
+
+                // Convert blob to base64 for hidden input
+                var reader = new FileReader();
+                reader.readAsDataURL(vnAudioBlob);
+                reader.onloadend = function() {
+                    var base64Data = reader.result;
+                    document.getElementById("pastor_voice_note_blob").value = base64Data;
+                };
+
+                // Setup preview audio
+                var previewAudio = document.getElementById("vn_preview_audio");
+                var blobUrl = URL.createObjectURL(vnAudioBlob);
+                previewAudio.src = blobUrl;
+                document.getElementById("vn_preview_duration").textContent = formatVnTime(vnSecondsRecorded);
+
+                // Switch UI to preview state
+                document.getElementById("vn_recording_state").style.display = "none";
+                document.getElementById("vn_status_badge").style.display = "none";
+                document.getElementById("vn_preview_state").style.display = "flex";
+            };
+
+            vnMediaRecorder.start(200); // 200ms slice
+
+            // Switch UI to recording state
+            document.getElementById("vn_idle_state").style.display = "none";
+            document.getElementById("vn_preview_state").style.display = "none";
+            document.getElementById("vn_recording_state").style.display = "flex";
+            document.getElementById("vn_status_badge").style.display = "inline-flex";
+
+            // Start timer
+            vnSecondsRecorded = 0;
+            document.getElementById("vn_timer").textContent = "0:00";
+            clearInterval(vnTimerInterval);
+            vnTimerInterval = setInterval(function() {
+                vnSecondsRecorded++;
+                document.getElementById("vn_timer").textContent = formatVnTime(vnSecondsRecorded);
+            }, 1000);
+        })
+        .catch(function(err) {
+            console.error("Microphone access error:", err);
+            alert("Could not access microphone. Please allow microphone permissions in your browser.");
+        });
+}
+
+function stopVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+}
+
+function cancelVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function discardVoiceRecording() {
+    var previewAudio = document.getElementById("vn_preview_audio");
+    if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.src = "";
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function toggleVnPreview() {
+    var audio = document.getElementById("vn_preview_audio");
+    var iconPlay = document.getElementById("vn_preview_icon_play");
+    var iconPause = document.getElementById("vn_preview_icon_pause");
+    if (!audio) return;
+
+    if (audio.paused) {
+        audio.play();
+        iconPlay.style.display = "none";
+        iconPause.style.display = "block";
+    } else {
+        audio.pause();
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    }
+
+    audio.onended = function() {
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    };
+}
+
+function handlePastorAnnFormSubmit(form, event) {
+    var textarea = document.getElementById("pastor_ann_textarea");
+    var voiceBlob = document.getElementById("pastor_voice_note_blob").value;
+    var hasText = textarea && textarea.value.trim().length > 0;
+    var hasVoice = voiceBlob && voiceBlob.length > 50;
+
+    if (!hasText && !hasVoice) {
+        event.preventDefault();
+        alert("Please write a message or record a voice note announcement before sending.");
+        return false;
+    }
+
+    var submitBtn = document.getElementById("pastor_ann_submit_btn");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = "Sending to Entire Church...";
+    }
+    return true;
+}
+
+// Global WhatsApp Voice Note Player Handler
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    // Color bars according to playhead
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                // Pause all other audio players on page
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>');
     w.document.close();
     w.focus();
     setTimeout(function(){ w.print(); }, 600);
@@ -6591,7 +8312,328 @@ function printRequiredTable() {
     w.document.write('<h2 style="text-align:center; border-bottom:2px solid #1e3a8a; padding-bottom:8px;">E.A.P.C MUNYARI CHURCH &mdash; Currently Assigned Leaders</h2>');
     w.document.write('<p style="text-align:center;color:#555;margin-bottom:16px;">Printed on: ' + new Date().toLocaleDateString('en-GB', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) + '</p>');
     w.document.write(card.innerHTML);
-    w.document.write('</body></html>');
+    w.document.write('
+<!-- WhatsApp Voice Note Styles & Recorder Script -->
+<style>
+@keyframes wa-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.8); }
+}
+@keyframes wa-wave {
+    0%, 100% { height: 6px; }
+    50% { height: 26px; }
+}
+.vn-live-waveform .bar {
+    display: inline-block;
+    width: 3.5px;
+    background: #ef4444;
+    border-radius: 3px;
+    animation: wa-wave 0.9s ease-in-out infinite;
+}
+.vn-live-waveform .bar-1  { animation-delay: 0.05s; }
+.vn-live-waveform .bar-2  { animation-delay: 0.2s; }
+.vn-live-waveform .bar-3  { animation-delay: 0.35s; }
+.vn-live-waveform .bar-4  { animation-delay: 0.15s; }
+.vn-live-waveform .bar-5  { animation-delay: 0.4s; }
+.vn-live-waveform .bar-6  { animation-delay: 0.25s; }
+.vn-live-waveform .bar-7  { animation-delay: 0.5s; }
+.vn-live-waveform .bar-8  { animation-delay: 0.1s; }
+.vn-live-waveform .bar-9  { animation-delay: 0.3s; }
+.vn-live-waveform .bar-10 { animation-delay: 0.45s; }
+.vn-live-waveform .bar-11 { animation-delay: 0.18s; }
+.vn-live-waveform .bar-12 { animation-delay: 0.32s; }
+
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+[data-theme="dark"] .voice-note-recorder-card {
+    background: #1e293b !important;
+}
+</style>
+
+<script>
+// WhatsApp Voice Note Recorder State
+var vnMediaRecorder = null;
+var vnAudioChunks = [];
+var vnTimerInterval = null;
+var vnSecondsRecorded = 0;
+var vnAudioBlob = null;
+
+function formatVnTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = Math.floor(sec % 60);
+    return m + ":" + (s < 10 ? "0" : "") + s;
+}
+
+function startVoiceRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Audio recording is not supported in this browser. Please use Chrome, Edge, or Firefox.");
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            vnAudioChunks = [];
+            var mimeType = "";
+            var supportedTypes = [
+                "audio/webm;codecs=opus",
+                "audio/webm",
+                "audio/ogg;codecs=opus",
+                "audio/ogg",
+                "audio/mp4"
+            ];
+            for (var i = 0; i < supportedTypes.length; i++) {
+                if (MediaRecorder.isTypeSupported(supportedTypes[i])) {
+                    mimeType = supportedTypes[i];
+                    break;
+                }
+            }
+
+            vnMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+
+            vnMediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) {
+                    vnAudioChunks.push(e.data);
+                }
+            };
+
+            vnMediaRecorder.onstop = function() {
+                stream.getTracks().forEach(function(track) { track.stop(); });
+                var finalType = mimeType || "audio/webm";
+                vnAudioBlob = new Blob(vnAudioChunks, { type: finalType });
+
+                // Convert blob to base64 for hidden input
+                var reader = new FileReader();
+                reader.readAsDataURL(vnAudioBlob);
+                reader.onloadend = function() {
+                    var base64Data = reader.result;
+                    document.getElementById("pastor_voice_note_blob").value = base64Data;
+                };
+
+                // Setup preview audio
+                var previewAudio = document.getElementById("vn_preview_audio");
+                var blobUrl = URL.createObjectURL(vnAudioBlob);
+                previewAudio.src = blobUrl;
+                document.getElementById("vn_preview_duration").textContent = formatVnTime(vnSecondsRecorded);
+
+                // Switch UI to preview state
+                document.getElementById("vn_recording_state").style.display = "none";
+                document.getElementById("vn_status_badge").style.display = "none";
+                document.getElementById("vn_preview_state").style.display = "flex";
+            };
+
+            vnMediaRecorder.start(200); // 200ms slice
+
+            // Switch UI to recording state
+            document.getElementById("vn_idle_state").style.display = "none";
+            document.getElementById("vn_preview_state").style.display = "none";
+            document.getElementById("vn_recording_state").style.display = "flex";
+            document.getElementById("vn_status_badge").style.display = "inline-flex";
+
+            // Start timer
+            vnSecondsRecorded = 0;
+            document.getElementById("vn_timer").textContent = "0:00";
+            clearInterval(vnTimerInterval);
+            vnTimerInterval = setInterval(function() {
+                vnSecondsRecorded++;
+                document.getElementById("vn_timer").textContent = formatVnTime(vnSecondsRecorded);
+            }, 1000);
+        })
+        .catch(function(err) {
+            console.error("Microphone access error:", err);
+            alert("Could not access microphone. Please allow microphone permissions in your browser.");
+        });
+}
+
+function stopVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+}
+
+function cancelVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function discardVoiceRecording() {
+    var previewAudio = document.getElementById("vn_preview_audio");
+    if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.src = "";
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function toggleVnPreview() {
+    var audio = document.getElementById("vn_preview_audio");
+    var iconPlay = document.getElementById("vn_preview_icon_play");
+    var iconPause = document.getElementById("vn_preview_icon_pause");
+    if (!audio) return;
+
+    if (audio.paused) {
+        audio.play();
+        iconPlay.style.display = "none";
+        iconPause.style.display = "block";
+    } else {
+        audio.pause();
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    }
+
+    audio.onended = function() {
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    };
+}
+
+function handlePastorAnnFormSubmit(form, event) {
+    var textarea = document.getElementById("pastor_ann_textarea");
+    var voiceBlob = document.getElementById("pastor_voice_note_blob").value;
+    var hasText = textarea && textarea.value.trim().length > 0;
+    var hasVoice = voiceBlob && voiceBlob.length > 50;
+
+    if (!hasText && !hasVoice) {
+        event.preventDefault();
+        alert("Please write a message or record a voice note announcement before sending.");
+        return false;
+    }
+
+    var submitBtn = document.getElementById("pastor_ann_submit_btn");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = "Sending to Entire Church...";
+    }
+    return true;
+}
+
+// Global WhatsApp Voice Note Player Handler
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    // Color bars according to playhead
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                // Pause all other audio players on page
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>');
     w.document.close();
     setTimeout(function(){ w.print(); }, 600);
 }
@@ -6754,6 +8796,327 @@ function openDeclineModal(id, name) {
 }
 </script>
 
+
+<!-- WhatsApp Voice Note Styles & Recorder Script -->
+<style>
+@keyframes wa-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.8); }
+}
+@keyframes wa-wave {
+    0%, 100% { height: 6px; }
+    50% { height: 26px; }
+}
+.vn-live-waveform .bar {
+    display: inline-block;
+    width: 3.5px;
+    background: #ef4444;
+    border-radius: 3px;
+    animation: wa-wave 0.9s ease-in-out infinite;
+}
+.vn-live-waveform .bar-1  { animation-delay: 0.05s; }
+.vn-live-waveform .bar-2  { animation-delay: 0.2s; }
+.vn-live-waveform .bar-3  { animation-delay: 0.35s; }
+.vn-live-waveform .bar-4  { animation-delay: 0.15s; }
+.vn-live-waveform .bar-5  { animation-delay: 0.4s; }
+.vn-live-waveform .bar-6  { animation-delay: 0.25s; }
+.vn-live-waveform .bar-7  { animation-delay: 0.5s; }
+.vn-live-waveform .bar-8  { animation-delay: 0.1s; }
+.vn-live-waveform .bar-9  { animation-delay: 0.3s; }
+.vn-live-waveform .bar-10 { animation-delay: 0.45s; }
+.vn-live-waveform .bar-11 { animation-delay: 0.18s; }
+.vn-live-waveform .bar-12 { animation-delay: 0.32s; }
+
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+[data-theme="dark"] .voice-note-recorder-card {
+    background: #1e293b !important;
+}
+</style>
+
+<script>
+// WhatsApp Voice Note Recorder State
+var vnMediaRecorder = null;
+var vnAudioChunks = [];
+var vnTimerInterval = null;
+var vnSecondsRecorded = 0;
+var vnAudioBlob = null;
+
+function formatVnTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = Math.floor(sec % 60);
+    return m + ":" + (s < 10 ? "0" : "") + s;
+}
+
+function startVoiceRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Audio recording is not supported in this browser. Please use Chrome, Edge, or Firefox.");
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            vnAudioChunks = [];
+            var mimeType = "";
+            var supportedTypes = [
+                "audio/webm;codecs=opus",
+                "audio/webm",
+                "audio/ogg;codecs=opus",
+                "audio/ogg",
+                "audio/mp4"
+            ];
+            for (var i = 0; i < supportedTypes.length; i++) {
+                if (MediaRecorder.isTypeSupported(supportedTypes[i])) {
+                    mimeType = supportedTypes[i];
+                    break;
+                }
+            }
+
+            vnMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+
+            vnMediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) {
+                    vnAudioChunks.push(e.data);
+                }
+            };
+
+            vnMediaRecorder.onstop = function() {
+                stream.getTracks().forEach(function(track) { track.stop(); });
+                var finalType = mimeType || "audio/webm";
+                vnAudioBlob = new Blob(vnAudioChunks, { type: finalType });
+
+                // Convert blob to base64 for hidden input
+                var reader = new FileReader();
+                reader.readAsDataURL(vnAudioBlob);
+                reader.onloadend = function() {
+                    var base64Data = reader.result;
+                    document.getElementById("pastor_voice_note_blob").value = base64Data;
+                };
+
+                // Setup preview audio
+                var previewAudio = document.getElementById("vn_preview_audio");
+                var blobUrl = URL.createObjectURL(vnAudioBlob);
+                previewAudio.src = blobUrl;
+                document.getElementById("vn_preview_duration").textContent = formatVnTime(vnSecondsRecorded);
+
+                // Switch UI to preview state
+                document.getElementById("vn_recording_state").style.display = "none";
+                document.getElementById("vn_status_badge").style.display = "none";
+                document.getElementById("vn_preview_state").style.display = "flex";
+            };
+
+            vnMediaRecorder.start(200); // 200ms slice
+
+            // Switch UI to recording state
+            document.getElementById("vn_idle_state").style.display = "none";
+            document.getElementById("vn_preview_state").style.display = "none";
+            document.getElementById("vn_recording_state").style.display = "flex";
+            document.getElementById("vn_status_badge").style.display = "inline-flex";
+
+            // Start timer
+            vnSecondsRecorded = 0;
+            document.getElementById("vn_timer").textContent = "0:00";
+            clearInterval(vnTimerInterval);
+            vnTimerInterval = setInterval(function() {
+                vnSecondsRecorded++;
+                document.getElementById("vn_timer").textContent = formatVnTime(vnSecondsRecorded);
+            }, 1000);
+        })
+        .catch(function(err) {
+            console.error("Microphone access error:", err);
+            alert("Could not access microphone. Please allow microphone permissions in your browser.");
+        });
+}
+
+function stopVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+}
+
+function cancelVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function discardVoiceRecording() {
+    var previewAudio = document.getElementById("vn_preview_audio");
+    if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.src = "";
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function toggleVnPreview() {
+    var audio = document.getElementById("vn_preview_audio");
+    var iconPlay = document.getElementById("vn_preview_icon_play");
+    var iconPause = document.getElementById("vn_preview_icon_pause");
+    if (!audio) return;
+
+    if (audio.paused) {
+        audio.play();
+        iconPlay.style.display = "none";
+        iconPause.style.display = "block";
+    } else {
+        audio.pause();
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    }
+
+    audio.onended = function() {
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    };
+}
+
+function handlePastorAnnFormSubmit(form, event) {
+    var textarea = document.getElementById("pastor_ann_textarea");
+    var voiceBlob = document.getElementById("pastor_voice_note_blob").value;
+    var hasText = textarea && textarea.value.trim().length > 0;
+    var hasVoice = voiceBlob && voiceBlob.length > 50;
+
+    if (!hasText && !hasVoice) {
+        event.preventDefault();
+        alert("Please write a message or record a voice note announcement before sending.");
+        return false;
+    }
+
+    var submitBtn = document.getElementById("pastor_ann_submit_btn");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = "Sending to Entire Church...";
+    }
+    return true;
+}
+
+// Global WhatsApp Voice Note Player Handler
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    // Color bars according to playhead
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                // Pause all other audio players on page
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
 </body>
 <!-- Decline Member Modal -->
 <div id="declineMemberModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
@@ -6820,7 +9183,328 @@ function openDeclineModal(id, name) {
 w.document.write('</div>');
         w.document.write('<table>' + theadHTML + tbodyHTML + '</table>');
         w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
-        w.document.write('</body></html>');
+        w.document.write('
+<!-- WhatsApp Voice Note Styles & Recorder Script -->
+<style>
+@keyframes wa-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.8); }
+}
+@keyframes wa-wave {
+    0%, 100% { height: 6px; }
+    50% { height: 26px; }
+}
+.vn-live-waveform .bar {
+    display: inline-block;
+    width: 3.5px;
+    background: #ef4444;
+    border-radius: 3px;
+    animation: wa-wave 0.9s ease-in-out infinite;
+}
+.vn-live-waveform .bar-1  { animation-delay: 0.05s; }
+.vn-live-waveform .bar-2  { animation-delay: 0.2s; }
+.vn-live-waveform .bar-3  { animation-delay: 0.35s; }
+.vn-live-waveform .bar-4  { animation-delay: 0.15s; }
+.vn-live-waveform .bar-5  { animation-delay: 0.4s; }
+.vn-live-waveform .bar-6  { animation-delay: 0.25s; }
+.vn-live-waveform .bar-7  { animation-delay: 0.5s; }
+.vn-live-waveform .bar-8  { animation-delay: 0.1s; }
+.vn-live-waveform .bar-9  { animation-delay: 0.3s; }
+.vn-live-waveform .bar-10 { animation-delay: 0.45s; }
+.vn-live-waveform .bar-11 { animation-delay: 0.18s; }
+.vn-live-waveform .bar-12 { animation-delay: 0.32s; }
+
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+[data-theme="dark"] .voice-note-recorder-card {
+    background: #1e293b !important;
+}
+</style>
+
+<script>
+// WhatsApp Voice Note Recorder State
+var vnMediaRecorder = null;
+var vnAudioChunks = [];
+var vnTimerInterval = null;
+var vnSecondsRecorded = 0;
+var vnAudioBlob = null;
+
+function formatVnTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = Math.floor(sec % 60);
+    return m + ":" + (s < 10 ? "0" : "") + s;
+}
+
+function startVoiceRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Audio recording is not supported in this browser. Please use Chrome, Edge, or Firefox.");
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            vnAudioChunks = [];
+            var mimeType = "";
+            var supportedTypes = [
+                "audio/webm;codecs=opus",
+                "audio/webm",
+                "audio/ogg;codecs=opus",
+                "audio/ogg",
+                "audio/mp4"
+            ];
+            for (var i = 0; i < supportedTypes.length; i++) {
+                if (MediaRecorder.isTypeSupported(supportedTypes[i])) {
+                    mimeType = supportedTypes[i];
+                    break;
+                }
+            }
+
+            vnMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+
+            vnMediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) {
+                    vnAudioChunks.push(e.data);
+                }
+            };
+
+            vnMediaRecorder.onstop = function() {
+                stream.getTracks().forEach(function(track) { track.stop(); });
+                var finalType = mimeType || "audio/webm";
+                vnAudioBlob = new Blob(vnAudioChunks, { type: finalType });
+
+                // Convert blob to base64 for hidden input
+                var reader = new FileReader();
+                reader.readAsDataURL(vnAudioBlob);
+                reader.onloadend = function() {
+                    var base64Data = reader.result;
+                    document.getElementById("pastor_voice_note_blob").value = base64Data;
+                };
+
+                // Setup preview audio
+                var previewAudio = document.getElementById("vn_preview_audio");
+                var blobUrl = URL.createObjectURL(vnAudioBlob);
+                previewAudio.src = blobUrl;
+                document.getElementById("vn_preview_duration").textContent = formatVnTime(vnSecondsRecorded);
+
+                // Switch UI to preview state
+                document.getElementById("vn_recording_state").style.display = "none";
+                document.getElementById("vn_status_badge").style.display = "none";
+                document.getElementById("vn_preview_state").style.display = "flex";
+            };
+
+            vnMediaRecorder.start(200); // 200ms slice
+
+            // Switch UI to recording state
+            document.getElementById("vn_idle_state").style.display = "none";
+            document.getElementById("vn_preview_state").style.display = "none";
+            document.getElementById("vn_recording_state").style.display = "flex";
+            document.getElementById("vn_status_badge").style.display = "inline-flex";
+
+            // Start timer
+            vnSecondsRecorded = 0;
+            document.getElementById("vn_timer").textContent = "0:00";
+            clearInterval(vnTimerInterval);
+            vnTimerInterval = setInterval(function() {
+                vnSecondsRecorded++;
+                document.getElementById("vn_timer").textContent = formatVnTime(vnSecondsRecorded);
+            }, 1000);
+        })
+        .catch(function(err) {
+            console.error("Microphone access error:", err);
+            alert("Could not access microphone. Please allow microphone permissions in your browser.");
+        });
+}
+
+function stopVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+}
+
+function cancelVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function discardVoiceRecording() {
+    var previewAudio = document.getElementById("vn_preview_audio");
+    if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.src = "";
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function toggleVnPreview() {
+    var audio = document.getElementById("vn_preview_audio");
+    var iconPlay = document.getElementById("vn_preview_icon_play");
+    var iconPause = document.getElementById("vn_preview_icon_pause");
+    if (!audio) return;
+
+    if (audio.paused) {
+        audio.play();
+        iconPlay.style.display = "none";
+        iconPause.style.display = "block";
+    } else {
+        audio.pause();
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    }
+
+    audio.onended = function() {
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    };
+}
+
+function handlePastorAnnFormSubmit(form, event) {
+    var textarea = document.getElementById("pastor_ann_textarea");
+    var voiceBlob = document.getElementById("pastor_voice_note_blob").value;
+    var hasText = textarea && textarea.value.trim().length > 0;
+    var hasVoice = voiceBlob && voiceBlob.length > 50;
+
+    if (!hasText && !hasVoice) {
+        event.preventDefault();
+        alert("Please write a message or record a voice note announcement before sending.");
+        return false;
+    }
+
+    var submitBtn = document.getElementById("pastor_ann_submit_btn");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = "Sending to Entire Church...";
+    }
+    return true;
+}
+
+// Global WhatsApp Voice Note Player Handler
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    // Color bars according to playhead
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                // Pause all other audio players on page
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>');
         w.document.close();
         w.focus();
         setTimeout(function(){ w.print(); }, 500);
@@ -6877,5 +9561,326 @@ function filterFinanceRecords() {
     if (el) el.textContent = query ? shown + " result(s) found" : "";
 }
 </script>
+
+<!-- WhatsApp Voice Note Styles & Recorder Script -->
+<style>
+@keyframes wa-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.8); }
+}
+@keyframes wa-wave {
+    0%, 100% { height: 6px; }
+    50% { height: 26px; }
+}
+.vn-live-waveform .bar {
+    display: inline-block;
+    width: 3.5px;
+    background: #ef4444;
+    border-radius: 3px;
+    animation: wa-wave 0.9s ease-in-out infinite;
+}
+.vn-live-waveform .bar-1  { animation-delay: 0.05s; }
+.vn-live-waveform .bar-2  { animation-delay: 0.2s; }
+.vn-live-waveform .bar-3  { animation-delay: 0.35s; }
+.vn-live-waveform .bar-4  { animation-delay: 0.15s; }
+.vn-live-waveform .bar-5  { animation-delay: 0.4s; }
+.vn-live-waveform .bar-6  { animation-delay: 0.25s; }
+.vn-live-waveform .bar-7  { animation-delay: 0.5s; }
+.vn-live-waveform .bar-8  { animation-delay: 0.1s; }
+.vn-live-waveform .bar-9  { animation-delay: 0.3s; }
+.vn-live-waveform .bar-10 { animation-delay: 0.45s; }
+.vn-live-waveform .bar-11 { animation-delay: 0.18s; }
+.vn-live-waveform .bar-12 { animation-delay: 0.32s; }
+
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+[data-theme="dark"] .voice-note-recorder-card {
+    background: #1e293b !important;
+}
+</style>
+
+<script>
+// WhatsApp Voice Note Recorder State
+var vnMediaRecorder = null;
+var vnAudioChunks = [];
+var vnTimerInterval = null;
+var vnSecondsRecorded = 0;
+var vnAudioBlob = null;
+
+function formatVnTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = Math.floor(sec % 60);
+    return m + ":" + (s < 10 ? "0" : "") + s;
+}
+
+function startVoiceRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Audio recording is not supported in this browser. Please use Chrome, Edge, or Firefox.");
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            vnAudioChunks = [];
+            var mimeType = "";
+            var supportedTypes = [
+                "audio/webm;codecs=opus",
+                "audio/webm",
+                "audio/ogg;codecs=opus",
+                "audio/ogg",
+                "audio/mp4"
+            ];
+            for (var i = 0; i < supportedTypes.length; i++) {
+                if (MediaRecorder.isTypeSupported(supportedTypes[i])) {
+                    mimeType = supportedTypes[i];
+                    break;
+                }
+            }
+
+            vnMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+
+            vnMediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) {
+                    vnAudioChunks.push(e.data);
+                }
+            };
+
+            vnMediaRecorder.onstop = function() {
+                stream.getTracks().forEach(function(track) { track.stop(); });
+                var finalType = mimeType || "audio/webm";
+                vnAudioBlob = new Blob(vnAudioChunks, { type: finalType });
+
+                // Convert blob to base64 for hidden input
+                var reader = new FileReader();
+                reader.readAsDataURL(vnAudioBlob);
+                reader.onloadend = function() {
+                    var base64Data = reader.result;
+                    document.getElementById("pastor_voice_note_blob").value = base64Data;
+                };
+
+                // Setup preview audio
+                var previewAudio = document.getElementById("vn_preview_audio");
+                var blobUrl = URL.createObjectURL(vnAudioBlob);
+                previewAudio.src = blobUrl;
+                document.getElementById("vn_preview_duration").textContent = formatVnTime(vnSecondsRecorded);
+
+                // Switch UI to preview state
+                document.getElementById("vn_recording_state").style.display = "none";
+                document.getElementById("vn_status_badge").style.display = "none";
+                document.getElementById("vn_preview_state").style.display = "flex";
+            };
+
+            vnMediaRecorder.start(200); // 200ms slice
+
+            // Switch UI to recording state
+            document.getElementById("vn_idle_state").style.display = "none";
+            document.getElementById("vn_preview_state").style.display = "none";
+            document.getElementById("vn_recording_state").style.display = "flex";
+            document.getElementById("vn_status_badge").style.display = "inline-flex";
+
+            // Start timer
+            vnSecondsRecorded = 0;
+            document.getElementById("vn_timer").textContent = "0:00";
+            clearInterval(vnTimerInterval);
+            vnTimerInterval = setInterval(function() {
+                vnSecondsRecorded++;
+                document.getElementById("vn_timer").textContent = formatVnTime(vnSecondsRecorded);
+            }, 1000);
+        })
+        .catch(function(err) {
+            console.error("Microphone access error:", err);
+            alert("Could not access microphone. Please allow microphone permissions in your browser.");
+        });
+}
+
+function stopVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+}
+
+function cancelVoiceRecording() {
+    clearInterval(vnTimerInterval);
+    if (vnMediaRecorder && vnMediaRecorder.state !== "inactive") {
+        vnMediaRecorder.stop();
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function discardVoiceRecording() {
+    var previewAudio = document.getElementById("vn_preview_audio");
+    if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.src = "";
+    }
+    vnAudioChunks = [];
+    vnAudioBlob = null;
+    document.getElementById("pastor_voice_note_blob").value = "";
+    document.getElementById("vn_preview_state").style.display = "none";
+    document.getElementById("vn_recording_state").style.display = "none";
+    document.getElementById("vn_status_badge").style.display = "none";
+    document.getElementById("vn_idle_state").style.display = "flex";
+}
+
+function toggleVnPreview() {
+    var audio = document.getElementById("vn_preview_audio");
+    var iconPlay = document.getElementById("vn_preview_icon_play");
+    var iconPause = document.getElementById("vn_preview_icon_pause");
+    if (!audio) return;
+
+    if (audio.paused) {
+        audio.play();
+        iconPlay.style.display = "none";
+        iconPause.style.display = "block";
+    } else {
+        audio.pause();
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    }
+
+    audio.onended = function() {
+        iconPlay.style.display = "block";
+        iconPause.style.display = "none";
+    };
+}
+
+function handlePastorAnnFormSubmit(form, event) {
+    var textarea = document.getElementById("pastor_ann_textarea");
+    var voiceBlob = document.getElementById("pastor_voice_note_blob").value;
+    var hasText = textarea && textarea.value.trim().length > 0;
+    var hasVoice = voiceBlob && voiceBlob.length > 50;
+
+    if (!hasText && !hasVoice) {
+        event.preventDefault();
+        alert("Please write a message or record a voice note announcement before sending.");
+        return false;
+    }
+
+    var submitBtn = document.getElementById("pastor_ann_submit_btn");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = "Sending to Entire Church...";
+    }
+    return true;
+}
+
+// Global WhatsApp Voice Note Player Handler
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    // Color bars according to playhead
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                // Pause all other audio players on page
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
 </body>
 </html>

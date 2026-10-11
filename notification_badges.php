@@ -126,10 +126,8 @@ function notification_badge_tabs($message, $user_type) {
     if (strpos($msg, 'reply to your announcement query') !== false) {
         if ($user_type === 'member') {
             $tabs[] = 'query_announcements';
-        } elseif ($user_type === 'pastor') {
-            $tabs[] = 'general_leadership';
         } else {
-            $tabs[] = 'general_leadership';
+            $tabs[] = 'general_announcements';
         }
         return array_values(array_unique($tabs)); // early exit – don't bleed into generic announcement checks
     }
@@ -140,7 +138,7 @@ function notification_badge_tabs($message, $user_type) {
         if ($user_type === 'member') {
             $tabs[] = 'query_announcements';
         } else {
-            $tabs[] = 'general_leadership';
+            $tabs[] = 'general_announcements';
         }
         return array_values(array_unique($tabs)); // early exit
     }
@@ -215,18 +213,50 @@ function notification_badge_tabs($message, $user_type) {
         $tabs[] = 'dashboard';
     }
 
+    // Senior Church Elder Announcement -> direct to general_announcements for pastor/admin, announcements for members
+    if (strpos($msg, 'senior church elder announcement') !== false || (strpos($msg, 'senior') !== false && strpos($msg, 'elder') !== false && strpos($msg, 'announcement') !== false)) {
+        if ($user_type === 'member') {
+            $tabs[] = 'announcements';
+            $tabs[] = 'elder_announcements';
+        } else {
+            $tabs[] = 'general_announcements';
+        }
+        return array_values(array_unique($tabs));
+    }
+
+    // Pastor announcement -> direct to announcements for members, general_announcements for admin/pastor
+    if (strpos($msg, 'announcement from pastor') !== false || (strpos($msg, 'pastor') !== false && strpos($msg, 'announcement') !== false)) {
+        if ($user_type === 'member') {
+            $tabs[] = 'announcements';
+        } else {
+            $tabs[] = 'general_announcements';
+        }
+        return array_values(array_unique($tabs));
+    }
+
+    // Secretary announcement -> direct to general_announcements for pastor/admin
+    if (strpos($msg, 'announcement') !== false && strpos($msg, 'secretary') !== false) {
+        if ($user_type === 'member') {
+            $tabs[] = 'announcements';
+            $tabs[] = 'dept_announcements';
+        } else {
+            $tabs[] = 'general_announcements';
+        }
+        return array_values(array_unique($tabs));
+    }
+
     if (strpos($msg, 'announcement') !== false || strpos($msg, 'department') !== false) {
         if ($user_type === 'member') {
             $tabs[] = 'announcements';
             $tabs[] = 'dept_announcements';
             $tabs[] = 'elder_announcements';
         } else {
-            $tabs[] = 'departments';
             if (strpos($msg, 'announcement') !== false) {
                 $tabs[] = 'general_announcements';
             }
+            $tabs[] = 'departments';
             if (strpos($msg, 'general church') !== false || strpos($msg, 'senior church elder') !== false) {
-                $tabs[] = 'general_leadership';
+                $tabs[] = 'general_announcements';
             }
         }
     }

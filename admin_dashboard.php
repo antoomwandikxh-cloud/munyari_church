@@ -50,6 +50,7 @@ if (isset($_GET['delete_custom_role'])) {
 }
 require_once 'notification_badges.php';
 require_once 'role_departments.php';
+require_once 'voice_note_helper.php';
 
 // Strip (subsidiary) for display
 if (!function_exists('clean_role_display')) {
@@ -1744,7 +1745,122 @@ function printMemberDirectory(orientation) {
                         w.document.write('<style>.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}</style></head><body>');
                         w.document.write(printDiv.innerHTML);
                         w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
-                        w.document.write('</body></html>');
+                        w.document.write('
+<!-- WhatsApp Voice Note Audio Player Script -->
+<style>
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+</style>
+<script>
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>');
                         w.document.close();
                         w.focus();
                         setTimeout(function(){ w.print(); }, 600);
@@ -1936,7 +2052,122 @@ function printAllLeaders(orientation) {
     w.document.write('</div>');
 
     w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal | Printed on: ' + printDate + '</div>');
-    w.document.write('</body></html>');
+    w.document.write('
+<!-- WhatsApp Voice Note Audio Player Script -->
+<style>
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+</style>
+<script>
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>');
     w.document.close();
     setTimeout(function(){ w.print(); }, 600);
 }
@@ -2035,7 +2266,122 @@ w.document.write('</div>');
     w.document.write('</div>');
 
     w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
-    w.document.write('</body></html>');
+    w.document.write('
+<!-- WhatsApp Voice Note Audio Player Script -->
+<style>
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+</style>
+<script>
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>');
     w.document.close();
     w.focus();
     setTimeout(function(){ w.print(); }, 600);
@@ -4271,6 +4617,9 @@ w.document.write('</div>');
                                 <small style="color:var(--text-muted);font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($pa['created_at'])) ?></small>
                             </div>
                             <p style="margin:8px 0 0;white-space:pre-wrap;font-size:0.9rem;"><?= htmlspecialchars($pa['message']) ?></p>
+                            <?php if (!empty($pa['audio_path'])): ?>
+                                <?= render_whatsapp_voice_player($pa['audio_path'], 'Pastor ' . $pa['first_name'] . ' ' . $pa['last_name'], null, $pa['created_at']) ?>
+                            <?php endif; ?>
                             <?php if (!empty($pa['image_path'])): ?>
                                 <a href="<?= htmlspecialchars($pa['image_path']) ?>" target="_blank" style="display:block;margin-top:10px;">
                                     <img src="<?= htmlspecialchars($pa['image_path']) ?>" alt="Announcement" style="width:100%;max-height:320px;object-fit:cover;border-radius:10px;border:1px solid var(--border-color);">
@@ -5027,6 +5376,121 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 
 
+
+<!-- WhatsApp Voice Note Audio Player Script -->
+<style>
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+</style>
+<script>
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
 </body></html>');
                             win.document.close();
                             win.focus();
@@ -5497,6 +5961,121 @@ function openDeclineModal(id, name) {
 }
 </script>
 
+
+<!-- WhatsApp Voice Note Audio Player Script -->
+<style>
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+</style>
+<script>
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
 </body>
     <script>
     async function checkUsernameAsync(input, nextId) {
@@ -5672,7 +6251,122 @@ function printRequiredLeadersTable(orientation) {
     w.document.write('</div>');
 
     w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + printDate + '</div>');
-    w.document.write('</body></html>');
+    w.document.write('
+<!-- WhatsApp Voice Note Audio Player Script -->
+<style>
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+</style>
+<script>
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>');
     w.document.close();
     w.focus();
     setTimeout(function(){ w.print(); }, 600);
@@ -5704,7 +6398,122 @@ function printRequiredTable() {
     w.document.write('<h2 style="text-align:center; border-bottom:2px solid #1e3a8a; padding-bottom:8px;">E.A.P.C MUNYARI CHURCH &mdash; Currently Assigned Leaders</h2>');
     w.document.write('<p style="text-align:center;color:#555;margin-bottom:16px;">Printed on: ' + new Date().toLocaleDateString('en-GB', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) + '</p>');
     w.document.write(card.innerHTML);
-    w.document.write('</body></html>');
+    w.document.write('
+<!-- WhatsApp Voice Note Audio Player Script -->
+<style>
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+</style>
+<script>
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>');
     w.document.close();
     setTimeout(function(){ w.print(); }, 600);
 }
@@ -5789,7 +6598,122 @@ function openDeclineModal(id, name) {
         w.document.write('</div>');
         w.document.write('<table>' + theadHTML + tbodyHTML + '</table>');
         w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
-        w.document.write('</body></html>');
+        w.document.write('
+<!-- WhatsApp Voice Note Audio Player Script -->
+<style>
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+</style>
+<script>
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>');
         w.document.close();
         w.focus();
         setTimeout(function(){ w.print(); }, 500);
@@ -5849,5 +6773,120 @@ function filterWorshippersTable() {
     }
 }
 </script>
+
+<!-- WhatsApp Voice Note Audio Player Script -->
+<style>
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+</style>
+<script>
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
 </body>
 </html>

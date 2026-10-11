@@ -3,6 +3,7 @@ session_start();
 require_once 'db_connect.php';
 require_once 'notification_badges.php';
 require_once 'role_departments.php';
+require_once 'voice_note_helper.php';
 if (!isset($_SESSION['member_id'])) { header("Location: login.php"); exit(); }
 
 $member_id = $_SESSION['member_id'];
@@ -2749,9 +2750,10 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 </a>
 
                 <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: var(--text-muted); margin-top: 10px;">Community</div>
-                <a href="?tab=announcements" class="sidebar-link <?= $tab == 'announcements' ? 'active' : '' ?>">
+                <a href="?tab=announcements" class="sidebar-link <?= $tab == 'announcements' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
                     Announcements
+                    <?php if (!empty($tab_badges['announcements'])): ?><span class="tab-notif-badge" style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['announcements'] > 99 ? '99+' : $tab_badges['announcements'] ?></span><?php endif; ?>
                 </a>
                 <?php if (!$is_building_leader): ?>
                 <a href="?tab=church_buildings" class="sidebar-link <?= $tab == 'church_buildings' ? 'active' : '' ?>">
@@ -3360,10 +3362,46 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
             <?php elseif ($tab == 'announcements'): ?>
                 <div class="page-header">
                     <h1>Community Announcements</h1>
-                    <p>Read the latest announcements from the Senior Church Elders and your Department Leaders.</p>
+                    <p>Read the latest announcements from the Pastor, Senior Church Elders, and Department Leaders.</p>
                 </div>
 
                 <div class="content-card" style="max-width: 800px; margin: 0 auto; background: transparent; box-shadow: none; padding: 0;">
+                    <!-- From The Pastor: Announcements & WhatsApp Voice Notes -->
+                    <?php
+                    $conn->query("CREATE TABLE IF NOT EXISTS pastor_announcements (id INT AUTO_INCREMENT PRIMARY KEY, pastor_id INT NOT NULL, message TEXT NOT NULL, image_path VARCHAR(255) NULL, audio_path VARCHAR(255) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+                    $pastor_gen_anns = $conn->query("SELECT pa.*, p.first_name, p.last_name, p.profile_picture FROM pastor_announcements pa JOIN pastors p ON pa.pastor_id = p.id ORDER BY pa.created_at DESC LIMIT 25");
+                    if ($pastor_gen_anns && $pastor_gen_anns->num_rows > 0): ?>
+                    <div style="margin-bottom:28px;">
+                        <h2 style="font-size:1.15rem;color:#10b981;margin-bottom:15px;text-transform:uppercase;display:flex;align-items:center;gap:8px;">
+                            <span>📢 From The Pastor</span>
+                            <span style="font-size:0.75rem;background:rgba(16,185,129,0.15);color:#10b981;padding:2px 10px;border-radius:20px;font-weight:700;">Official Church Message</span>
+                        </h2>
+                        <?php while ($pa = $pastor_gen_anns->fetch_assoc()): ?>
+                            <div class="content-card" style="margin-bottom:20px;border-left:4px solid #10b981;background:var(--bg-card);box-shadow:0 3px 12px rgba(16,185,129,0.1);">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <?php $p_pic = !empty($pa['profile_picture']) ? 'uploads/' . htmlspecialchars($pa['profile_picture']) : 'uploads/default_avatar.png'; ?>
+                                        <img src="<?= $p_pic ?>" alt="Pastor" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #10b981;">
+                                        <div>
+                                            <h3 style="color:#10b981;margin:0;font-size:1rem;">Pastor <?= htmlspecialchars($pa['first_name'] . ' ' . $pa['last_name']) ?></h3>
+                                            <span style="font-size:0.75rem;color:var(--text-muted);">Church Pastor · General Announcement</span>
+                                        </div>
+                                    </div>
+                                    <small style="color:var(--text-muted);font-size:0.8rem;"><?= date('M j, Y g:i A', strtotime($pa['created_at'])) ?></small>
+                                </div>
+                                <p style="line-height:1.6;white-space:pre-wrap;font-size:0.92rem;margin:8px 0;"><?= htmlspecialchars($pa['message']) ?></p>
+                                <?php if (!empty($pa['audio_path'])): ?>
+                                    <?= render_whatsapp_voice_player($pa['audio_path'], 'Pastor ' . $pa['first_name'] . ' ' . $pa['last_name'], !empty($pa['profile_picture']) ? 'uploads/' . $pa['profile_picture'] : null, $pa['created_at']) ?>
+                                <?php endif; ?>
+                                <?php if (!empty($pa['image_path'])): ?>
+                                    <a href="<?= htmlspecialchars($pa['image_path']) ?>" target="_blank" style="display:block;margin-top:12px;">
+                                        <img src="<?= htmlspecialchars($pa['image_path']) ?>" alt="Announcement" style="width:100%;max-height:360px;object-fit:cover;border-radius:10px;border:1px solid var(--border-color);">
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        <?php endwhile; ?>
+                    </div>
+                    <?php endif; ?>
                     <!-- General Church Secretary Announcements -->
                     <?php if ($general_church_announcements && $general_church_announcements->num_rows > 0): ?>
                         <h2 style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 15px; text-transform: uppercase;">General Church</h2>
@@ -3489,32 +3527,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <?php endif; ?>
                 </div>
 
-                <!-- Pastor General Announcements shown to all members -->
-                <?php
-                $conn->query("CREATE TABLE IF NOT EXISTS pastor_announcements (id INT AUTO_INCREMENT PRIMARY KEY, pastor_id INT NOT NULL, message TEXT NOT NULL, image_path VARCHAR(255) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-                $pastor_gen_anns = $conn->query("SELECT pa.*, p.first_name, p.last_name FROM pastor_announcements pa JOIN pastors p ON pa.pastor_id = p.id ORDER BY pa.created_at DESC LIMIT 20");
-                if ($pastor_gen_anns && $pastor_gen_anns->num_rows > 0): ?>
-                <div style="max-width:800px;margin:24px auto 0;">
-                    <h2 style="font-size:1.1rem;color:var(--text-muted);margin-bottom:15px;text-transform:uppercase;">📢 From The Pastor</h2>
-                    <?php while ($pa = $pastor_gen_anns->fetch_assoc()): ?>
-                        <div class="content-card" style="margin-bottom:20px;border-left:4px solid #10b981;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                                <div>
-                                    <h3 style="color:#10b981;margin:0;">Pastor <?= htmlspecialchars($pa['first_name'] . ' ' . $pa['last_name']) ?></h3>
-                                    <span style="font-size:0.8rem;color:var(--text-muted);">General Church Announcement</span>
-                                </div>
-                                <small style="color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($pa['created_at'])) ?></small>
-                            </div>
-                            <p style="line-height:1.6;white-space:pre-wrap;"><?= htmlspecialchars($pa['message']) ?></p>
-                            <?php if (!empty($pa['image_path'])): ?>
-                                <a href="<?= htmlspecialchars($pa['image_path']) ?>" target="_blank" style="display:block;margin-top:12px;">
-                                    <img src="<?= htmlspecialchars($pa['image_path']) ?>" alt="Announcement" style="width:100%;max-height:360px;object-fit:cover;border-radius:10px;border:1px solid var(--border-color);">
-                                </a>
-                            <?php endif; ?>
-                        </div>
-                    <?php endwhile; ?>
-                </div>
-                <?php endif; ?>
+
 
 
             <?php elseif ($tab == 'choir_songs' && !empty($member['department']) && $member['department'] !== 'None'): ?>
@@ -6334,7 +6347,124 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             </div>
                         </div>
                         
-                        </body></html>`;
+                        
+<!-- WhatsApp Voice Note Audio Player Script -->
+<style>
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+</style>
+<script>
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    // Color bars according to playhead
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                // Pause all other audio players on page
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>`;
                         printWindow.document.write(html);
                         printWindow.document.close();
                         printWindow.focus();
@@ -6426,7 +6556,124 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             </div>
                         </div>
                         
-                        </body></html>`;
+                        
+<!-- WhatsApp Voice Note Audio Player Script -->
+<style>
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+</style>
+<script>
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    // Color bars according to playhead
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                // Pause all other audio players on page
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
+</body></html>`;
                         printWindow.document.write(html);
                         printWindow.document.close();
                         printWindow.focus();
@@ -9079,6 +9326,123 @@ if (typeof filterWTeam !== 'function') {
     };
 }
 </script>
+
+<!-- WhatsApp Voice Note Audio Player Script -->
+<style>
+.whatsapp-voice-player {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.whatsapp-voice-player:hover {
+    box-shadow: 0 4px 16px rgba(37,211,102,0.2) !important;
+}
+[data-theme="dark"] .whatsapp-voice-player {
+    background: #1e293b !important;
+    border-color: rgba(37,211,102,0.4) !important;
+}
+</style>
+<script>
+function initWhatsAppAudioPlayers() {
+    document.querySelectorAll(".whatsapp-voice-player").forEach(function(player) {
+        if (player.dataset.waInitialized) return;
+        player.dataset.waInitialized = "true";
+
+        var audio = player.querySelector(".wa-audio");
+        var playBtn = player.querySelector(".wa-play-btn");
+        var iconPlay = player.querySelector(".wa-icon-play");
+        var iconPause = player.querySelector(".wa-icon-pause");
+        var seekBar = player.querySelector(".wa-seek-bar");
+        var currentTimeEl = player.querySelector(".wa-current-time");
+        var durationEl = player.querySelector(".wa-duration");
+        var speedBtn = player.querySelector(".wa-speed-btn");
+        var waveformBars = player.querySelectorAll(".wa-bar");
+
+        function fmt(sec) {
+            if (isNaN(sec) || !isFinite(sec)) return "0:00";
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        if (audio) {
+            audio.addEventListener("loadedmetadata", function() {
+                if (durationEl) durationEl.textContent = fmt(audio.duration);
+            });
+
+            audio.addEventListener("timeupdate", function() {
+                if (audio.duration) {
+                    var pct = (audio.currentTime / audio.duration) * 100;
+                    if (seekBar) seekBar.value = pct;
+                    if (currentTimeEl) currentTimeEl.textContent = fmt(audio.currentTime);
+
+                    // Color bars according to playhead
+                    var totalBars = waveformBars.length;
+                    var activeCount = Math.floor((pct / 100) * totalBars);
+                    waveformBars.forEach(function(bar, idx) {
+                        bar.style.backgroundColor = idx <= activeCount ? "#25d366" : "#9ca3af";
+                    });
+                }
+            });
+
+            audio.addEventListener("ended", function() {
+                if (iconPlay) iconPlay.style.display = "block";
+                if (iconPause) iconPause.style.display = "none";
+                if (seekBar) seekBar.value = 0;
+                if (currentTimeEl) currentTimeEl.textContent = "0:00";
+                waveformBars.forEach(function(bar) { bar.style.backgroundColor = "#9ca3af"; });
+            });
+        }
+
+        if (playBtn && audio) {
+            playBtn.addEventListener("click", function() {
+                // Pause all other audio players on page
+                document.querySelectorAll(".whatsapp-voice-player .wa-audio").forEach(function(otherAudio) {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        var op = otherAudio.closest(".whatsapp-voice-player");
+                        if (op) {
+                            var p1 = op.querySelector(".wa-icon-play");
+                            var p2 = op.querySelector(".wa-icon-pause");
+                            if (p1) p1.style.display = "block";
+                            if (p2) p2.style.display = "none";
+                        }
+                    }
+                });
+
+                if (audio.paused) {
+                    audio.play().then(function() {
+                        if (iconPlay) iconPlay.style.display = "none";
+                        if (iconPause) iconPause.style.display = "block";
+                    }).catch(function(e) { console.error("Playback error:", e); });
+                } else {
+                    audio.pause();
+                    if (iconPlay) iconPlay.style.display = "block";
+                    if (iconPause) iconPause.style.display = "none";
+                }
+            });
+        }
+
+        if (seekBar && audio) {
+            seekBar.addEventListener("input", function() {
+                if (audio.duration) {
+                    audio.currentTime = (seekBar.value / 100) * audio.duration;
+                }
+            });
+        }
+
+        if (speedBtn && audio) {
+            var speeds = [1, 1.5, 2];
+            var currentIdx = 0;
+            speedBtn.addEventListener("click", function() {
+                currentIdx = (currentIdx + 1) % speeds.length;
+                audio.playbackRate = speeds[currentIdx];
+                speedBtn.textContent = speeds[currentIdx] + "x";
+            });
+        }
+    });
+}
+document.addEventListener("DOMContentLoaded", initWhatsAppAudioPlayers);
+</script>
+
 </body>
 </html>
 
