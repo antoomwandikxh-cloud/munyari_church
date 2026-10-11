@@ -2388,7 +2388,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'mark_all_read') {
 // Handle Delete Chat History (Clear all messages for member)
 if (isset($_GET['action']) && $_GET['action'] == 'delete_chat') {
     $conn->query("DELETE FROM member_messages WHERE member_id = $member_id");
-    header("Location: member_dashboard.php?tab=contact_pastor&success=" . urlencode("Conversation history cleared successfully."));
+    header("Location: member_dashboard.php?tab=contact_pastor&success=" . urlencode("Conversation history cleared successfully.") . "#member_chat_section");
     exit();
 }
 
@@ -5025,7 +5025,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     </div>
 
                     <!-- Messages Section: WhatsApp Style Chat UI -->
-                    <div style="flex: 1; min-width: 340px;">
+                    <div id="member_chat_section" style="flex: 1; min-width: 340px;">
                         <div class="content-card" style="height: 100%; display: flex; flex-direction: column;">
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
                                 <h2 style="font-size: 1.25rem; margin: 0; color: var(--text-main); display:flex; align-items:center; gap:8px;">
@@ -5041,7 +5041,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 <?php endif; ?>
                             </div>
 
-                            <!-- WhatsApp Chat Stream: Pastor on LEFT, Member on RIGHT -->
+                            <!-- WhatsApp Chat Stream: Pastor on LEFT (Blue), Member on RIGHT (Vibrant Green) -->
                             <div id="member-chat-stream" style="flex: 1; display:flex; flex-direction:column; gap:10px; max-height:420px; min-height:260px; overflow-y:auto; padding:12px; background:var(--bg-main); border-radius:12px; border:1px solid var(--border-color); margin-bottom: 14px;">
                                 <?php if($messages_query && $messages_query->num_rows > 0): ?>
                                     <?php 
@@ -5053,12 +5053,12 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                         $is_my_reply = ($msg['sender_type'] ?? '') === 'member';
                                         if (!empty($msg['pastor_id'])) { $last_pastor_id = (int)$msg['pastor_id']; }
                                     ?>
-                                        <!-- Bubble row: Member = RIGHT, Pastor = LEFT -->
+                                        <!-- Bubble row: Member = RIGHT (Green), Pastor = LEFT (Blue) -->
                                         <div style="display:flex; flex-direction:row; align-items:flex-end; gap:8px; <?= $is_my_reply ? 'justify-content:flex-end; padding-left:40px;' : 'justify-content:flex-start; padding-right:40px;' ?>">
                                             <?php if(!$is_my_reply): ?>
                                             <!-- Pastor Avatar (LEFT) -->
                                             <img src="<?= $p_img ?>" alt="Pastor"
-                                                 style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:2px solid var(--primary); cursor:zoom-in; flex-shrink:0;"
+                                                 style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:2px solid var(--primary); cursor:zoom-in; flex-shrink:0;"
                                                  onclick="viewProfileImage(this.src);"
                                                  onerror="this.src='uploads/default_avatar.png'"
                                                  title="Pastor <?= htmlspecialchars($p_display_name) ?>">
@@ -5068,9 +5068,10 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                                 <div style="font-size:0.72rem; font-weight:700; color:var(--text-muted); padding:0 4px;">
                                                     <?= $is_my_reply ? 'You' : 'Pastor ' . htmlspecialchars($p_display_name) ?>
                                                 </div>
-                                                <div style="background:<?= $is_my_reply ? 'var(--primary)' : 'var(--bg-card)' ?>; color:<?= $is_my_reply ? '#fff' : 'var(--text-main)' ?>; border:<?= $is_my_reply ? 'none' : '1px solid var(--border-color)' ?>; border-radius:<?= $is_my_reply ? '16px 4px 16px 16px' : '4px 16px 16px 16px' ?>; padding:10px 14px; font-size:0.9rem; line-height:1.5; word-break:break-word; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                                                <!-- High-contrast WhatsApp style bubbles: Blue for Pastor, Vibrant Green for Member -->
+                                                <div style="background:<?= $is_my_reply ? '#16a34a' : 'var(--primary)' ?>; color:#ffffff; border-radius:<?= $is_my_reply ? '16px 4px 16px 16px' : '4px 16px 16px 16px' ?>; padding:10px 14px; font-size:0.9rem; line-height:1.5; word-break:break-word; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
                                                     <?= nl2br(htmlspecialchars($msg['message'])) ?>
-                                                    <div style="margin-top:4px; font-size:0.68rem; opacity:0.65; text-align:<?= $is_my_reply ? 'right' : 'left' ?>;">
+                                                    <div style="margin-top:4px; font-size:0.68rem; color:rgba(255,255,255,0.85); text-align:<?= $is_my_reply ? 'right' : 'left' ?>;">
                                                         <?= date('g:i A, M j', strtotime($msg['created_at'])) ?>
                                                     </div>
                                                 </div>
@@ -5079,7 +5080,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                             <?php if($is_my_reply): ?>
                                             <!-- Member Avatar (RIGHT) -->
                                             <img src="<?= $my_pic ?>" alt="You"
-                                                 style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:2px solid var(--primary); cursor:zoom-in; flex-shrink:0;"
+                                                 style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:2px solid #16a34a; cursor:zoom-in; flex-shrink:0;"
                                                  onclick="viewProfileImage(this.src);"
                                                  onerror="this.src='uploads/default_avatar.png'"
                                                  title="You">
@@ -5115,6 +5116,10 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             (function(){
                                 const el = document.getElementById('member-chat-stream');
                                 if (el) { el.scrollTop = el.scrollHeight; }
+                                if (window.location.hash === '#member_chat_section') {
+                                    const sec = document.getElementById('member_chat_section');
+                                    if (sec) { sec.scrollIntoView({ behavior: 'instant', block: 'start' }); }
+                                }
                             })();
                             </script>
                         </div>

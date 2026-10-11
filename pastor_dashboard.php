@@ -899,7 +899,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_message'])) {
     }
     
     $return_member = $target_member_id > 0 ? '&chat_member_id=' . $target_member_id : '';
-    header("Location: pastor_dashboard.php?tab=appointments{$return_member}&success=" . urlencode("Message sent to member successfully"));
+    header("Location: pastor_dashboard.php?tab=appointments{$return_member}&success=" . urlencode("Message sent to member successfully") . "#chat_section");
     exit();
 }
 
@@ -909,7 +909,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'delete_sent_msg' && isset($_GE
     $p_name_check = $conn->real_escape_string(!empty($pastor_name) ? $pastor_name : ($pastor['first_name'] ?? ''));
     $conn->query("DELETE FROM member_messages WHERE id = $del_msg_id AND (pastor_id = $pastor_id OR pastor_name = '$p_name_check')");
     $return_member = isset($_GET['chat_member_id']) ? '&chat_member_id=' . (int)$_GET['chat_member_id'] : '';
-    header("Location: pastor_dashboard.php?tab=appointments{$return_member}&success=" . urlencode("Message removed successfully"));
+    header("Location: pastor_dashboard.php?tab=appointments{$return_member}&success=" . urlencode("Message removed successfully") . "#chat_section");
     exit();
 }
 
@@ -918,7 +918,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'clear_member_chat' && isset($_
     $del_member_id = (int)$_GET['member_id'];
     $p_name_check = $conn->real_escape_string(!empty($pastor_name) ? $pastor_name : ($pastor['first_name'] ?? ''));
     $conn->query("DELETE FROM member_messages WHERE member_id = $del_member_id AND (pastor_id = $pastor_id OR pastor_name = '$p_name_check')");
-    header("Location: pastor_dashboard.php?tab=appointments&chat_member_id={$del_member_id}&success=" . urlencode("All conversation messages with this member have been deleted."));
+    header("Location: pastor_dashboard.php?tab=appointments&chat_member_id={$del_member_id}&success=" . urlencode("All conversation messages with this member have been deleted.") . "#chat_section");
     exit();
 }
 
@@ -4778,28 +4778,89 @@ w.document.write('</div>');
                 $pastor_first_name_esc = $conn->real_escape_string($pastor['first_name'] ?? '');
                 $pastor_full_name_esc = $conn->real_escape_string(!empty($pastor_name) ? $pastor_name : trim(($pastor['first_name'] ?? '') . ' ' . ($pastor['last_name'] ?? '')));
 
-                // Fetch distinct members who have chatted with pastor
-                $chatted_members_query = $conn->query("
-                    SELECT DISTINCT m.id, m.first_name, m.last_name, m.department, m.profile_picture
-                    FROM member_messages mm
-                    JOIN members m ON mm.member_id = m.id
-                    WHERE (mm.pastor_id = $pastor_id OR mm.pastor_name = '$pastor_full_name_esc' OR mm.pastor_name = '$pastor_first_name_esc')
-                    ORDER BY m.first_name ASC
-                ");
+                // Fetch all approved members ordered by hierarchy:
+                // 1. General Leaders & Elders
+                // 2. Women Ministry
+                // 3. Youths Ministry
+                // 4. Sunday School
+                // 5. Other Members
+                $members_hierarchy_sql = "
+                    SELECT m.id, m.first_name, m.last_name, m.department, m.church_role, m.profile_picture,
+                        CASE 
+                            WHEN LOWER(COALESCE(m.church_role, '')) LIKE '%senior church elder%'
+                                 OR LOWER(COALESCE(m.church_role, '')) LIKE '%elder%'
+                                 OR LOWER(COALESCE(m.church_role, '')) LIKE '%general church%'
+                                 OR LOWER(COALESCE(m.church_role, '')) LIKE '%general lead%'
+                                 OR LOWER(COALESCE(m.department, '')) LIKE '%elder%'
+                                 OR LOWER(COALESCE(m.department, '')) LIKE '%general%' THEN 1
+                            WHEN LOWER(COALESCE(m.department, '')) LIKE '%women%' THEN 2
+                            WHEN LOWER(COALESCE(m.department, '')) LIKE '%youth%' THEN 3
+                            WHEN LOWER(COALESCE(m.department, '')) LIKE '%sunday%' THEN 4
+                            ELSE 5
+                        END AS dept_hierarchy
+                    FROM members m
+                    WHERE m.is_approved = 1
+                    ORDER BY dept_hierarchy ASC, m.first_name ASC, m.last_name ASC
+                ";
+                $all_members_res = $conn->query($members_hierarchy_sql);
+                $all_members = [];
+                $members_by_group = [
+                    1 => ['name' => 'General Leaders & Elders', 'badge' => '👑', 'color' => '#f59e0b', 'items' => []],
+                    2 => ['name' => 'Women Ministry', 'badge' => '🌸', 'color' => '#ec4899', 'items' => []],
+                    3 => ['name' => 'Youths Ministry', 'badge' => '⚡', 'color' => '#3b82f6', 'items' => []],
+                    4 => ['name' => 'Sunday School', 'badge' => '🌱', 'color' => '#10b981', 'items' => []],
+                    5 => ['name' => 'Other Members', 'badge' => '👥', 'color' => '#6b7280', 'items' => []],
+                ];
 
-                // If no specific member selected yet, auto-select the first chatted member if any exists
-                if ($selected_chat_member_id === 0 && $chatted_members_query && $chatted_members_query->num_rows > 0) {
-                    $first_m = $chatted_members_query->fetch_assoc();
-                    $selected_chat_member_id = (int)$first_m['id'];
-                    $chatted_members_query->data_seek(0);
+                // Set of member IDs that have chatted with pastor
+                $chatted_member_ids = [];
+                $c_res = $conn->query("
+                    SELECT DISTINCT member_id 
+                    FROM member_messages 
+                    WHERE pastor_id = $pastor_id OR pastor_name = '$pastor_full_name_esc' OR pastor_name = '$pastor_first_name_esc'
+                ");
+                if ($c_res) {
+                    while($cr = $c_res->fetch_assoc()) {
+                        $chatted_member_ids[(int)$cr['member_id']] = true;
+                    }
+                }
+
+                if ($all_members_res) {
+                    while($m_row = $all_members_res->fetch_assoc()) {
+                        $all_members[] = $m_row;
+                        $grp_id = (int)$m_row['dept_hierarchy'];
+                        if (!isset($members_by_group[$grp_id])) { $grp_id = 5; }
+                        $members_by_group[$grp_id]['items'][] = $m_row;
+                    }
+                }
+
+                // If no specific member selected yet, auto-select first chatted member or first member in hierarchy
+                if ($selected_chat_member_id === 0) {
+                    foreach($all_members as $m_chk) {
+                        if (isset($chatted_member_ids[$m_chk['id']])) {
+                            $selected_chat_member_id = (int)$m_chk['id'];
+                            break;
+                        }
+                    }
+                    if ($selected_chat_member_id === 0 && !empty($all_members)) {
+                        $selected_chat_member_id = (int)$all_members[0]['id'];
+                    }
                 }
 
                 // If a member is selected, get their info
                 $active_chat_member = null;
                 if ($selected_chat_member_id > 0) {
-                    $m_check = $conn->query("SELECT id, first_name, last_name, department, profile_picture FROM members WHERE id = $selected_chat_member_id LIMIT 1");
-                    if ($m_check && $m_check->num_rows > 0) {
-                        $active_chat_member = $m_check->fetch_assoc();
+                    foreach($all_members as $am) {
+                        if ((int)$am['id'] === $selected_chat_member_id) {
+                            $active_chat_member = $am;
+                            break;
+                        }
+                    }
+                    if (!$active_chat_member) {
+                        $m_check = $conn->query("SELECT id, first_name, last_name, department, church_role, profile_picture FROM members WHERE id = $selected_chat_member_id LIMIT 1");
+                        if ($m_check && $m_check->num_rows > 0) {
+                            $active_chat_member = $m_check->fetch_assoc();
+                        }
                     }
                 }
 
@@ -4817,54 +4878,107 @@ w.document.write('</div>');
                 ");
                 ?>
 
-                <div style="display:flex; gap:24px; margin-top:30px; flex-wrap:wrap; align-items:stretch;">
-                    <!-- Left: Select Member / Start Conversation Form -->
-                    <div class="content-card" style="flex: 1; min-width: 320px; max-width: 420px; margin:0; display:flex; flex-direction:column;">
+                <!-- Direct Chat Anchor Container -->
+                <div id="chat_section" style="display:flex; gap:24px; margin-top:30px; flex-wrap:wrap; align-items:stretch;">
+                    <!-- Left: Select Member with Hierarchy & Live Search Filter -->
+                    <div class="content-card" style="flex: 1; min-width: 320px; max-width: 440px; margin:0; display:flex; flex-direction:column;">
                         <h2 style="margin-top:0; font-size:1.25rem; display:flex; align-items:center; gap:8px;">
                             <span>👥 Choose Member to Chat</span>
                         </h2>
                         <p style="color:var(--text-muted); font-size:0.85rem; margin-top:-10px; margin-bottom:14px;">Select an existing chat or start a conversation with any member.</p>
                         
+                        <!-- Live Search Input Filter -->
+                        <div style="display:flex; gap:8px; margin-bottom:12px;">
+                            <div style="position:relative; flex:1;">
+                                <input type="text" id="live_member_search" class="form-control" 
+                                       placeholder="Search name, role or dept..." 
+                                       style="padding-left:36px; border-radius:8px; font-size:0.88rem; width:100%; box-sizing:border-box;" 
+                                       oninput="filterMembersLive(this.value)">
+                                <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); opacity:0.5; font-size:0.9rem;">🔍</span>
+                            </div>
+                            <button type="button" class="btn-submit" onclick="filterMembersLive(document.getElementById('live_member_search').value);" 
+                                    style="padding:8px 14px; font-size:0.85rem; height:auto; border-radius:8px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
+                                Search
+                            </button>
+                        </div>
+
+                        <!-- Dropdown Selector Grouped by Hierarchy -->
                         <div class="form-group" style="margin-bottom:15px;">
-                            <label style="font-weight:700; font-size:0.85rem;">Select Member</label>
-                            <select id="chat_member_selector" class="form-control" onchange="if(this.value){ window.location.href='?tab=appointments&chat_member_id=' + this.value; }">
-                                <option value="">-- Choose Member to Chat --</option>
-                                <?php 
-                                $all_members_list = $conn->query("SELECT id, first_name, last_name, department FROM members WHERE is_approved = 1 ORDER BY first_name");
-                                while($m = $all_members_list->fetch_assoc()): 
-                                    $is_sel = ($m['id'] == $selected_chat_member_id) ? 'selected' : '';
-                                ?>
-                                    <option value="<?= $m['id'] ?>" <?= $is_sel ?>><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name'] . ' (' . $m['department'] . ')') ?></option>
-                                <?php endwhile; ?>
+                            <label style="font-weight:700; font-size:0.8rem; color:var(--text-muted);">Quick Dropdown Selector</label>
+                            <select id="chat_member_selector" class="form-control" onchange="if(this.value){ window.location.href='?tab=appointments&chat_member_id=' + this.value + '#chat_section'; }">
+                                <option value="">-- Choose Member --</option>
+                                <?php foreach($members_by_group as $grp): ?>
+                                    <?php if(!empty($grp['items'])): ?>
+                                        <optgroup label="<?= $grp['badge'] ?> <?= htmlspecialchars($grp['name']) ?>">
+                                            <?php foreach($grp['items'] as $m): 
+                                                $is_sel = ($m['id'] == $selected_chat_member_id) ? 'selected' : '';
+                                                $has_c = isset($chatted_member_ids[$m['id']]) ? ' 💬' : '';
+                                            ?>
+                                                <option value="<?= $m['id'] ?>" <?= $is_sel ?>>
+                                                    <?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?><?= $has_c ?> (<?= htmlspecialchars($m['department']) ?>)
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </optgroup>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
                             </select>
                         </div>
 
-                        <!-- Quick List of Active Conversations -->
-                        <?php if($chatted_members_query && $chatted_members_query->num_rows > 0): ?>
-                        <div style="margin-top:5px; flex:1;">
-                            <label style="font-weight:700; font-size:0.8rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Active Conversations</label>
-                            <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px; max-height:260px; overflow-y:auto; padding-right:4px;">
-                                <?php while($cm = $chatted_members_query->fetch_assoc()): 
-                                    $cm_pic = !empty($cm['profile_picture']) ? 'uploads/' . htmlspecialchars($cm['profile_picture']) : 'uploads/default_avatar.png';
-                                    $is_active = ($cm['id'] == $selected_chat_member_id);
-                                ?>
-                                    <a href="?tab=appointments&chat_member_id=<?= $cm['id'] ?>"
-                                       style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; text-decoration:none; background:<?= $is_active ? 'rgba(37,99,235,0.1)' : 'var(--bg-lighter)' ?>; border:1px solid <?= $is_active ? 'var(--primary)' : 'var(--border-color)' ?>; transition:all 0.15s ease;">
-                                        <img src="<?= $cm_pic ?>" alt="<?= htmlspecialchars($cm['first_name']) ?>" style="width:30px; height:30px; border-radius:50%; object-fit:cover; border:1.5px solid var(--border-color);">
-                                        <div style="flex:1; min-width:0;">
-                                            <div style="font-size:0.85rem; font-weight:700; color:<?= $is_active ? 'var(--primary)' : 'var(--text-main)' ?>; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                                                <?= htmlspecialchars($cm['first_name'] . ' ' . $cm['last_name']) ?>
+                        <!-- Hierarchical Members List with Live Typing Filter -->
+                        <div style="flex:1; display:flex; flex-direction:column;">
+                            <label style="font-weight:700; font-size:0.8rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">
+                                Members Directory &amp; Chats
+                            </label>
+
+                            <div id="members_list_container" style="display:flex; flex-direction:column; gap:10px; max-height:360px; overflow-y:auto; padding-right:4px;">
+                                <?php foreach($members_by_group as $grp_id => $grp): ?>
+                                    <?php if(!empty($grp['items'])): ?>
+                                        <div class="chat-dept-group" data-group="<?= $grp_id ?>">
+                                            <div style="font-size:0.75rem; font-weight:800; color:<?= $grp['color'] ?>; background:rgba(0,0,0,0.02); padding:4px 8px; border-radius:6px; margin-bottom:4px; display:flex; align-items:center; gap:5px; border-left:3px solid <?= $grp['color'] ?>;">
+                                                <span><?= $grp['badge'] ?></span>
+                                                <span><?= htmlspecialchars($grp['name']) ?></span>
+                                                <span style="font-size:0.7rem; opacity:0.7; margin-left:auto;">(<?= count($grp['items']) ?>)</span>
                                             </div>
-                                            <div style="font-size:0.72rem; color:var(--text-muted);"><?= htmlspecialchars($cm['department']) ?></div>
+
+                                            <div style="display:flex; flex-direction:column; gap:5px;">
+                                                <?php foreach($grp['items'] as $m): 
+                                                    $m_pic = !empty($m['profile_picture']) ? 'uploads/' . htmlspecialchars($m['profile_picture']) : 'uploads/default_avatar.png';
+                                                    $is_active = ($m['id'] == $selected_chat_member_id);
+                                                    $has_chat = isset($chatted_member_ids[$m['id']]);
+                                                ?>
+                                                    <a href="?tab=appointments&chat_member_id=<?= $m['id'] ?>#chat_section"
+                                                       class="chat-member-item"
+                                                       data-name="<?= htmlspecialchars(strtolower($m['first_name'] . ' ' . $m['last_name'])) ?>"
+                                                       data-dept="<?= htmlspecialchars(strtolower($m['department'])) ?>"
+                                                       data-role="<?= htmlspecialchars(strtolower($m['church_role'] ?? '')) ?>"
+                                                       style="display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:8px; text-decoration:none; background:<?= $is_active ? 'rgba(37,99,235,0.1)' : 'var(--bg-lighter)' ?>; border:1px solid <?= $is_active ? 'var(--primary)' : 'var(--border-color)' ?>; transition:all 0.15s ease;">
+                                                        <img src="<?= $m_pic ?>" alt="<?= htmlspecialchars($m['first_name']) ?>" 
+                                                             style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1.5px solid <?= $is_active ? 'var(--primary)' : 'var(--border-color)' ?>; flex-shrink:0;">
+                                                        <div style="flex:1; min-width:0;">
+                                                            <div style="font-size:0.85rem; font-weight:700; color:<?= $is_active ? 'var(--primary)' : 'var(--text-main)' ?>; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                                <?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?>
+                                                            </div>
+                                                            <div style="font-size:0.72rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                                <?= htmlspecialchars($m['department']) ?><?= !empty($m['church_role']) ? ' • ' . htmlspecialchars($m['church_role']) : '' ?>
+                                                            </div>
+                                                        </div>
+                                                        <?php if($is_active): ?>
+                                                            <span style="font-size:0.72rem; color:var(--primary); font-weight:800; white-space:nowrap;">● Open</span>
+                                                        <?php elseif($has_chat): ?>
+                                                            <span style="font-size:0.7rem; color:#10b981; font-weight:700; white-space:nowrap;">💬 Chat</span>
+                                                        <?php endif; ?>
+                                                    </a>
+                                                <?php endforeach; ?>
+                                            </div>
                                         </div>
-                                        <?php if($is_active): ?>
-                                            <span style="font-size:0.75rem; color:var(--primary); font-weight:700;">● Active</span>
-                                        <?php endif; ?>
-                                    </a>
-                                <?php endwhile; ?>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+
+                                <div id="no_member_match" style="display:none; text-align:center; padding:20px 10px; color:var(--text-muted); font-size:0.85rem;">
+                                    🔍 No members match your search.
+                                </div>
                             </div>
                         </div>
-                        <?php endif; ?>
                     </div>
 
                     <!-- Right: WhatsApp-Style Chat UI for the Selected Member -->
@@ -4874,12 +4988,12 @@ w.document.write('</div>');
                                 <?php if($active_chat_member): 
                                     $acm_pic = !empty($active_chat_member['profile_picture']) ? 'uploads/' . htmlspecialchars($active_chat_member['profile_picture']) : 'uploads/default_avatar.png';
                                 ?>
-                                    <img src="<?= $acm_pic ?>" alt="Member" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid #10b981; cursor:zoom-in;" onclick="viewProfileImage(this.src);">
+                                    <img src="<?= $acm_pic ?>" alt="Member" style="width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid #16a34a; cursor:zoom-in;" onclick="viewProfileImage(this.src);">
                                     <div>
                                         <h2 style="margin:0; font-size:1.15rem; color:var(--text-main);">
                                             Chat with <?= htmlspecialchars($active_chat_member['first_name'] . ' ' . $active_chat_member['last_name']) ?>
                                         </h2>
-                                        <span style="font-size:0.75rem; color:var(--text-muted);"><?= htmlspecialchars($active_chat_member['department']) ?> Department</span>
+                                        <span style="font-size:0.75rem; color:var(--text-muted);"><?= htmlspecialchars($active_chat_member['department']) ?><?= !empty($active_chat_member['church_role']) ? ' • ' . htmlspecialchars($active_chat_member['church_role']) : '' ?></span>
                                     </div>
                                 <?php else: ?>
                                     <h2 style="margin:0; font-size:1.25rem;">💬 Church Member Chat</h2>
@@ -4888,7 +5002,7 @@ w.document.write('</div>');
 
                             <?php if($selected_chat_member_id > 0 && $sent_msgs_query && $sent_msgs_query->num_rows > 0): ?>
                                 <!-- Single One-Click Clear Chat Button for this Member -->
-                                <a href="?tab=appointments&action=clear_member_chat&member_id=<?= $selected_chat_member_id ?>"
+                                <a href="?tab=appointments&action=clear_member_chat&member_id=<?= $selected_chat_member_id ?>#chat_section"
                                    onclick="return confirm('Are you sure you want to delete all messages in this conversation with <?= htmlspecialchars($active_chat_member['first_name'] ?? 'this member') ?>?');"
                                    style="background:#fee2e2; color:#ef4444; border:1px solid #fecaca; padding:5px 12px; border-radius:6px; font-size:0.78rem; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s ease;"
                                    title="Delete all messages with this member">
@@ -4897,7 +5011,7 @@ w.document.write('</div>');
                             <?php endif; ?>
                         </div>
 
-                        <!-- Chat Stream: Pastor on LEFT, Member on RIGHT -->
+                        <!-- Chat Stream: Pastor on LEFT (Blue), Member on RIGHT (Vibrant WhatsApp Green) -->
                         <div id="pastor-chat-scroll" style="flex:1; display:flex; flex-direction:column; gap:10px; max-height:430px; min-height:280px; overflow-y:auto; padding:12px; background:var(--bg-main); border-radius:12px; border:1px solid var(--border-color); margin-bottom:14px;">
                             <?php if ($sent_msgs_query && $sent_msgs_query->num_rows > 0): ?>
                                 <?php while($smsg = $sent_msgs_query->fetch_assoc()):
@@ -4907,12 +5021,12 @@ w.document.write('</div>');
                                     $member_full = htmlspecialchars($smsg['first_name'] . ' ' . $smsg['last_name']);
                                     $pastor_full = !empty($smsg['p_fn']) ? htmlspecialchars(trim($smsg['p_fn'].' '.($smsg['p_ln']??''))) : htmlspecialchars($smsg['pastor_name'] ?? '');
                                 ?>
-                                <!-- Message bubble row: Member = RIGHT, Pastor = LEFT -->
+                                <!-- Message bubble row: Member = RIGHT (Green), Pastor = LEFT (Blue) -->
                                 <div style="display:flex; flex-direction:row; align-items:flex-end; gap:8px; <?= $is_member_reply ? 'justify-content:flex-end; padding-left:40px;' : 'justify-content:flex-start; padding-right:40px;' ?>">
                                     <?php if(!$is_member_reply): ?>
                                     <!-- Pastor avatar (left) -->
                                     <img src="<?= $p_pic ?>" alt="Pastor"
-                                         style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:2px solid var(--primary); cursor:zoom-in; flex-shrink:0;"
+                                         style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:2px solid var(--primary); cursor:zoom-in; flex-shrink:0;"
                                          onclick="viewProfileImage(this.src);"
                                          onerror="this.src='uploads/default_avatar.png'"
                                          title="You (Pastor <?= $pastor_full ?>)">
@@ -4923,15 +5037,16 @@ w.document.write('</div>');
                                             <?= $is_member_reply ? $member_full : 'You' ?>
                                         </div>
 
-                                        <div style="background:<?= $is_member_reply ? 'rgba(16,185,129,0.12)' : 'var(--primary)' ?>; color:<?= $is_member_reply ? '#065f46' : '#fff' ?>; border:<?= $is_member_reply ? '1px solid rgba(16,185,129,0.25)' : 'none' ?>; border-radius:<?= $is_member_reply ? '16px 4px 16px 16px' : '4px 16px 16px 16px' ?>; padding:10px 14px; font-size:0.9rem; line-height:1.5; word-break:break-word; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                                        <!-- High-visibility WhatsApp bubbles: Blue for Pastor, Vibrant Green for Member -->
+                                        <div style="background:<?= $is_member_reply ? '#16a34a' : 'var(--primary)' ?>; color:#ffffff; border-radius:<?= $is_member_reply ? '16px 4px 16px 16px' : '4px 16px 16px 16px' ?>; padding:10px 14px; font-size:0.9rem; line-height:1.5; word-break:break-word; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
                                             <?= nl2br(htmlspecialchars($smsg['message'])) ?>
-                                            <div style="margin-top:4px; font-size:0.68rem; opacity:0.65; text-align:<?= $is_member_reply ? 'right' : 'left' ?>;">
+                                            <div style="margin-top:4px; font-size:0.68rem; color:rgba(255,255,255,0.85); text-align:<?= $is_member_reply ? 'right' : 'left' ?>;">
                                                 <?= date('g:i A, M j', strtotime($smsg['created_at'])) ?>
                                             </div>
                                         </div>
 
                                         <div style="display:flex; align-items:center; gap:8px; padding:0 4px;">
-                                            <a href="?tab=appointments&action=delete_sent_msg&msg_id=<?= $smsg['id'] ?>&chat_member_id=<?= $selected_chat_member_id ?>"
+                                            <a href="?tab=appointments&action=delete_sent_msg&msg_id=<?= $smsg['id'] ?>&chat_member_id=<?= $selected_chat_member_id ?>#chat_section"
                                                onclick="return confirm('Delete this message?');"
                                                style="background:none; color:#ef4444; font-size:0.72rem; text-decoration:none; display:inline-flex; align-items:center; gap:2px; opacity:0.75;"
                                                title="Delete Message">
@@ -4943,7 +5058,7 @@ w.document.write('</div>');
                                     <?php if($is_member_reply): ?>
                                     <!-- Member avatar (right) -->
                                     <img src="<?= $m_pic ?>" alt="<?= $member_full ?>"
-                                         style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:2px solid #10b981; cursor:zoom-in; flex-shrink:0;"
+                                         style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:2px solid #16a34a; cursor:zoom-in; flex-shrink:0;"
                                          onclick="viewProfileImage(this.src);"
                                          onerror="this.src='uploads/default_avatar.png'"
                                          title="Member: <?= $member_full ?>">
@@ -4962,7 +5077,7 @@ w.document.write('</div>');
 
                         <!-- Bottom Message Composer: Continues conversation seamlessly -->
                         <?php if($selected_chat_member_id > 0): ?>
-                        <form method="POST" action="?tab=appointments" style="margin-top:auto;">
+                        <form method="POST" action="?tab=appointments#chat_section" style="margin-top:auto;">
                             <input type="hidden" name="member_id" value="<?= $selected_chat_member_id ?>">
                             <div style="display:flex; flex-direction:column; gap:8px;">
                                 <textarea name="message" class="form-control" rows="3" placeholder="Type a message to <?= htmlspecialchars($active_chat_member['first_name'] ?? 'member') ?>..." required style="width:100%; font-size:0.92rem; min-height:75px; resize:vertical; padding:10px 14px; box-sizing:border-box; border-radius:10px;"></textarea>
@@ -4980,9 +5095,45 @@ w.document.write('</div>');
                         <?php endif; ?>
 
                         <script>
+                        // Live typing filter for members
+                        function filterMembersLive(term) {
+                            term = (term || '').toLowerCase().trim();
+                            const items = document.querySelectorAll('.chat-member-item');
+                            let count = 0;
+                            items.forEach(function(el) {
+                                const name = (el.getAttribute('data-name') || '').toLowerCase();
+                                const dept = (el.getAttribute('data-dept') || '').toLowerCase();
+                                const role = (el.getAttribute('data-role') || '').toLowerCase();
+                                if (!term || name.indexOf(term) !== -1 || dept.indexOf(term) !== -1 || role.indexOf(term) !== -1) {
+                                    el.style.display = 'flex';
+                                    count++;
+                                } else {
+                                    el.style.display = 'none';
+                                }
+                            });
+
+                            document.querySelectorAll('.chat-dept-group').forEach(function(grp) {
+                                const visible = grp.querySelectorAll('.chat-member-item:not([style*="display: none"])').length;
+                                grp.style.display = visible > 0 ? 'block' : 'none';
+                            });
+
+                            const noMatch = document.getElementById('no_member_match');
+                            if (noMatch) {
+                                noMatch.style.display = (count === 0) ? 'block' : 'none';
+                            }
+                        }
+
+                        // Auto-scroll chat to bottom & instant jump to chat section if navigated
                         (function(){
                             const c = document.getElementById('pastor-chat-scroll');
                             if(c) { c.scrollTop = c.scrollHeight; }
+
+                            if (window.location.href.indexOf('chat_member_id=') !== -1 || window.location.hash === '#chat_section') {
+                                const cs = document.getElementById('chat_section');
+                                if (cs) {
+                                    cs.scrollIntoView({ behavior: 'instant', block: 'start' });
+                                }
+                            }
                         })();
                         </script>
                     </div>

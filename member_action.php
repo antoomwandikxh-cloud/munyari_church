@@ -146,7 +146,7 @@ if (isset($_GET['action'])) {
             $notif_text = $conn->real_escape_string("Reply from member $member_name: \"$snippet\". Please check your Appointments messages.");
             $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($target_pastor_id, 'pastor', '$notif_text')");
 
-            header("Location: member_dashboard.php?tab=contact_pastor&success=" . urlencode("Your reply has been sent to Pastor $pastor_name successfully."));
+            header("Location: member_dashboard.php?tab=contact_pastor&success=" . urlencode("Your message has been sent to Pastor $pastor_name successfully.") . "#member_chat_section");
             exit();
         } else {
             header("Location: member_dashboard.php?tab=contact_pastor&error=" . urlencode("Could not send reply. Please enter a valid message."));
