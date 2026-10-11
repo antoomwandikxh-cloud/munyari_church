@@ -5055,6 +5055,52 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
         <p style="margin:0;color:var(--text-muted);">No worshippers have chosen the worship role yet.</p>
     <?php endif; ?>
 </div>
+<script>
+function filterWTeam() {
+    var input = document.getElementById('wTeamSearch');
+    if (!input) return;
+    var filter = input.value.toLowerCase().trim();
+    var table = document.getElementById('wTeamList');
+    if (!table) return;
+    var rows = table.querySelectorAll('tbody tr.wt-row');
+    var visible = 0;
+    for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var text = (row.textContent || row.innerText || '').toLowerCase();
+        if (!filter || text.indexOf(filter) > -1) {
+            row.style.display = '';
+            visible++;
+        } else {
+            row.style.display = 'none';
+        }
+    }
+    // Re-index visible rows
+    var counter = 1;
+    for (var j = 0; j < rows.length; j++) {
+        if (rows[j].style.display !== 'none') {
+            if (rows[j].cells && rows[j].cells[0]) {
+                rows[j].cells[0].textContent = counter++;
+            }
+        }
+    }
+    // Handle no matching results feedback
+    var tbody = table.querySelector('tbody');
+    var emptyRow = document.getElementById('wTeamNoMatchRow');
+    if (visible === 0 && rows.length > 0) {
+        if (!emptyRow && tbody) {
+            emptyRow = document.createElement('tr');
+            emptyRow.id = 'wTeamNoMatchRow';
+            emptyRow.innerHTML = '<td colspan="6" style="text-align:center;padding:22px;color:var(--text-muted);font-style:italic;">No worshippers match "' + filter.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '".</td>';
+            tbody.appendChild(emptyRow);
+        } else if (emptyRow) {
+            emptyRow.style.display = '';
+            emptyRow.cells[0].innerHTML = 'No worshippers match "' + filter.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '".';
+        }
+    } else if (emptyRow) {
+        emptyRow.style.display = 'none';
+    }
+}
+</script>
 
 <div class="content-card" style="margin-bottom:20px;">
     <h2>Allocate Task</h2>
@@ -8440,11 +8486,63 @@ document.querySelectorAll('.member-username-check').forEach(function(input) {
     checkMemberUsername();
 });
 // Close on click outside image
-document.getElementById('imageViewerModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        this.style.display = 'none';
+// Theme Toggle
+(function() {
+    const themeToggle = document.getElementById('themeToggle');
+    const moonIcon = document.getElementById('moonIcon');
+    const sunIcon = document.getElementById('sunIcon');
+    const root = document.documentElement;
+
+    function applyTheme(theme) {
+        if (theme === 'dark') {
+            root.setAttribute('data-theme', 'dark');
+            if (moonIcon) moonIcon.style.display = 'none';
+            if (sunIcon) sunIcon.style.display = 'block';
+        } else {
+            root.removeAttribute('data-theme');
+            if (moonIcon) moonIcon.style.display = 'block';
+            if (sunIcon) sunIcon.style.display = 'none';
+        }
     }
-});
+
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    applyTheme(currentTheme);
+
+    if (themeToggle) {
+        themeToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            const isDark = root.getAttribute('data-theme') === 'dark';
+            const nextTheme = isDark ? 'light' : 'dark';
+            localStorage.setItem('theme', nextTheme);
+            applyTheme(nextTheme);
+        });
+    }
+})();
+// Close on click outside image
+const imgModal = document.getElementById('imageViewerModal');
+if (imgModal) {
+    imgModal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.style.display = 'none';
+        }
+    });
+}
+
+if (typeof filterWTeam !== 'function') {
+    window.filterWTeam = function() {
+        var input = document.getElementById('wTeamSearch');
+        if (!input) return;
+        var filter = input.value.toLowerCase().trim();
+        var table = document.getElementById('wTeamList');
+        if (!table) return;
+        var rows = table.querySelectorAll('tbody tr.wt-row');
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var text = (row.textContent || row.innerText || '').toLowerCase();
+            row.style.display = (!filter || text.indexOf(filter) > -1) ? '' : 'none';
+        }
+    };
+}
 </script>
 </body>
 </html>
