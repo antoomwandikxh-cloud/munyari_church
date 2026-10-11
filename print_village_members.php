@@ -140,8 +140,8 @@ if (file_exists($logo_path)) {
             td, th { page-break-inside: avoid !important; break-inside: avoid !important; }
             .sig-box, .sig-section { page-break-inside: avoid !important; break-inside: avoid !important; }
             .no-print { display: none !important; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .watermark { color: rgba(30, 58, 138, 0.25) !important; z-index: 999999 !important; pointer-events: none; mix-blend-mode: multiply !important; opacity: 1 !important; }
+            .footer { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; text-align: center !important; }
         }
         table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
         tr { page-break-inside: avoid !important; break-inside: avoid !important; }
@@ -216,7 +216,12 @@ if (file_exists($logo_path)) {
         .stamp-circle { width: 140px; height: 140px; border: 2px dashed #aaa; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #aaa; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; line-height: 2; }
 
         /* ── Footer ── */
-        .footer { text-align: center; font-size: 10px; color: #666; font-style: italic; border-top: 1px solid #eee; padding-top: 8px; margin-top: 20px; }
+        .footer {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            text-align: center; font-size: 10px; color: #666; font-style: italic;
+            border-top: 1px solid #eee; padding: 4px 0; background: rgba(255,255,255,0.95);
+            z-index: 10;
+        }
     </style>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}

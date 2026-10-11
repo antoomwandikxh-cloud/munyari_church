@@ -168,11 +168,15 @@ if ($report === 'all_villages') {
             font-weight: bold;
         }
         .print-footer {
-            margin-top: 25px;
+            position: fixed; bottom: 0; left: 0; right: 0;
             font-size: 0.75rem;
             color: #777;
             text-align: center;
             font-style: italic;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 4px 0;
+            border-top: 1px solid #e5e7eb;
+            z-index: 10;
         }
         @media print {
             @page { size: A4 landscape; margin: 12mm 10mm 24mm 10mm !important; }
@@ -186,6 +190,7 @@ if ($report === 'all_villages') {
             .no-print { display: none !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
             .print-watermark { color: rgba(30, 58, 138, 0.25) !important; mix-blend-mode: multiply !important; z-index: 9999 !important; }
+            .print-footer { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; text-align: center !important; }
         }
         table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
         tr { page-break-inside: avoid !important; break-inside: avoid !important; }
