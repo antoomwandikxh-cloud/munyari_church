@@ -871,6 +871,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['decline_member_submit
 // Handle Send Message inline
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_message'])) {
     $target_member_id = (int)$_POST['member_id'];
+    $reply_to_id = !empty($_POST['reply_to_id']) ? (int)$_POST['reply_to_id'] : null;
     $raw_msg = trim($_POST['message'] ?? $_POST['message_content'] ?? '');
     $msg_esc = $conn->real_escape_string($raw_msg);
     
@@ -879,15 +880,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_message'])) {
     $p_name_esc = $conn->real_escape_string($p_name);
     
     if ($target_member_id > 0 && !empty($raw_msg)) {
-        // Ensure pastor_id column exists
+        // Ensure columns exist
         $conn->query("ALTER TABLE member_messages ADD COLUMN IF NOT EXISTS pastor_id INT(6) UNSIGNED NULL AFTER member_id");
+        $conn->query("ALTER TABLE member_messages ADD COLUMN IF NOT EXISTS sender_type ENUM('pastor', 'member') NOT NULL DEFAULT 'pastor' AFTER pastor_name");
+        $conn->query("ALTER TABLE member_messages ADD COLUMN IF NOT EXISTS reply_to_id INT(6) UNSIGNED NULL DEFAULT NULL AFTER message");
+
+        $reply_sql = $reply_to_id ? $reply_to_id : "NULL";
 
         // Insert into member_messages so member and pastor can both track it
-        $conn->query("INSERT INTO member_messages (member_id, pastor_id, pastor_name, message) VALUES ($target_member_id, $pastor_id, '$p_name_esc', '$msg_esc')");
+        $conn->query("INSERT INTO member_messages (member_id, pastor_id, pastor_name, sender_type, message, reply_to_id) 
+                      VALUES ($target_member_id, $pastor_id, '$p_name_esc', 'pastor', '$msg_esc', $reply_sql)");
         
         // Notify member with keyword that routes to Contact Pastor
         $snippet = mb_strlen($raw_msg) > 60 ? mb_substr($raw_msg, 0, 57) . '...' : $raw_msg;
-        $notif_msg = $conn->real_escape_string("Message from Pastor $p_name: \"$snippet\". Please check your Contact Pastor tab.");
+        $action_phrase = $reply_to_id ? "replied to your message" : "sent you a message";
+        $notif_msg = $conn->real_escape_string("Message from Pastor $p_name: Pastor $action_phrase: \"$snippet\". Please check your Contact Pastor tab.");
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($target_member_id, 'member', '$notif_msg')");
     }
     
@@ -4782,22 +4789,24 @@ w.document.write('</div>');
                         </form>
                     </div>
 
-                    <!-- Messages Sent to Members Table -->
+                    <!-- Messages & Replies Table -->
                     <div class="content-card" style="flex: 2; min-width: 360px; margin:0;">
                         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 20px; flex-wrap:wrap; gap:10px;">
                             <h2 style="margin:0; font-size:1.25rem; display:flex; align-items:center; gap:8px;">
-                                <span>📤 Messages Sent to Members</span>
+                                <span>💬 Direct Messages &amp; Member Replies</span>
                             </h2>
-                            <span style="font-size:0.85rem; color:var(--text-muted);">History of direct messages you sent</span>
+                            <span style="font-size:0.85rem; color:var(--text-muted);">Conversations and member replies</span>
                         </div>
 
                         <?php
                         $pastor_first_name_esc = $conn->real_escape_string($pastor['first_name'] ?? '');
                         $pastor_full_name_esc = $conn->real_escape_string(!empty($pastor_name) ? $pastor_name : trim(($pastor['first_name'] ?? '') . ' ' . ($pastor['last_name'] ?? '')));
                         $sent_msgs_query = $conn->query("
-                            SELECT mm.*, m.first_name, m.last_name, m.department, m.profile_picture
+                            SELECT mm.*, m.first_name, m.last_name, m.department, m.profile_picture as member_pic,
+                                   p.first_name as p_fn, p.last_name as p_ln, p.profile_picture as pastor_pic
                             FROM member_messages mm
                             JOIN members m ON mm.member_id = m.id
+                            LEFT JOIN pastors p ON mm.pastor_id = p.id
                             WHERE (mm.pastor_id = $pastor_id OR mm.pastor_name = '$pastor_full_name_esc' OR mm.pastor_name = '$pastor_first_name_esc')
                             ORDER BY mm.created_at DESC
                         ");
@@ -4807,51 +4816,105 @@ w.document.write('</div>');
                             <table>
                                 <thead>
                                     <tr>
-                                        <th style="min-width:180px;">Member</th>
-                                        <th style="min-width:110px;">Department</th>
-                                        <th style="min-width:240px;">Message Sent</th>
+                                        <th style="min-width:210px;">Participants</th>
+                                        <th style="min-width:110px;">Type</th>
+                                        <th style="min-width:220px;">Message</th>
                                         <th style="min-width:140px;">Date &amp; Time</th>
-                                        <th style="width:70px; text-align:center;">Action</th>
+                                        <th style="width:110px; text-align:center;">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php while($smsg = $sent_msgs_query->fetch_assoc()): 
-                                        $m_pic = !empty($smsg['profile_picture']) ? 'uploads/' . htmlspecialchars($smsg['profile_picture']) : 'uploads/default_avatar.png';
+                                        $m_pic = !empty($smsg['member_pic']) ? 'uploads/' . htmlspecialchars($smsg['member_pic']) : 'uploads/default_avatar.png';
+                                        $p_pic = !empty($smsg['pastor_pic']) ? 'uploads/' . htmlspecialchars($smsg['pastor_pic']) : (!empty($pastor['profile_picture']) ? 'uploads/' . htmlspecialchars($pastor['profile_picture']) : 'uploads/default_avatar.png');
+                                        $is_member_reply = ($smsg['sender_type'] ?? '') === 'member';
+                                        $sender_name = $is_member_reply ? ($smsg['first_name'] . ' ' . $smsg['last_name']) : ('Pastor ' . (!empty($smsg['p_fn']) ? trim($smsg['p_fn'].' '.($smsg['p_ln']??'')) : $smsg['pastor_name']));
+                                        $recipient_name = $is_member_reply ? ('Pastor ' . (!empty($smsg['p_fn']) ? trim($smsg['p_fn'].' '.($smsg['p_ln']??'')) : $smsg['pastor_name'])) : ($smsg['first_name'] . ' ' . $smsg['last_name']);
                                     ?>
-                                    <tr>
+                                    <tr style="<?= $is_member_reply ? 'background:rgba(16,185,129,0.03);' : '' ?>">
                                         <td>
-                                            <div style="display:flex; align-items:center; gap:10px;">
-                                                <img src="<?= $m_pic ?>" alt="Member"
-                                                     style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--border-color); cursor:zoom-in; flex-shrink:0; background:#f3f4f6; transition:transform 0.15s ease;"
-                                                     onmouseover="this.style.transform='scale(1.12)'"
-                                                     onmouseout="this.style.transform='scale(1)'"
+                                            <div style="display:flex; align-items:center; gap:8px;">
+                                                <!-- Sender avatar -->
+                                                <img src="<?= $is_member_reply ? $m_pic : $p_pic ?>" alt="Sender"
+                                                     style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:2px solid <?= $is_member_reply ? '#10b981' : 'var(--primary)' ?>; cursor:zoom-in; flex-shrink:0; background:#f3f4f6;"
                                                      onclick="viewProfileImage(this.src);"
                                                      onerror="this.src='uploads/default_avatar.png'"
-                                                     title="Click to view full photo">
-                                                <span style="font-weight:600; color:var(--text-main);"><?= htmlspecialchars($smsg['first_name'] . ' ' . $smsg['last_name']) ?></span>
+                                                     title="Sender: <?= htmlspecialchars($sender_name) ?>">
+                                                <div style="line-height:1.2;">
+                                                    <div style="font-weight:700; font-size:0.85rem; color:var(--text-main);"><?= htmlspecialchars($sender_name) ?></div>
+                                                    <div style="font-size:0.72rem; color:var(--text-muted); display:flex; align-items:center; gap:4px; margin-top:2px;">
+                                                        <span>To:</span>
+                                                        <img src="<?= $is_member_reply ? $p_pic : $m_pic ?>" alt="Recipient"
+                                                             style="width:18px; height:18px; border-radius:50%; object-fit:cover; cursor:zoom-in; vertical-align:middle;"
+                                                             onclick="viewProfileImage(this.src);"
+                                                             onerror="this.src='uploads/default_avatar.png'"
+                                                             title="Recipient: <?= htmlspecialchars($recipient_name) ?>">
+                                                        <span><?= htmlspecialchars($recipient_name) ?></span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
-                                        <td><span class="badge" style="background:rgba(99,102,241,0.1); color:#6366f1; font-weight:600; font-size:0.8rem;"><?= htmlspecialchars($smsg['department']) ?></span></td>
-                                        <td style="line-height:1.45; color:var(--text-main);"><?= nl2br(htmlspecialchars($smsg['message'])) ?></td>
-                                        <td style="font-size:0.85rem; color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($smsg['created_at'])) ?></td>
+                                        <td>
+                                            <?php if($is_member_reply): ?>
+                                                <span class="badge" style="background:rgba(16,185,129,0.12); color:#10b981; font-weight:700; font-size:0.75rem;">↩️ Member Reply</span>
+                                            <?php else: ?>
+                                                <span class="badge" style="background:rgba(99,102,241,0.1); color:#6366f1; font-weight:600; font-size:0.75rem;">📤 Outgoing</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td style="line-height:1.45; color:var(--text-main); font-size:0.9rem;"><?= nl2br(htmlspecialchars($smsg['message'])) ?></td>
+                                        <td style="font-size:0.82rem; color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($smsg['created_at'])) ?></td>
                                         <td style="text-align:center;">
-                                            <a href="?tab=appointments&action=delete_sent_msg&msg_id=<?= $smsg['id'] ?>"
-                                               onclick="return confirm('Are you sure you want to delete this sent message?');"
-                                               class="btn-action btn-danger"
-                                               style="background:#fee2e2; color:#ef4444; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.82rem; text-decoration:none; display:inline-flex; align-items:center; gap:4px;"
-                                               title="Delete Sent Message">
-                                                🗑️
-                                            </a>
+                                            <div style="display:inline-flex; align-items:center; gap:6px;">
+                                                <?php if($is_member_reply): ?>
+                                                    <button type="button"
+                                                            onclick="togglePastorReply(<?= $smsg['id'] ?>);"
+                                                            style="background:#e0e7ff; color:#4338ca; border:none; padding:5px 9px; border-radius:6px; cursor:pointer; font-size:0.78rem; font-weight:700; display:inline-flex; align-items:center; gap:3px;"
+                                                            title="Reply to Member">
+                                                        ↩️ Reply
+                                                    </button>
+                                                <?php endif; ?>
+                                                <a href="?tab=appointments&action=delete_sent_msg&msg_id=<?= $smsg['id'] ?>"
+                                                   onclick="return confirm('Are you sure you want to delete this message?');"
+                                                   class="btn-action btn-danger"
+                                                   style="background:#fee2e2; color:#ef4444; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:0.78rem; text-decoration:none; display:inline-flex; align-items:center;"
+                                                   title="Delete Message">
+                                                    🗑️
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <!-- Inline Reply Row -->
+                                    <tr id="pastor-reply-row-<?= $smsg['id'] ?>" style="display:none; background:var(--bg-lighter);">
+                                        <td colspan="5" style="padding:14px 18px; border-top:1px dashed var(--border-color);">
+                                            <form method="POST" action="?tab=appointments">
+                                                <input type="hidden" name="member_id" value="<?= $smsg['member_id'] ?>">
+                                                <input type="hidden" name="reply_to_id" value="<?= $smsg['id'] ?>">
+                                                <div style="font-weight:700; font-size:0.85rem; margin-bottom:8px; color:var(--primary); display:flex; align-items:center; gap:6px;">
+                                                    <span>↩️ Replying back to <?= htmlspecialchars($smsg['first_name'] . ' ' . $smsg['last_name']) ?>:</span>
+                                                </div>
+                                                <div style="display:flex; gap:10px; align-items:flex-start;">
+                                                    <textarea name="message" class="form-control" rows="2" placeholder="Type your reply to <?= htmlspecialchars($smsg['first_name']) ?>..." required style="flex:1; font-size:0.9rem;"></textarea>
+                                                    <button type="submit" name="send_message" class="btn-submit" style="padding:9px 18px; font-size:0.85rem; height:auto; white-space:nowrap;">Send Reply</button>
+                                                </div>
+                                            </form>
                                         </td>
                                     </tr>
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
                         </div>
+                        <script>
+                        function togglePastorReply(id) {
+                            const r = document.getElementById('pastor-reply-row-' + id);
+                            if (r) {
+                                r.style.display = (r.style.display === 'none' || r.style.display === '') ? 'table-row' : 'none';
+                            }
+                        }
+                        </script>
                         <?php else: ?>
                         <div style="text-align:center; padding:35px 20px; color:var(--text-muted);">
                             <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.35; margin-bottom:8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-                            <p style="margin:0; font-size:0.95rem;">You have not sent any direct messages to members yet.</p>
+                            <p style="margin:0; font-size:0.95rem;">You have not sent or received any direct messages yet.</p>
                         </div>
                         <?php endif; ?>
                     </div>

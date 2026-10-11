@@ -23,7 +23,18 @@ function notification_badge_tabs($message, $user_type) {
         return array_values(array_unique($tabs));
     }
 
-    // ─── APPOINTMENTS & CONTACT PASTOR ──────────────────────────────────────
+    // ─── APPOINTMENTS & CONTACT PASTOR & DIRECT MESSAGES ─────────────────────
+    if (strpos($msg, 'reply from member') !== false
+        || strpos($msg, 'member reply') !== false
+        || strpos($msg, 'message from member') !== false
+        || (strpos($msg, 'member') !== false && strpos($msg, 'replied') !== false)
+    ) {
+        if ($user_type === 'pastor' || $user_type === 'admin') {
+            $tabs[] = 'appointments';
+            return array_values(array_unique($tabs));
+        }
+    }
+
     if (strpos($msg, 'appointment') !== false && strpos($msg, 'role') === false) {
         if ($user_type === 'member') {
             $tabs[] = 'contact_pastor';
@@ -35,7 +46,9 @@ function notification_badge_tabs($message, $user_type) {
     if (strpos($msg, 'contact pastor') !== false 
         || strpos($msg, 'message from pastor') !== false 
         || strpos($msg, 'message from the pastor') !== false
+        || strpos($msg, 'reply from pastor') !== false
         || (strpos($msg, 'pastor') !== false && strpos($msg, 'sent you a message') !== false)
+        || (strpos($msg, 'pastor') !== false && strpos($msg, 'replied') !== false)
         || (strpos($msg, 'pastor') !== false && strpos($msg, 'personal message') !== false)
     ) {
         if ($user_type === 'member') {

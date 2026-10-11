@@ -111,6 +111,49 @@ if (isset($_GET['action'])) {
         exit();
     }
     
+    // Reply to Pastor Message
+    elseif ($action === 'reply_to_pastor' && $_SERVER['REQUEST_METHOD'] == 'POST') {
+        $target_pastor_id = (int)($_POST['pastor_id'] ?? 0);
+        $reply_to_id = !empty($_POST['reply_to_id']) ? (int)$_POST['reply_to_id'] : null;
+        $reply_text = trim($_POST['message'] ?? '');
+
+        if ($target_pastor_id > 0 && !empty($reply_text)) {
+            // Ensure columns exist
+            $conn->query("ALTER TABLE member_messages ADD COLUMN IF NOT EXISTS pastor_id INT(6) UNSIGNED NULL AFTER member_id");
+            $conn->query("ALTER TABLE member_messages ADD COLUMN IF NOT EXISTS sender_type ENUM('pastor', 'member') NOT NULL DEFAULT 'pastor' AFTER pastor_name");
+            $conn->query("ALTER TABLE member_messages ADD COLUMN IF NOT EXISTS reply_to_id INT(6) UNSIGNED NULL DEFAULT NULL AFTER message");
+
+            // Fetch pastor details
+            $p_res = $conn->query("SELECT first_name, last_name FROM pastors WHERE id = $target_pastor_id LIMIT 1");
+            $p_row = $p_res ? $p_res->fetch_assoc() : null;
+            $pastor_name = $p_row ? trim($p_row['first_name'] . ' ' . $p_row['last_name']) : 'Pastor';
+
+            // Fetch member details
+            $m_res = $conn->query("SELECT first_name, last_name, profile_picture FROM members WHERE id = $member_id LIMIT 1");
+            $m_row = $m_res ? $m_res->fetch_assoc() : null;
+            $member_name = $m_row ? trim($m_row['first_name'] . ' ' . $m_row['last_name']) : 'A member';
+
+            $p_name_esc = $conn->real_escape_string($pastor_name);
+            $reply_esc = $conn->real_escape_string($reply_text);
+            $reply_to_sql = $reply_to_id ? $reply_to_id : "NULL";
+
+            // Insert reply
+            $conn->query("INSERT INTO member_messages (member_id, pastor_id, pastor_name, sender_type, message, reply_to_id) 
+                          VALUES ($member_id, $target_pastor_id, '$p_name_esc', 'member', '$reply_esc', $reply_to_sql)");
+
+            // Send notification to the pastor
+            $snippet = mb_strlen($reply_text) > 60 ? mb_substr($reply_text, 0, 57) . '...' : $reply_text;
+            $notif_text = $conn->real_escape_string("Reply from member $member_name: \"$snippet\". Please check your Appointments messages.");
+            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($target_pastor_id, 'pastor', '$notif_text')");
+
+            header("Location: member_dashboard.php?tab=contact_pastor&success=" . urlencode("Your reply has been sent to Pastor $pastor_name successfully."));
+            exit();
+        } else {
+            header("Location: member_dashboard.php?tab=contact_pastor&error=" . urlencode("Could not send reply. Please enter a valid message."));
+            exit();
+        }
+    }
+
     // Mark notifications as read
     elseif ($action === 'read_notifications') {
         $conn->query("UPDATE notifications SET is_read = 1 WHERE user_id = $member_id AND user_type = 'member'");
