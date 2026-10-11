@@ -4897,23 +4897,28 @@ w.document.write('</div>');
                                            autocomplete="off"
                                            placeholder="Type member name to search..."
                                            value="<?= $active_chat_member ? htmlspecialchars($active_chat_member['first_name'] . ' ' . $active_chat_member['last_name'] . ' (' . $active_chat_member['department'] . ')') : '' ?>"
-                                           style="width:100%; padding-left:42px; padding-right:38px; font-size:1.05rem; font-weight:600; height:48px; border-radius:8px; box-sizing:border-box; color:var(--text-main); background:var(--bg-main); letter-spacing:0.3px;"
+                                           style="width:100%; padding-left:42px; padding-right:38px; font-size:1.05rem; font-weight:700; height:52px; border-radius:8px; box-sizing:border-box; background:#ffffff !important; color:#111827 !important; border:2px solid var(--primary); letter-spacing:0.3px; line-height:1.4;"
                                            onfocus="this.select(); openMemberDropdown(true);"
                                            onclick="openMemberDropdown(true);"
                                            oninput="filterMemberDropdownLive(this.value);"
                                            onkeydown="handleMemberSearchKey(event);">
-                                    <span style="position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--text-muted); pointer-events:none; display:flex; align-items:center;">
+                                    <span style="position:absolute; left:13px; top:50%; transform:translateY(-50%); color:#6b7280; pointer-events:none; display:flex; align-items:center;">
                                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                     </span>
-                                    <span id="member_dropdown_arrow" onclick="toggleMemberDropdown();" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); cursor:pointer; user-select:none; padding:6px; display:flex; align-items:center;" title="Click to view all members">
+                                    <span id="member_dropdown_arrow" onclick="toggleMemberDropdown();" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#6b7280; cursor:pointer; user-select:none; padding:6px; display:flex; align-items:center;" title="Show all members">
                                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </span>
                                 </div>
                                 <button type="button" id="member_search_btn" class="btn-submit" onclick="executeMemberSearch();" 
-                                        style="padding:0 12px; font-size:0.8rem; font-weight:700; height:48px; border-radius:8px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap; flex-shrink:0;">
+                                        style="padding:0 12px; font-size:0.8rem; font-weight:700; height:52px; border-radius:8px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap; flex-shrink:0;">
                                     Search
                                 </button>
                             </div>
+                            <style>
+                                #member_search_textbox { background:#ffffff !important; color:#111827 !important; }
+                                #member_search_textbox::placeholder { color:#9ca3af !important; font-weight:400; }
+                                #member_search_textbox:focus { border-color:var(--primary) !important; box-shadow:0 0 0 3px rgba(37,99,235,0.15) !important; background:#ffffff !important; color:#111827 !important; }
+                            </style>
 
                             <!-- Dropdown Menu with Ribbon Colors & Hierarchical Departments (NO EMOJIS) -->
                             <div id="member_dropdown_menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #e5e7eb); border-radius:10px; max-height:360px; overflow-y:auto; z-index:1050; box-shadow:0 12px 30px rgba(0,0,0,0.18);">
