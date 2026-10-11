@@ -1715,13 +1715,55 @@ if (isset($_GET['delete_worship_suggestion']) && ($is_worship_leader || $is_vice
     }
 }
 
-// Worshipper marks own task as Done
+// Worshipper marks own task as Done → notify Pastor + Admin
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['mark_task_done'])) {
     $task_id = intval($_POST['task_id']);
     // Only allow the assigned member to mark it done
-    $conn->query("UPDATE worship_tasks SET status='Done' WHERE id=$task_id AND member_id=$member_id");
-    header("Location: member_dashboard.php?tab=my_worship_tasks&success=Task marked as done");
+    $upd = $conn->query("UPDATE worship_tasks SET status='Done' WHERE id=$task_id AND member_id=$member_id");
+    
+    if ($upd && $conn->affected_rows > 0) {
+        // Fetch task details for notification
+        $done_task_q = $conn->query("SELECT task_name FROM worship_tasks WHERE id=$task_id LIMIT 1");
+        $done_task = $done_task_q ? $done_task_q->fetch_assoc() : null;
+        $done_task_name = $done_task ? $done_task['task_name'] : 'worship task';
+        $member_display = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
+        if (empty($member_display)) $member_display = 'A worshipper';
+
+        $notif_msg = $conn->real_escape_string("$member_display has accepted and completed the worship task: \"$done_task_name\".");
+        // Notify all Pastors
+        $pas_q = $conn->query("SELECT id FROM pastors");
+        if ($pas_q) { while ($p = $pas_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$p['id']}, 'pastor', '$notif_msg')"); } }
+        // Notify all Admins
+        $adm_q = $conn->query("SELECT id FROM admins");
+        if ($adm_q) { while ($a = $adm_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$a['id']}, 'admin', '$notif_msg')"); } }
+    }
+    
+    header("Location: member_dashboard.php?tab=my_worship_tasks&success=Task accepted and marked as done");
     exit();
+}
+
+// Worship Leader accepts a self-assigned task (from Task Log)
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['accept_self_worship_task']) && ($is_worship_leader || $is_vice_worship_leader)) {
+    $task_id = intval($_POST['task_id'] ?? 0);
+    if ($task_id > 0) {
+        // Only accept tasks that are self-assigned (assigned_by == member_id)
+        $upd_self = $conn->query("UPDATE worship_tasks SET status='Done' WHERE id=$task_id AND member_id=$member_id AND assigned_by=$member_id");
+        if ($upd_self && $conn->affected_rows > 0) {
+            $self_task_q = $conn->query("SELECT task_name FROM worship_tasks WHERE id=$task_id LIMIT 1");
+            $self_task = $self_task_q ? $self_task_q->fetch_assoc() : null;
+            $self_task_name = $self_task ? $self_task['task_name'] : 'worship task';
+            $leader_display = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
+            if (empty($leader_display)) $leader_display = 'Worship Leader';
+
+            $self_msg = $conn->real_escape_string("Worship Leader $leader_display accepted their self-assigned task: \"$self_task_name\" and marked it as Done.");
+            $pas_q2 = $conn->query("SELECT id FROM pastors");
+            if ($pas_q2) { while ($p2 = $pas_q2->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$p2['id']}, 'pastor', '$self_msg')"); } }
+            $adm_q2 = $conn->query("SELECT id FROM admins");
+            if ($adm_q2) { while ($a2 = $adm_q2->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$a2['id']}, 'admin', '$self_msg')"); } }
+        }
+        header("Location: member_dashboard.php?tab=manage_worshippers&success=" . urlencode("Self-assigned task accepted and marked as Done."));
+        exit();
+    }
 }
 
 // Worship Announcement: Post to worshippers
@@ -3016,10 +3058,10 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     $my_pending_tasks = ($my_pending_tasks_res) ? (int)$my_pending_tasks_res->fetch_assoc()['c'] : 0;
                     $w_badge = max((int)($tab_badges['my_worship_tasks'] ?? 0), $my_pending_tasks);
                 ?>
-                <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: #d946ef; margin-top: 10px;">Worship Control Panel</div>
+                <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: #d946ef; margin-top: 10px;">My Worship</div>
                 <a href="?tab=my_worship_tasks" class="sidebar-link <?= ($tab == 'my_worship_tasks' || $tab == 'worship_control_panel') ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                    Worship Control Panel
+                    My Tasks
                     <?php if ($w_badge > 0): ?><span class="tab-notif-badge" style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $w_badge > 99 ? '99+' : $w_badge ?></span><?php endif; ?>
                 </a>
                 <?php endif; ?>
@@ -5422,6 +5464,16 @@ function submitNewSuggestion() {
                                                     <span style="background: <?= ($t['status'] === 'Completed' || $t['status'] === 'Done') ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)' ?>; color: <?= ($t['status'] === 'Completed' || $t['status'] === 'Done') ? 'var(--success)' : 'var(--warning)' ?>; padding: 3px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; display:inline-flex; align-items:center; gap:4px;">
                                                         <?= ($t['status'] === 'Completed' || $t['status'] === 'Done') ? '✅ Done' : '⏳ Pending' ?>
                                                     </span>
+                                                    <?php if ($t['status'] !== 'Done' && $t['status'] !== 'Completed' && $t['assigned_by'] == $t['member_id'] && $t['member_id'] == $member_id): ?>
+                                                    <!-- Accept button for self-assigned pending tasks -->
+                                                    <form method="POST" style="display:inline;" onsubmit="return confirm('Accept this self-assigned task and mark it as Done?')">
+                                                        <input type="hidden" name="task_id" value="<?= (int)$t['id'] ?>">
+                                                        <button type="submit" name="accept_self_worship_task"
+                                                            style="background:linear-gradient(135deg,#10b981,#059669); color:white; border:none; padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+                                                            ✅ Accept
+                                                        </button>
+                                                    </form>
+                                                    <?php endif; ?>
                                                     <button type="button"
                                                         onclick="openChangeTaskModal(<?= (int)$t['id'] ?>, '<?= addslashes(htmlspecialchars($t['task_name'], ENT_QUOTES)) ?>')"
                                                         style="background:linear-gradient(135deg,#f59e0b,#d97706); color:white; border:none; padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
@@ -8479,8 +8531,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             </div>
         <?php elseif ($tab == 'my_worship_tasks'): ?>
             <div class="page-header">
-                <h1>🎵 My Worship Tasks</h1>
-                <p>View tasks assigned to you by the Worship Leader. Mark them as done when completed.</p>
+                <h1>🎵 My Tasks</h1>
+                <p>View tasks assigned to you by the Worship Leader. Accept them when you're ready.</p>
             </div>
             <?php render_worship_leader_profiles_card($conn); ?>
 
@@ -8491,9 +8543,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             <?php endif; ?>
 
             <?php
-            // Stats
+            // Stats — count both 'Done' and 'Completed' as finished
             $wt_pending = $conn->query("SELECT COUNT(*) as c FROM worship_tasks WHERE member_id=$member_id AND status='Pending'")->fetch_assoc()['c'];
-            $wt_done    = $conn->query("SELECT COUNT(*) as c FROM worship_tasks WHERE member_id=$member_id AND status='Done'")->fetch_assoc()['c'];
+            $wt_done    = $conn->query("SELECT COUNT(*) as c FROM worship_tasks WHERE member_id=$member_id AND (status='Done' OR status='Completed')")->fetch_assoc()['c'];
             ?>
 
             <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px;">
@@ -8531,11 +8583,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 &bull; <?= date('M j, Y', strtotime($pt['assigned_at'])) ?>
                             </div>
                         </div>
-                        <form method="POST" onsubmit="return confirm('Mark this task as Done?')">
+                        <form method="POST" onsubmit="return confirm('Accept this task and mark it as Done? Pastor and Admin will be notified.')">
                             <input type="hidden" name="task_id" value="<?= $pt['id'] ?>">
                             <button type="submit" name="mark_task_done" style="background:linear-gradient(135deg,#10b981,#059669); color:white; border:none; padding:10px 22px; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.9rem; display:flex; align-items:center; gap:8px;">
                                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                                Mark Done
+                                ✅ Accept &amp; Mark Done
                             </button>
                         </form>
                     </div>
