@@ -2385,6 +2385,13 @@ if (isset($_GET['action']) && $_GET['action'] == 'mark_all_read') {
     exit();
 }
 
+// Handle Delete Chat History (Clear all messages for member)
+if (isset($_GET['action']) && $_GET['action'] == 'delete_chat') {
+    $conn->query("DELETE FROM member_messages WHERE member_id = $member_id");
+    header("Location: member_dashboard.php?tab=contact_pastor&success=" . urlencode("Conversation history cleared successfully."));
+    exit();
+}
+
 // Handle Delete All Notifications
 if (isset($_GET['action']) && $_GET['action'] == 'delete_all_notifications') {
     $conn->query("DELETE FROM notifications WHERE user_id = $member_id AND user_type = 'member'");
@@ -2643,7 +2650,7 @@ $messages_query = $conn->query("
     FROM member_messages mm
     LEFT JOIN pastors p ON (mm.pastor_id = p.id OR p.first_name = mm.pastor_name OR CONCAT(p.first_name, ' ', p.last_name) = mm.pastor_name)
     WHERE mm.member_id = $member_id
-    ORDER BY mm.created_at DESC
+    ORDER BY mm.created_at ASC
 ");
 
 // Per-notification mark-as-read is handled via mark_read_and_redirect.php on click
@@ -5017,103 +5024,99 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         </div>
                     </div>
 
-                    <!-- Messages Section -->
-                    <div style="flex: 1; min-width: 320px;">
-                        <div class="content-card" style="height: 100%;">
-                            <h2 style="font-size: 1.25rem; margin-top: 0; margin-bottom: 20px; color: var(--text-main); display:flex; align-items:center; gap:8px;">
-                                <span>💬 Messages from Pastor</span>
-                            </h2>
-                            <?php if($messages_query->num_rows > 0): ?>
-                                <div style="display:flex; flex-direction:column; gap:12px; max-height:430px; overflow-y:auto; padding-right:4px;">
-                                <?php 
-                                $my_pic = !empty($member['profile_picture']) ? 'uploads/' . htmlspecialchars($member['profile_picture']) : 'uploads/default_avatar.png';
-                                while($msg = $messages_query->fetch_assoc()): 
-                                    $p_img = !empty($msg['pastor_pic']) ? 'uploads/' . htmlspecialchars($msg['pastor_pic']) : 'uploads/default_avatar.png';
-                                    $p_display_name = !empty($msg['p_fn']) ? trim($msg['p_fn'] . ' ' . ($msg['p_ln'] ?? '')) : $msg['pastor_name'];
-                                    $is_my_reply = ($msg['sender_type'] ?? '') === 'member';
-                                    $target_pastor_id = !empty($msg['pastor_id']) ? (int)$msg['pastor_id'] : 15;
-                                ?>
-                                    <div class="message-item" style="border:1px solid var(--border-color); border-radius:10px; padding:14px; background:<?= $is_my_reply ? 'rgba(37,99,235,0.03)' : 'var(--bg-lighter)' ?>; <?= $is_my_reply ? 'border-left:3px solid var(--primary);' : '' ?>">
-                                        <div class="message-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-                                            <div style="display:flex; align-items:center; gap:10px;">
-                                                <!-- Sender Photo -->
-                                                <img src="<?= $is_my_reply ? $my_pic : $p_img ?>" alt="Sender"
-                                                     style="width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid <?= $is_my_reply ? 'var(--primary)' : 'var(--border-color)' ?>; cursor:zoom-in; flex-shrink:0; background:#f3f4f6; transition:transform 0.15s ease;"
-                                                     onmouseover="this.style.transform='scale(1.12)'"
-                                                     onmouseout="this.style.transform='scale(1)'"
-                                                     onclick="viewProfileImage(this.src);"
-                                                     onerror="this.src='uploads/default_avatar.png'"
-                                                     title="<?= $is_my_reply ? 'You' : 'Pastor ' . htmlspecialchars($p_display_name) ?>">
-                                                <div>
-                                                    <div style="display:flex; align-items:center; gap:6px;">
-                                                        <span class="message-author" style="font-weight:700; color:<?= $is_my_reply ? 'var(--text-main)' : 'var(--primary)' ?>; font-size:0.92rem;">
-                                                            <?= $is_my_reply ? 'You (Reply)' : 'Pastor ' . htmlspecialchars($p_display_name) ?>
-                                                        </span>
-                                                        <!-- Recipient Avatar -->
-                                                        <span style="color:var(--text-muted); font-size:0.75rem;">➔</span>
-                                                        <img src="<?= $is_my_reply ? $p_img : $my_pic ?>" alt="Recipient"
-                                                             style="width:20px; height:20px; border-radius:50%; object-fit:cover; border:1px solid var(--border-color); cursor:zoom-in; vertical-align:middle;"
-                                                             onclick="viewProfileImage(this.src);"
-                                                             onerror="this.src='uploads/default_avatar.png'"
-                                                             title="Recipient: <?= $is_my_reply ? 'Pastor ' . htmlspecialchars($p_display_name) : 'You' ?>">
-                                                        <span style="font-size:0.78rem; color:var(--text-muted);">
-                                                            <?= $is_my_reply ? 'Pastor ' . htmlspecialchars($p_display_name) : 'You' ?>
-                                                        </span>
+                    <!-- Messages Section: WhatsApp Style Chat UI -->
+                    <div style="flex: 1; min-width: 340px;">
+                        <div class="content-card" style="height: 100%; display: flex; flex-direction: column;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                                <h2 style="font-size: 1.25rem; margin: 0; color: var(--text-main); display:flex; align-items:center; gap:8px;">
+                                    <span>💬 Chat with Pastor</span>
+                                </h2>
+                                <?php if($messages_query && $messages_query->num_rows > 0): ?>
+                                    <a href="?tab=contact_pastor&action=delete_chat"
+                                       onclick="return confirm('Are you sure you want to delete all messages in this conversation? This will clear your chat history.');"
+                                       style="background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 5px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: background 0.15s ease;"
+                                       title="Delete all messages in this chat">
+                                        🗑️ Clear Chat
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- WhatsApp Chat Stream: Pastor on LEFT, Member on RIGHT -->
+                            <div id="member-chat-stream" style="flex: 1; display:flex; flex-direction:column; gap:10px; max-height:420px; min-height:260px; overflow-y:auto; padding:12px; background:var(--bg-main); border-radius:12px; border:1px solid var(--border-color); margin-bottom: 14px;">
+                                <?php if($messages_query && $messages_query->num_rows > 0): ?>
+                                    <?php 
+                                    $my_pic = !empty($member['profile_picture']) ? 'uploads/' . htmlspecialchars($member['profile_picture']) : 'uploads/default_avatar.png';
+                                    $last_pastor_id = 15;
+                                    while($msg = $messages_query->fetch_assoc()): 
+                                        $p_img = !empty($msg['pastor_pic']) ? 'uploads/' . htmlspecialchars($msg['pastor_pic']) : 'uploads/default_avatar.png';
+                                        $p_display_name = !empty($msg['p_fn']) ? trim($msg['p_fn'] . ' ' . ($msg['p_ln'] ?? '')) : $msg['pastor_name'];
+                                        $is_my_reply = ($msg['sender_type'] ?? '') === 'member';
+                                        if (!empty($msg['pastor_id'])) { $last_pastor_id = (int)$msg['pastor_id']; }
+                                    ?>
+                                        <!-- Bubble row: Member = RIGHT, Pastor = LEFT -->
+                                        <div style="display:flex; flex-direction:row; align-items:flex-end; gap:8px; <?= $is_my_reply ? 'justify-content:flex-end; padding-left:40px;' : 'justify-content:flex-start; padding-right:40px;' ?>">
+                                            <?php if(!$is_my_reply): ?>
+                                            <!-- Pastor Avatar (LEFT) -->
+                                            <img src="<?= $p_img ?>" alt="Pastor"
+                                                 style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:2px solid var(--primary); cursor:zoom-in; flex-shrink:0;"
+                                                 onclick="viewProfileImage(this.src);"
+                                                 onerror="this.src='uploads/default_avatar.png'"
+                                                 title="Pastor <?= htmlspecialchars($p_display_name) ?>">
+                                            <?php endif; ?>
+
+                                            <div style="display:flex; flex-direction:column; align-items:<?= $is_my_reply ? 'flex-end' : 'flex-start' ?>; max-width:80%; gap:2px;">
+                                                <div style="font-size:0.72rem; font-weight:700; color:var(--text-muted); padding:0 4px;">
+                                                    <?= $is_my_reply ? 'You' : 'Pastor ' . htmlspecialchars($p_display_name) ?>
+                                                </div>
+                                                <div style="background:<?= $is_my_reply ? 'var(--primary)' : 'var(--bg-card)' ?>; color:<?= $is_my_reply ? '#fff' : 'var(--text-main)' ?>; border:<?= $is_my_reply ? 'none' : '1px solid var(--border-color)' ?>; border-radius:<?= $is_my_reply ? '16px 4px 16px 16px' : '4px 16px 16px 16px' ?>; padding:10px 14px; font-size:0.9rem; line-height:1.5; word-break:break-word; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                                                    <?= nl2br(htmlspecialchars($msg['message'])) ?>
+                                                    <div style="margin-top:4px; font-size:0.68rem; opacity:0.65; text-align:<?= $is_my_reply ? 'right' : 'left' ?>;">
+                                                        <?= date('g:i A, M j', strtotime($msg['created_at'])) ?>
                                                     </div>
-                                                    <div style="font-size:0.75rem; color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($msg['created_at'])) ?></div>
                                                 </div>
                                             </div>
 
-                                            <?php if(!$is_my_reply): ?>
-                                            <!-- Reply button to pastor -->
-                                            <button type="button"
-                                                    onclick="toggleMemberReply(<?= $msg['id'] ?>)"
-                                                    style="background:rgba(37,99,235,0.08); color:var(--primary); border:none; padding:4px 10px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"
-                                                    title="Reply to Pastor">
-                                                ↩️ Reply
-                                            </button>
+                                            <?php if($is_my_reply): ?>
+                                            <!-- Member Avatar (RIGHT) -->
+                                            <img src="<?= $my_pic ?>" alt="You"
+                                                 style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:2px solid var(--primary); cursor:zoom-in; flex-shrink:0;"
+                                                 onclick="viewProfileImage(this.src);"
+                                                 onerror="this.src='uploads/default_avatar.png'"
+                                                 title="You">
                                             <?php endif; ?>
                                         </div>
-
-                                        <div class="message-body" style="color:var(--text-main); font-size:0.92rem; line-height:1.45; padding-left:48px;"><?= nl2br(htmlspecialchars($msg['message'])) ?></div>
-
-                                        <?php if(!$is_my_reply): ?>
-                                        <!-- Inline Reply Box -->
-                                        <div id="member-reply-<?= $msg['id'] ?>" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--border-color); padding-left:48px;">
-                                            <form method="POST" action="member_action.php?action=reply_to_pastor">
-                                                <input type="hidden" name="pastor_id" value="<?= $target_pastor_id ?>">
-                                                <input type="hidden" name="reply_to_id" value="<?= $msg['id'] ?>">
-                                                <div style="font-size:0.82rem; font-weight:700; color:var(--primary); margin-bottom:8px;">
-                                                    ↩️ Replying to Pastor <?= htmlspecialchars($p_display_name) ?>:
-                                                </div>
-                                                <div style="display:flex; flex-direction:column; gap:8px;">
-                                                    <textarea name="message" class="form-control" rows="4" placeholder="Write your reply to Pastor <?= htmlspecialchars($p_display_name) ?>..." required style="width:100%; font-size:0.92rem; min-height:100px; resize:vertical; padding:12px 14px; box-sizing:border-box; border-radius:10px;"></textarea>
-                                                    <div style="display:flex; justify-content:flex-end;">
-                                                        <button type="submit" class="btn-submit" style="padding:9px 24px; font-size:0.88rem; height:auto; white-space:nowrap; border-radius:8px; display:inline-flex; align-items:center; gap:6px;">
-                                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                                                            Send Reply
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </form>
-                                        </div>
-                                        <?php endif; ?>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; min-height:180px; color:var(--text-muted); text-align:center;">
+                                        <svg width="42" height="42" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.35; margin-bottom:8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                                        <p style="margin:0; font-size:0.9rem;">No messages yet. Send a message below to start the conversation with your Pastor!</p>
                                     </div>
-                                <?php endwhile; ?>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- WhatsApp Style Bottom Message Composer (Seamless conversation continuation) -->
+                            <form method="POST" action="member_action.php?action=reply_to_pastor" style="margin-top:auto;">
+                                <?php 
+                                $composer_pastor_id = $last_pastor_id ?? 15;
+                                ?>
+                                <input type="hidden" name="pastor_id" value="<?= $composer_pastor_id ?>">
+                                <div style="display:flex; flex-direction:column; gap:8px;">
+                                    <textarea name="message" class="form-control" rows="3" placeholder="Type a message to your Pastor..." required style="width:100%; font-size:0.92rem; min-height:75px; resize:vertical; padding:10px 14px; box-sizing:border-box; border-radius:10px;"></textarea>
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="font-size:0.75rem; color:var(--text-muted);">Pastor will receive a direct notification</span>
+                                        <button type="submit" class="btn-submit" style="padding:8px 22px; font-size:0.88rem; border-radius:8px; display:inline-flex; align-items:center; gap:6px;">
+                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                                            Send
+                                        </button>
+                                    </div>
                                 </div>
-                                <script>
-                                function toggleMemberReply(id) {
-                                    const b = document.getElementById('member-reply-' + id);
-                                    if (b) {
-                                        b.style.display = (b.style.display === 'none' || b.style.display === '') ? 'block' : 'none';
-                                    }
-                                }
-                                </script>
-                            <?php else: ?>
-                                <div class="alert alert-success" style="background:transparent; border-color:var(--border-color); color:var(--text-muted);">
-                                    You have no new messages at this time.
-                                </div>
-                            <?php endif; ?>
+                            </form>
+                            <script>
+                            (function(){
+                                const el = document.getElementById('member-chat-stream');
+                                if (el) { el.scrollTop = el.scrollHeight; }
+                            })();
+                            </script>
                         </div>
                     </div>
                 </div>
