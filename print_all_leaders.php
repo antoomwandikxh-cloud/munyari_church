@@ -124,7 +124,17 @@ function matches_group($role_norm, $raw_role, $dept, $sk){
 <title>All Church Leaders</title>
 <style>
 *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;box-sizing:border-box;margin:0;padding:0;}
-@media print{@page{size:A4 landscape;margin: 0mm !important;} body{padding:15mm !important;} .no-print{display:none!important;}}
+@media print {
+    @page { size: A4 landscape; margin: 12mm 10mm 24mm 10mm !important; }
+    body { margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    thead { display: table-header-group !important; }
+    tfoot { display: table-footer-group !important; }
+    table { page-break-inside: auto !important; }
+    tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+    td, th { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .sig-block, .sig-col, .card, .hdr-center { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .no-print { display: none !important; }
+} .no-print{display:none!important;}}
 body{font-family:Arial,sans-serif;background:#fff;padding:10px;padding-bottom:72px;font-size:0.78rem;}
 
 /* Watermark */
@@ -201,7 +211,7 @@ font-style:italic;background:rgba(255,255,255,0.95);padding:4px 0;z-index:10;bor
 }
 
 /* Table */
-table{width:100%;border-collapse:collapse;margin-bottom:6px;font-size:0.74rem;}
+table{width:100%;border-collapse:collapse;margin-bottom:6px;font-size:0.74rem;page-break-inside:auto;} tr{page-break-inside:avoid !important; break-inside:avoid !important;} td,th{page-break-inside:avoid !important; break-inside:avoid !important;}
 thead tr{color:#fff;}
 thead th{padding:6px 7px;text-align:left;font-weight:700;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;}
 tbody tr:nth-child(even){background:#f9fafb;}

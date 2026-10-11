@@ -79,7 +79,7 @@ $total = count($worshippers);
 <meta charset="UTF-8">
 <title>E.A.P.C Munyari - Worship Department</title>
 <style>
-@page { size: <?= $mode === 'landscape' ? 'A4 landscape' : 'A4 portrait' ?>; margin: 15mm 12mm 18mm; }
+@page { size: <?= $mode === 'landscape' ? 'A4 landscape' : 'A4 portrait' ?>; margin: 12mm 10mm 24mm 10mm !important; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background: #fff; }
 
@@ -156,7 +156,19 @@ tbody tr:nth-child(even) td { background: #faf5ff; }
 /* No-print toolbar */
 .no-print { display: flex; justify-content: center; gap: 12px; padding: 10px; background: #f1f5f9; margin-bottom: 14px; border-radius: 8px; }
 .no-print button, .no-print a { padding: 9px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; color: white; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-family: Arial, sans-serif; }
-@media print { .no-print { display: none !important; } }
+@media print {
+    body { margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    thead { display: table-header-group !important; }
+    tfoot { display: table-footer-group !important; }
+    table { page-break-inside: auto !important; }
+    tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+    td, th { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .sig-section, .leader-card, .leaders-bar { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .no-print { display: none !important; }
+}
+table { width: 100%; border-collapse: collapse; margin-bottom: 4px; page-break-inside: auto; }
+tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+td, th { page-break-inside: avoid !important; break-inside: avoid !important; }
 /* Role pills */
 .role-pill { display:inline-flex;align-items:center;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;border:1px solid transparent;margin:1px; }
 .rp-worship { background:#fdf2f8;color:#be185d;border-color:#fbcfe8; }

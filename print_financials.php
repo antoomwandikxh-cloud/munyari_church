@@ -81,14 +81,21 @@ function fmt_amount($n) {
     <meta charset="UTF-8">
     <title>Financial Records — E.A.P.C Munyari Church</title>
     <style>
-        @media print { body { padding: 0 !important; } 
-            @page { size: A4 portrait; margin: 0; }
-            body  { margin: 15mm; }
+        @media print {
+            @page { size: A4 portrait; margin: 12mm 10mm 24mm 10mm !important; }
+            body { margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            thead { display: table-header-group !important; }
+            tfoot { display: table-footer-group !important; }
+            table { page-break-inside: auto !important; }
+            tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+            td, th { page-break-inside: avoid !important; break-inside: avoid !important; }
+            .sig-section, .sig-box, .stat-card { page-break-inside: avoid !important; break-inside: avoid !important; }
             .no-print { display: none !important; }
-            * { -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                color-adjust: exact !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
         }
+        table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+        tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+        td, th { page-break-inside: avoid !important; break-inside: avoid !important; }
 
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -205,7 +212,7 @@ function fmt_amount($n) {
             st.id = 'printOriStyle';
             document.head.appendChild(st);
         }
-        st.innerHTML = '@media print { body { padding: 0 !important; }  @page { size: A4 ' + ori + '; } .watermark { font-size: ' + (ori === ''landscape'' ? ''5.5rem'' : ''3.8rem'') + ' !important; } }';
+        st.innerHTML = '@media print { body { margin: 0 !important; padding: 0 !important; }  @page { size: A4 ' + ori + '; margin: 12mm 10mm 24mm 10mm !important; } tr, td, th { page-break-inside: avoid !important; break-inside: avoid !important; } .watermark { font-size: ' + (ori === ''landscape'' ? ''5.5rem'' : ''3.8rem'') + ' !important; } }';
         window.print();
     }
     </script>

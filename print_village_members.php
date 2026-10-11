@@ -130,13 +130,22 @@ if (file_exists($logo_path)) {
         }
 
         /* ── Print overrides ── */
-        @media print { body { padding: 0 !important; }
-            @page { size: A4 <?= $orientation ?>; margin: 8mm; }
-            body { margin: 0; padding: 0; max-width: 100%; }
+        @media print {
+            @page { size: A4 <?= $orientation ?>; margin: 12mm 10mm 24mm 10mm !important; }
+            body { margin: 0 !important; padding: 0 !important; max-width: 100%; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            thead { display: table-header-group !important; }
+            tfoot { display: table-footer-group !important; }
+            table { page-break-inside: auto !important; }
+            tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+            td, th { page-break-inside: avoid !important; break-inside: avoid !important; }
+            .sig-box, .sig-section { page-break-inside: avoid !important; break-inside: avoid !important; }
             .no-print { display: none !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .watermark { color: rgba(0,0,0,0.12) !important; z-index: 9999 !important; pointer-events: none; }
         }
+        table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+        tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+        td, th { page-break-inside: avoid !important; break-inside: avoid !important; }
 
         /* ── Header ── */
         .header {

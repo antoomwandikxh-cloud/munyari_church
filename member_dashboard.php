@@ -5015,7 +5015,12 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
         SELECT id, first_name, last_name, phone, department, church_role, desired_role_pref, profile_picture
         FROM members
         WHERE is_approved = 1
-          AND (LOWER(church_role) LIKE '%worshipper%' OR LOWER(department) LIKE '%worship%' OR desired_role_pref = 'Worshipper')
+          AND (
+            LOWER(TRIM(church_role)) LIKE '%worshipper%'
+            OR LOWER(TRIM(church_role)) LIKE '%worship leader%'
+            OR LOWER(TRIM(department)) LIKE '%worship%'
+            OR desired_role_pref = 'Worshipper'
+          )
         ORDER BY department ASC, first_name ASC, last_name ASC
     ");
     ?>
@@ -5668,7 +5673,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             body{font-family:Arial,sans-serif;padding:18px;} 
                             table{width:100%;border-collapse:collapse;} 
                             th,td{padding:5px 8px;border:1px solid #ccc;font-size:0.8rem;} 
-                            @media print{@page{size:A4 portrait;margin:10mm;}}
+                            @media print{@page{size:A4 portrait; margin: 12mm 10mm 24mm 10mm !important;} thead{display:table-header-group !important;} tr{page-break-inside:avoid !important; break-inside:avoid !important;} td,th{page-break-inside:avoid !important; break-inside:avoid !important;}}
                         </style>
                         </head><body>
                         
@@ -5759,7 +5764,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             body{font-family:Arial,sans-serif;padding:18px;} 
                             table{width:100%;border-collapse:collapse;} 
                             th,td{padding:5px 8px;border:1px solid #ccc;font-size:0.8rem;} 
-                            @media print{@page{size:A4 portrait;margin:10mm;}}
+                            @media print{@page{size:A4 portrait; margin: 12mm 10mm 24mm 10mm !important;} thead{display:table-header-group !important;} tr{page-break-inside:avoid !important; break-inside:avoid !important;} td,th{page-break-inside:avoid !important; break-inside:avoid !important;}}
                         </style>
                         </head><body>
                         
