@@ -4891,17 +4891,25 @@ w.document.write('</div>');
                         <div class="form-group" style="margin-bottom:18px; position:relative;">
                             <label style="font-weight:700; font-size:0.82rem; color:var(--text-muted); margin-bottom:6px; display:block;">Member Search &amp; Selection</label>
                             
-                            <!-- Search row: big textbox + vivid Search button -->
+                            <!-- Search row: input + Search button side by side -->
                             <style>
-                                /* ===== Search Row ===== */
-                                #msb-wrap { display:flex; gap:8px; align-items:stretch; }
-
-                                /* Input: adapts to light/dark theme, text always visible */
+                                #pastor-search-row {
+                                    display: flex;
+                                    gap: 8px;
+                                    align-items: center;
+                                    width: 100%;
+                                }
+                                #pastor-input-wrap {
+                                    position: relative;
+                                    flex: 1;
+                                    min-width: 0;
+                                }
                                 #member_search_textbox {
-                                    flex:1;
-                                    padding: 0 42px 0 46px;
+                                    display: block;
+                                    width: 100%;
                                     height: 52px;
-                                    font-size: 1.05rem;
+                                    padding: 0 36px 0 44px;
+                                    font-size: 1rem;
                                     font-weight: 600;
                                     font-family: inherit;
                                     border: 2px solid #2563eb;
@@ -4911,19 +4919,16 @@ w.document.write('</div>');
                                     background: var(--bg-card, #ffffff);
                                     color: var(--text-main, #111827);
                                     caret-color: #2563eb;
-                                    letter-spacing: 0.2px;
                                     transition: border-color 0.2s, box-shadow 0.2s;
                                 }
                                 #member_search_textbox::placeholder {
                                     color: var(--text-muted, #9ca3af);
                                     font-weight: 400;
-                                    font-size: 0.9rem;
                                 }
                                 #member_search_textbox:focus {
                                     border-color: #2563eb;
-                                    box-shadow: 0 0 0 3px rgba(37,99,235,0.2);
+                                    box-shadow: 0 0 0 3px rgba(37,99,235,0.18);
                                 }
-                                /* Dark mode input: dark bg + light text */
                                 [data-theme="dark"] #member_search_textbox {
                                     background: #1e293b;
                                     color: #f1f5f9;
@@ -4933,105 +4938,94 @@ w.document.write('</div>');
                                 [data-theme="dark"] #member_search_textbox::placeholder {
                                     color: #64748b;
                                 }
-
-                                /* ===== Go button: VERY vivid, impossible to miss ===== */
+                                #pastor-search-icon {
+                                    position: absolute;
+                                    left: 13px;
+                                    top: 50%;
+                                    transform: translateY(-50%);
+                                    color: #9ca3af;
+                                    pointer-events: none;
+                                    display: flex;
+                                    align-items: center;
+                                    z-index: 2;
+                                }
+                                #member_dropdown_arrow {
+                                    position: absolute;
+                                    right: 8px;
+                                    top: 50%;
+                                    transform: translateY(-50%);
+                                    color: #9ca3af;
+                                    cursor: pointer;
+                                    user-select: none;
+                                    padding: 5px;
+                                    display: flex;
+                                    align-items: center;
+                                    z-index: 2;
+                                }
                                 #member_search_btn {
                                     flex-shrink: 0;
-                                    min-width: 64px;
-                                    padding: 0 16px;
-                                    font-size: 0.9rem;
-                                    font-weight: 900;
+                                    width: 90px;
                                     height: 52px;
-                                    border-radius: 10px;
-                                    white-space: nowrap;
-                                    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+                                    font-size: 0.88rem;
+                                    font-weight: 800;
+                                    font-family: inherit;
+                                    letter-spacing: 0.8px;
+                                    text-transform: uppercase;
+                                    background: #2563eb;
                                     color: #ffffff;
-                                    border: none;
+                                    border: 3px solid #1d4ed8;
+                                    border-radius: 10px;
                                     cursor: pointer;
-                                    display: inline-flex;
+                                    display: flex;
                                     align-items: center;
                                     justify-content: center;
-                                    gap: 6px;
-                                    letter-spacing: 1px;
-                                    text-transform: uppercase;
-                                    box-shadow: 0 4px 14px rgba(37,99,235,0.5), 0 1px 3px rgba(0,0,0,0.2);
-                                    transition: transform 0.1s, box-shadow 0.15s;
+                                    gap: 5px;
+                                    box-shadow: 0 3px 10px rgba(37,99,235,0.45);
+                                    transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
                                 }
                                 #member_search_btn:hover {
-                                    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-                                    box-shadow: 0 6px 20px rgba(37,99,235,0.6);
+                                    background: #1d4ed8;
+                                    box-shadow: 0 5px 18px rgba(37,99,235,0.55);
                                     transform: translateY(-1px);
                                 }
                                 #member_search_btn:active { transform: translateY(0); }
-
-                                /* ===== Dropdown: adapts to system theme ===== */
+                                /* Dropdown theme adaptation */
                                 #member_dropdown_menu {
                                     background: var(--bg-card, #ffffff);
                                     color: var(--text-main, #111827);
-                                    border: 1px solid var(--border-color, #e2e8f0);
                                 }
-                                #member_dropdown_menu .dropdown-member-row {
-                                    background: transparent;
-                                    border-bottom: 1px solid var(--border-color, #e5e7eb);
-                                }
-                                #member_dropdown_menu .dropdown-member-row:hover {
-                                    background: rgba(37,99,235,0.07) !important;
-                                }
-                                #member_dropdown_menu .dropdown-member-row .member-name-text {
-                                    color: var(--text-main, #111827) !important;
-                                    font-weight: 700;
-                                    font-size: 0.88rem;
-                                }
-                                #member_dropdown_menu .dropdown-member-row .member-dept-text {
-                                    color: var(--text-muted, #6b7280) !important;
-                                    font-size: 0.72rem;
-                                }
-                                /* Dark theme dropdown */
-                                [data-theme="dark"] #member_dropdown_menu {
-                                    background: #1e293b !important;
-                                    border-color: #334155 !important;
-                                }
-                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row {
-                                    border-bottom-color: #334155 !important;
-                                }
-                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row:hover {
-                                    background: rgba(96,165,250,0.1) !important;
-                                }
-                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row .member-name-text {
-                                    color: #f1f5f9 !important;
-                                }
-                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row .member-dept-text {
-                                    color: #94a3b8 !important;
-                                }
+                                #member_dropdown_menu .dropdown-member-row { background: transparent; }
+                                #member_dropdown_menu .dropdown-member-row:hover { background: rgba(37,99,235,0.07) !important; }
+                                #member_dropdown_menu .member-name-text { color: var(--text-main, #111827) !important; font-weight:700; font-size:0.88rem; }
+                                #member_dropdown_menu .member-dept-text { color: var(--text-muted, #6b7280) !important; font-size:0.72rem; }
+                                [data-theme="dark"] #member_dropdown_menu { background: #1e293b !important; border-color: #334155 !important; }
+                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row { border-bottom-color: #334155 !important; }
+                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row:hover { background: rgba(96,165,250,0.1) !important; }
+                                [data-theme="dark"] #member_dropdown_menu .member-name-text { color: #f1f5f9 !important; }
+                                [data-theme="dark"] #member_dropdown_menu .member-dept-text { color: #94a3b8 !important; }
                             </style>
-                            <div id="msb-wrap">
-                                <!-- Input wrapper: relative so icons sit inside the text field -->
-                                <div style="position:relative; flex:1; display:flex; align-items:stretch;">
-                                    <!-- Search magnifier icon (left) -->
-                                    <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#9ca3af; pointer-events:none; display:flex; align-items:center; z-index:2;">
+                            <div id="pastor-search-row">
+                                <div id="pastor-input-wrap">
+                                    <span id="pastor-search-icon">
                                         <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                     </span>
                                     <input type="text" id="member_search_textbox"
                                            autocomplete="off"
-                                           placeholder="Type member name to search..."
+                                           placeholder="Type member name..."
                                            value="<?= $active_chat_member ? htmlspecialchars($active_chat_member['first_name'] . ' ' . $active_chat_member['last_name'] . ' (' . $active_chat_member['department'] . ')') : '' ?>"
                                            onfocus="this.select(); openMemberDropdown(true);"
                                            onclick="openMemberDropdown(true);"
                                            oninput="filterMemberDropdownLive(this.value);"
                                            onkeydown="handleMemberSearchKey(event);">
-                                    <!-- Dropdown toggle arrow (right, inside input) -->
-                                    <span id="member_dropdown_arrow" onclick="toggleMemberDropdown();" title="Show all members"
-                                          style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#9ca3af; cursor:pointer; user-select:none; padding:6px; display:flex; align-items:center; z-index:2;">
+                                    <span id="member_dropdown_arrow" onclick="toggleMemberDropdown();" title="Show all members">
                                         <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
                                     </span>
                                 </div>
-                                <!-- Search button: sits cleanly beside the input, never overlapped -->
                                 <button type="button" id="member_search_btn" onclick="executeMemberSearch();">
-                                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                                    Search
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                    Go
                                 </button>
                             </div>
-
 
                             <!-- Dropdown Menu with Ribbon Colors & Hierarchical Departments (NO EMOJIS) -->
                             <div id="member_dropdown_menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; border:1px solid #e2e8f0; border-radius:10px; max-height:360px; overflow-y:auto; z-index:1050; box-shadow:0 12px 30px rgba(0,0,0,0.18);">
