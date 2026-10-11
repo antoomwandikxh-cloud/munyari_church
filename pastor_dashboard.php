@@ -2941,9 +2941,13 @@ w.document.write('</div>');
                             ?>
                                 <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-lighter); padding:8px 12px; border-radius:6px;">
                                     <span style="font-size:0.88rem; color:var(--text-main); font-weight:500;">✨ <?= htmlspecialchars($cr['role_name']) ?></span>
-                                    <a href="?tab=desired_roles&delete_custom_role=<?= $cr['id'] ?>"
-                                        onclick="return confirm('Delete role: <?= addslashes($cr['role_name']) ?>?')"
-                                        style="display:inline-flex;align-items:center;gap:4px;background:#ef4444;color:white;text-decoration:none;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:6px;line-height:1;white-space:nowrap;">🗑 Remove</a>
+                                    <?php if (strtolower(trim($cr['role_name'])) === 'worshipper'): ?>
+                                        <span title="This is a system role and cannot be removed" style="display:inline-flex;align-items:center;gap:4px;background:#8b5cf6;color:white;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:6px;line-height:1;white-space:nowrap;cursor:default;">🔒 System Role</span>
+                                    <?php else: ?>
+                                        <a href="?tab=desired_roles&delete_custom_role=<?= $cr['id'] ?>"
+                                            onclick="return confirm('Delete role: <?= addslashes($cr['role_name']) ?>?')"
+                                            style="display:inline-flex;align-items:center;gap:4px;background:#ef4444;color:white;text-decoration:none;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:6px;line-height:1;white-space:nowrap;">🗑 Remove</a>
+                                    <?php endif; ?>
                                 </div>
                             <?php endwhile; echo '</div>'; else: ?>
                                 <p style="margin:0; font-size:0.85rem; color:var(--text-muted); font-style:italic;">No custom roles yet. Add one on the left!</p>
@@ -3111,7 +3115,7 @@ w.document.write('</div>');
                     </div>
                 </div>
                 <?php
-                $cr_query = $conn->query("SELECT * FROM custom_desired_roles ORDER BY id ASC");
+                $cr_query = $conn->query("SELECT * FROM custom_desired_roles WHERE role_name != 'Worshipper' ORDER BY id ASC");
                 if ($cr_query && $cr_query->num_rows > 0):
                     while ($cr = $cr_query->fetch_assoc()):
                         $c_role     = $cr['role_name'];
