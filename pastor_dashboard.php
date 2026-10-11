@@ -4881,7 +4881,7 @@ w.document.write('</div>');
                 <!-- Direct Chat Anchor Container -->
                 <div id="chat_section" style="display:flex; gap:24px; margin-top:30px; flex-wrap:wrap; align-items:stretch;">
                     <!-- Left: Searchable Member Dropdown with Ribbon Colors (No departments outside dropdown) -->
-                    <div class="content-card" style="flex: 1; min-width: 320px; max-width: 440px; margin:0; display:flex; flex-direction:column;">
+                    <div class="content-card" style="flex: 1.1; min-width: 340px; max-width: 490px; margin:0; display:flex; flex-direction:column;">
                         <h2 style="margin-top:0; font-size:1.25rem; display:flex; align-items:center; gap:8px;">
                             <span>Select Member to Chat</span>
                         </h2>
@@ -4891,26 +4891,26 @@ w.document.write('</div>');
                         <div class="form-group" style="margin-bottom:18px; position:relative;">
                             <label style="font-weight:700; font-size:0.82rem; color:var(--text-muted); margin-bottom:6px; display:block;">Member Search &amp; Selection</label>
                             
-                            <div style="display:flex; gap:8px;">
+                            <div style="display:flex; gap:6px; align-items:center;">
                                 <div style="position:relative; flex:1;">
                                     <input type="text" id="member_search_textbox" class="form-control"
                                            autocomplete="off"
-                                           placeholder="Type to search member..."
+                                           placeholder="Type member name to search..."
                                            value="<?= $active_chat_member ? htmlspecialchars($active_chat_member['first_name'] . ' ' . $active_chat_member['last_name'] . ' (' . $active_chat_member['department'] . ')') : '' ?>"
-                                           style="width:100%; padding-left:36px; padding-right:32px; font-size:0.9rem; height:42px; border-radius:8px; box-sizing:border-box;"
+                                           style="width:100%; padding-left:42px; padding-right:38px; font-size:1.05rem; font-weight:600; height:48px; border-radius:8px; box-sizing:border-box; color:var(--text-main); background:var(--bg-main); letter-spacing:0.3px;"
                                            onfocus="this.select(); openMemberDropdown(true);"
                                            onclick="openMemberDropdown(true);"
                                            oninput="filterMemberDropdownLive(this.value);"
                                            onkeydown="handleMemberSearchKey(event);">
-                                    <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); pointer-events:none; display:flex; align-items:center;">
-                                        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                    <span style="position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--text-muted); pointer-events:none; display:flex; align-items:center;">
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                     </span>
-                                    <span id="member_dropdown_arrow" onclick="toggleMemberDropdown();" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); cursor:pointer; user-select:none; padding:4px; display:flex; align-items:center;">
-                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    <span id="member_dropdown_arrow" onclick="toggleMemberDropdown();" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); cursor:pointer; user-select:none; padding:6px; display:flex; align-items:center;" title="Click to view all members">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </span>
                                 </div>
                                 <button type="button" id="member_search_btn" class="btn-submit" onclick="executeMemberSearch();" 
-                                        style="padding:0 18px; font-size:0.88rem; height:42px; border-radius:8px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
+                                        style="padding:0 12px; font-size:0.8rem; font-weight:700; height:48px; border-radius:8px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap; flex-shrink:0;">
                                     Search
                                 </button>
                             </div>
