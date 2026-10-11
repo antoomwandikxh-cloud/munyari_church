@@ -5102,28 +5102,61 @@ function filterWTeam() {
 }
 </script>
 
-<div class="content-card" style="margin-bottom:20px;">
-    <h2>Allocate Task</h2>
-                    <form method="POST">
-                        <div class="form-group">
-                            <label>Worshipper</label>
-                            <select name="worshipper_id" class="form-input" required>
-                                <option value="">Select Worshipper</option>
-                                <?php
-                                $worshippers_q = $conn->query("SELECT id, first_name, last_name, church_role FROM members WHERE is_approved=1 AND (LOWER(church_role) LIKE '%worshipper%' OR LOWER(department) LIKE '%worship%' OR desired_role_pref = 'Worshipper') ORDER BY first_name ASC");
-                                while($w = $worshippers_q->fetch_assoc()) {
-                                    echo "<option value='".$w['id']."'>".htmlspecialchars($w['first_name'].' '.$w['last_name']." (".$w['church_role'].")")."</option>";
-                                }
-                                ?>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Task Description (e.g., Take praise, Take worship, Coordinate)</label>
-                            <input type="text" name="task_name" class="form-input" required>
-                        </div>
-                        <button type="submit" name="assign_worship_task" class="btn-submit">Assign Task</button>
-                    </form>
-                </div>
+<div class="content-card" style="margin-bottom:24px; border-top: 4px solid #8b5cf6;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+        <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);display:flex;align-items:center;justify-content:center;color:white;font-size:1.3rem;flex-shrink:0;box-shadow:0 4px 10px rgba(139,92,246,0.3);">
+            🎵
+        </div>
+        <div>
+            <h2 style="margin:0; font-size:1.2rem; color:var(--text-main);">Allocate Worship Task</h2>
+            <p style="margin:2px 0 0; font-size:0.85rem; color:var(--text-muted);">Assign praise/worship sessions, song rehearsals, instrument roles, or service tasks to your team.</p>
+        </div>
+    </div>
+
+    <form method="POST">
+        <div class="form-group" style="margin-bottom:18px;">
+            <label style="font-size:0.95rem; font-weight:700; color:var(--text-main); margin-bottom:8px; display:block;">Select Worshipper</label>
+            <select name="worshipper_id" class="form-input" required style="padding:12px 16px; font-size:1rem; border-radius:10px; border:1.5px solid var(--border-color); background:var(--bg-main); color:var(--text-main); width:100%; transition:all 0.2s;">
+                <option value="">-- Choose a team member --</option>
+                <?php
+                $worshippers_q = $conn->query("SELECT id, first_name, last_name, church_role FROM members WHERE is_approved=1 AND (LOWER(church_role) LIKE '%worshipper%' OR LOWER(department) LIKE '%worship%' OR desired_role_pref = 'Worshipper') ORDER BY first_name ASC");
+                while($w = $worshippers_q->fetch_assoc()) {
+                    echo "<option value='".$w['id']."'>".htmlspecialchars($w['first_name'].' '.$w['last_name']." (".($w['church_role'] ?: 'Worshipper').")")."</option>";
+                }
+                ?>
+            </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:20px;">
+            <label style="font-size:0.95rem; font-weight:700; color:var(--text-main); margin-bottom:8px; display:block;">Task Description &amp; Details</label>
+            <textarea id="worshipTaskInput" name="task_name" rows="3" required placeholder="Type task details here (e.g. Lead Sunday Worship Service, Coordinate Saturday Vocal Rehearsal, Keyboardist for Youth Service...)" style="padding:14px 18px; font-size:1.05rem; border-radius:12px; border:1.5px solid var(--border-color); background:var(--bg-main); color:var(--text-main); width:100%; min-height:85px; line-height:1.5; resize:vertical; box-shadow:inset 0 1px 3px rgba(0,0,0,0.05);"></textarea>
+
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center;">
+                <span style="font-size:0.75rem; color:var(--text-muted); font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Quick Suggestions:</span>
+                <button type="button" onclick="setWorshipTask('Lead Praise Session')" style="background:rgba(139,92,246,0.12); color:#7c3aed; border:1px solid rgba(139,92,246,0.25); padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.15s;">🎤 Lead Praise</button>
+                <button type="button" onclick="setWorshipTask('Lead Worship Session')" style="background:rgba(139,92,246,0.12); color:#7c3aed; border:1px solid rgba(139,92,246,0.25); padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.15s;">🙏 Lead Worship</button>
+                <button type="button" onclick="setWorshipTask('Instruments & Sound Setup')" style="background:rgba(139,92,246,0.12); color:#7c3aed; border:1px solid rgba(139,92,246,0.25); padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.15s;">🎹 Instruments</button>
+                <button type="button" onclick="setWorshipTask('Song Selection & Rehearsal')" style="background:rgba(139,92,246,0.12); color:#7c3aed; border:1px solid rgba(139,92,246,0.25); padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.15s;">🎼 Song Rehearsal</button>
+                <button type="button" onclick="setWorshipTask('Opening Prayer & Dedication')" style="background:rgba(139,92,246,0.12); color:#7c3aed; border:1px solid rgba(139,92,246,0.25); padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.15s;">✨ Opening Prayer</button>
+            </div>
+        </div>
+
+        <button type="submit" name="assign_worship_task" style="display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#8b5cf6,#6d28d9); color:white; padding:12px 28px; border-radius:10px; font-size:1rem; font-weight:700; border:none; cursor:pointer; box-shadow:0 4px 14px rgba(139,92,246,0.35); transition:all 0.2s;">
+            <span>Assign Task</span>
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </button>
+    </form>
+</div>
+
+<script>
+function setWorshipTask(task) {
+    var el = document.getElementById('worshipTaskInput');
+    if (el) {
+        el.value = task;
+        el.focus();
+    }
+}
+</script>
 
                 <div class="content-card">
                     <h2>Task Log</h2>
@@ -8286,19 +8319,22 @@ function filterWTeam() {
         sunIcon.style.display = 'block';
     }
 
-    themeToggle.addEventListener('click', () => {
-        if (htmlEl.getAttribute('data-theme') === 'dark') {
-            htmlEl.removeAttribute('data-theme');
-            localStorage.setItem('theme', 'light');
-            moonIcon.style.display = 'block';
-            sunIcon.style.display = 'none';
-        } else {
-            htmlEl.setAttribute('data-theme', 'dark');
-            localStorage.setItem('theme', 'dark');
-            moonIcon.style.display = 'none';
-            sunIcon.style.display = 'block';
-        }
-    });
+    if (themeToggle) {
+        themeToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (htmlEl.getAttribute('data-theme') === 'dark') {
+                htmlEl.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                if (moonIcon) moonIcon.style.display = 'block';
+                if (sunIcon) sunIcon.style.display = 'none';
+            } else {
+                htmlEl.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                if (moonIcon) moonIcon.style.display = 'none';
+                if (sunIcon) sunIcon.style.display = 'block';
+            }
+        });
+    }
 
     // Prayer Countdown Timer
     function updateCountdowns() {
@@ -8485,39 +8521,6 @@ document.querySelectorAll('.member-username-check').forEach(function(input) {
     });
     checkMemberUsername();
 });
-// Close on click outside image
-// Theme Toggle
-(function() {
-    const themeToggle = document.getElementById('themeToggle');
-    const moonIcon = document.getElementById('moonIcon');
-    const sunIcon = document.getElementById('sunIcon');
-    const root = document.documentElement;
-
-    function applyTheme(theme) {
-        if (theme === 'dark') {
-            root.setAttribute('data-theme', 'dark');
-            if (moonIcon) moonIcon.style.display = 'none';
-            if (sunIcon) sunIcon.style.display = 'block';
-        } else {
-            root.removeAttribute('data-theme');
-            if (moonIcon) moonIcon.style.display = 'block';
-            if (sunIcon) sunIcon.style.display = 'none';
-        }
-    }
-
-    const currentTheme = localStorage.getItem('theme') || 'light';
-    applyTheme(currentTheme);
-
-    if (themeToggle) {
-        themeToggle.addEventListener('click', function(e) {
-            e.preventDefault();
-            const isDark = root.getAttribute('data-theme') === 'dark';
-            const nextTheme = isDark ? 'light' : 'dark';
-            localStorage.setItem('theme', nextTheme);
-            applyTheme(nextTheme);
-        });
-    }
-})();
 // Close on click outside image
 const imgModal = document.getElementById('imageViewerModal');
 if (imgModal) {
