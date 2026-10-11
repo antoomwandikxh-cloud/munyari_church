@@ -80,7 +80,34 @@ if (isset($_GET['action'])) {
         
         $conn->query("INSERT INTO appointments (member_id, pastor_id, appointment_date, reason, status) VALUES ($member_id, $pastor_id, '$datetime', '$reason', 'Pending')");
         
-        header("Location: member_dashboard.php?tab=contact_pastor&success=Appointment requested successfully");
+        // Notify Pastor and Admin
+        $m_res = $conn->query("SELECT first_name, last_name FROM members WHERE id = $member_id LIMIT 1");
+        $m_data = $m_res ? $m_res->fetch_assoc() : null;
+        $member_name = trim(($m_data['first_name'] ?? '') . ' ' . ($m_data['last_name'] ?? '')) ?: 'A member';
+        $fmt_date = date('M j, Y g:i A', strtotime($datetime));
+        $notif_msg = $conn->real_escape_string("New appointment booking: $member_name booked an appointment with the pastor for $fmt_date. Reason: $reason.");
+
+        // Notify all Pastors
+        $p_res = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
+        if ($p_res) {
+            while ($p = $p_res->fetch_assoc()) {
+                $pid = (int)$p['id'];
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pid, 'pastor', '$notif_msg')");
+            }
+        } elseif ($pastor_id > 0) {
+            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pastor_id, 'pastor', '$notif_msg')");
+        }
+
+        // Notify all Admins
+        $a_res = $conn->query("SELECT id FROM admins");
+        if ($a_res) {
+            while ($a = $a_res->fetch_assoc()) {
+                $aid = (int)$a['id'];
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($aid, 'admin', '$notif_msg')");
+            }
+        }
+
+        header("Location: member_dashboard.php?tab=contact_pastor&success=" . urlencode("Appointment requested successfully. Pastor and Admin have been notified."));
         exit();
     }
     

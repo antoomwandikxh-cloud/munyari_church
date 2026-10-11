@@ -314,11 +314,12 @@ if (isset($_GET['action'])) {
         $id = (int)$_GET['id'];
         $conn->query("UPDATE appointments SET status = 'Approved' WHERE id = $id");
         
-        $appt = $conn->query("SELECT member_id, appointment_date FROM appointments WHERE id = $id")->fetch_assoc();
+        $appt = $conn->query("SELECT a.member_id, a.appointment_date, p.first_name, p.last_name FROM appointments a JOIN pastors p ON a.pastor_id = p.id WHERE a.id = $id")->fetch_assoc();
         if ($appt) {
             $member_id = $appt['member_id'];
+            $p_name = trim($appt['first_name'] . ' ' . $appt['last_name']) ?: 'Pastor';
             $date_fmt = date('M j, Y g:i A', strtotime($appt['appointment_date']));
-            $msg = $conn->real_escape_string("Your appointment request for $date_fmt has been Approved.");
+            $msg = $conn->real_escape_string("Pastor $p_name accepted your appointment request for $date_fmt. Please check your Contact Pastor tab.");
             $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
         }
         
@@ -329,11 +330,12 @@ if (isset($_GET['action'])) {
         $id = (int)$_GET['id'];
         $conn->query("UPDATE appointments SET status = 'Declined' WHERE id = $id");
         
-        $appt = $conn->query("SELECT member_id, appointment_date FROM appointments WHERE id = $id")->fetch_assoc();
+        $appt = $conn->query("SELECT a.member_id, a.appointment_date, p.first_name, p.last_name FROM appointments a JOIN pastors p ON a.pastor_id = p.id WHERE a.id = $id")->fetch_assoc();
         if ($appt) {
             $member_id = $appt['member_id'];
+            $p_name = trim($appt['first_name'] . ' ' . $appt['last_name']) ?: 'Pastor';
             $date_fmt = date('M j, Y g:i A', strtotime($appt['appointment_date']));
-            $msg = $conn->real_escape_string("Your appointment request for $date_fmt has been Declined.");
+            $msg = $conn->real_escape_string("Pastor $p_name declined your appointment request for $date_fmt. Check Contact Pastor tab.");
             $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
         }
         

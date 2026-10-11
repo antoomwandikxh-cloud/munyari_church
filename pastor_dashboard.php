@@ -870,10 +870,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['decline_member_submit
 
 // Handle Send Message inline
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_message'])) {
-    $member_id = (int)$_POST['member_id'];
-    $msg = $conn->real_escape_string($_POST['message_content']);
-    $conn->query("INSERT INTO member_messages (member_id, pastor_name, message) VALUES ($member_id, '$pastor_name', '$msg')");
-    header("Location: pastor_dashboard.php?tab=messages&success=Message Sent");
+    $target_member_id = (int)$_POST['member_id'];
+    $raw_msg = trim($_POST['message'] ?? $_POST['message_content'] ?? '');
+    $msg_esc = $conn->real_escape_string($raw_msg);
+    $p_name_esc = $conn->real_escape_string($pastor_name);
+    
+    if ($target_member_id > 0 && !empty($raw_msg)) {
+        // Insert into member_messages so member sees it under Contact Pastor
+        $conn->query("INSERT INTO member_messages (member_id, pastor_name, message) VALUES ($target_member_id, '$p_name_esc', '$msg_esc')");
+        // Also insert into messages table if exists
+        @$conn->query("INSERT INTO messages (pastor_id, member_id, message) VALUES ($pastor_id, $target_member_id, '$msg_esc')");
+        
+        // Notify member with keyword that routes to Contact Pastor
+        $snippet = mb_strlen($raw_msg) > 60 ? mb_substr($raw_msg, 0, 57) . '...' : $raw_msg;
+        $notif_msg = $conn->real_escape_string("Message from Pastor $pastor_name: \"$snippet\". Please check your Contact Pastor tab.");
+        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($target_member_id, 'member', '$notif_msg')");
+    }
+    
+    $redirect_tab = ($tab === 'appointments') ? 'appointments' : 'messages';
+    header("Location: pastor_dashboard.php?tab=$redirect_tab&success=" . urlencode("Message sent to member successfully"));
     exit();
 }
 
@@ -1168,9 +1183,10 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     Manage Worshippers
                     <?php if (!empty($tab_badges['manage_worshippers'])): ?><span class="tab-notif-badge" style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['manage_worshippers'] > 99 ? '99+' : $tab_badges['manage_worshippers'] ?></span><?php endif; ?>
                 </a>
-                <a href="?tab=appointments" class="sidebar-link <?= $tab == 'appointments' ? 'active' : '' ?>">
+                <a href="?tab=appointments" class="sidebar-link <?= $tab == 'appointments' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     Appointments
+                    <?php if (!empty($tab_badges['appointments'])): ?><span class="tab-notif-badge" style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['appointments'] > 99 ? '99+' : $tab_badges['appointments'] ?></span><?php endif; ?>
                 </a>
                 <a href="?tab=general_announcements" class="sidebar-link <?= $tab == 'general_announcements' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>

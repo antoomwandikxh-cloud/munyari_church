@@ -2725,9 +2725,10 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 <?php endif; ?>
 
                 <?php if ($has_church_village): ?>
-                <a href="?tab=contact_pastor" class="sidebar-link <?= $tab == 'contact_pastor' ? 'active' : '' ?>">
+                <a href="?tab=contact_pastor" class="sidebar-link <?= $tab == 'contact_pastor' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     Contact Pastor
+                    <?php if (!empty($tab_badges['contact_pastor'])): ?><span class="tab-notif-badge" style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['contact_pastor'] > 99 ? '99+' : $tab_badges['contact_pastor'] ?></span><?php endif; ?>
                 </a>
                 <a href="?tab=inspiration_highlights" class="sidebar-link <?= $tab == 'inspiration_highlights' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>

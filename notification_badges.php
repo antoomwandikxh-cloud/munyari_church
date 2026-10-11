@@ -23,6 +23,27 @@ function notification_badge_tabs($message, $user_type) {
         return array_values(array_unique($tabs));
     }
 
+    // ─── APPOINTMENTS & CONTACT PASTOR ──────────────────────────────────────
+    if (strpos($msg, 'appointment') !== false && strpos($msg, 'role') === false) {
+        if ($user_type === 'member') {
+            $tabs[] = 'contact_pastor';
+        } else {
+            $tabs[] = 'appointments';
+        }
+        return array_values(array_unique($tabs));
+    }
+    if (strpos($msg, 'contact pastor') !== false 
+        || strpos($msg, 'message from pastor') !== false 
+        || strpos($msg, 'message from the pastor') !== false
+        || (strpos($msg, 'pastor') !== false && strpos($msg, 'sent you a message') !== false)
+        || (strpos($msg, 'pastor') !== false && strpos($msg, 'personal message') !== false)
+    ) {
+        if ($user_type === 'member') {
+            $tabs[] = 'contact_pastor';
+            return array_values(array_unique($tabs));
+        }
+    }
+
     if (strpos($msg, 'new member registration pending approval') !== false) {
         $tabs[] = 'manage_members';
     }
