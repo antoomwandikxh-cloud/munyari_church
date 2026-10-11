@@ -879,8 +879,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_message'])) {
     $p_name_esc = $conn->real_escape_string($p_name);
     
     if ($target_member_id > 0 && !empty($raw_msg)) {
-        // Insert into member_messages so member sees it under Contact Pastor
-        $conn->query("INSERT INTO member_messages (member_id, pastor_name, message) VALUES ($target_member_id, '$p_name_esc', '$msg_esc')");
+        // Ensure pastor_id column exists
+        $conn->query("ALTER TABLE member_messages ADD COLUMN IF NOT EXISTS pastor_id INT(6) UNSIGNED NULL AFTER member_id");
+
+        // Insert into member_messages so member and pastor can both track it
+        $conn->query("INSERT INTO member_messages (member_id, pastor_id, pastor_name, message) VALUES ($target_member_id, $pastor_id, '$p_name_esc', '$msg_esc')");
         
         // Notify member with keyword that routes to Contact Pastor
         $snippet = mb_strlen($raw_msg) > 60 ? mb_substr($raw_msg, 0, 57) . '...' : $raw_msg;
@@ -889,6 +892,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_message'])) {
     }
     
     header("Location: pastor_dashboard.php?tab=appointments&success=" . urlencode("Message sent to member successfully"));
+    exit();
+}
+
+// Handle Delete Sent Message inline
+if (isset($_GET['action']) && $_GET['action'] == 'delete_sent_msg' && isset($_GET['msg_id'])) {
+    $del_msg_id = (int)$_GET['msg_id'];
+    $p_name_check = $conn->real_escape_string(!empty($pastor_name) ? $pastor_name : ($pastor['first_name'] ?? ''));
+    $conn->query("DELETE FROM member_messages WHERE id = $del_msg_id AND (pastor_id = $pastor_id OR pastor_name = '$p_name_check')");
+    header("Location: pastor_dashboard.php?tab=appointments&success=" . urlencode("Sent message removed successfully"));
     exit();
 }
 
@@ -4742,27 +4754,107 @@ w.document.write('</div>');
                     <?php endif; ?>
                 </div>
 
-                <!-- Embedded Messages Tab -->
-                <div class="content-card" style="margin-top: 30px; max-width: 600px;">
-                    <h2>Send Direct Message</h2>
-                    <form method="POST" action="?tab=appointments">
-                        <div class="form-group">
-                            <label>Select Member</label>
-                            <select name="member_id" class="form-control" required>
-                                <option value="">-- Choose Member --</option>
-                                <?php 
-                                $members_query = $conn->query("SELECT id, first_name, last_name, department FROM members WHERE is_approved = 1 ORDER BY first_name");
-                                while($m = $members_query->fetch_assoc()): ?>
-                                    <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name'] . ' (' . $m['department'] . ')') ?></option>
-                                <?php endwhile; ?>
-                            </select>
+                <!-- Direct Messages to Members Section -->
+                <div style="display:flex; gap:24px; margin-top:30px; flex-wrap:wrap; align-items:flex-start;">
+                    <!-- Send Direct Message Form -->
+                    <div class="content-card" style="flex: 1; min-width: 320px; max-width: 440px; margin:0;">
+                        <h2 style="margin-top:0; font-size:1.25rem; display:flex; align-items:center; gap:8px;">
+                            <span>✉️ Send Direct Message</span>
+                        </h2>
+                        <p style="color:var(--text-muted); font-size:0.85rem; margin-top:-10px; margin-bottom:18px;">Send a private notification message directly to any church member.</p>
+                        <form method="POST" action="?tab=appointments">
+                            <div class="form-group">
+                                <label>Select Member</label>
+                                <select name="member_id" class="form-control" required>
+                                    <option value="">-- Choose Member --</option>
+                                    <?php 
+                                    $members_query = $conn->query("SELECT id, first_name, last_name, department FROM members WHERE is_approved = 1 ORDER BY first_name");
+                                    while($m = $members_query->fetch_assoc()): ?>
+                                        <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name'] . ' (' . $m['department'] . ')') ?></option>
+                                    <?php endwhile; ?>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Message</label>
+                                <textarea name="message" class="form-control" rows="5" placeholder="Write your message to the member..." required></textarea>
+                            </div>
+                            <button type="submit" name="send_message" class="btn-submit" style="width:100%;">Send Message</button>
+                        </form>
+                    </div>
+
+                    <!-- Messages Sent to Members Table -->
+                    <div class="content-card" style="flex: 2; min-width: 360px; margin:0;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 20px; flex-wrap:wrap; gap:10px;">
+                            <h2 style="margin:0; font-size:1.25rem; display:flex; align-items:center; gap:8px;">
+                                <span>📤 Messages Sent to Members</span>
+                            </h2>
+                            <span style="font-size:0.85rem; color:var(--text-muted);">History of direct messages you sent</span>
                         </div>
-                        <div class="form-group">
-                            <label>Message</label>
-                            <textarea name="message" class="form-control" rows="5" placeholder="Write your message to the member..." required></textarea>
+
+                        <?php
+                        $pastor_first_name_esc = $conn->real_escape_string($pastor['first_name'] ?? '');
+                        $pastor_full_name_esc = $conn->real_escape_string(!empty($pastor_name) ? $pastor_name : trim(($pastor['first_name'] ?? '') . ' ' . ($pastor['last_name'] ?? '')));
+                        $sent_msgs_query = $conn->query("
+                            SELECT mm.*, m.first_name, m.last_name, m.department, m.profile_picture
+                            FROM member_messages mm
+                            JOIN members m ON mm.member_id = m.id
+                            WHERE (mm.pastor_id = $pastor_id OR mm.pastor_name = '$pastor_full_name_esc' OR mm.pastor_name = '$pastor_first_name_esc')
+                            ORDER BY mm.created_at DESC
+                        ");
+                        if ($sent_msgs_query && $sent_msgs_query->num_rows > 0):
+                        ?>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="min-width:180px;">Member</th>
+                                        <th style="min-width:110px;">Department</th>
+                                        <th style="min-width:240px;">Message Sent</th>
+                                        <th style="min-width:140px;">Date &amp; Time</th>
+                                        <th style="width:70px; text-align:center;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php while($smsg = $sent_msgs_query->fetch_assoc()): 
+                                        $m_pic = !empty($smsg['profile_picture']) ? 'uploads/' . htmlspecialchars($smsg['profile_picture']) : 'uploads/default_avatar.png';
+                                    ?>
+                                    <tr>
+                                        <td>
+                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                <img src="<?= $m_pic ?>" alt="Member"
+                                                     style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--border-color); cursor:zoom-in; flex-shrink:0; background:#f3f4f6; transition:transform 0.15s ease;"
+                                                     onmouseover="this.style.transform='scale(1.12)'"
+                                                     onmouseout="this.style.transform='scale(1)'"
+                                                     onclick="viewProfileImage(this.src);"
+                                                     onerror="this.src='uploads/default_avatar.png'"
+                                                     title="Click to view full photo">
+                                                <span style="font-weight:600; color:var(--text-main);"><?= htmlspecialchars($smsg['first_name'] . ' ' . $smsg['last_name']) ?></span>
+                                            </div>
+                                        </td>
+                                        <td><span class="badge" style="background:rgba(99,102,241,0.1); color:#6366f1; font-weight:600; font-size:0.8rem;"><?= htmlspecialchars($smsg['department']) ?></span></td>
+                                        <td style="line-height:1.45; color:var(--text-main);"><?= nl2br(htmlspecialchars($smsg['message'])) ?></td>
+                                        <td style="font-size:0.85rem; color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($smsg['created_at'])) ?></td>
+                                        <td style="text-align:center;">
+                                            <a href="?tab=appointments&action=delete_sent_msg&msg_id=<?= $smsg['id'] ?>"
+                                               onclick="return confirm('Are you sure you want to delete this sent message?');"
+                                               class="btn-action btn-danger"
+                                               style="background:#fee2e2; color:#ef4444; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.82rem; text-decoration:none; display:inline-flex; align-items:center; gap:4px;"
+                                               title="Delete Sent Message">
+                                                🗑️
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
                         </div>
-                        <button type="submit" name="send_message" class="btn-submit">Send Message</button>
-                    </form>
+                        <?php else: ?>
+                        <div style="text-align:center; padding:35px 20px; color:var(--text-muted);">
+                            <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.35; margin-bottom:8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                            <p style="margin:0; font-size:0.95rem;">You have not sent any direct messages to members yet.</p>
+                        </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
             <?php elseif ($tab == 'organized_events'): ?>

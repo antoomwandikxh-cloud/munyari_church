@@ -2369,7 +2369,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_announcement']) &
 
 // Appointments
 $appointments = $conn->query("
-    SELECT a.*, p.first_name, p.last_name, p.profile_picture as p_pic, p.role as p_role
+    SELECT a.*, p.first_name, p.last_name, p.profile_picture as p_pic
     FROM appointments a
     JOIN pastors p ON a.pastor_id = p.id
     WHERE a.member_id = $member_id
@@ -2638,7 +2638,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_username'])) {
     exit();
 }
 
-$messages_query = $conn->query("SELECT * FROM member_messages WHERE member_id = $member_id ORDER BY created_at DESC");
+$messages_query = $conn->query("
+    SELECT mm.*, p.first_name as p_fn, p.last_name as p_ln, p.profile_picture as pastor_pic
+    FROM member_messages mm
+    LEFT JOIN pastors p ON (mm.pastor_id = p.id OR p.first_name = mm.pastor_name OR CONCAT(p.first_name, ' ', p.last_name) = mm.pastor_name)
+    WHERE mm.member_id = $member_id
+    ORDER BY mm.created_at DESC
+");
 
 // Per-notification mark-as-read is handled via mark_read_and_redirect.php on click
 
@@ -4994,7 +5000,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                         <?php 
                                         $pastors->data_seek(0);
                                         while($p = $pastors->fetch_assoc()): ?>
-                                            <option value="<?= $p['id'] ?>">Pastor <?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']) ?> (<?= htmlspecialchars($p['role']) ?>)</option>
+                                            <option value="<?= $p['id'] ?>">Pastor <?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']) ?></option>
                                         <?php endwhile; ?>
                                     </select>
                                 </div>
@@ -5019,13 +5025,27 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             </h2>
                             <?php if($messages_query->num_rows > 0): ?>
                                 <div style="display:flex; flex-direction:column; gap:12px; max-height:430px; overflow-y:auto; padding-right:4px;">
-                                <?php while($msg = $messages_query->fetch_assoc()): ?>
+                                <?php while($msg = $messages_query->fetch_assoc()): 
+                                    $p_img = !empty($msg['pastor_pic']) ? 'uploads/' . htmlspecialchars($msg['pastor_pic']) : 'uploads/default_avatar.png';
+                                    $p_display_name = !empty($msg['p_fn']) ? trim($msg['p_fn'] . ' ' . ($msg['p_ln'] ?? '')) : $msg['pastor_name'];
+                                ?>
                                     <div class="message-item" style="border:1px solid var(--border-color); border-radius:10px; padding:14px; background:var(--bg-lighter);">
-                                        <div class="message-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                                            <span class="message-author" style="font-weight:700; color:var(--primary);">Pastor <?= htmlspecialchars($msg['pastor_name']) ?></span>
-                                            <span style="font-size:0.75rem; color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($msg['created_at'])) ?></span>
+                                        <div class="message-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                <img src="<?= $p_img ?>" alt="Pastor"
+                                                     style="width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid var(--border-color); cursor:zoom-in; flex-shrink:0; background:#f3f4f6; transition:transform 0.15s ease;"
+                                                     onmouseover="this.style.transform='scale(1.12)'"
+                                                     onmouseout="this.style.transform='scale(1)'"
+                                                     onclick="viewProfileImage(this.src);"
+                                                     onerror="this.src='uploads/default_avatar.png'"
+                                                     title="Click to view full photo">
+                                                <div>
+                                                    <div class="message-author" style="font-weight:700; color:var(--primary); font-size:0.92rem;">Pastor <?= htmlspecialchars($p_display_name) ?></div>
+                                                    <div style="font-size:0.75rem; color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($msg['created_at'])) ?></div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="message-body" style="color:var(--text-main); font-size:0.92rem; line-height:1.45;"><?= nl2br(htmlspecialchars($msg['message'])) ?></div>
+                                        <div class="message-body" style="color:var(--text-main); font-size:0.92rem; line-height:1.45; padding-left:48px;"><?= nl2br(htmlspecialchars($msg['message'])) ?></div>
                                     </div>
                                 <?php endwhile; ?>
                                 </div>
@@ -5077,7 +5097,6 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                                  title="Click to view photo">
                                             <div>
                                                 <div style="font-weight:700; color:var(--text-main);">Pastor <?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></div>
-                                                <?php if (!empty($a['p_role'])): ?><div style="font-size:0.75rem; color:var(--text-muted);"><?= htmlspecialchars($a['p_role']) ?></div><?php endif; ?>
                                             </div>
                                         </div>
                                     </td>
