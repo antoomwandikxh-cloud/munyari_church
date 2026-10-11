@@ -110,7 +110,7 @@ function fmt_amount($n) {
             top: 50%; left: 50%;
             transform: translate(-50%, -50%) rotate(-45deg);
             font-size: 3.5rem;
-            color: rgba(30, 58, 138, 0.18); text-shadow: 2px 2px 4px rgba(30,58,138,0.1); letter-spacing: 4px;
+            color: rgba(30, 58, 138, 0.25); text-shadow: 2px 2px 4px rgba(30,58,138,0.1); letter-spacing: 4px;
             font-weight: bold;
             white-space: nowrap;
             z-index: 9999;

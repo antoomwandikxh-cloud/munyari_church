@@ -98,7 +98,7 @@ if ($report === 'all_villages') {
             left: 50%;
             transform: translate(-50%, -50%) rotate(-45deg);
             font-size: 3rem;
-            color: rgba(0,0,0,0.12);
+            color: rgba(30, 58, 138, 0.25);
             font-weight: 900;
             white-space: nowrap;
             z-index: 9999;
@@ -185,7 +185,7 @@ if ($report === 'all_villages') {
             .sig-block, .sig-section { page-break-inside: avoid !important; break-inside: avoid !important; }
             .no-print { display: none !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
-            .print-watermark { color: rgba(0,0,0,0.12) !important; z-index: 9999 !important; }
+            .print-watermark { color: rgba(30, 58, 138, 0.25) !important; mix-blend-mode: multiply !important; z-index: 9999 !important; }
         }
         table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
         tr { page-break-inside: avoid !important; break-inside: avoid !important; }

@@ -90,7 +90,7 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 14px; color: #111; fo
 .watermark {
     position: fixed; top: 50%; left: 50%;
     transform: translate(-50%,-50%) rotate(-45deg);
-    font-size: 3.0rem; color: rgba(30,58,138,0.15);
+    font-size: 3.0rem; color: rgba(30,58,138,0.25);
     font-weight: bold; white-space: nowrap;
     z-index: 999999; pointer-events: none;
     letter-spacing: 4px; text-transform: uppercase;

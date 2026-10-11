@@ -139,7 +139,7 @@ body{font-family:Arial,sans-serif;background:#fff;padding:10px;padding-bottom:72
 
 /* Watermark */
 .watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);
-font-size:72px!important;color:rgba(30,58,138,0.18)!important;font-weight:bold;white-space:nowrap;
+font-size:72px!important;color:rgba(30,58,138,0.25)!important;font-weight:bold;white-space:nowrap;
 z-index:999999!important;opacity:1!important;pointer-events:none;letter-spacing:4px;text-transform:uppercase;mix-blend-mode:multiply;}
 
 /* Footer */

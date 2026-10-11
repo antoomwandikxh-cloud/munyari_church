@@ -121,12 +121,12 @@ if (file_exists($logo_path)) {
             transform: translate(-50%, -50%) rotate(-45deg);
             font-size: 3rem;
             font-weight: 900;
-            color: rgba(0,0,0,0.12);
+            color: rgba(30, 58, 138, 0.25);
             white-space: nowrap;
-            z-index: 9999; pointer-events: none;
-            pointer-events: none;
+            z-index: 999999; pointer-events: none;
             letter-spacing: 0.1em;
             text-transform: uppercase;
+            mix-blend-mode: multiply;
         }
 
         /* ── Print overrides ── */
@@ -141,7 +141,7 @@ if (file_exists($logo_path)) {
             .sig-box, .sig-section { page-break-inside: avoid !important; break-inside: avoid !important; }
             .no-print { display: none !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .watermark { color: rgba(0,0,0,0.12) !important; z-index: 9999 !important; pointer-events: none; }
+            .watermark { color: rgba(30, 58, 138, 0.25) !important; z-index: 999999 !important; pointer-events: none; mix-blend-mode: multiply !important; opacity: 1 !important; }
         }
         table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
         tr { page-break-inside: avoid !important; break-inside: avoid !important; }

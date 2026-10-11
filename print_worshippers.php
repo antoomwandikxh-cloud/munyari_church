@@ -85,10 +85,11 @@ body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background:
 
 /* Watermark */
 .watermark {
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg);
-    font-size: 5rem; font-weight: 900; color: rgba(139,92,246,0.06);
-    text-transform: uppercase; white-space: nowrap; pointer-events: none; z-index: 0;
-    letter-spacing: 4px;
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: <?= $mode === 'landscape' ? '4.5rem' : '3.5rem' ?> !important; font-weight: 900 !important;
+    color: rgba(30,58,138,0.25) !important;
+    text-transform: uppercase; white-space: nowrap; pointer-events: none; z-index: 999999 !important;
+    opacity: 1 !important; letter-spacing: 4px; mix-blend-mode: multiply !important;
 }
 
 /* Header */
@@ -164,6 +165,7 @@ tbody tr:nth-child(even) td { background: #faf5ff; }
     tr { page-break-inside: avoid !important; break-inside: avoid !important; }
     td, th { page-break-inside: avoid !important; break-inside: avoid !important; }
     .sig-section, .leader-card, .leaders-bar { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .watermark { color: rgba(30,58,138,0.25) !important; z-index: 999999 !important; opacity: 1 !important; mix-blend-mode: multiply !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     .no-print { display: none !important; }
 }
 table { width: 100%; border-collapse: collapse; margin-bottom: 4px; page-break-inside: auto; }
