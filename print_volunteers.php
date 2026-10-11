@@ -37,9 +37,9 @@ $pastor_q    = $conn->query("SELECT first_name, last_name FROM pastors WHERE is_
 $pastor_row  = $pastor_q ? $pastor_q->fetch_assoc() : null;
 $pastor_name = $pastor_row ? strtoupper($pastor_row['first_name'] . ' ' . $pastor_row['last_name']) : 'Not Assigned';
 
-/* ── Fetch ALL roles from DB (includes Worshipper, Church Cleaner, Church Cooker, and customs) ── */
-$all_roles = ['Worshipper'];
-$all_roles_q = $conn->query("SELECT * FROM custom_desired_roles ORDER BY id ASC");
+/* ── Fetch ALL roles from DB (excludes Worshipper — managed separately under Manage Worshippers tab) ── */
+$all_roles = [];
+$all_roles_q = $conn->query("SELECT * FROM custom_desired_roles WHERE role_name != 'Worshipper' ORDER BY id ASC");
 if ($all_roles_q) {
     while ($r = $all_roles_q->fetch_assoc()) {
         if (!in_array($r['role_name'], $all_roles)) {

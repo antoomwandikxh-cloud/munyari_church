@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 function render_role_pills($church_role_raw, $is_pastor = false, $is_leader = false) {
     if ($is_pastor) { return '<span class="role-pill rp-pastor">&#9962; Pastor</span>'; }
@@ -3794,7 +3794,7 @@ w.document.write('</div>');
                     </div>
                 </div>
                 <?php
-                $cr_query = $conn->query("SELECT * FROM custom_desired_roles ORDER BY id ASC");
+                $cr_query = $conn->query("SELECT * FROM custom_desired_roles WHERE role_name != 'Worshipper' ORDER BY id ASC");
                 if ($cr_query && $cr_query->num_rows > 0):
                     while ($cr = $cr_query->fetch_assoc()):
                         $c_role     = $cr['role_name'];
