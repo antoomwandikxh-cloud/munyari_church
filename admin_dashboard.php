@@ -4252,28 +4252,30 @@ w.document.write('</div>');
 
                 <!-- Past Pastor Announcements -->
                 <div class="content-card" style="border-left:4px solid #10b981;">
-                    <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">✉️ Your Past Announcements</h2>
+                    <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">✉️ Pastoral Announcements &amp; Voice Notes</h2>
                     <?php
                     $pastor_anns = $conn->query("
-                        SELECT pa.*, p.first_name, p.last_name
+                        SELECT pa.*, p.first_name, p.last_name, p.profile_picture
                         FROM pastor_announcements pa
-                        JOIN pastors p ON pa.pastor_id = p.id
-                        ORDER BY pa.created_at DESC LIMIT 30
+                        LEFT JOIN pastors p ON pa.pastor_id = p.id
+                        ORDER BY pa.created_at DESC LIMIT 50
                     ");
                     if ($pastor_anns && $pastor_anns->num_rows > 0):
                         while ($pa = $pastor_anns->fetch_assoc()):
+                            $p_name = !empty($pa['first_name']) ? ('Pastor ' . htmlspecialchars($pa['first_name'] . ' ' . $pa['last_name'])) : 'Senior Pastor';
+                            $p_pic  = !empty($pa['profile_picture']) ? 'uploads/' . $pa['profile_picture'] : 'uploads/default_avatar.png';
                     ?>
                         <div style="padding:12px 0;border-bottom:1px solid var(--border-color);">
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
                                 <div>
-                                    <strong>Pastor <?= htmlspecialchars($pa['first_name'] . ' ' . $pa['last_name']) ?></strong>
-                                    <span style="font-size:0.75rem;background:rgba(16,185,129,0.12);color:#10b981;padding:2px 8px;border-radius:20px;margin-left:6px;">General Church</span>
+                                    <strong><?= $p_name ?></strong>
+                                    <span style="font-size:0.75rem;background:rgba(16,185,129,0.12);color:#10b981;padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:700;">General Church</span>
                                 </div>
                                 <small style="color:var(--text-muted);font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($pa['created_at'])) ?></small>
                             </div>
                             <p style="margin:8px 0 0;white-space:pre-wrap;font-size:0.9rem;"><?= htmlspecialchars($pa['message']) ?></p>
                             <?php if (!empty($pa['audio_path'])): ?>
-                                <?= render_whatsapp_voice_player($pa['audio_path'], 'Pastor ' . $pa['first_name'] . ' ' . $pa['last_name'], null, $pa['created_at']) ?>
+                                <?= render_whatsapp_voice_player($pa['audio_path'], $p_name, $p_pic, $pa['created_at']) ?>
                             <?php endif; ?>
                             <?php if (!empty($pa['image_path'])): ?>
                                 <a href="<?= htmlspecialchars($pa['image_path']) ?>" target="_blank" style="display:block;margin-top:10px;">

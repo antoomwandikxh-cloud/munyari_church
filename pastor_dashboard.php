@@ -1099,6 +1099,101 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['pastor_leader_chat']))
     exit();
 }
 
+// Handle deleting a Pastor announcement
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['delete_pastor_announcement'])) {
+    $ann_id = (int)($_POST['announcement_id'] ?? 0);
+    if ($ann_id > 0) {
+        $chk = $conn->query("SELECT * FROM pastor_announcements WHERE id = $ann_id AND pastor_id = $pastor_id");
+        if ($chk && $row = $chk->fetch_assoc()) {
+            if (!empty($row['audio_path']) && file_exists(__DIR__ . '/' . $row['audio_path'])) {
+                @unlink(__DIR__ . '/' . $row['audio_path']);
+            }
+            if (!empty($row['image_path']) && file_exists(__DIR__ . '/' . $row['image_path'])) {
+                @unlink(__DIR__ . '/' . $row['image_path']);
+            }
+            $conn->query("DELETE FROM pastor_announcements WHERE id = $ann_id");
+            header("Location: pastor_dashboard.php?tab=general_announcements&success=" . urlencode("Announcement and voice note deleted successfully."));
+            exit();
+        }
+    }
+    header("Location: pastor_dashboard.php?tab=general_announcements&error=" . urlencode("Could not delete announcement."));
+    exit();
+}
+
+// Handle updating / changing a Pastor announcement
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_pastor_announcement'])) {
+    $ann_id = (int)($_POST['announcement_id'] ?? 0);
+    if ($ann_id > 0) {
+        $chk = $conn->query("SELECT * FROM pastor_announcements WHERE id = $ann_id AND pastor_id = $pastor_id");
+        if ($chk && $row = $chk->fetch_assoc()) {
+            $raw_msg = trim($_POST['edit_announcement_message'] ?? '');
+            $new_audio_path = $row['audio_path'];
+            $new_image_path = $row['image_path'];
+
+            // 1. Check if user requested to remove voice note
+            if (!empty($_POST['remove_voice_note'])) {
+                if (!empty($new_audio_path) && file_exists(__DIR__ . '/' . $new_audio_path)) {
+                    @unlink(__DIR__ . '/' . $new_audio_path);
+                }
+                $new_audio_path = null;
+            }
+
+            // 2. Check if replacement audio was provided (file upload or blob)
+            $uploaded_audio = save_voice_note($_POST['edit_voice_note_blob'] ?? null, $_FILES['edit_voice_note'] ?? null);
+            if (!empty($uploaded_audio)) {
+                if (!empty($new_audio_path) && file_exists(__DIR__ . '/' . $new_audio_path)) {
+                    @unlink(__DIR__ . '/' . $new_audio_path);
+                }
+                $new_audio_path = $uploaded_audio;
+            }
+
+            // 3. Check if user requested to remove image
+            if (!empty($_POST['remove_image'])) {
+                if (!empty($new_image_path) && file_exists(__DIR__ . '/' . $new_image_path)) {
+                    @unlink(__DIR__ . '/' . $new_image_path);
+                }
+                $new_image_path = null;
+            }
+
+            // 4. Check if replacement image was uploaded
+            if (!empty($_FILES['edit_ann_image']['name']) && $_FILES['edit_ann_image']['error'] === UPLOAD_ERR_OK) {
+                $upload_dir = __DIR__ . '/uploads/announcements/';
+                if (!is_dir($upload_dir)) @mkdir($upload_dir, 0777, true);
+                $ext = strtolower(pathinfo($_FILES['edit_ann_image']['name'], PATHINFO_EXTENSION));
+                if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                    $fname = 'pastor_ann_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                    if (move_uploaded_file($_FILES['edit_ann_image']['tmp_name'], $upload_dir . $fname)) {
+                        if (!empty($new_image_path) && file_exists(__DIR__ . '/' . $new_image_path)) {
+                            @unlink(__DIR__ . '/' . $new_image_path);
+                        }
+                        $new_image_path = 'uploads/announcements/' . $fname;
+                    }
+                }
+            }
+
+            // If message is empty but voice note exists, provide friendly fallback
+            if (empty($raw_msg) && !empty($new_audio_path)) {
+                $raw_msg = '🎙️ Voice Message from Pastor ' . $pastor['first_name'] . ' ' . $pastor['last_name'];
+            }
+
+            if (empty($raw_msg) && empty($new_audio_path) && empty($new_image_path)) {
+                header("Location: pastor_dashboard.php?tab=general_announcements&error=" . urlencode("Announcement cannot be empty."));
+                exit();
+            }
+
+            $ann_msg = $conn->real_escape_string($raw_msg);
+            $img_sql = $new_image_path ? "'" . $conn->real_escape_string($new_image_path) . "'" : "NULL";
+            $aud_sql = $new_audio_path ? "'" . $conn->real_escape_string($new_audio_path) . "'" : "NULL";
+
+            $conn->query("UPDATE pastor_announcements SET message = '$ann_msg', image_path = $img_sql, audio_path = $aud_sql WHERE id = $ann_id");
+            header("Location: pastor_dashboard.php?tab=general_announcements&success=" . urlencode("Announcement updated successfully."));
+            exit();
+        }
+    }
+    header("Location: pastor_dashboard.php?tab=general_announcements&error=" . urlencode("Could not update announcement."));
+    exit();
+}
+
 // Handle Pastor posting a General Church announcement (text, image, and WhatsApp voice note)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_pastor_announcement'])) {
     $raw_msg = trim($_POST['pastor_announcement_message'] ?? '');
@@ -1134,7 +1229,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_pastor_announceme
         $img_path = null;
         if (!empty($_FILES['pastor_ann_image']['name']) && $_FILES['pastor_ann_image']['error'] === UPLOAD_ERR_OK) {
             $upload_dir = __DIR__ . '/uploads/announcements/';
-            if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
+            if (!is_dir($upload_dir)) @mkdir($upload_dir, 0777, true);
             $ext = strtolower(pathinfo($_FILES['pastor_ann_image']['name'], PATHINFO_EXTENSION));
             if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
                 $fname = 'pastor_ann_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
@@ -1146,7 +1241,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_pastor_announceme
         $img_sql   = $img_path ? "'" . $conn->real_escape_string($img_path) . "'" : "NULL";
         $audio_sql = $audio_path ? "'" . $conn->real_escape_string($audio_path) . "'" : "NULL";
 
-        $conn->query("INSERT INTO pastor_announcements (pastor_id, message, image_path, audio_path) VALUES ($pastor_id, '$ann_msg', $img_sql, $audio_sql)");
+        $ins_res = $conn->query("INSERT INTO pastor_announcements (pastor_id, message, image_path, audio_path) VALUES ($pastor_id, '$ann_msg', $img_sql, $audio_sql)");
+        if (!$ins_res) {
+            header("Location: pastor_dashboard.php?tab=general_announcements&error=" . urlencode("Failed to save announcement: " . $conn->error));
+            exit();
+        }
         
         $pastor_display_name = $conn->real_escape_string($pastor['first_name'] . ' ' . $pastor['last_name']);
         $preview = substr($raw_msg, 0, 80) . (strlen($raw_msg) > 80 ? '...' : '');
@@ -1168,9 +1267,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_pastor_announceme
                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$adm['id']}, 'admin', '$notif_text')");
             }
         }
+        header("Location: pastor_dashboard.php?tab=general_announcements&success=" . urlencode("Announcement and voice note posted to entire church successfully!"));
+        exit();
+    } else {
+        header("Location: pastor_dashboard.php?tab=general_announcements&error=" . urlencode("Please write a message or record/upload a voice note before posting."));
+        exit();
     }
-    header("Location: pastor_dashboard.php?tab=general_announcements&success=Announcement posted to entire church");
-    exit();
 }
 
 // Automatically mark notifications as read if tab is opened
@@ -1494,6 +1596,148 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     </form>
                 </div>
 
+                <!-- Pastor's Announcements & Voice Notes (With Edit & Delete) -->
+                <div class="content-card" style="margin-bottom:28px;border-left:4px solid #10b981;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:15px;">
+                        <div>
+                            <h2 style="font-size:1.15rem;margin:0;color:#10b981;display:flex;align-items:center;gap:8px;">
+                                <span>✉️ Your Announcements &amp; Voice Notes</span>
+                                <span style="font-size:0.75rem;background:rgba(16,185,129,0.15);color:#10b981;padding:2px 10px;border-radius:20px;font-weight:700;">Broadcasted to Church</span>
+                            </h2>
+                            <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">Manage your announcements. You can listen, edit text/audio, or delete them.</p>
+                        </div>
+                    </div>
+                    <?php
+                    $pastor_anns = $conn->query("
+                        SELECT pa.*, p.first_name, p.last_name, p.profile_picture
+                        FROM pastor_announcements pa
+                        LEFT JOIN pastors p ON pa.pastor_id = p.id
+                        ORDER BY pa.created_at DESC LIMIT 50
+                    ");
+                    if ($pastor_anns && $pastor_anns->num_rows > 0):
+                        while ($pa = $pastor_anns->fetch_assoc()):
+                            $p_name = !empty($pa['first_name']) ? ('Pastor ' . htmlspecialchars($pa['first_name'] . ' ' . $pa['last_name'])) : 'Pastor ' . htmlspecialchars($pastor['first_name'] . ' ' . $pastor['last_name']);
+                            $p_pic  = !empty($pa['profile_picture']) ? 'uploads/' . $pa['profile_picture'] : (!empty($pastor['profile_picture']) ? 'uploads/' . $pastor['profile_picture'] : 'uploads/default_avatar.png');
+                    ?>
+                        <div class="content-card" style="margin-bottom:16px;border:1px solid var(--border-color);border-left:4px solid #10b981;background:var(--bg-main, #f8fafc);padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);" id="ann_card_<?= $pa['id'] ?>">
+                            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <img src="<?= htmlspecialchars($p_pic) ?>" alt="Pastor" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #10b981;">
+                                    <div>
+                                        <strong style="color:var(--text-main);font-size:0.95rem;"><?= $p_name ?></strong>
+                                        <span style="font-size:0.75rem;background:rgba(16,185,129,0.12);color:#10b981;padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:700;">General Church</span>
+                                    </div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                    <small style="color:var(--text-muted);font-size:0.78rem;"><?= date('M j, Y g:i A', strtotime($pa['created_at'])) ?></small>
+                                    
+                                    <!-- Edit / Change Button -->
+                                    <button type="button" onclick="toggleEditPastorAnn(<?= $pa['id'] ?>);" style="background:#2563eb;color:#ffffff;border:none;padding:6px 12px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+                                        ✏️ Edit / Change
+                                    </button>
+
+                                    <!-- Delete Button -->
+                                    <form method="POST" action="pastor_dashboard.php?tab=general_announcements" style="display:inline;margin:0;" onsubmit="return confirm('Are you sure you want to permanently delete this announcement and voice note? This will also remove it from members.');">
+                                        <input type="hidden" name="delete_pastor_announcement" value="1">
+                                        <input type="hidden" name="announcement_id" value="<?= $pa['id'] ?>">
+                                        <button type="submit" style="background:#ef4444;color:#ffffff;border:none;padding:6px 12px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+                                            🗑️ Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <!-- Display Content -->
+                            <div id="ann_view_<?= $pa['id'] ?>">
+                                <p style="margin:8px 0;white-space:pre-wrap;font-size:0.92rem;line-height:1.5;color:var(--text-main);"><?= htmlspecialchars($pa['message']) ?></p>
+                                
+                                <?php if (!empty($pa['audio_path'])): ?>
+                                    <?= render_whatsapp_voice_player($pa['audio_path'], $p_name, $p_pic, $pa['created_at']) ?>
+                                <?php endif; ?>
+
+                                <?php if (!empty($pa['image_path'])): ?>
+                                    <a href="<?= htmlspecialchars($pa['image_path']) ?>" target="_blank" style="display:block;margin-top:10px;">
+                                        <img src="<?= htmlspecialchars($pa['image_path']) ?>" alt="Announcement" style="width:100%;max-height:280px;object-fit:cover;border-radius:8px;border:1px solid var(--border-color);">
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- Inline Edit Form (Hidden by default) -->
+                            <div id="ann_edit_form_<?= $pa['id'] ?>" style="display:none;margin-top:14px;padding:16px;background:var(--bg-card);border-radius:10px;border:1.5px solid #2563eb;">
+                                <h4 style="margin:0 0 10px;color:#2563eb;font-size:0.95rem;display:flex;align-items:center;gap:6px;">
+                                    ✏️ Edit Announcement &amp; Voice Note
+                                </h4>
+                                <form method="POST" action="pastor_dashboard.php?tab=general_announcements" enctype="multipart/form-data">
+                                    <input type="hidden" name="update_pastor_announcement" value="1">
+                                    <input type="hidden" name="announcement_id" value="<?= $pa['id'] ?>">
+                                    
+                                    <div class="form-group" style="margin-bottom:12px;">
+                                        <label style="font-size:0.85rem;font-weight:700;display:block;margin-bottom:4px;color:var(--text-main);">Announcement Message:</label>
+                                        <textarea name="edit_announcement_message" class="form-control" rows="3" style="width:100%;font-size:0.9rem;" required><?= htmlspecialchars($pa['message']) ?></textarea>
+                                    </div>
+
+                                    <!-- Voice Note Change/Remove Options -->
+                                    <div style="background:var(--bg-main, #f1f5f9);border:1px solid var(--border-color);border-radius:8px;padding:12px;margin-bottom:12px;">
+                                        <label style="font-size:0.85rem;font-weight:700;display:block;margin-bottom:6px;color:#15803d;">🎙️ Voice Note Options:</label>
+                                        <?php if (!empty($pa['audio_path'])): ?>
+                                            <div style="margin-bottom:8px;">
+                                                <span style="font-size:0.8rem;color:var(--text-muted);">Current Voice Note:</span>
+                                                <audio controls src="<?= htmlspecialchars($pa['audio_path']) ?>" style="display:block;height:32px;margin:6px 0;width:100%;max-width:380px;"></audio>
+                                                <label style="font-size:0.82rem;color:#ef4444;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                                                    <input type="checkbox" name="remove_voice_note" value="1"> 🗑️ Remove current voice note
+                                                </label>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div style="font-size:0.82rem;margin-top:6px;">
+                                            <label style="display:block;margin-bottom:4px;color:var(--text-muted);">Replace with new audio file (optional):</label>
+                                            <input type="file" name="edit_voice_note" accept="audio/*" class="form-control" style="font-size:0.8rem;">
+                                        </div>
+                                    </div>
+
+                                    <!-- Image Change/Remove Options -->
+                                    <div style="background:var(--bg-main, #f1f5f9);border:1px solid var(--border-color);border-radius:8px;padding:12px;margin-bottom:12px;">
+                                        <label style="font-size:0.85rem;font-weight:700;display:block;margin-bottom:6px;color:var(--text-main);">🖼️ Image Options:</label>
+                                        <?php if (!empty($pa['image_path'])): ?>
+                                            <div style="margin-bottom:8px;">
+                                                <img src="<?= htmlspecialchars($pa['image_path']) ?>" alt="Current Image" style="height:60px;border-radius:6px;object-fit:cover;border:1px solid var(--border-color);display:block;margin-bottom:4px;">
+                                                <label style="font-size:0.82rem;color:#ef4444;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                                                    <input type="checkbox" name="remove_image" value="1"> 🗑️ Remove current image
+                                                </label>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div style="font-size:0.82rem;margin-top:6px;">
+                                            <label style="display:block;margin-bottom:4px;color:var(--text-muted);">Replace with new image (optional):</label>
+                                            <input type="file" name="edit_ann_image" accept="image/*" class="form-control" style="font-size:0.8rem;">
+                                        </div>
+                                    </div>
+
+                                    <div style="display:flex;gap:10px;align-items:center;">
+                                        <button type="submit" style="background:#10b981;color:#ffffff;border:none;padding:8px 18px;border-radius:8px;font-size:0.88rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                                            💾 Save Changes
+                                        </button>
+                                        <button type="button" onclick="toggleEditPastorAnn(<?= $pa['id'] ?>);" style="background:transparent;color:var(--text-muted);border:1px solid var(--border-color);padding:8px 14px;border-radius:8px;font-size:0.85rem;cursor:pointer;">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    <?php endwhile; else: ?>
+                        <p style="color:var(--text-muted);margin:0;">No pastoral announcements posted yet. Use the form above to post one!</p>
+                    <?php endif; ?>
+                </div>
+                <script>
+                function toggleEditPastorAnn(id) {
+                    var editForm = document.getElementById('ann_edit_form_' + id);
+                    if (!editForm) return;
+                    if (editForm.style.display === 'none' || editForm.style.display === '') {
+                        editForm.style.display = 'block';
+                    } else {
+                        editForm.style.display = 'none';
+                    }
+                }
+                </script>
+
                 <!-- Announcement Queries from Secretaries -->
                 <div class="content-card" style="margin-bottom:24px;border-left:4px solid #f59e0b;">
                     <h2 style="font-size:1.05rem;margin-top:0;color:#f59e0b;">📬 Announcement Queries (from Secretaries)</h2>
@@ -1555,42 +1799,6 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         </div>
                     <?php endwhile; else: ?>
                         <p style="color:var(--text-muted);margin:0;">No department announcements yet.</p>
-                    <?php endif; ?>
-                </div>
-
-                <!-- Past Pastor Announcements -->
-                <div class="content-card" style="border-left:4px solid #10b981;">
-                    <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">✉️ Your Past Announcements</h2>
-                    <?php
-                    $pastor_anns = $conn->query("
-                        SELECT pa.*, p.first_name, p.last_name
-                        FROM pastor_announcements pa
-                        JOIN pastors p ON pa.pastor_id = p.id
-                        ORDER BY pa.created_at DESC LIMIT 30
-                    ");
-                    if ($pastor_anns && $pastor_anns->num_rows > 0):
-                        while ($pa = $pastor_anns->fetch_assoc()):
-                    ?>
-                        <div style="padding:12px 0;border-bottom:1px solid var(--border-color);">
-                            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
-                                <div>
-                                    <strong>Pastor <?= htmlspecialchars($pa['first_name'] . ' ' . $pa['last_name']) ?></strong>
-                                    <span style="font-size:0.75rem;background:rgba(16,185,129,0.12);color:#10b981;padding:2px 8px;border-radius:20px;margin-left:6px;">General Church</span>
-                                </div>
-                                <small style="color:var(--text-muted);font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($pa['created_at'])) ?></small>
-                            </div>
-                            <p style="margin:8px 0 0;white-space:pre-wrap;font-size:0.9rem;"><?= htmlspecialchars($pa['message']) ?></p>
-                            <?php if (!empty($pa['audio_path'])): ?>
-                                <?= render_whatsapp_voice_player($pa['audio_path'], 'Pastor ' . $pa['first_name'] . ' ' . $pa['last_name'], $pastor['profile_picture'] ?? null, $pa['created_at']) ?>
-                            <?php endif; ?>
-                            <?php if (!empty($pa['image_path'])): ?>
-                                <a href="<?= htmlspecialchars($pa['image_path']) ?>" target="_blank" style="display:block;margin-top:10px;">
-                                    <img src="<?= htmlspecialchars($pa['image_path']) ?>" alt="Announcement" style="width:100%;max-height:320px;object-fit:cover;border-radius:10px;border:1px solid var(--border-color);">
-                                </a>
-                            <?php endif; ?>
-                        </div>
-                    <?php endwhile; else: ?>
-                        <p style="color:var(--text-muted);margin:0;">No pastoral announcements posted yet.</p>
                     <?php endif; ?>
                 </div>
 

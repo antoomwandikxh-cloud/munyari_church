@@ -3369,21 +3369,23 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <!-- From The Pastor: Announcements & WhatsApp Voice Notes -->
                     <?php
                     $conn->query("CREATE TABLE IF NOT EXISTS pastor_announcements (id INT AUTO_INCREMENT PRIMARY KEY, pastor_id INT NOT NULL, message TEXT NOT NULL, image_path VARCHAR(255) NULL, audio_path VARCHAR(255) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-                    $pastor_gen_anns = $conn->query("SELECT pa.*, p.first_name, p.last_name, p.profile_picture FROM pastor_announcements pa JOIN pastors p ON pa.pastor_id = p.id ORDER BY pa.created_at DESC LIMIT 25");
+                    $pastor_gen_anns = $conn->query("SELECT pa.*, p.first_name, p.last_name, p.profile_picture FROM pastor_announcements pa LEFT JOIN pastors p ON pa.pastor_id = p.id ORDER BY pa.created_at DESC LIMIT 50");
                     if ($pastor_gen_anns && $pastor_gen_anns->num_rows > 0): ?>
                     <div style="margin-bottom:28px;">
                         <h2 style="font-size:1.15rem;color:#10b981;margin-bottom:15px;text-transform:uppercase;display:flex;align-items:center;gap:8px;">
                             <span>📢 From The Pastor</span>
                             <span style="font-size:0.75rem;background:rgba(16,185,129,0.15);color:#10b981;padding:2px 10px;border-radius:20px;font-weight:700;">Official Church Message</span>
                         </h2>
-                        <?php while ($pa = $pastor_gen_anns->fetch_assoc()): ?>
+                        <?php while ($pa = $pastor_gen_anns->fetch_assoc()): 
+                            $p_display_name = !empty($pa['first_name']) ? ('Pastor ' . htmlspecialchars($pa['first_name'] . ' ' . $pa['last_name'])) : 'Senior Pastor';
+                            $p_pic = !empty($pa['profile_picture']) ? 'uploads/' . htmlspecialchars($pa['profile_picture']) : 'uploads/default_avatar.png';
+                        ?>
                             <div class="content-card" style="margin-bottom:20px;border-left:4px solid #10b981;background:var(--bg-card);box-shadow:0 3px 12px rgba(16,185,129,0.1);">
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
                                     <div style="display:flex;align-items:center;gap:10px;">
-                                        <?php $p_pic = !empty($pa['profile_picture']) ? 'uploads/' . htmlspecialchars($pa['profile_picture']) : 'uploads/default_avatar.png'; ?>
                                         <img src="<?= $p_pic ?>" alt="Pastor" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #10b981;">
                                         <div>
-                                            <h3 style="color:#10b981;margin:0;font-size:1rem;">Pastor <?= htmlspecialchars($pa['first_name'] . ' ' . $pa['last_name']) ?></h3>
+                                            <h3 style="color:#10b981;margin:0;font-size:1rem;"><?= $p_display_name ?></h3>
                                             <span style="font-size:0.75rem;color:var(--text-muted);">Church Pastor · General Announcement</span>
                                         </div>
                                     </div>
@@ -3391,7 +3393,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 </div>
                                 <p style="line-height:1.6;white-space:pre-wrap;font-size:0.92rem;margin:8px 0;"><?= htmlspecialchars($pa['message']) ?></p>
                                 <?php if (!empty($pa['audio_path'])): ?>
-                                    <?= render_whatsapp_voice_player($pa['audio_path'], 'Pastor ' . $pa['first_name'] . ' ' . $pa['last_name'], !empty($pa['profile_picture']) ? 'uploads/' . $pa['profile_picture'] : null, $pa['created_at']) ?>
+                                    <?= render_whatsapp_voice_player($pa['audio_path'], $p_display_name, $p_pic, $pa['created_at']) ?>
                                 <?php endif; ?>
                                 <?php if (!empty($pa['image_path'])): ?>
                                     <a href="<?= htmlspecialchars($pa['image_path']) ?>" target="_blank" style="display:block;margin-top:12px;">

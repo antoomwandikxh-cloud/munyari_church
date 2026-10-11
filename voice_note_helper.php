@@ -14,41 +14,56 @@ function ensure_voice_notes_dir() {
 
 /**
  * Save recorded voice note from either base64 POST data or $_FILES upload
+ * Robustly parses any audio data URI (including webm;codecs=opus, ogg, mp4, etc.)
  * Returns relative path e.g. 'uploads/voice_notes/pastor_vn_12345.webm' or null
  */
 function save_voice_note($base64_data = null, $file_upload = null) {
     $dir = ensure_voice_notes_dir();
 
-    // 1. Check base64 data URI (from MediaRecorder)
-    if (!empty($base64_data)) {
-        $data_str = trim($base64_data);
-        if (preg_match('/^data:audio\/([a-zA-Z0-9\-_]+);base64,(.+)$/', $data_str, $matches)) {
-            $ext = strtolower($matches[1]);
-            if ($ext === 'mpeg') $ext = 'mp3';
-            if ($ext === 'ogg' || $ext === 'opus') $ext = 'ogg';
-            if ($ext === 'webm') $ext = 'webm';
-            if (!in_array($ext, ['webm', 'mp3', 'ogg', 'wav', 'm4a', 'aac'])) {
-                $ext = 'webm';
-            }
-            $binary = base64_decode($matches[2]);
-            if ($binary !== false && strlen($binary) > 100) {
-                $fname = 'pastor_vn_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-                if (file_put_contents($dir . $fname, $binary)) {
-                    return 'uploads/voice_notes/' . $fname;
-                }
-            }
-        }
-    }
-
-    // 2. Check $_FILES upload
-    if (!empty($file_upload) && isset($file_upload['tmp_name']) && $file_upload['error'] === UPLOAD_ERR_OK) {
-        $ext = strtolower(pathinfo($file_upload['name'], PATHINFO_EXTENSION));
-        if (!in_array($ext, ['webm', 'mp3', 'ogg', 'wav', 'm4a', 'aac'])) {
+    // 1. Check $_FILES upload first (from file picker or DataTransfer)
+    if (!empty($file_upload) && isset($file_upload['tmp_name']) && $file_upload['error'] === UPLOAD_ERR_OK && !empty($file_upload['size']) && $file_upload['size'] > 50) {
+        $ext = strtolower(pathinfo($file_upload['name'] ?? '', PATHINFO_EXTENSION));
+        if (!in_array($ext, ['webm', 'mp3', 'ogg', 'wav', 'm4a', 'aac', 'opus'])) {
             $ext = 'webm';
         }
         $fname = 'pastor_vn_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
         if (move_uploaded_file($file_upload['tmp_name'], $dir . $fname)) {
             return 'uploads/voice_notes/' . $fname;
+        }
+    }
+
+    // 2. Check base64 data URI (from MediaRecorder FileReader)
+    if (!empty($base64_data)) {
+        $data_str = trim($base64_data);
+        if (strpos($data_str, ';base64,') !== false) {
+            $parts = explode(';base64,', $data_str, 2);
+            $header = $parts[0];
+            $base64_content = $parts[1] ?? '';
+            
+            $ext = 'webm';
+            if (preg_match('/data:audio\/([a-zA-Z0-9]+)/', $header, $ext_matches)) {
+                $raw_ext = strtolower($ext_matches[1]);
+                if ($raw_ext === 'mpeg') $ext = 'mp3';
+                elseif ($raw_ext === 'ogg' || $raw_ext === 'opus') $ext = 'ogg';
+                elseif (in_array($raw_ext, ['webm', 'mp3', 'ogg', 'wav', 'm4a', 'aac'])) $ext = $raw_ext;
+            }
+
+            $binary = base64_decode($base64_content);
+            if ($binary !== false && strlen($binary) > 50) {
+                $fname = 'pastor_vn_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                if (file_put_contents($dir . $fname, $binary)) {
+                    return 'uploads/voice_notes/' . $fname;
+                }
+            }
+        } elseif (strlen($data_str) > 100) {
+            // Raw base64 fallback
+            $binary = base64_decode($data_str, true);
+            if ($binary !== false && strlen($binary) > 50) {
+                $fname = 'pastor_vn_' . time() . '_' . bin2hex(random_bytes(4)) . '.webm';
+                if (file_put_contents($dir . $fname, $binary)) {
+                    return 'uploads/voice_notes/' . $fname;
+                }
+            }
         }
     }
 
@@ -358,6 +373,12 @@ function render_voice_note_recorder() {
             </div>
         </div>
 
+        <!-- Optional Audio File Upload Alternative -->
+        <div style="margin-top:12px; padding-top:10px; border-top:1px dashed rgba(37,211,102,0.3); display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:0.82rem; color:var(--text-muted);">
+            <span>📁 Or upload recorded audio file:</span>
+            <input type="file" id="pastor_voice_file_input" name="pastor_voice_note" accept="audio/*" style="font-size:0.8rem;">
+        </div>
+
         <!-- Hidden Base64 blob input -->
         <input type="hidden" name="pastor_voice_note_blob" id="pastor_voice_note_blob" value="">
     </div>
@@ -368,6 +389,9 @@ function render_voice_note_recorder() {
     var vnTimerInterval = null;
     var vnSecondsRecorded = 0;
     var vnAudioBlob = null;
+    var vnIsProcessing = false;
+    var vnSubmitPending = false;
+    var vnPendingForm = null;
 
     function formatVnTime(sec) {
         var m = Math.floor(sec / 60);
@@ -377,7 +401,7 @@ function render_voice_note_recorder() {
 
     function startVoiceRecording() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert("Audio recording is not supported in this browser. Please use Chrome, Edge, or Firefox.");
+            alert("Audio recording is not supported in this browser. Please use Chrome, Edge, or Firefox, or use the file upload option below.");
             return;
         }
 
@@ -393,13 +417,17 @@ function render_voice_note_recorder() {
                     "audio/mp4"
                 ];
                 for (var i = 0; i < supportedTypes.length; i++) {
-                    if (MediaRecorder.isTypeSupported(supportedTypes[i])) {
+                    if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(supportedTypes[i])) {
                         mimeType = supportedTypes[i];
                         break;
                     }
                 }
 
-                vnMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+                try {
+                    vnMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+                } catch(e) {
+                    vnMediaRecorder = new MediaRecorder(stream);
+                }
 
                 vnMediaRecorder.ondataavailable = function(e) {
                     if (e.data && e.data.size > 0) {
@@ -408,21 +436,52 @@ function render_voice_note_recorder() {
                 };
 
                 vnMediaRecorder.onstop = function() {
-                    stream.getTracks().forEach(function(track) { track.stop(); });
+                    try {
+                        stream.getTracks().forEach(function(track) { track.stop(); });
+                    } catch(e) {}
+
                     var finalType = mimeType || "audio/webm";
                     vnAudioBlob = new Blob(vnAudioChunks, { type: finalType });
 
+                    // Dual redundancy 1: populate file input via DataTransfer if supported
+                    try {
+                        var ext = finalType.indexOf("ogg") !== -1 ? "ogg" : (finalType.indexOf("mp4") !== -1 ? "mp4" : "webm");
+                        var fileObj = new File([vnAudioBlob], "pastor_vn_" + Date.now() + "." + ext, { type: finalType });
+                        var dt = new DataTransfer();
+                        dt.items.add(fileObj);
+                        var fileInput = document.getElementById("pastor_voice_file_input");
+                        if (fileInput) fileInput.files = dt.files;
+                    } catch(err) {
+                        // DataTransfer not supported, will rely on Base64
+                    }
+
+                    // Dual redundancy 2: Base64 data URI in hidden input
+                    vnIsProcessing = true;
                     var reader = new FileReader();
-                    reader.readAsDataURL(vnAudioBlob);
                     reader.onloadend = function() {
                         var base64Data = reader.result;
-                        document.getElementById("pastor_voice_note_blob").value = base64Data;
+                        var blobInput = document.getElementById("pastor_voice_note_blob");
+                        if (blobInput) blobInput.value = base64Data;
+                        vnIsProcessing = false;
+
+                        // If user clicked submit while recording/processing, submit now that data is ready!
+                        if (vnSubmitPending && vnPendingForm) {
+                            var formToSubmit = vnPendingForm;
+                            vnSubmitPending = false;
+                            vnPendingForm = null;
+                            formToSubmit.submit();
+                        }
                     };
+                    reader.readAsDataURL(vnAudioBlob);
 
                     var previewAudio = document.getElementById("vn_preview_audio");
-                    var blobUrl = URL.createObjectURL(vnAudioBlob);
-                    previewAudio.src = blobUrl;
-                    document.getElementById("vn_preview_duration").textContent = formatVnTime(vnSecondsRecorded);
+                    if (previewAudio) {
+                        try {
+                            previewAudio.src = URL.createObjectURL(vnAudioBlob);
+                        } catch(e) {}
+                    }
+                    var durEl = document.getElementById("vn_preview_duration");
+                    if (durEl) durEl.textContent = formatVnTime(vnSecondsRecorded);
 
                     document.getElementById("vn_recording_state").style.display = "none";
                     document.getElementById("vn_status_badge").style.display = "none";
@@ -446,7 +505,7 @@ function render_voice_note_recorder() {
             })
             .catch(function(err) {
                 console.error("Microphone access error:", err);
-                alert("Could not access microphone. Please allow microphone permissions in your browser.");
+                alert("Could not access microphone: " + (err.message || "Permission denied") + ".\nPlease allow microphone permissions in your browser or upload an audio file below.");
             });
     }
 
@@ -464,8 +523,13 @@ function render_voice_note_recorder() {
         }
         vnAudioChunks = [];
         vnAudioBlob = null;
+        vnIsProcessing = false;
+        vnSubmitPending = false;
+        vnPendingForm = null;
         var blobInput = document.getElementById("pastor_voice_note_blob");
         if (blobInput) blobInput.value = "";
+        var fileInput = document.getElementById("pastor_voice_file_input");
+        if (fileInput) fileInput.value = "";
         document.getElementById("vn_recording_state").style.display = "none";
         document.getElementById("vn_status_badge").style.display = "none";
         document.getElementById("vn_preview_state").style.display = "none";
@@ -475,13 +539,17 @@ function render_voice_note_recorder() {
     function discardVoiceRecording() {
         var previewAudio = document.getElementById("vn_preview_audio");
         if (previewAudio) {
-            previewAudio.pause();
-            previewAudio.src = "";
+            try { previewAudio.pause(); previewAudio.src = ""; } catch(e) {}
         }
         vnAudioChunks = [];
         vnAudioBlob = null;
+        vnIsProcessing = false;
+        vnSubmitPending = false;
+        vnPendingForm = null;
         var blobInput = document.getElementById("pastor_voice_note_blob");
         if (blobInput) blobInput.value = "";
+        var fileInput = document.getElementById("pastor_voice_file_input");
+        if (fileInput) fileInput.value = "";
         document.getElementById("vn_preview_state").style.display = "none";
         document.getElementById("vn_recording_state").style.display = "none";
         document.getElementById("vn_status_badge").style.display = "none";
@@ -496,29 +564,59 @@ function render_voice_note_recorder() {
 
         if (audio.paused) {
             audio.play();
-            iconPlay.style.display = "none";
-            iconPause.style.display = "block";
+            if (iconPlay) iconPlay.style.display = "none";
+            if (iconPause) iconPause.style.display = "block";
         } else {
             audio.pause();
-            iconPlay.style.display = "block";
-            iconPause.style.display = "none";
+            if (iconPlay) iconPlay.style.display = "block";
+            if (iconPause) iconPause.style.display = "none";
         }
 
         audio.onended = function() {
-            iconPlay.style.display = "block";
-            iconPause.style.display = "none";
+            if (iconPlay) iconPlay.style.display = "block";
+            if (iconPause) iconPause.style.display = "none";
         };
     }
 
     function handlePastorAnnFormSubmit(form, event) {
+        // If still actively recording, stop and request submission as soon as blob is processed
+        if (vnMediaRecorder && vnMediaRecorder.state === "recording") {
+            if (event) event.preventDefault();
+            var submitBtn = document.getElementById("pastor_ann_submit_btn");
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = "Processing Voice Note & Sending...";
+            }
+            vnSubmitPending = true;
+            vnPendingForm = form;
+            stopVoiceRecording();
+            return false;
+        }
+
+        // If blob is still converting to base64, wait for onloadend to trigger submit
+        if (vnIsProcessing) {
+            if (event) event.preventDefault();
+            var submitBtn = document.getElementById("pastor_ann_submit_btn");
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = "Processing Voice Note & Sending...";
+            }
+            vnSubmitPending = true;
+            vnPendingForm = form;
+            return false;
+        }
+
         var textarea = document.getElementById("pastor_ann_textarea");
-        var voiceBlob = document.getElementById("pastor_voice_note_blob").value;
+        var blobInput = document.getElementById("pastor_voice_note_blob");
+        var voiceBlob = blobInput ? blobInput.value : "";
+        var audioFileInput = document.getElementById("pastor_voice_file_input");
+        var hasAudioFile = audioFileInput && audioFileInput.files && audioFileInput.files.length > 0;
         var hasText = textarea && textarea.value.trim().length > 0;
-        var hasVoice = voiceBlob && voiceBlob.length > 50;
+        var hasVoice = (voiceBlob && voiceBlob.length > 50) || hasAudioFile;
 
         if (!hasText && !hasVoice) {
-            event.preventDefault();
-            alert("Please write a message or record a voice note announcement before sending.");
+            if (event) event.preventDefault();
+            alert("Please write a message or record/upload a voice note before sending.");
             return false;
         }
 
