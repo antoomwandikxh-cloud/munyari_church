@@ -1029,9 +1029,10 @@ if (!empty($action)) {
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     Village & Desired Roles
                 </a>
-                <a href="?tab=manage_worshippers" class="sidebar-link <?= $tab == 'manage_worshippers' ? 'active' : '' ?>">
+                <a href="?tab=manage_worshippers" class="sidebar-link <?= $tab == 'manage_worshippers' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                     Manage Worshippers
+                    <?php if (!empty($tab_badges['manage_worshippers'])): ?><span class="tab-notif-badge" style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['manage_worshippers'] > 99 ? '99+' : $tab_badges['manage_worshippers'] ?></span><?php endif; ?>
                 </a>
                 <a href="?tab=usher_monitoring" class="sidebar-link <?= $tab == 'usher_monitoring' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
@@ -3903,11 +3904,19 @@ w.document.write('</div>');
                                         <tr>
                                             <td><?= htmlspecialchars($t['w_fn'] . ' ' . $t['w_ln']) ?></td>
                                             <td><?= htmlspecialchars($t['task_name']) ?></td>
-                                            <td><?= htmlspecialchars($t['a_fn'] . ' ' . $t['a_ln']) ?></td>
+                                            <td>
+                                                <?php if ($t['assigned_by'] == $t['member_id']): ?>
+                                                    <span class="badge" style="background:#ede9fe; color:#7c3aed; font-weight:700; border:1px solid #ddd6fe; padding:4px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px; font-size:0.8rem;">
+                                                        👤 Assigned Himself
+                                                    </span>
+                                                <?php else: ?>
+                                                    <?= htmlspecialchars($t['a_fn'] . ' ' . $t['a_ln']) ?>
+                                                <?php endif; ?>
+                                            </td>
                                             <td><?= date('M j, Y g:i A', strtotime($t['assigned_at'])) ?></td>
                                             <td>
-                                                <span style="background: <?= $t['status'] === 'Completed' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)' ?>; color: <?= $t['status'] === 'Completed' ? 'var(--success)' : 'var(--warning)' ?>; padding: 2px 8px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
-                                                    <?= htmlspecialchars($t['status']) ?>
+                                                <span style="background: <?= ($t['status'] === 'Completed' || $t['status'] === 'Done') ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)' ?>; color: <?= ($t['status'] === 'Completed' || $t['status'] === 'Done') ? 'var(--success)' : 'var(--warning)' ?>; padding: 3px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; display:inline-flex; align-items:center; gap:4px;">
+                                                    <?= ($t['status'] === 'Completed' || $t['status'] === 'Done') ? '✅ Done' : '⏳ Pending' ?>
                                                 </span>
                                             </td>
                                         </tr>

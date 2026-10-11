@@ -107,6 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register_ss_member']))
     }
 }
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
+if ($tab === 'worship_control_panel') { $tab = 'my_worship_tasks'; }
 
 $member = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
 // Only auto-sync department for roles that truly OWN a department (Youth*, Women*, Elder*).
@@ -1575,8 +1576,118 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_worship_task'])
     $task_name = $conn->real_escape_string(trim($_POST['task_name']));
     if (!empty($task_name) && $target_member > 0) {
         $conn->query("INSERT INTO worship_tasks (member_id, task_name, assigned_by) VALUES ($target_member, '$task_name', $member_id)");
-        header("Location: member_dashboard.php?tab=manage_worshippers&success=Task assigned");
+        
+        $leader_name = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
+        if (empty($leader_name)) $leader_name = "Worship Leader";
+        
+        $tm_q = $conn->query("SELECT first_name, last_name FROM members WHERE id = $target_member LIMIT 1");
+        $tm = $tm_q ? $tm_q->fetch_assoc() : null;
+        $target_name = $tm ? trim($tm['first_name'] . ' ' . $tm['last_name']) : 'Team Member';
+        
+        if ($target_member == $member_id) {
+            // Self-assignment: notification goes to Pastor (and Admin)
+            $pastor_msg = $conn->real_escape_string("Worship Leader $leader_name assigned himself a worship task: \"$task_name\".");
+            $pastors = $conn->query("SELECT id FROM pastors");
+            if ($pastors) {
+                while ($p = $pastors->fetch_assoc()) {
+                    $pid = (int)$p['id'];
+                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pid, 'pastor', '$pastor_msg')");
+                }
+            }
+            $admins = $conn->query("SELECT id FROM admins");
+            if ($admins) {
+                while ($a = $admins->fetch_assoc()) {
+                    $aid = (int)$a['id'];
+                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($aid, 'admin', '$pastor_msg')");
+                }
+            }
+        } else {
+            // Normal member: notification to member (with red badge to worship control panel), pastor, and admin
+            $member_msg = $conn->real_escape_string("Worship task assigned to you by $leader_name: \"$task_name\". Please check your worship control panel.");
+            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($target_member, 'member', '$member_msg')");
+            
+            $pastor_msg = $conn->real_escape_string("Worship task assigned: $leader_name allocated \"$task_name\" to $target_name.");
+            $pastors = $conn->query("SELECT id FROM pastors");
+            if ($pastors) {
+                while ($p = $pastors->fetch_assoc()) {
+                    $pid = (int)$p['id'];
+                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pid, 'pastor', '$pastor_msg')");
+                }
+            }
+            $admins = $conn->query("SELECT id FROM admins");
+            if ($admins) {
+                while ($a = $admins->fetch_assoc()) {
+                    $aid = (int)$a['id'];
+                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($aid, 'admin', '$pastor_msg')");
+                }
+            }
+        }
+        
+        header("Location: member_dashboard.php?tab=manage_worshippers&success=Task assigned successfully");
         exit();
+    }
+}
+
+// Worship Leader / Vice Worship Leader changes an assigned task (resets status back to Pending)
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_worship_task']) && ($is_worship_leader || $is_vice_worship_leader)) {
+    $task_id = intval($_POST['task_id'] ?? 0);
+    $new_task_name = $conn->real_escape_string(trim($_POST['new_task_name'] ?? ''));
+    
+    if ($task_id > 0 && !empty($new_task_name)) {
+        $task_info_q = $conn->query("SELECT wt.*, m.first_name, m.last_name FROM worship_tasks wt JOIN members m ON wt.member_id = m.id WHERE wt.id = $task_id LIMIT 1");
+        if ($task_info_q && $task_info_q->num_rows > 0) {
+            $task_info = $task_info_q->fetch_assoc();
+            $target_member = (int)$task_info['member_id'];
+            $target_name = trim($task_info['first_name'] . ' ' . $task_info['last_name']);
+            
+            // Update task name, reset status back to Pending, and update assigned_at
+            $conn->query("UPDATE worship_tasks SET task_name = '$new_task_name', status = 'Pending', assigned_at = NOW() WHERE id = $task_id");
+            
+            $leader_name = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
+            if (empty($leader_name)) $leader_name = "Worship Leader";
+            
+            if ($target_member == $member_id) {
+                // Self-assignment change: notify Pastor (and Admin)
+                $pastor_msg = $conn->real_escape_string("Worship Leader $leader_name updated self-assigned worship task to: \"$new_task_name\" (Status: Pending).");
+                $pastors = $conn->query("SELECT id FROM pastors");
+                if ($pastors) {
+                    while ($p = $pastors->fetch_assoc()) {
+                        $pid = (int)$p['id'];
+                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pid, 'pastor', '$pastor_msg')");
+                    }
+                }
+                $admins = $conn->query("SELECT id FROM admins");
+                if ($admins) {
+                    while ($a = $admins->fetch_assoc()) {
+                        $aid = (int)$a['id'];
+                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($aid, 'admin', '$pastor_msg')");
+                    }
+                }
+            } else {
+                // Normal member: notify Member (with red badge to worship control panel), Pastor, and Admin
+                $member_msg = $conn->real_escape_string("Worship task updated by $leader_name: \"$new_task_name\". Status is Pending. Please check your worship control panel.");
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($target_member, 'member', '$member_msg')");
+                
+                $pastor_msg = $conn->real_escape_string("Worship task updated: $leader_name changed task for $target_name to \"$new_task_name\" (Status: Pending).");
+                $pastors = $conn->query("SELECT id FROM pastors");
+                if ($pastors) {
+                    while ($p = $pastors->fetch_assoc()) {
+                        $pid = (int)$p['id'];
+                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pid, 'pastor', '$pastor_msg')");
+                    }
+                }
+                $admins = $conn->query("SELECT id FROM admins");
+                if ($admins) {
+                    while ($a = $admins->fetch_assoc()) {
+                        $aid = (int)$a['id'];
+                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($aid, 'admin', '$pastor_msg')");
+                    }
+                }
+            }
+            
+            header("Location: member_dashboard.php?tab=manage_worshippers&success=" . urlencode("Task updated successfully and reset to Pending."));
+            exit();
+        }
     }
 }
 
@@ -2891,16 +3002,25 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 <?php endif; ?>
 
                 <?php
-                // Show My Worship Tasks for members who chose Worshipper as desired role
-                $is_worshipper_member = ($member['desired_role_pref'] ?? '') === 'Worshipper';
+                // Show Worship Control Panel for worshippers or members with assigned worship tasks
+                $has_assigned_wtasks = false;
+                $chk_wt = $conn->query("SELECT id FROM worship_tasks WHERE member_id=$member_id LIMIT 1");
+                if ($chk_wt && $chk_wt->num_rows > 0) { $has_assigned_wtasks = true; }
+                $is_worshipper_member = ($member['desired_role_pref'] ?? '') === 'Worshipper'
+                    || stripos($member['church_role'] ?? '', 'worshipper') !== false
+                    || stripos($member['department'] ?? '', 'worship') !== false
+                    || $has_assigned_wtasks
+                    || (!empty($tab_badges['my_worship_tasks']));
                 if ($is_worshipper_member && !$is_worship_leader && !$is_vice_worship_leader):
-                    $my_pending_tasks = $conn->query("SELECT COUNT(*) as c FROM worship_tasks WHERE member_id=$member_id AND status='Pending'")->fetch_assoc()['c'];
+                    $my_pending_tasks_res = $conn->query("SELECT COUNT(*) as c FROM worship_tasks WHERE member_id=$member_id AND status='Pending'");
+                    $my_pending_tasks = ($my_pending_tasks_res) ? (int)$my_pending_tasks_res->fetch_assoc()['c'] : 0;
+                    $w_badge = max((int)($tab_badges['my_worship_tasks'] ?? 0), $my_pending_tasks);
                 ?>
-                <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: #d946ef; margin-top: 10px;">My Worship</div>
-                <a href="?tab=my_worship_tasks" class="sidebar-link <?= $tab == 'my_worship_tasks' ? 'active' : '' ?>" style="position:relative;">
+                <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: #d946ef; margin-top: 10px;">Worship Control Panel</div>
+                <a href="?tab=my_worship_tasks" class="sidebar-link <?= ($tab == 'my_worship_tasks' || $tab == 'worship_control_panel') ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                    My Worship Tasks
-                    <?php if ($my_pending_tasks > 0): ?><span style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $my_pending_tasks ?></span><?php endif; ?>
+                    Worship Control Panel
+                    <?php if ($w_badge > 0): ?><span class="tab-notif-badge" style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $w_badge > 99 ? '99+' : $w_badge ?></span><?php endif; ?>
                 </a>
                 <?php endif; ?>
 
@@ -5279,7 +5399,7 @@ function submitNewSuggestion() {
                                         <th>Task</th>
                                         <th>Assigned By</th>
                                         <th>Assigned At</th>
-                                        <th>Status</th>
+                                        <th>Status &amp; Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -5287,12 +5407,27 @@ function submitNewSuggestion() {
                                         <tr>
                                             <td><?= htmlspecialchars($t['w_fn'] . ' ' . $t['w_ln']) ?></td>
                                             <td><?= htmlspecialchars($t['task_name']) ?></td>
-                                            <td><?= htmlspecialchars($t['a_fn'] . ' ' . $t['a_ln']) ?></td>
+                                            <td>
+                                                <?php if ($t['assigned_by'] == $t['member_id']): ?>
+                                                    <span style="background:#ede9fe; color:#7c3aed; font-weight:700; border:1px solid #ddd6fe; padding:4px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px; font-size:0.8rem;">
+                                                        👤 Assigned Himself
+                                                    </span>
+                                                <?php else: ?>
+                                                    <?= htmlspecialchars($t['a_fn'] . ' ' . $t['a_ln']) ?>
+                                                <?php endif; ?>
+                                            </td>
                                             <td><?= date('M j, Y g:i A', strtotime($t['assigned_at'])) ?></td>
                                             <td>
-                                                <span style="background: <?= $t['status'] === 'Completed' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)' ?>; color: <?= $t['status'] === 'Completed' ? 'var(--success)' : 'var(--warning)' ?>; padding: 2px 8px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
-                                                    <?= htmlspecialchars($t['status']) ?>
-                                                </span>
+                                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                                    <span style="background: <?= ($t['status'] === 'Completed' || $t['status'] === 'Done') ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)' ?>; color: <?= ($t['status'] === 'Completed' || $t['status'] === 'Done') ? 'var(--success)' : 'var(--warning)' ?>; padding: 3px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; display:inline-flex; align-items:center; gap:4px;">
+                                                        <?= ($t['status'] === 'Completed' || $t['status'] === 'Done') ? '✅ Done' : '⏳ Pending' ?>
+                                                    </span>
+                                                    <button type="button"
+                                                        onclick="openChangeTaskModal(<?= (int)$t['id'] ?>, '<?= addslashes(htmlspecialchars($t['task_name'], ENT_QUOTES)) ?>')"
+                                                        style="background:linear-gradient(135deg,#f59e0b,#d97706); color:white; border:none; padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+                                                        ✏️ Change
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     <?php endwhile; ?>
@@ -5303,6 +5438,56 @@ function submitNewSuggestion() {
                         <p style="text-align:center; color:var(--text-muted); padding:20px;">No tasks assigned yet.</p>
                     <?php endif; ?>
                 </div>
+
+<!-- ===== CHANGE TASK MODAL ===== -->
+<div id="changeTaskModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.55); align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card); border-radius:16px; padding:32px 28px; width:100%; max-width:480px; box-shadow:0 20px 60px rgba(0,0,0,0.35); border:1px solid var(--border-color); margin:16px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+            <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </div>
+            <div>
+                <h3 style="margin:0; font-size:1.1rem; color:var(--text-main);">Change Worship Task</h3>
+                <p style="margin:2px 0 0; font-size:0.8rem; color:var(--text-muted);">Edit the task — status will be reset to <strong>Pending</strong> and member will be notified.</p>
+            </div>
+        </div>
+        <form method="POST" id="changeTaskForm">
+            <input type="hidden" name="task_id" id="changeTaskId">
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-weight:700; font-size:0.9rem; color:var(--text-main); margin-bottom:8px;">New Task Description</label>
+                <textarea id="changeTaskInput" name="new_task_name" rows="4" required
+                    placeholder="Enter the updated task description..."
+                    style="width:100%; padding:12px 16px; border-radius:10px; border:1.5px solid var(--border-color); background:var(--bg-main); color:var(--text-main); font-size:1rem; line-height:1.5; resize:vertical; min-height:90px; box-sizing:border-box;"></textarea>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" onclick="closeChangeTaskModal()"
+                    style="background:var(--bg-lighter); color:var(--text-muted); border:1px solid var(--border-color); padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.9rem;">
+                    Cancel
+                </button>
+                <button type="submit" name="change_worship_task"
+                    style="background:linear-gradient(135deg,#f59e0b,#d97706); color:white; border:none; padding:10px 22px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.9rem; display:flex; align-items:center; gap:8px;">
+                    ✏️ Save &amp; Reset to Pending
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+function openChangeTaskModal(taskId, currentTaskName) {
+    document.getElementById('changeTaskId').value = taskId;
+    document.getElementById('changeTaskInput').value = currentTaskName;
+    var modal = document.getElementById('changeTaskModal');
+    modal.style.display = 'flex';
+    setTimeout(function(){ document.getElementById('changeTaskInput').focus(); }, 100);
+}
+function closeChangeTaskModal() {
+    document.getElementById('changeTaskModal').style.display = 'none';
+}
+// Close modal on backdrop click
+document.getElementById('changeTaskModal').addEventListener('click', function(e) {
+    if (e.target === this) closeChangeTaskModal();
+});
+</script>
 
                 <!-- ===== POST ANNOUNCEMENT TO WORSHIPPERS ===== -->
                 <div class="content-card" style="margin-bottom:20px;">

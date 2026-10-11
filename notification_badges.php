@@ -1,7 +1,17 @@
-﻿<?php
+<?php
 function notification_badge_tabs($message, $user_type) {
     $msg  = strtolower($message);
     $tabs = [];
+
+    // ─── WORSHIP TASKS & CONTROL PANEL ──────────────────────────────────────
+    if (strpos($msg, 'worship task') !== false || strpos($msg, 'worship assignment') !== false || strpos($msg, 'worship control panel') !== false) {
+        if ($user_type === 'member') {
+            $tabs[] = 'my_worship_tasks';
+        } elseif ($user_type === 'pastor' || $user_type === 'admin') {
+            $tabs[] = 'manage_worshippers';
+        }
+        return array_values(array_unique($tabs));
+    }
 
     if (strpos($msg, 'new member registration pending approval') !== false) {
         $tabs[] = 'manage_members';
