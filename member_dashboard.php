@@ -2369,7 +2369,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_announcement']) &
 
 // Appointments
 $appointments = $conn->query("
-    SELECT a.*, p.first_name, p.last_name
+    SELECT a.*, p.first_name, p.last_name, p.profile_picture as p_pic, p.role as p_role
     FROM appointments a
     JOIN pastors p ON a.pastor_id = p.id
     WHERE a.member_id = $member_id
@@ -4979,17 +4979,21 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <p>Schedule a meeting or view direct messages from your Pastor.</p>
                 </div>
 
-                <div style="display: flex; flex-wrap: wrap; gap: 30px; align-items: flex-start;">
+                <div style="display: flex; flex-wrap: wrap; gap: 30px; align-items: stretch; margin-bottom: 30px;">
                     <!-- Book Appointment Section -->
-                    <div style="flex: 1; min-width: 300px;">
-                        <div class="content-card" style="margin-bottom: 30px;">
-                            <h2 style="font-size: 1.25rem; margin-top: 0; margin-bottom: 20px; color: var(--text-main);">Book Appointment</h2>
+                    <div style="flex: 1; min-width: 320px;">
+                        <div class="content-card" style="height: 100%;">
+                            <h2 style="font-size: 1.25rem; margin-top: 0; margin-bottom: 20px; color: var(--text-main); display:flex; align-items:center; gap:8px;">
+                                <span>📅 Book Appointment</span>
+                            </h2>
                             <form method="POST" action="member_action.php?action=book_appointment">
                                 <div class="form-group">
                                     <label>Select Pastor</label>
                                     <select name="pastor_id" class="form-control" required>
                                         <option value="">-- Choose Pastor --</option>
-                                        <?php while($p = $pastors->fetch_assoc()): ?>
+                                        <?php 
+                                        $pastors->data_seek(0);
+                                        while($p = $pastors->fetch_assoc()): ?>
                                             <option value="<?= $p['id'] ?>">Pastor <?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']) ?> (<?= htmlspecialchars($p['role']) ?>)</option>
                                         <?php endwhile; ?>
                                     </select>
@@ -5005,88 +5009,26 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 <button type="submit" class="btn-submit">Request Appointment</button>
                             </form>
                         </div>
-
-                        <?php if($appointments->num_rows > 0): ?>
-                        <div class="content-card">
-                            <h2 style="font-size: 1.1rem; margin-top: 0; margin-bottom: 15px;">My Appointments</h2>
-                            <div class="table-responsive">
-                                <table>
-                                    <thead><tr><th>Pastor</th><th>Date</th><th>Status</th><th>Time Remaining</th></tr></thead>
-                                    <tbody>
-                                        <?php while($a = $appointments->fetch_assoc()): ?>
-                                        <tr>
-                                            <td>Pastor <?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></td>
-                                            <td><?= date('M j, Y g:i A', strtotime($a['appointment_date'])) ?></td>
-                                            <td>
-                                                <?php
-                                                $bg = 'var(--text-muted)';
-                                                if($a['status'] == 'Approved') $bg = 'var(--success)';
-                                                if($a['status'] == 'Declined') $bg = 'var(--danger)';
-                                                if($a['status'] == 'Pending') $bg = 'var(--warning)';
-                                                ?>
-                                                <span class="badge" style="background: <?= $bg ?>; color: white;"><?= $a['status'] ?></span>
-                                            </td>
-                                            <td>
-                                                <?php if($a['status'] == 'Approved'): ?>
-                                                    <span class="countdown-timer" data-time="<?= htmlspecialchars($a['appointment_date']) ?>" style="font-weight: bold; color: var(--primary);">Calculating...</span>
-                                                <?php else: ?>
-                                                    <span style="color: var(--text-muted);">—</span>
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                        <?php endwhile; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <script>
-                        function updateCountdowns() {
-                            const timers = document.querySelectorAll('.countdown-timer');
-                            const now = new Date().getTime();
-
-                            timers.forEach(timer => {
-                                const targetTime = new Date(timer.getAttribute('data-time')).getTime();
-                                const diff = targetTime - now;
-
-                                if (diff <= 0) {
-                                    timer.innerHTML = "<span style='color: var(--success);'>Time has arrived!</span>";
-                                    return;
-                                }
-
-                                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-                                let display = "";
-                                if (days > 0) display += days + "d ";
-                                if (hours > 0 || days > 0) display += hours + "h ";
-                                display += minutes + "m " + seconds + "s";
-
-                                timer.innerText = display;
-                            });
-                        }
-                        setInterval(updateCountdowns, 1000);
-                        updateCountdowns(); // run immediately
-                        </script>
-                        <?php endif; ?>
                     </div>
 
                     <!-- Messages Section -->
-                    <div style="flex: 1; min-width: 300px;">
-                        <div class="content-card">
-                            <h2 style="font-size: 1.25rem; margin-top: 0; margin-bottom: 20px; color: var(--text-main);">Messages from Pastor</h2>
+                    <div style="flex: 1; min-width: 320px;">
+                        <div class="content-card" style="height: 100%;">
+                            <h2 style="font-size: 1.25rem; margin-top: 0; margin-bottom: 20px; color: var(--text-main); display:flex; align-items:center; gap:8px;">
+                                <span>💬 Messages from Pastor</span>
+                            </h2>
                             <?php if($messages_query->num_rows > 0): ?>
+                                <div style="display:flex; flex-direction:column; gap:12px; max-height:430px; overflow-y:auto; padding-right:4px;">
                                 <?php while($msg = $messages_query->fetch_assoc()): ?>
-                                    <div class="message-item">
-                                        <div class="message-header">
-                                            <span class="message-author">Pastor <?= htmlspecialchars($msg['pastor_name']) ?></span>
-                                            <span><?= date('M j, Y g:i A', strtotime($msg['created_at'])) ?></span>
+                                    <div class="message-item" style="border:1px solid var(--border-color); border-radius:10px; padding:14px; background:var(--bg-lighter);">
+                                        <div class="message-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                            <span class="message-author" style="font-weight:700; color:var(--primary);">Pastor <?= htmlspecialchars($msg['pastor_name']) ?></span>
+                                            <span style="font-size:0.75rem; color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($msg['created_at'])) ?></span>
                                         </div>
-                                        <div class="message-body"><?= nl2br(htmlspecialchars($msg['message'])) ?></div>
+                                        <div class="message-body" style="color:var(--text-main); font-size:0.92rem; line-height:1.45;"><?= nl2br(htmlspecialchars($msg['message'])) ?></div>
                                     </div>
                                 <?php endwhile; ?>
+                                </div>
                             <?php else: ?>
                                 <div class="alert alert-success" style="background:transparent; border-color:var(--border-color); color:var(--text-muted);">
                                     You have no new messages at this time.
@@ -5094,6 +5036,118 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             <?php endif; ?>
                         </div>
                     </div>
+                </div>
+
+                <!-- My Appointments: FULL WIDTH (Long spacious table displaying everything) -->
+                <div class="content-card" style="width: 100%; margin-top: 10px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 20px; flex-wrap:wrap; gap:10px;">
+                        <h2 style="font-size: 1.3rem; margin:0; display:flex; align-items:center; gap:10px;">
+                            <span>🗓️ My Appointments</span>
+                        </h2>
+                        <span style="font-size:0.85rem; color:var(--text-muted);">Full history and live status of your pastoral appointments</span>
+                    </div>
+
+                    <?php if($appointments && $appointments->num_rows > 0): ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="min-width:180px;">Pastor</th>
+                                    <th style="min-width:160px;">Date &amp; Time</th>
+                                    <th style="min-width:240px;">Reason for Meeting</th>
+                                    <th style="min-width:110px;">Status</th>
+                                    <th style="min-width:150px;">Time Remaining</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php 
+                                $appointments->data_seek(0);
+                                while($a = $appointments->fetch_assoc()): 
+                                    $p_img = !empty($a['p_pic']) ? 'uploads/' . htmlspecialchars($a['p_pic']) : 'uploads/default_avatar.png';
+                                ?>
+                                <tr>
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:10px;">
+                                            <img src="<?= $p_img ?>" alt="Pastor"
+                                                 style="width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid var(--border-color); cursor:zoom-in; flex-shrink:0; background:#f3f4f6; transition:transform 0.15s ease;"
+                                                 onmouseover="this.style.transform='scale(1.12)'"
+                                                 onmouseout="this.style.transform='scale(1)'"
+                                                 onclick="viewProfileImage(this.src);"
+                                                 onerror="this.src='uploads/default_avatar.png'"
+                                                 title="Click to view photo">
+                                            <div>
+                                                <div style="font-weight:700; color:var(--text-main);">Pastor <?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></div>
+                                                <?php if (!empty($a['p_role'])): ?><div style="font-size:0.75rem; color:var(--text-muted);"><?= htmlspecialchars($a['p_role']) ?></div><?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="font-weight:500;">
+                                        <?= date('M j, Y', strtotime($a['appointment_date'])) ?>
+                                        <div style="font-size:0.8rem; color:var(--text-muted);"><?= date('g:i A', strtotime($a['appointment_date'])) ?></div>
+                                    </td>
+                                    <td style="line-height:1.45; color:var(--text-main);">
+                                        <?= nl2br(htmlspecialchars($a['reason'])) ?>
+                                    </td>
+                                    <td>
+                                        <?php
+                                        $bg = 'var(--text-muted)';
+                                        if($a['status'] == 'Approved') $bg = 'var(--success)';
+                                        if($a['status'] == 'Declined') $bg = 'var(--danger)';
+                                        if($a['status'] == 'Pending') $bg = 'var(--warning)';
+                                        ?>
+                                        <span class="badge" style="background: <?= $bg ?>; color: white; padding:5px 12px; border-radius:20px; font-weight:700; font-size:0.82rem; display:inline-flex; align-items:center; gap:4px;">
+                                            <?= $a['status'] == 'Approved' ? '✅ Approved' : ($a['status'] == 'Declined' ? '❌ Declined' : '⏳ Pending') ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <?php if($a['status'] == 'Approved'): ?>
+                                            <span class="countdown-timer" data-time="<?= htmlspecialchars($a['appointment_date']) ?>" style="font-weight: 700; color: var(--primary); font-size:0.9rem;">Calculating...</span>
+                                        <?php else: ?>
+                                            <span style="color: var(--text-muted);">—</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <script>
+                    function updateCountdowns() {
+                        const timers = document.querySelectorAll('.countdown-timer');
+                        const now = new Date().getTime();
+
+                        timers.forEach(timer => {
+                            const targetTime = new Date(timer.getAttribute('data-time')).getTime();
+                            const diff = targetTime - now;
+
+                            if (diff <= 0) {
+                                timer.innerHTML = "<span style='color: var(--success); font-weight:700;'>Time has arrived!</span>";
+                                return;
+                            }
+
+                            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+                            let display = "";
+                            if (days > 0) display += days + "d ";
+                            if (hours > 0 || days > 0) display += hours + "h ";
+                            display += minutes + "m " + seconds + "s";
+
+                            timer.innerText = display;
+                        });
+                    }
+                    setInterval(updateCountdowns, 1000);
+                    updateCountdowns();
+                    </script>
+                    <?php else: ?>
+                    <div style="text-align:center; padding:35px 20px; color:var(--text-muted);">
+                        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.4; margin-bottom:10px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <p style="margin:0; font-size:1rem;">You have not booked any appointments yet.</p>
+                    </div>
+                    <?php endif; ?>
                 </div>
 
             <?php elseif ($tab == 'inspiration_highlights'): ?>

@@ -873,22 +873,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_message'])) {
     $target_member_id = (int)$_POST['member_id'];
     $raw_msg = trim($_POST['message'] ?? $_POST['message_content'] ?? '');
     $msg_esc = $conn->real_escape_string($raw_msg);
-    $p_name_esc = $conn->real_escape_string($pastor_name);
+    
+    $p_name = !empty($pastor_name) ? $pastor_name : trim(($pastor['first_name'] ?? '') . ' ' . ($pastor['last_name'] ?? ''));
+    if (empty($p_name)) $p_name = 'Pastor';
+    $p_name_esc = $conn->real_escape_string($p_name);
     
     if ($target_member_id > 0 && !empty($raw_msg)) {
         // Insert into member_messages so member sees it under Contact Pastor
         $conn->query("INSERT INTO member_messages (member_id, pastor_name, message) VALUES ($target_member_id, '$p_name_esc', '$msg_esc')");
-        // Also insert into messages table if exists
-        @$conn->query("INSERT INTO messages (pastor_id, member_id, message) VALUES ($pastor_id, $target_member_id, '$msg_esc')");
         
         // Notify member with keyword that routes to Contact Pastor
         $snippet = mb_strlen($raw_msg) > 60 ? mb_substr($raw_msg, 0, 57) . '...' : $raw_msg;
-        $notif_msg = $conn->real_escape_string("Message from Pastor $pastor_name: \"$snippet\". Please check your Contact Pastor tab.");
+        $notif_msg = $conn->real_escape_string("Message from Pastor $p_name: \"$snippet\". Please check your Contact Pastor tab.");
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($target_member_id, 'member', '$notif_msg')");
     }
     
-    $redirect_tab = ($tab === 'appointments') ? 'appointments' : 'messages';
-    header("Location: pastor_dashboard.php?tab=$redirect_tab&success=" . urlencode("Message sent to member successfully"));
+    header("Location: pastor_dashboard.php?tab=appointments&success=" . urlencode("Message sent to member successfully"));
     exit();
 }
 
@@ -4664,16 +4664,29 @@ w.document.write('</div>');
                 <div class="content-card">
                     <h2>Pending Appointments</h2>
                     <?php
-                    $pending_appts = $conn->query("SELECT a.*, m.first_name, m.last_name, m.department FROM appointments a JOIN members m ON a.member_id = m.id WHERE a.pastor_id = $pastor_id AND a.status = 'Pending' ORDER BY a.appointment_date ASC");
+                    $pending_appts = $conn->query("SELECT a.*, m.first_name, m.last_name, m.department, m.profile_picture FROM appointments a JOIN members m ON a.member_id = m.id WHERE a.pastor_id = $pastor_id AND a.status = 'Pending' ORDER BY a.appointment_date ASC");
                     if ($pending_appts && $pending_appts->num_rows > 0):
                     ?>
                     <div class="table-responsive">
                         <table>
                             <thead><tr><th>Member</th><th>Department</th><th>Date</th><th>Reason</th><th>Action</th></tr></thead>
                             <tbody>
-                                <?php while($a = $pending_appts->fetch_assoc()): ?>
+                                <?php while($a = $pending_appts->fetch_assoc()): 
+                                    $p_img = !empty($a['profile_picture']) ? 'uploads/' . htmlspecialchars($a['profile_picture']) : 'uploads/default_avatar.png';
+                                ?>
                                 <tr>
-                                    <td><?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></td>
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:10px;">
+                                            <img src="<?= $p_img ?>" alt="Profile"
+                                                 style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--border-color); cursor:zoom-in; flex-shrink:0; background:#f3f4f6; transition:transform 0.15s ease;"
+                                                 onmouseover="this.style.transform='scale(1.12)'"
+                                                 onmouseout="this.style.transform='scale(1)'"
+                                                 onclick="viewProfileImage(this.src);"
+                                                 onerror="this.src='uploads/default_avatar.png'"
+                                                 title="Click to view full photo">
+                                            <span style="font-weight:600; color:var(--text-main);"><?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></span>
+                                        </div>
+                                    </td>
                                     <td><?= htmlspecialchars($a['department']) ?></td>
                                     <td><?= date('M j, Y g:i A', strtotime($a['appointment_date'])) ?></td>
                                     <td><?= nl2br(htmlspecialchars($a['reason'])) ?></td>
@@ -4694,16 +4707,29 @@ w.document.write('</div>');
                 <div class="content-card">
                     <h2>Past/Handled Appointments</h2>
                     <?php
-                    $handled_appts = $conn->query("SELECT a.*, m.first_name, m.last_name FROM appointments a JOIN members m ON a.member_id = m.id WHERE a.pastor_id = $pastor_id AND a.status != 'Pending' ORDER BY a.appointment_date DESC LIMIT 20");
+                    $handled_appts = $conn->query("SELECT a.*, m.first_name, m.last_name, m.department, m.profile_picture FROM appointments a JOIN members m ON a.member_id = m.id WHERE a.pastor_id = $pastor_id AND a.status != 'Pending' ORDER BY a.appointment_date DESC LIMIT 20");
                     if ($handled_appts && $handled_appts->num_rows > 0):
                     ?>
                     <div class="table-responsive">
                         <table>
                             <thead><tr><th>Member</th><th>Date</th><th>Status</th></tr></thead>
                             <tbody>
-                                <?php while($a = $handled_appts->fetch_assoc()): ?>
+                                <?php while($a = $handled_appts->fetch_assoc()): 
+                                    $p_img = !empty($a['profile_picture']) ? 'uploads/' . htmlspecialchars($a['profile_picture']) : 'uploads/default_avatar.png';
+                                ?>
                                 <tr>
-                                    <td><?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></td>
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:10px;">
+                                            <img src="<?= $p_img ?>" alt="Profile"
+                                                 style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--border-color); cursor:zoom-in; flex-shrink:0; background:#f3f4f6; transition:transform 0.15s ease;"
+                                                 onmouseover="this.style.transform='scale(1.12)'"
+                                                 onmouseout="this.style.transform='scale(1)'"
+                                                 onclick="viewProfileImage(this.src);"
+                                                 onerror="this.src='uploads/default_avatar.png'"
+                                                 title="Click to view full photo">
+                                            <span style="font-weight:600; color:var(--text-main);"><?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></span>
+                                        </div>
+                                    </td>
                                     <td><?= date('M j, Y', strtotime($a['appointment_date'])) ?></td>
                                     <td><span class="badge" style="background:<?= $a['status'] == 'Approved' ? 'rgba(16,185,129,0.1);color:#10b981;' : 'rgba(239,68,68,0.1);color:#ef4444;' ?>"><?= $a['status'] ?></span></td>
                                 </tr>
@@ -4719,7 +4745,7 @@ w.document.write('</div>');
                 <!-- Embedded Messages Tab -->
                 <div class="content-card" style="margin-top: 30px; max-width: 600px;">
                     <h2>Send Direct Message</h2>
-                    <form method="POST" action="">
+                    <form method="POST" action="?tab=appointments">
                         <div class="form-group">
                             <label>Select Member</label>
                             <select name="member_id" class="form-control" required>
@@ -4733,21 +4759,10 @@ w.document.write('</div>');
                         </div>
                         <div class="form-group">
                             <label>Message</label>
-                            <textarea name="message" class="form-control" rows="5" required></textarea>
+                            <textarea name="message" class="form-control" rows="5" placeholder="Write your message to the member..." required></textarea>
                         </div>
                         <button type="submit" name="send_message" class="btn-submit">Send Message</button>
                     </form>
-                    
-                    <?php
-                    if (isset($_POST['send_message'])) {
-                        $m_id = (int)$_POST['member_id'];
-                        $msg = $conn->real_escape_string(trim($_POST['message']));
-                        if (!empty($msg)) {
-                            $conn->query("INSERT INTO messages (pastor_id, member_id, message) VALUES ($pastor_id, $m_id, '$msg')");
-                            echo "<div class='alert alert-success' style='margin-top:20px;'>Message sent successfully!</div>";
-                        }
-                    }
-                    ?>
                 </div>
 
             <?php elseif ($tab == 'organized_events'): ?>

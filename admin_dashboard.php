@@ -4580,17 +4580,32 @@ w.document.write('</div>');
                 <div class="content-card">
                     <h2>Pending Appointments</h2>
                     <?php
-                    $pending_appts = $conn->query("SELECT a.*, m.first_name, m.last_name, m.department FROM appointments a JOIN members m ON a.member_id = m.id WHERE a.pastor_id = $pastor_id AND a.status = 'Pending' ORDER BY a.appointment_date ASC");
+                    $pending_appts = $conn->query("SELECT a.*, m.first_name, m.last_name, m.department, m.profile_picture, p.first_name as p_fn, p.last_name as p_ln FROM appointments a JOIN members m ON a.member_id = m.id LEFT JOIN pastors p ON a.pastor_id = p.id WHERE a.status = 'Pending' ORDER BY a.appointment_date ASC");
                     if ($pending_appts && $pending_appts->num_rows > 0):
                     ?>
                     <div class="table-responsive">
                         <table>
-                            <thead><tr><th>Member</th><th>Department</th><th>Date</th><th>Reason</th><th>Action</th></tr></thead>
+                            <thead><tr><th>Member</th><th>Department</th><th>Pastor</th><th>Date</th><th>Reason</th><th>Action</th></tr></thead>
                             <tbody>
-                                <?php while($a = $pending_appts->fetch_assoc()): ?>
+                                <?php while($a = $pending_appts->fetch_assoc()): 
+                                    $p_img = !empty($a['profile_picture']) ? 'uploads/' . htmlspecialchars($a['profile_picture']) : 'uploads/default_avatar.png';
+                                    $p_pastor_name = trim(($a['p_fn'] ?? '') . ' ' . ($a['p_ln'] ?? ''));
+                                ?>
                                 <tr>
-                                    <td><?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></td>
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:10px;">
+                                            <img src="<?= $p_img ?>" alt="Profile"
+                                                 style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--border-color); cursor:zoom-in; flex-shrink:0; background:#f3f4f6; transition:transform 0.15s ease;"
+                                                 onmouseover="this.style.transform='scale(1.12)'"
+                                                 onmouseout="this.style.transform='scale(1)'"
+                                                 onclick="viewProfileImage(this.src);"
+                                                 onerror="this.src='uploads/default_avatar.png'"
+                                                 title="Click to view full photo">
+                                            <span style="font-weight:600; color:var(--text-main);"><?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></span>
+                                        </div>
+                                    </td>
                                     <td><?= htmlspecialchars($a['department']) ?></td>
+                                    <td><?= !empty($p_pastor_name) ? 'Pastor ' . htmlspecialchars($p_pastor_name) : '—' ?></td>
                                     <td><?= date('M j, Y g:i A', strtotime($a['appointment_date'])) ?></td>
                                     <td><?= nl2br(htmlspecialchars($a['reason'])) ?></td>
                                     <td class="action-buttons">
@@ -4610,16 +4625,31 @@ w.document.write('</div>');
                 <div class="content-card">
                     <h2>Past/Handled Appointments</h2>
                     <?php
-                    $handled_appts = $conn->query("SELECT a.*, m.first_name, m.last_name FROM appointments a JOIN members m ON a.member_id = m.id WHERE a.pastor_id = $pastor_id AND a.status != 'Pending' ORDER BY a.appointment_date DESC LIMIT 20");
+                    $handled_appts = $conn->query("SELECT a.*, m.first_name, m.last_name, m.department, m.profile_picture, p.first_name as p_fn, p.last_name as p_ln FROM appointments a JOIN members m ON a.member_id = m.id LEFT JOIN pastors p ON a.pastor_id = p.id WHERE a.status != 'Pending' ORDER BY a.appointment_date DESC LIMIT 20");
                     if ($handled_appts && $handled_appts->num_rows > 0):
                     ?>
                     <div class="table-responsive">
                         <table>
-                            <thead><tr><th>Member</th><th>Date</th><th>Status</th></tr></thead>
+                            <thead><tr><th>Member</th><th>Pastor</th><th>Date</th><th>Status</th></tr></thead>
                             <tbody>
-                                <?php while($a = $handled_appts->fetch_assoc()): ?>
+                                <?php while($a = $handled_appts->fetch_assoc()): 
+                                    $p_img = !empty($a['profile_picture']) ? 'uploads/' . htmlspecialchars($a['profile_picture']) : 'uploads/default_avatar.png';
+                                    $p_pastor_name = trim(($a['p_fn'] ?? '') . ' ' . ($a['p_ln'] ?? ''));
+                                ?>
                                 <tr>
-                                    <td><?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></td>
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:10px;">
+                                            <img src="<?= $p_img ?>" alt="Profile"
+                                                 style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--border-color); cursor:zoom-in; flex-shrink:0; background:#f3f4f6; transition:transform 0.15s ease;"
+                                                 onmouseover="this.style.transform='scale(1.12)'"
+                                                 onmouseout="this.style.transform='scale(1)'"
+                                                 onclick="viewProfileImage(this.src);"
+                                                 onerror="this.src='uploads/default_avatar.png'"
+                                                 title="Click to view full photo">
+                                            <span style="font-weight:600; color:var(--text-main);"><?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></span>
+                                        </div>
+                                    </td>
+                                    <td><?= !empty($p_pastor_name) ? 'Pastor ' . htmlspecialchars($p_pastor_name) : '—' ?></td>
                                     <td><?= date('M j, Y', strtotime($a['appointment_date'])) ?></td>
                                     <td><span class="badge" style="background:<?= $a['status'] == 'Approved' ? 'rgba(16,185,129,0.1);color:#10b981;' : 'rgba(239,68,68,0.1);color:#ef4444;' ?>"><?= $a['status'] ?></span></td>
                                 </tr>
