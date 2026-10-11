@@ -4891,37 +4891,115 @@ w.document.write('</div>');
                         <div class="form-group" style="margin-bottom:18px; position:relative;">
                             <label style="font-weight:700; font-size:0.82rem; color:var(--text-muted); margin-bottom:6px; display:block;">Member Search &amp; Selection</label>
                             
-                            <div style="display:flex; gap:6px; align-items:center;">
-                                <div style="position:relative; flex:1;">
-                                    <input type="text" id="member_search_textbox" class="form-control"
-                                           autocomplete="off"
-                                           placeholder="Type member name to search..."
-                                           value="<?= $active_chat_member ? htmlspecialchars($active_chat_member['first_name'] . ' ' . $active_chat_member['last_name'] . ' (' . $active_chat_member['department'] . ')') : '' ?>"
-                                           style="width:100%; padding-left:42px; padding-right:38px; font-size:1.05rem; font-weight:700; height:52px; border-radius:8px; box-sizing:border-box; background:#ffffff !important; color:#111827 !important; border:2px solid var(--primary); letter-spacing:0.3px; line-height:1.4;"
-                                           onfocus="this.select(); openMemberDropdown(true);"
-                                           onclick="openMemberDropdown(true);"
-                                           oninput="filterMemberDropdownLive(this.value);"
-                                           onkeydown="handleMemberSearchKey(event);">
-                                    <span style="position:absolute; left:13px; top:50%; transform:translateY(-50%); color:#6b7280; pointer-events:none; display:flex; align-items:center;">
-                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                                    </span>
-                                    <span id="member_dropdown_arrow" onclick="toggleMemberDropdown();" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#6b7280; cursor:pointer; user-select:none; padding:6px; display:flex; align-items:center;" title="Show all members">
-                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                    </span>
-                                </div>
-                                <button type="button" id="member_search_btn" class="btn-submit" onclick="executeMemberSearch();" 
-                                        style="padding:0 12px; font-size:0.8rem; font-weight:700; height:52px; border-radius:8px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap; flex-shrink:0;">
-                                    Search
+                            <!-- Search row: big textbox + tiny Search button -->
+                            <style>
+                                #msb-wrap { display:flex; gap:6px; align-items:stretch; }
+                                #member_search_textbox {
+                                    flex:1;
+                                    padding: 0 40px 0 44px;
+                                    height: 52px;
+                                    font-size: 1.08rem;
+                                    font-weight: 600;
+                                    font-family: inherit;
+                                    border: 2px solid #2563eb;
+                                    border-radius: 10px;
+                                    box-sizing: border-box;
+                                    outline: none;
+                                    background: #ffffff !important;
+                                    color: #111827 !important;
+                                    caret-color: #111827 !important;
+                                    letter-spacing: 0.2px;
+                                    transition: border-color 0.2s;
+                                }
+                                #member_search_textbox::placeholder {
+                                    color: #9ca3af;
+                                    font-weight: 400;
+                                    font-size: 0.93rem;
+                                }
+                                #member_search_textbox:focus {
+                                    border-color: #1d4ed8 !important;
+                                    box-shadow: 0 0 0 3px rgba(37,99,235,0.18) !important;
+                                    background: #ffffff !important;
+                                    color: #111827 !important;
+                                }
+                                /* Override any dark-theme form-control rules */
+                                [data-theme="dark"] #member_search_textbox {
+                                    background: #ffffff !important;
+                                    color: #111827 !important;
+                                    caret-color: #111827 !important;
+                                    border-color: #2563eb !important;
+                                }
+                                #member_search_btn {
+                                    flex-shrink: 0;
+                                    padding: 0 10px;
+                                    font-size: 0.75rem;
+                                    font-weight: 700;
+                                    height: 52px;
+                                    border-radius: 10px;
+                                    white-space: nowrap;
+                                    background: var(--primary);
+                                    color: #fff;
+                                    border: none;
+                                    cursor: pointer;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 4px;
+                                }
+                                #member_search_btn:hover { background: var(--primary-hover, #1d4ed8); }
+                                /* Dropdown always light bg with visible text */
+                                #member_dropdown_menu {
+                                    background: #ffffff !important;
+                                    color: #111827 !important;
+                                }
+                                #member_dropdown_menu .dropdown-member-row {
+                                    color: #111827 !important;
+                                }
+                                [data-theme="dark"] #member_dropdown_menu {
+                                    background: #ffffff !important;
+                                    color: #111827 !important;
+                                }
+                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row,
+                                [data-theme="dark"] #member_dropdown_menu .dropdown-member-row div {
+                                    color: #111827 !important;
+                                }
+                            </style>
+                            <div id="msb-wrap" style="position:relative;">
+                                <!-- Search icon inside the textbox -->
+                                <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#9ca3af; pointer-events:none; display:flex; align-items:center; z-index:1;">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                </span>
+                                <input type="text" id="member_search_textbox"
+                                       autocomplete="off"
+                                       placeholder="Type member name to search..."
+                                       value="<?= $active_chat_member ? htmlspecialchars($active_chat_member['first_name'] . ' ' . $active_chat_member['last_name'] . ' (' . $active_chat_member['department'] . ')') : '' ?>"
+                                       onfocus="this.select(); openMemberDropdown(true);"
+                                       onclick="openMemberDropdown(true);"
+                                       oninput="filterMemberDropdownLive(this.value);"
+                                       onkeydown="handleMemberSearchKey(event);">
+                                <!-- Dropdown arrow -->
+                                <span id="member_dropdown_arrow" onclick="toggleMemberDropdown();" title="Show all members"
+                                      style="position:absolute; right:62px; top:50%; transform:translateY(-50%); color:#9ca3af; cursor:pointer; user-select:none; padding:6px; display:flex; align-items:center; z-index:1;">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </span>
+                                <button type="button" id="member_search_btn" onclick="executeMemberSearch();">
+                                    <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                    Go
                                 </button>
                             </div>
-                            <style>
-                                #member_search_textbox { background:#ffffff !important; color:#111827 !important; }
-                                #member_search_textbox::placeholder { color:#9ca3af !important; font-weight:400; }
-                                #member_search_textbox:focus { border-color:var(--primary) !important; box-shadow:0 0 0 3px rgba(37,99,235,0.15) !important; background:#ffffff !important; color:#111827 !important; }
-                            </style>
+                            <script>
+                                // Force input styles via JS as final override for any browser/theme quirk
+                                (function(){
+                                    var inp = document.getElementById('member_search_textbox');
+                                    if (inp) {
+                                        inp.style.setProperty('background','#ffffff','important');
+                                        inp.style.setProperty('color','#111827','important');
+                                        inp.style.setProperty('caret-color','#111827','important');
+                                    }
+                                })();
+                            </script>
 
                             <!-- Dropdown Menu with Ribbon Colors & Hierarchical Departments (NO EMOJIS) -->
-                            <div id="member_dropdown_menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #e5e7eb); border-radius:10px; max-height:360px; overflow-y:auto; z-index:1050; box-shadow:0 12px 30px rgba(0,0,0,0.18);">
+                            <div id="member_dropdown_menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; border:1px solid #e2e8f0; border-radius:10px; max-height:360px; overflow-y:auto; z-index:1050; box-shadow:0 12px 30px rgba(0,0,0,0.18);">
                                 <?php foreach($members_by_group as $grp_id => $grp): ?>
                                     <?php if(!empty($grp['items'])): ?>
                                         <div class="dropdown-dept-group" data-group-id="<?= $grp_id ?>">
@@ -4944,14 +5022,14 @@ w.document.write('</div>');
                                                          data-dept="<?= htmlspecialchars(strtolower($m['department'])) ?>"
                                                          data-role="<?= htmlspecialchars(strtolower($m['church_role'] ?? '')) ?>"
                                                          onclick="selectMemberFromDropdown(this);"
-                                                         style="display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; border-bottom:1px solid var(--border-color); background:<?= $is_sel ? 'rgba(37,99,235,0.08)' : 'transparent' ?>; transition:background 0.15s ease;">
+                                                         style="display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; border-bottom:1px solid #e5e7eb; background:<?= $is_sel ? '#dbeafe' : '#ffffff' ?>; transition:background 0.15s ease;" onmouseover="this.style.background='#eff6ff';" onmouseout="this.style.background='<?= $is_sel ? '#dbeafe' : '#ffffff' ?>'">
                                                         <img src="<?= $m_pic ?>" alt="<?= $m_full ?>" 
                                                              style="width:30px; height:30px; border-radius:50%; object-fit:cover; border:1.5px solid <?= $grp['ribbon_color'] ?>; flex-shrink:0;">
                                                         <div style="flex:1; min-width:0;">
-                                                            <div style="font-size:0.88rem; font-weight:700; color:<?= $is_sel ? 'var(--primary)' : 'var(--text-main)' ?>; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                            <div style="font-size:0.88rem; font-weight:700; color:<?= $is_sel ? '#1d4ed8' : '#111827' ?>; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                                                 <?= $m_full ?>
                                                             </div>
-                                                            <div style="font-size:0.72rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                            <div style="font-size:0.72rem; color:#6b7280; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                                                 <?= htmlspecialchars($m['department']) ?><?= !empty($m['church_role']) ? ' • ' . htmlspecialchars($m['church_role']) : '' ?>
                                                             </div>
                                                         </div>
