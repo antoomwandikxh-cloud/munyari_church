@@ -3192,7 +3192,8 @@ w.document.write('</div>');
                 <div class="content-card">
                     <h2>Worshipper Tasks</h2>
                     <?php
-                    $tasks = $conn->query("SELECT wt.*, m1.first_name as w_fn, m1.last_name as w_ln, m2.first_name as a_fn, m2.last_name as a_ln 
+                    $tasks = $conn->query("SELECT wt.*, m1.first_name as w_fn, m1.last_name as w_ln, m1.profile_picture as w_pic,
+                                           m2.first_name as a_fn, m2.last_name as a_ln, m2.profile_picture as a_pic 
                                            FROM worship_tasks wt 
                                            JOIN members m1 ON wt.member_id = m1.id 
                                            JOIN members m2 ON wt.assigned_by = m2.id 
@@ -3211,17 +3212,49 @@ w.document.write('</div>');
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php while($t = $tasks->fetch_assoc()): ?>
+                                    <?php while($t = $tasks->fetch_assoc()): 
+                                        $w_img = !empty($t['w_pic']) ? 'uploads/' . htmlspecialchars($t['w_pic']) : 'uploads/default_avatar.png';
+                                        $a_img = !empty($t['a_pic']) ? 'uploads/' . htmlspecialchars($t['a_pic']) : 'uploads/default_avatar.png';
+                                    ?>
                                         <tr>
-                                            <td><?= htmlspecialchars($t['w_fn'] . ' ' . $t['w_ln']) ?></td>
+                                            <td>
+                                                <div style="display:flex; align-items:center; gap:10px;">
+                                                    <img src="<?= $w_img ?>" alt="Profile"
+                                                         style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--border-color); cursor:zoom-in; flex-shrink:0; background:#f3f4f6; transition:transform 0.15s ease;"
+                                                         onmouseover="this.style.transform='scale(1.12)'"
+                                                         onmouseout="this.style.transform='scale(1)'"
+                                                         onclick="viewProfileImage(this.src);"
+                                                         onerror="this.src='uploads/default_avatar.png'"
+                                                         title="Click to view full photo">
+                                                    <span style="font-weight:600; color:var(--text-main);"><?= htmlspecialchars($t['w_fn'] . ' ' . $t['w_ln']) ?></span>
+                                                </div>
+                                            </td>
                                             <td><?= htmlspecialchars($t['task_name']) ?></td>
                                             <td>
                                                 <?php if ($t['assigned_by'] == $t['member_id']): ?>
-                                                    <span class="badge" style="background:#ede9fe; color:#7c3aed; font-weight:700; border:1px solid #ddd6fe; padding:4px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px; font-size:0.8rem;">
-                                                        👤 Assigned Himself
-                                                    </span>
+                                                    <div style="display:flex; align-items:center; gap:8px;">
+                                                        <img src="<?= $a_img ?>" alt="Profile"
+                                                             style="width:30px; height:30px; border-radius:50%; object-fit:cover; border:1.5px solid #ddd6fe; cursor:zoom-in; flex-shrink:0; background:#f3f4f6; transition:transform 0.15s ease;"
+                                                             onmouseover="this.style.transform='scale(1.12)'"
+                                                             onmouseout="this.style.transform='scale(1)'"
+                                                             onclick="viewProfileImage(this.src);"
+                                                             onerror="this.src='uploads/default_avatar.png'"
+                                                             title="Click to view full photo">
+                                                        <span class="badge" style="background:#ede9fe; color:#7c3aed; font-weight:700; border:1px solid #ddd6fe; padding:4px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px; font-size:0.8rem;">
+                                                            👤 Assigned Himself
+                                                        </span>
+                                                    </div>
                                                 <?php else: ?>
-                                                    <?= htmlspecialchars($t['a_fn'] . ' ' . $t['a_ln']) ?>
+                                                    <div style="display:flex; align-items:center; gap:8px;">
+                                                        <img src="<?= $a_img ?>" alt="Profile"
+                                                             style="width:30px; height:30px; border-radius:50%; object-fit:cover; border:1.5px solid var(--border-color); cursor:zoom-in; flex-shrink:0; background:#f3f4f6; transition:transform 0.15s ease;"
+                                                             onmouseover="this.style.transform='scale(1.12)'"
+                                                             onmouseout="this.style.transform='scale(1)'"
+                                                             onclick="viewProfileImage(this.src);"
+                                                             onerror="this.src='uploads/default_avatar.png'"
+                                                             title="Click to view full photo">
+                                                        <span><?= htmlspecialchars($t['a_fn'] . ' ' . $t['a_ln']) ?></span>
+                                                    </div>
                                                 <?php endif; ?>
                                             </td>
                                             <td><?= date('M j, Y g:i A', strtotime($t['assigned_at'])) ?></td>
