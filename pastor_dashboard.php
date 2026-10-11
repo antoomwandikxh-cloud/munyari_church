@@ -1099,11 +1099,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['pastor_leader_chat']))
     exit();
 }
 
-// Handle deleting a Pastor announcement
+// Handle deleting a Pastor announcement completely
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['delete_pastor_announcement'])) {
     $ann_id = (int)($_POST['announcement_id'] ?? 0);
     if ($ann_id > 0) {
-        $chk = $conn->query("SELECT * FROM pastor_announcements WHERE id = $ann_id AND pastor_id = $pastor_id");
+        $chk = $conn->query("SELECT * FROM pastor_announcements WHERE id = $ann_id");
         if ($chk && $row = $chk->fetch_assoc()) {
             if (!empty($row['audio_path']) && file_exists(__DIR__ . '/' . $row['audio_path'])) {
                 @unlink(__DIR__ . '/' . $row['audio_path']);
@@ -1112,7 +1112,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['delete_pastor_announce
                 @unlink(__DIR__ . '/' . $row['image_path']);
             }
             $conn->query("DELETE FROM pastor_announcements WHERE id = $ann_id");
-            header("Location: pastor_dashboard.php?tab=general_announcements&success=" . urlencode("Announcement and voice note deleted successfully."));
+            header("Location: pastor_dashboard.php?tab=general_announcements&success=" . urlencode("Announcement deleted successfully."));
             exit();
         }
     }
@@ -1120,11 +1120,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['delete_pastor_announce
     exit();
 }
 
+// Handle deleting ONLY the audio (voice note) from a Pastor announcement
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['delete_pastor_announcement_audio'])) {
+    $ann_id = (int)($_POST['announcement_id'] ?? 0);
+    if ($ann_id > 0) {
+        $chk = $conn->query("SELECT * FROM pastor_announcements WHERE id = $ann_id");
+        if ($chk && $row = $chk->fetch_assoc()) {
+            if (!empty($row['audio_path']) && file_exists(__DIR__ . '/' . $row['audio_path'])) {
+                @unlink(__DIR__ . '/' . $row['audio_path']);
+            }
+            $clean_msg = trim($row['message']);
+            $is_placeholder = ($clean_msg === '' || strpos($clean_msg, 'Voice Message from Pastor') !== false || strpos($clean_msg, '🎙️') !== false);
+            // If the announcement had only a voice note and no custom message or image, delete the whole row
+            if ($is_placeholder && empty($row['image_path'])) {
+                $conn->query("DELETE FROM pastor_announcements WHERE id = $ann_id");
+                header("Location: pastor_dashboard.php?tab=general_announcements&success=" . urlencode("Voice note announcement deleted."));
+                exit();
+            } else {
+                $conn->query("UPDATE pastor_announcements SET audio_path = NULL WHERE id = $ann_id");
+                header("Location: pastor_dashboard.php?tab=general_announcements&success=" . urlencode("Voice note removed successfully."));
+                exit();
+            }
+        }
+    }
+    header("Location: pastor_dashboard.php?tab=general_announcements&error=" . urlencode("Could not remove voice note."));
+    exit();
+}
+
 // Handle updating / changing a Pastor announcement
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_pastor_announcement'])) {
     $ann_id = (int)($_POST['announcement_id'] ?? 0);
     if ($ann_id > 0) {
-        $chk = $conn->query("SELECT * FROM pastor_announcements WHERE id = $ann_id AND pastor_id = $pastor_id");
+        $chk = $conn->query("SELECT * FROM pastor_announcements WHERE id = $ann_id");
         if ($chk && $row = $chk->fetch_assoc()) {
             $raw_msg = trim($_POST['edit_announcement_message'] ?? '');
             $new_audio_path = $row['audio_path'];
@@ -1171,13 +1198,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_pastor_announce
                 }
             }
 
-            // If message is empty but voice note exists, provide friendly fallback
-            if (empty($raw_msg) && !empty($new_audio_path)) {
-                $raw_msg = '🎙️ Voice Message from Pastor ' . $pastor['first_name'] . ' ' . $pastor['last_name'];
+            // If audio was removed, and the existing message was just the auto-generated voice note placeholder, clear it
+            if (empty($new_audio_path) && (strpos($raw_msg, 'Voice Message from Pastor') !== false || strpos($raw_msg, '🎙️') !== false)) {
+                $raw_msg = '';
             }
 
+            // If message is empty but voice note exists, provide friendly fallback
+            if (empty($raw_msg) && !empty($new_audio_path)) {
+                $raw_msg = '🎙️ Voice Message from Pastor ' . ($pastor['first_name'] ?? 'Pastor') . ' ' . ($pastor['last_name'] ?? '');
+            }
+
+            // If everything is cleared/removed, delete the announcement entirely
             if (empty($raw_msg) && empty($new_audio_path) && empty($new_image_path)) {
-                header("Location: pastor_dashboard.php?tab=general_announcements&error=" . urlencode("Announcement cannot be empty."));
+                $conn->query("DELETE FROM pastor_announcements WHERE id = $ann_id");
+                header("Location: pastor_dashboard.php?tab=general_announcements&success=" . urlencode("Announcement and attachments removed successfully."));
                 exit();
             }
 
@@ -1636,8 +1670,19 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                         ✏️ Edit / Change
                                     </button>
 
-                                    <!-- Delete Button -->
-                                    <form method="POST" action="pastor_dashboard.php?tab=general_announcements" style="display:inline;margin:0;" onsubmit="return confirm('Are you sure you want to permanently delete this announcement and voice note? This will also remove it from members.');">
+                                    <!-- Quick Remove Audio Button (if announcement has voice note) -->
+                                    <?php if (!empty($pa['audio_path'])): ?>
+                                        <form method="POST" action="pastor_dashboard.php?tab=general_announcements" style="display:inline;margin:0;" onsubmit="return confirm('Remove only the voice note audio from this announcement?');">
+                                            <input type="hidden" name="delete_pastor_announcement_audio" value="1">
+                                            <input type="hidden" name="announcement_id" value="<?= $pa['id'] ?>">
+                                            <button type="submit" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:6px 10px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Remove voice note only">
+                                                🔇 Remove Audio
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+
+                                    <!-- Delete Announcement Completely -->
+                                    <form method="POST" action="pastor_dashboard.php?tab=general_announcements" style="display:inline;margin:0;" onsubmit="return confirm('Are you sure you want to permanently delete this announcement and all attachments?');">
                                         <input type="hidden" name="delete_pastor_announcement" value="1">
                                         <input type="hidden" name="announcement_id" value="<?= $pa['id'] ?>">
                                         <button type="submit" style="background:#ef4444;color:#ffffff;border:none;padding:6px 12px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
@@ -1665,32 +1710,41 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <!-- Inline Edit Form (Hidden by default) -->
                             <div id="ann_edit_form_<?= $pa['id'] ?>" style="display:none;margin-top:14px;padding:16px;background:var(--bg-card);border-radius:10px;border:1.5px solid #2563eb;">
                                 <h4 style="margin:0 0 10px;color:#2563eb;font-size:0.95rem;display:flex;align-items:center;gap:6px;">
-                                    ✏️ Edit Announcement &amp; Voice Note
+                                    ✏️ Edit Announcement &amp; Attachments
                                 </h4>
                                 <form method="POST" action="pastor_dashboard.php?tab=general_announcements" enctype="multipart/form-data">
                                     <input type="hidden" name="update_pastor_announcement" value="1">
                                     <input type="hidden" name="announcement_id" value="<?= $pa['id'] ?>">
                                     
                                     <div class="form-group" style="margin-bottom:12px;">
-                                        <label style="font-size:0.85rem;font-weight:700;display:block;margin-bottom:4px;color:var(--text-main);">Announcement Message:</label>
-                                        <textarea name="edit_announcement_message" class="form-control" rows="3" style="width:100%;font-size:0.9rem;" required><?= htmlspecialchars($pa['message']) ?></textarea>
+                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                            <label style="font-size:0.85rem;font-weight:700;margin:0;color:var(--text-main);">📝 Announcement Message:</label>
+                                            <button type="button" onclick="document.getElementById('edit_ann_msg_<?= $pa['id'] ?>').value='';" style="background:transparent;border:none;color:#ef4444;font-size:0.75rem;cursor:pointer;font-weight:700;text-decoration:underline;">
+                                                ✕ Clear message text
+                                            </button>
+                                        </div>
+                                        <textarea id="edit_ann_msg_<?= $pa['id'] ?>" name="edit_announcement_message" class="form-control" rows="3" style="width:100%;font-size:0.9rem;" placeholder="Type announcement message or leave blank if using voice note only..."><?= htmlspecialchars($pa['message']) ?></textarea>
+                                        <span style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:3px;">💡 You can edit this text, replace it, or clear it if the voice note is the announcement.</span>
                                     </div>
 
                                     <!-- Voice Note Change/Remove Options -->
                                     <div style="background:var(--bg-main, #f1f5f9);border:1px solid var(--border-color);border-radius:8px;padding:12px;margin-bottom:12px;">
                                         <label style="font-size:0.85rem;font-weight:700;display:block;margin-bottom:6px;color:#15803d;">🎙️ Voice Note Options:</label>
                                         <?php if (!empty($pa['audio_path'])): ?>
-                                            <div style="margin-bottom:8px;">
-                                                <span style="font-size:0.8rem;color:var(--text-muted);">Current Voice Note:</span>
-                                                <audio controls src="<?= htmlspecialchars($pa['audio_path']) ?>" style="display:block;height:32px;margin:6px 0;width:100%;max-width:380px;"></audio>
-                                                <label style="font-size:0.82rem;color:#ef4444;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
-                                                    <input type="checkbox" name="remove_voice_note" value="1"> 🗑️ Remove current voice note
+                                            <div style="margin-bottom:10px;padding:10px;background:#ffffff;border-radius:8px;border:1px solid rgba(37,211,102,0.3);">
+                                                <span style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;font-weight:600;">Current Voice Note:</span>
+                                                <audio controls src="<?= htmlspecialchars($pa['audio_path']) ?>" style="display:block;height:32px;margin:6px 0 10px;width:100%;max-width:380px;"></audio>
+                                                
+                                                <label style="font-size:0.85rem;color:#dc2626;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;">
+                                                    <input type="checkbox" name="remove_voice_note" value="1" style="width:18px;height:18px;accent-color:#ef4444;cursor:pointer;">
+                                                    <span>🗑️ Remove / Delete this voice note</span>
                                                 </label>
                                             </div>
                                         <?php endif; ?>
                                         <div style="font-size:0.82rem;margin-top:6px;">
-                                            <label style="display:block;margin-bottom:4px;color:var(--text-muted);">Replace with new audio file (optional):</label>
+                                            <label style="display:block;margin-bottom:4px;color:var(--text-main);font-weight:700;">🔄 Replace with new audio file (optional):</label>
                                             <input type="file" name="edit_voice_note" accept="audio/*" class="form-control" style="font-size:0.8rem;">
+                                            <span style="font-size:0.74rem;color:var(--text-muted);display:block;margin-top:2px;">Select an audio file from your device (MP3, WAV, WEBM, M4A, OGG)</span>
                                         </div>
                                     </div>
 
@@ -1698,24 +1752,25 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                     <div style="background:var(--bg-main, #f1f5f9);border:1px solid var(--border-color);border-radius:8px;padding:12px;margin-bottom:12px;">
                                         <label style="font-size:0.85rem;font-weight:700;display:block;margin-bottom:6px;color:var(--text-main);">🖼️ Image Options:</label>
                                         <?php if (!empty($pa['image_path'])): ?>
-                                            <div style="margin-bottom:8px;">
-                                                <img src="<?= htmlspecialchars($pa['image_path']) ?>" alt="Current Image" style="height:60px;border-radius:6px;object-fit:cover;border:1px solid var(--border-color);display:block;margin-bottom:4px;">
-                                                <label style="font-size:0.82rem;color:#ef4444;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
-                                                    <input type="checkbox" name="remove_image" value="1"> 🗑️ Remove current image
+                                            <div style="margin-bottom:10px;padding:10px;background:#ffffff;border-radius:8px;border:1px solid var(--border-color);">
+                                                <img src="<?= htmlspecialchars($pa['image_path']) ?>" alt="Current Image" style="height:70px;border-radius:6px;object-fit:cover;border:1px solid var(--border-color);display:block;margin-bottom:8px;">
+                                                <label style="font-size:0.85rem;color:#dc2626;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;">
+                                                    <input type="checkbox" name="remove_image" value="1" style="width:18px;height:18px;accent-color:#ef4444;cursor:pointer;">
+                                                    <span>🗑️ Remove / Delete this image</span>
                                                 </label>
                                             </div>
                                         <?php endif; ?>
                                         <div style="font-size:0.82rem;margin-top:6px;">
-                                            <label style="display:block;margin-bottom:4px;color:var(--text-muted);">Replace with new image (optional):</label>
+                                            <label style="display:block;margin-bottom:4px;color:var(--text-main);font-weight:700;">🔄 Replace with new image (optional):</label>
                                             <input type="file" name="edit_ann_image" accept="image/*" class="form-control" style="font-size:0.8rem;">
                                         </div>
                                     </div>
 
                                     <div style="display:flex;gap:10px;align-items:center;">
-                                        <button type="submit" style="background:#10b981;color:#ffffff;border:none;padding:8px 18px;border-radius:8px;font-size:0.88rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                                        <button type="submit" style="background:#10b981;color:#ffffff;border:none;padding:9px 20px;border-radius:8px;font-size:0.88rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
                                             💾 Save Changes
                                         </button>
-                                        <button type="button" onclick="toggleEditPastorAnn(<?= $pa['id'] ?>);" style="background:transparent;color:var(--text-muted);border:1px solid var(--border-color);padding:8px 14px;border-radius:8px;font-size:0.85rem;cursor:pointer;">
+                                        <button type="button" onclick="toggleEditPastorAnn(<?= $pa['id'] ?>);" style="background:transparent;color:var(--text-muted);border:1px solid var(--border-color);padding:9px 16px;border-radius:8px;font-size:0.85rem;cursor:pointer;">
                                             Cancel
                                         </button>
                                     </div>
