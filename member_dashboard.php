@@ -3168,14 +3168,17 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             <?php endif; ?>
                         </button>
                         <!-- Dropdown -->
-                        <div id="notifDropdown" style="display:none; position:absolute; top:calc(100% + 10px); right:-10px; width:340px; max-width:calc(100vw - 32px); background:var(--bg-card); border:1px solid var(--border-color); border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.18); z-index:9999; overflow:hidden;">
-                            <div style="padding:14px 18px; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
-                                <strong style="color:var(--text-main); font-size:0.95rem;">Notifications</strong>
-                                <?php if($unread_notifs > 0): ?>
-                                    <span style="background:var(--danger); color:white; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:20px;"><?= $unread_notifs ?> new</span>
-                                <?php endif; ?>
+                        <div id="notifDropdown" style="display:none; position:absolute; top:calc(100% + 8px); right:0; width:300px; max-width:82vw; background:var(--bg-card); border:1px solid var(--border-color); border-radius:14px; box-shadow:0 12px 35px rgba(0,0,0,0.18); z-index:9999; overflow:hidden;">
+                            <div style="padding:10px 14px; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                                <strong style="color:var(--text-main); font-size:0.9rem;">Notifications</strong>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <?php if($unread_notifs > 0): ?>
+                                        <span style="background:var(--danger); color:white; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:20px;"><?= $unread_notifs ?> new</span>
+                                    <?php endif; ?>
+                                    <button type="button" onclick="event.stopPropagation(); document.getElementById('notifDropdown').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); font-size:1rem; cursor:pointer; line-height:1; padding:2px 4px;" title="Close">✕</button>
+                                </div>
                             </div>
-                            <div style="max-height:320px; overflow-y:auto;">
+                            <div style="max-height:240px; overflow-y:auto;">
                                 <?php
                                 // Fetch recent notifications for dropdown
                                 $drop_notifs = $conn->query("SELECT * FROM notifications WHERE user_id = $member_id AND user_type = 'member' ORDER BY created_at DESC LIMIT 8");
@@ -3186,28 +3189,30 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                             $target_tab = 'manage_songs';
                                         }
                                 ?>
-                                    <a href="mark_read_and_redirect.php?id=<?= $dn['id'] ?>&redirect=<?= urlencode($target_tab) ?>" style="display:block; padding:12px 18px; border-bottom:1px solid var(--border-color); text-decoration:none; background:<?= !$dn['is_read'] ? 'rgba(37,99,235,0.06)' : 'transparent' ?>; transition:background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.1)'" onmouseout="this.style.background='<?= !$dn['is_read'] ? 'rgba(37,99,235,0.06)' : 'transparent' ?>'">
-                                        <div style="display:flex; align-items:flex-start; gap:10px;">
-                                            <div style="width:8px; height:8px; border-radius:50%; background:<?= !$dn['is_read'] ? 'var(--danger)' : 'var(--border-color)' ?>; margin-top:5px; flex-shrink:0;"></div>
-                                            <div>
-                                                <p style="margin:0; font-size:0.85rem; color:var(--text-main); line-height:1.4;"><?= htmlspecialchars($dn['message']) ?></p>
-                                                <small style="color:var(--text-muted); font-size:0.75rem;"><?= date('M j, g:i A', strtotime($dn['created_at'])) ?></small>
-                                                <?php if (!$dn['is_read']): ?>
-                                                    <small style="color: red; font-size: 0.75rem; margin-left: 8px;">unread</small>
-                                                <?php endif; ?>
+                                    <a href="mark_read_and_redirect.php?id=<?= $dn['id'] ?>&redirect=<?= urlencode($target_tab) ?>" style="display:block; padding:9px 13px; border-bottom:1px solid var(--border-color); text-decoration:none; background:<?= !$dn['is_read'] ? 'rgba(37,99,235,0.06)' : 'transparent' ?>; transition:background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.1)'" onmouseout="this.style.background='<?= !$dn['is_read'] ? 'rgba(37,99,235,0.06)' : 'transparent' ?>'">
+                                        <div style="display:flex; align-items:flex-start; gap:8px;">
+                                            <div style="width:7px; height:7px; border-radius:50%; background:<?= !$dn['is_read'] ? 'var(--danger)' : 'var(--border-color)' ?>; margin-top:5px; flex-shrink:0;"></div>
+                                            <div style="min-width:0;">
+                                                <p style="margin:0; font-size:0.8rem; color:var(--text-main); line-height:1.35;"><?= htmlspecialchars($dn['message']) ?></p>
+                                                <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+                                                    <small style="color:var(--text-muted); font-size:0.7rem;"><?= date('M j, g:i A', strtotime($dn['created_at'])) ?></small>
+                                                    <?php if (!$dn['is_read']): ?>
+                                                        <small style="color:red; font-size:0.7rem; font-weight:700;">● new</small>
+                                                    <?php endif; ?>
+                                                </div>
                                             </div>
                                         </div>
                                     </a>
                                 <?php endwhile; else: ?>
-                                    <div style="padding:24px; text-align:center; color:var(--text-muted); font-size:0.9rem;">No notifications yet.</div>
+                                    <div style="padding:20px; text-align:center; color:var(--text-muted); font-size:0.85rem;">No notifications yet.</div>
                                 <?php endif; ?>
                             </div>
-                            <div style="display:flex; border-top:1px solid var(--border-color);">
-                                <a href="?action=mark_all_read&tab=<?= htmlspecialchars($tab) ?>" style="flex:1; padding:12px; text-align:center; color:var(--text-muted); font-size:0.8rem; text-decoration:none; background:var(--bg-main);" onmouseover="this.style.background='rgba(37,99,235,0.06)'; this.style.color='var(--primary)';" onmouseout="this.style.background='var(--bg-main)'; this.style.color='var(--text-muted)';">Mark all as read</a>
+                            <div style="display:flex; border-top:1px solid var(--border-color); background:var(--bg-main);">
+                                <a href="?action=mark_all_read&tab=<?= htmlspecialchars($tab) ?>" style="flex:1; padding:9px 4px; text-align:center; color:var(--text-muted); font-size:0.72rem; text-decoration:none;" onmouseover="this.style.color='var(--primary)';" onmouseout="this.style.color='var(--text-muted)';">Mark Read</a>
                                 <div style="width:1px; background:var(--border-color);"></div>
-                                <a href="?action=delete_all_notifications&tab=<?= htmlspecialchars($tab) ?>" onclick="return confirm('Delete all your notifications?')" style="flex:1; padding:12px; text-align:center; color:var(--danger); font-size:0.8rem; font-weight:700; text-decoration:none; background:var(--bg-main);" onmouseover="this.style.background='rgba(239,68,68,0.08)'" onmouseout="this.style.background='var(--bg-main)'">Delete all</a>
+                                <a href="?action=delete_all_notifications&tab=<?= htmlspecialchars($tab) ?>" onclick="return confirm('Delete all your notifications?')" style="flex:1; padding:9px 4px; text-align:center; color:var(--danger); font-size:0.72rem; font-weight:700; text-decoration:none;" onmouseover="this.style.background='rgba(239,68,68,0.08)'" onmouseout="this.style.background='transparent'">Clear All</a>
                                 <div style="width:1px; background:var(--border-color);"></div>
-                                <a href="?tab=notifications" style="flex:1; padding:12px; text-align:center; color:var(--primary); font-size:0.875rem; font-weight:600; text-decoration:none; background:var(--bg-main);" onmouseover="this.style.background='rgba(37,99,235,0.06)'" onmouseout="this.style.background='var(--bg-main)'">View All &rarr;</a>
+                                <a href="?tab=notifications" style="flex:1; padding:9px 4px; text-align:center; color:var(--primary); font-size:0.72rem; font-weight:700; text-decoration:none;" onmouseover="this.style.background='rgba(37,99,235,0.06)'" onmouseout="this.style.background='transparent'">View All &rarr;</a>
                             </div>
                         </div>
                     </div>
