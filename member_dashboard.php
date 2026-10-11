@@ -1019,9 +1019,9 @@ function render_announcement_image($image_path) {
         return '';
     }
     $safe_path = htmlspecialchars($image_path);
-    return '<a href="' . $safe_path . '" target="_blank" style="display:block;margin-top:12px;">'
-        . '<img src="' . $safe_path . '" alt="Announcement image" style="width:100%;max-height:360px;object-fit:cover;border-radius:10px;border:1px solid var(--border-color);">'
-        . '</a>';
+    return '<div style="margin-top:12px;">'
+        . '<img src="' . $safe_path . '" alt="Announcement image" onclick="viewProfileImage(this.src);" style="width:100%;max-height:380px;object-fit:cover;border-radius:10px;border:1px solid var(--border-color);cursor:zoom-in;display:block;box-shadow:0 2px 8px rgba(0,0,0,0.06);transition:opacity 0.15s;" onmouseover="this.style.opacity=0.92" onmouseout="this.style.opacity=1" title="Click to view full image">'
+        . '</div>';
 }
 
 // Notifications
@@ -1034,7 +1034,7 @@ $highlights = $conn->query("SELECT ch.*, p.first_name, p.last_name FROM church_h
 
 // Elder Announcements
 $all_elder_announcements = $conn->query("
-    SELECT ea.*, m.first_name, m.last_name
+    SELECT ea.*, m.first_name, m.last_name, m.profile_picture
     FROM elder_announcements ea
     JOIN members m ON ea.elder_id = m.id
     ORDER BY ea.created_at DESC
@@ -1042,7 +1042,7 @@ $all_elder_announcements = $conn->query("
 
 // Usher Announcements
 $all_usher_announcements = $conn->query("
-    SELECT ua.*, m.first_name, m.last_name
+    SELECT ua.*, m.first_name, m.last_name, m.profile_picture
     FROM usher_announcements ua
     JOIN members m ON ua.usher_id = m.id
     ORDER BY ua.created_at DESC
@@ -1053,7 +1053,7 @@ $dept_announcements = null;
 if (!empty($member['department']) && $member['department'] !== 'None') {
     $my_dept = $conn->real_escape_string($member['department']);
     $dept_announcements = $conn->query("
-        SELECT da.*, m.first_name, m.last_name, m.church_role
+        SELECT da.*, m.first_name, m.last_name, m.church_role, m.profile_picture
         FROM department_announcements da
         JOIN members m ON da.secretary_id = m.id
         WHERE da.department = '$my_dept'
@@ -1061,7 +1061,7 @@ if (!empty($member['department']) && $member['department'] !== 'None') {
     ");
 }
 $general_church_announcements = $conn->query("
-    SELECT da.*, m.first_name, m.last_name, m.church_role
+    SELECT da.*, m.first_name, m.last_name, m.church_role, m.profile_picture
     FROM department_announcements da
     JOIN members m ON da.secretary_id = m.id
     WHERE da.department = 'General Church'
@@ -3360,124 +3360,208 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 </div>
 
             <?php elseif ($tab == 'announcements'): ?>
-                <div class="page-header">
-                    <h1>Community Announcements</h1>
-                    <p>Read the latest announcements from the Pastor, Senior Church Elders, and Department Leaders.</p>
+                <div class="page-header" style="margin-bottom:24px;">
+                    <h1 style="display:flex;align-items:center;gap:10px;">
+                        <span>📢</span> Church Announcements
+                    </h1>
+                    <p>Official church broadcasts, voice notes, and communications from the Pastor, Elders, and Church Leaders.</p>
                 </div>
 
-                <div class="content-card" style="max-width: 800px; margin: 0 auto; background: transparent; box-shadow: none; padding: 0;">
+                <div class="content-card" style="max-width: 820px; margin: 0 auto; background: transparent; box-shadow: none; padding: 0;">
                     <!-- From The Pastor: Announcements & WhatsApp Voice Notes -->
                     <?php
                     $conn->query("CREATE TABLE IF NOT EXISTS pastor_announcements (id INT AUTO_INCREMENT PRIMARY KEY, pastor_id INT NOT NULL, message TEXT NOT NULL, image_path VARCHAR(255) NULL, audio_path VARCHAR(255) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
                     $pastor_gen_anns = $conn->query("SELECT pa.*, p.first_name, p.last_name, p.profile_picture FROM pastor_announcements pa LEFT JOIN pastors p ON pa.pastor_id = p.id ORDER BY pa.created_at DESC LIMIT 50");
                     if ($pastor_gen_anns && $pastor_gen_anns->num_rows > 0): ?>
-                    <div style="margin-bottom:28px;">
-                        <h2 style="font-size:1.15rem;color:#10b981;margin-bottom:15px;text-transform:uppercase;display:flex;align-items:center;gap:8px;">
-                            <span>📢 From The Pastor</span>
-                            <span style="font-size:0.75rem;background:rgba(16,185,129,0.15);color:#10b981;padding:2px 10px;border-radius:20px;font-weight:700;">Official Church Message</span>
-                        </h2>
+                    <div style="margin-bottom:32px;">
+                        <!-- Pastoral Broadcast Section Header -->
+                        <div style="background:linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(5,150,105,0.05) 100%); border:1.5px solid rgba(16,185,129,0.35); border-radius:16px; padding:16px 20px; margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; box-shadow:0 3px 12px rgba(16,185,129,0.08);">
+                            <div style="display:flex;align-items:center;gap:12px;">
+                                <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#10b981,#059669);color:#ffffff;display:flex;align-items:center;justify-content:center;font-size:1.4rem;box-shadow:0 4px 12px rgba(16,185,129,0.35);">
+                                    🎙️
+                                </div>
+                                <div>
+                                    <h2 style="font-size:1.15rem;color:#065f46;margin:0;font-weight:800;display:flex;align-items:center;gap:8px;">
+                                        <span>From The Pastor</span>
+                                        <span style="font-size:0.68rem;background:#10b981;color:#ffffff;padding:2px 8px;border-radius:12px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">Official Broadcast</span>
+                                    </h2>
+                                    <p style="margin:2px 0 0;font-size:0.82rem;color:var(--text-muted);">Listen to voice notes and read general church announcements directly from the Pastor</p>
+                                </div>
+                            </div>
+                            <span style="font-size:0.78rem;font-weight:800;color:#059669;background:#ffffff;padding:5px 14px;border-radius:20px;border:1px solid rgba(16,185,129,0.3);box-shadow:0 2px 6px rgba(0,0,0,0.04);">
+                                <?= $pastor_gen_anns->num_rows ?> <?= $pastor_gen_anns->num_rows === 1 ? 'Announcement' : 'Announcements' ?>
+                            </span>
+                        </div>
+
                         <?php while ($pa = $pastor_gen_anns->fetch_assoc()): 
                             $p_display_name = !empty($pa['first_name']) ? ('Pastor ' . htmlspecialchars($pa['first_name'] . ' ' . $pa['last_name'])) : 'Senior Pastor';
                             $p_pic = !empty($pa['profile_picture']) ? 'uploads/' . htmlspecialchars($pa['profile_picture']) : 'uploads/default_avatar.png';
                         ?>
-                            <div class="content-card" style="margin-bottom:20px;border-left:4px solid #10b981;background:var(--bg-card);box-shadow:0 3px 12px rgba(16,185,129,0.1);">
-                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                                    <div style="display:flex;align-items:center;gap:10px;">
-                                        <img src="<?= $p_pic ?>" alt="Pastor" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #10b981;">
+                            <div class="content-card pastoral-ann-card" style="margin-bottom:20px;border-radius:16px;border:1.5px solid rgba(16,185,129,0.3);border-left:5px solid #10b981;background:var(--bg-card);box-shadow:0 4px 18px rgba(16,185,129,0.08);padding:18px 20px;position:relative;">
+                                <!-- Top Row: Pastor Avatar, Name, Badge, Date -->
+                                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(16,185,129,0.15);">
+                                    <div style="display:flex;align-items:center;gap:12px;">
+                                        <!-- Clickable Pastor Profile Picture -->
+                                        <div style="position:relative;width:48px;height:48px;flex-shrink:0;cursor:zoom-in;" onclick="viewProfileImage('<?= $p_pic ?>');" title="Click to view full photo">
+                                            <img src="<?= $p_pic ?>" alt="Pastor" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2.5px solid #10b981;box-shadow:0 3px 10px rgba(16,185,129,0.3);transition:transform 0.15s,box-shadow 0.15s;" onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 5px 14px rgba(16,185,129,0.45)';" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 3px 10px rgba(16,185,129,0.3)';">
+                                            <span style="position:absolute;bottom:-2px;right:-2px;background:#10b981;color:#ffffff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;border:1.5px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.2);" title="Church Pastor">✓</span>
+                                        </div>
                                         <div>
-                                            <h3 style="color:#10b981;margin:0;font-size:1rem;"><?= $p_display_name ?></h3>
-                                            <span style="font-size:0.75rem;color:var(--text-muted);">Church Pastor · General Announcement</span>
+                                            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                                <h3 style="color:var(--text-main);margin:0;font-size:1.02rem;font-weight:800;cursor:zoom-in;" onclick="viewProfileImage('<?= $p_pic ?>');" title="Click to view full photo"><?= $p_display_name ?></h3>
+                                                <span style="font-size:0.7rem;background:rgba(16,185,129,0.12);color:#059669;padding:2px 8px;border-radius:12px;font-weight:800;border:1px solid rgba(16,185,129,0.25);">Senior Pastor</span>
+                                            </div>
+                                            <span style="font-size:0.76rem;color:var(--text-muted);display:block;margin-top:1px;">E.A.P.C Munyari Church · General Announcement</span>
                                         </div>
                                     </div>
-                                    <small style="color:var(--text-muted);font-size:0.8rem;"><?= date('M j, Y g:i A', strtotime($pa['created_at'])) ?></small>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <?php if (!empty($pa['audio_path'])): ?>
+                                            <span style="font-size:0.72rem;font-weight:800;color:#059669;background:rgba(37,211,102,0.15);border:1px solid rgba(37,211,102,0.35);padding:3px 10px;border-radius:14px;display:inline-flex;align-items:center;gap:4px;">
+                                                🎙️ Voice Note
+                                            </span>
+                                        <?php endif; ?>
+                                        <small style="color:var(--text-muted);font-size:0.8rem;font-weight:600;"><?= date('M j, Y · g:i A', strtotime($pa['created_at'])) ?></small>
+                                    </div>
                                 </div>
-                                <p style="line-height:1.6;white-space:pre-wrap;font-size:0.92rem;margin:8px 0;"><?= htmlspecialchars($pa['message']) ?></p>
-                                <?php if (!empty($pa['audio_path'])): ?>
-                                    <?= render_whatsapp_voice_player($pa['audio_path'], $p_display_name, $p_pic, $pa['created_at']) ?>
+
+                                <!-- Announcement Text Message -->
+                                <?php 
+                                $show_msg = trim($pa['message']);
+                                $is_plain_placeholder = (strpos($show_msg, 'Voice Message from Pastor') !== false || strpos($show_msg, '🎙️') !== false);
+                                if (!empty($show_msg) && (!$is_plain_placeholder || empty($pa['audio_path']))):
+                                ?>
+                                    <div style="line-height:1.65;white-space:pre-wrap;font-size:0.95rem;color:var(--text-main);margin:10px 0 14px;padding:2px 0;">
+                                        <?= htmlspecialchars($show_msg) ?>
+                                    </div>
                                 <?php endif; ?>
+
+                                <!-- WhatsApp Voice Player (Animated dancing waveform & download button) -->
+                                <?php if (!empty($pa['audio_path'])): ?>
+                                    <div style="margin:8px 0 12px;">
+                                        <?= render_whatsapp_voice_player($pa['audio_path'], $p_display_name, $p_pic, $pa['created_at']) ?>
+                                    </div>
+                                <?php endif; ?>
+
+                                <!-- Announcement Image Attachment (Clickable to Zoom) -->
                                 <?php if (!empty($pa['image_path'])): ?>
-                                    <a href="<?= htmlspecialchars($pa['image_path']) ?>" target="_blank" style="display:block;margin-top:12px;">
-                                        <img src="<?= htmlspecialchars($pa['image_path']) ?>" alt="Announcement" style="width:100%;max-height:360px;object-fit:cover;border-radius:10px;border:1px solid var(--border-color);">
-                                    </a>
+                                    <div style="margin-top:12px;">
+                                        <img src="<?= htmlspecialchars($pa['image_path']) ?>" alt="Announcement" onclick="viewProfileImage(this.src);" style="width:100%;max-height:420px;object-fit:cover;border-radius:12px;border:1px solid var(--border-color);cursor:zoom-in;box-shadow:0 4px 14px rgba(0,0,0,0.06);display:block;transition:opacity 0.2s;" onmouseover="this.style.opacity=0.96" onmouseout="this.style.opacity=1" title="Click to view full image">
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         <?php endwhile; ?>
                     </div>
                     <?php endif; ?>
+
                     <!-- General Church Secretary Announcements -->
                     <?php if ($general_church_announcements && $general_church_announcements->num_rows > 0): ?>
-                        <h2 style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 15px; text-transform: uppercase;">General Church</h2>
-                        <?php while ($gann = $general_church_announcements->fetch_assoc()): ?>
-                            <div class="content-card" style="margin-bottom: 20px; border-left: 4px solid var(--primary);">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                    <div>
-                                        <h3 style="color: var(--primary); margin: 0;"><?= htmlspecialchars($gann['first_name'] . ' ' . $gann['last_name']) ?></h3>
-                                        <span style="font-size: 0.8rem; color: var(--text-muted);"><?= htmlspecialchars($gann['church_role']) ?></span>
+                        <div style="margin-bottom:28px;">
+                            <h2 style="font-size:1.05rem;color:var(--primary);margin-bottom:14px;text-transform:uppercase;display:flex;align-items:center;gap:8px;font-weight:800;">
+                                <span>🏛️</span> General Church Secretary Announcements
+                            </h2>
+                            <?php while ($gann = $general_church_announcements->fetch_assoc()): 
+                                $g_pic = !empty($gann['profile_picture']) ? 'uploads/' . htmlspecialchars($gann['profile_picture']) : 'uploads/default_avatar.png';
+                            ?>
+                                <div class="content-card" style="margin-bottom:18px;border-radius:14px;border-left:4px solid var(--primary);box-shadow:0 3px 12px rgba(0,0,0,0.04);">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <img src="<?= $g_pic ?>" alt="Secretary" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);cursor:zoom-in;transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'" onclick="viewProfileImage(this.src);" title="Click to view full photo">
+                                            <div>
+                                                <h3 style="color:var(--primary);margin:0;font-size:0.98rem;font-weight:800;cursor:zoom-in;" onclick="viewProfileImage('<?= $g_pic ?>');" title="Click to view full photo"><?= htmlspecialchars($gann['first_name'] . ' ' . $gann['last_name']) ?></h3>
+                                                <span style="font-size:0.76rem;color:var(--text-muted);"><?= htmlspecialchars($gann['church_role']) ?></span>
+                                            </div>
+                                        </div>
+                                        <small style="color:var(--text-muted);font-size:0.78rem;font-weight:600;"><?= date('M j, Y · g:i A', strtotime($gann['created_at'])) ?></small>
                                     </div>
-                                    <small style="color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($gann['created_at'])) ?></small>
+                                    <p style="line-height:1.6;white-space:pre-wrap;font-size:0.92rem;margin:8px 0;"><?= htmlspecialchars($gann['message']) ?></p>
+                                    <?= render_announcement_image($gann['image_path'] ?? '') ?>
                                 </div>
-                                <p style="line-height: 1.6; white-space: pre-wrap;"><?= htmlspecialchars($gann['message']) ?></p>
-                                <?= render_announcement_image($gann['image_path'] ?? '') ?>
-                            </div>
-                        <?php endwhile; ?>
+                            <?php endwhile; ?>
+                        </div>
                     <?php endif; ?>
 
                     <!-- Department Announcements -->
                     <?php if ($dept_announcements && $dept_announcements->num_rows > 0): ?>
-                        <h2 style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 15px; text-transform: uppercase;"><?= htmlspecialchars($member['department']) ?> Department</h2>
-                        <?php while ($dann = $dept_announcements->fetch_assoc()): ?>
-                            <div class="content-card" style="margin-bottom: 20px; border-left: 4px solid var(--secondary);">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                    <div>
-                                        <h3 style="color: var(--secondary); margin: 0;"><?= htmlspecialchars($dann['first_name'] . ' ' . $dann['last_name']) ?></h3>
-                                        <span style="font-size: 0.8rem; color: var(--text-muted);"><?= htmlspecialchars(clean_role_display($dann['church_role'])) ?></span>
+                        <div style="margin-bottom:28px;">
+                            <h2 style="font-size:1.05rem;color:var(--secondary);margin-bottom:14px;text-transform:uppercase;display:flex;align-items:center;gap:8px;font-weight:800;">
+                                <span>👥</span> <?= htmlspecialchars($member['department']) ?> Department Announcements
+                            </h2>
+                            <?php while ($dann = $dept_announcements->fetch_assoc()): 
+                                $d_pic = !empty($dann['profile_picture']) ? 'uploads/' . htmlspecialchars($dann['profile_picture']) : 'uploads/default_avatar.png';
+                            ?>
+                                <div class="content-card" style="margin-bottom:18px;border-radius:14px;border-left:4px solid var(--secondary);box-shadow:0 3px 12px rgba(0,0,0,0.04);">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <img src="<?= $d_pic ?>" alt="Leader" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid var(--secondary);cursor:zoom-in;transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'" onclick="viewProfileImage(this.src);" title="Click to view full photo">
+                                            <div>
+                                                <h3 style="color:var(--secondary);margin:0;font-size:0.98rem;font-weight:800;cursor:zoom-in;" onclick="viewProfileImage('<?= $d_pic ?>');" title="Click to view full photo"><?= htmlspecialchars($dann['first_name'] . ' ' . $dann['last_name']) ?></h3>
+                                                <span style="font-size:0.76rem;color:var(--text-muted);"><?= htmlspecialchars(clean_role_display($dann['church_role'])) ?></span>
+                                            </div>
+                                        </div>
+                                        <small style="color:var(--text-muted);font-size:0.78rem;font-weight:600;"><?= date('M j, Y · g:i A', strtotime($dann['created_at'])) ?></small>
                                     </div>
-                                    <small style="color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($dann['created_at'])) ?></small>
+                                    <p style="line-height:1.6;white-space:pre-wrap;font-size:0.92rem;margin:8px 0;"><?= htmlspecialchars($dann['message']) ?></p>
+                                    <?= render_announcement_image($dann['image_path'] ?? '') ?>
                                 </div>
-                                <p style="line-height: 1.6; white-space: pre-wrap;"><?= htmlspecialchars($dann['message']) ?></p>
-                                <?= render_announcement_image($dann['image_path'] ?? '') ?>
-                            </div>
-                        <?php endwhile; ?>
-                        <!-- Reset pointer so other tabs can use it if needed -->
-                        <?php $dept_announcements->data_seek(0); ?>
+                            <?php endwhile; ?>
+                            <?php $dept_announcements->data_seek(0); ?>
+                        </div>
                     <?php endif; ?>
 
                     <!-- Elder Announcements -->
                     <?php if ($all_elder_announcements && $all_elder_announcements->num_rows > 0): ?>
-                        <h2 style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 15px; margin-top: 20px; text-transform: uppercase;">Elder Announcements</h2>
-                        <?php while ($eann = $all_elder_announcements->fetch_assoc()): ?>
-                            <div class="content-card" style="margin-bottom: 20px; border-left: 4px solid var(--warning);">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                    <div>
-                                        <h3 style="color: var(--warning); margin: 0;"><?= htmlspecialchars($eann['first_name'] . ' ' . $eann['last_name']) ?></h3>
-                                        <span style="font-size: 0.8rem; color: var(--text-muted);">Senior Church Elder</span>
+                        <div style="margin-bottom:28px;">
+                            <h2 style="font-size:1.05rem;color:var(--warning);margin-bottom:14px;text-transform:uppercase;display:flex;align-items:center;gap:8px;font-weight:800;">
+                                <span>⛪</span> Senior Church Elder Announcements
+                            </h2>
+                            <?php while ($eann = $all_elder_announcements->fetch_assoc()): 
+                                $e_pic = !empty($eann['profile_picture']) ? 'uploads/' . htmlspecialchars($eann['profile_picture']) : 'uploads/default_avatar.png';
+                            ?>
+                                <div class="content-card" style="margin-bottom:18px;border-radius:14px;border-left:4px solid var(--warning);box-shadow:0 3px 12px rgba(0,0,0,0.04);">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <img src="<?= $e_pic ?>" alt="Elder" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid var(--warning);cursor:zoom-in;transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'" onclick="viewProfileImage(this.src);" title="Click to view full photo">
+                                            <div>
+                                                <h3 style="color:var(--warning);margin:0;font-size:0.98rem;font-weight:800;cursor:zoom-in;" onclick="viewProfileImage('<?= $e_pic ?>');" title="Click to view full photo"><?= htmlspecialchars($eann['first_name'] . ' ' . $eann['last_name']) ?></h3>
+                                                <span style="font-size:0.76rem;color:var(--text-muted);">Senior Church Elder</span>
+                                            </div>
+                                        </div>
+                                        <small style="color:var(--text-muted);font-size:0.78rem;font-weight:600;"><?= date('M j, Y · g:i A', strtotime($eann['created_at'])) ?></small>
                                     </div>
-                                    <small style="color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($eann['created_at'])) ?></small>
+                                    <p style="line-height:1.6;white-space:pre-wrap;font-size:0.92rem;margin:8px 0;"><?= htmlspecialchars($eann['message']) ?></p>
+                                    <?= render_announcement_image($eann['image_path'] ?? '') ?>
                                 </div>
-                                <p style="line-height: 1.6; white-space: pre-wrap;"><?= htmlspecialchars($eann['message']) ?></p>
-                                <?= render_announcement_image($eann['image_path'] ?? '') ?>
-                            </div>
-                        <?php endwhile; ?>
-                        <?php $all_elder_announcements->data_seek(0); ?>
+                            <?php endwhile; ?>
+                            <?php $all_elder_announcements->data_seek(0); ?>
+                        </div>
                     <?php endif; ?>
 
                     <!-- Usher Announcements -->
                     <?php if ($all_usher_announcements && $all_usher_announcements->num_rows > 0): ?>
-                        <h2 style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 15px; margin-top: 20px; text-transform: uppercase;">Usher Announcements</h2>
-                        <?php while ($uann = $all_usher_announcements->fetch_assoc()): ?>
-                            <div class="content-card" style="margin-bottom: 20px; border-left: 4px solid #10b981;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                    <div>
-                                        <h3 style="color: #10b981; margin: 0;"><?= htmlspecialchars($uann['title']) ?></h3>
-                                        <span style="font-size: 0.8rem; color: var(--text-muted);"><?= htmlspecialchars($uann['first_name'] . ' ' . $uann['last_name']) ?> (Head Usher)</span>
+                        <div style="margin-bottom:28px;">
+                            <h2 style="font-size:1.05rem;color:#10b981;margin-bottom:14px;text-transform:uppercase;display:flex;align-items:center;gap:8px;font-weight:800;">
+                                <span>🤝</span> Usher Announcements
+                            </h2>
+                            <?php while ($uann = $all_usher_announcements->fetch_assoc()): 
+                                $u_pic = !empty($uann['profile_picture']) ? 'uploads/' . htmlspecialchars($uann['profile_picture']) : 'uploads/default_avatar.png';
+                            ?>
+                                <div class="content-card" style="margin-bottom:18px;border-radius:14px;border-left:4px solid #10b981;box-shadow:0 3px 12px rgba(0,0,0,0.04);">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <img src="<?= $u_pic ?>" alt="Usher" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid #10b981;cursor:zoom-in;transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'" onclick="viewProfileImage(this.src);" title="Click to view full photo">
+                                            <div>
+                                                <h3 style="color:#10b981;margin:0;font-size:0.98rem;font-weight:800;"><?= htmlspecialchars($uann['title'] ?? 'Usher Announcement') ?></h3>
+                                                <span style="font-size:0.76rem;color:var(--text-muted);cursor:zoom-in;" onclick="viewProfileImage('<?= $u_pic ?>');" title="Click to view full photo"><?= htmlspecialchars($uann['first_name'] . ' ' . $uann['last_name']) ?> (Head Usher)</span>
+                                            </div>
+                                        </div>
+                                        <small style="color:var(--text-muted);font-size:0.78rem;font-weight:600;"><?= date('M j, Y · g:i A', strtotime($uann['created_at'])) ?></small>
                                     </div>
-                                    <small style="color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($uann['created_at'])) ?></small>
+                                    <p style="line-height:1.6;white-space:pre-wrap;font-size:0.92rem;margin:8px 0;"><?= htmlspecialchars($uann['message']) ?></p>
+                                    <?= render_announcement_image($uann['image_path'] ?? '') ?>
                                 </div>
-                                <p style="line-height: 1.6; white-space: pre-wrap;"><?= htmlspecialchars($uann['message']) ?></p>
-                                <?= render_announcement_image($uann['image_path'] ?? '') ?>
-                            </div>
-                        <?php endwhile; ?>
-                        <?php $all_usher_announcements->data_seek(0); ?>
+                            <?php endwhile; ?>
+                            <?php $all_usher_announcements->data_seek(0); ?>
+                        </div>
                     <?php endif; ?>
 
                     <?php if ($is_youth_advisor_scope): ?>

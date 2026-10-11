@@ -295,7 +295,7 @@ function render_whatsapp_voice_player($audio_path, $speaker_name = 'Pastor', $sp
 
         <!-- Avatar with animated ring when playing -->
         <div style="position:relative; width:44px; height:44px; flex-shrink:0;">
-            <img src="<?= $pic_url ?>" alt="<?= $safe_name ?>" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2.5px solid #25d366; display:block; box-shadow:0 2px 8px rgba(37,211,102,0.3);">
+            <img src="<?= $pic_url ?>" alt="<?= $safe_name ?>" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2.5px solid #25d366; display:block; box-shadow:0 2px 8px rgba(37,211,102,0.3); cursor:zoom-in; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'" onclick="if(typeof viewProfileImage==='function'){viewProfileImage(this.src);}" title="Click to view full photo">
             <span style="position:absolute; bottom:-2px; right:-2px; background:linear-gradient(135deg,#25d366,#16a34a); color:#ffffff; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; box-shadow:0 1px 4px rgba(0,0,0,0.25); border:1.5px solid #ffffff;" title="Voice Note">🎙️</span>
         </div>
 
