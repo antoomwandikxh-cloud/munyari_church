@@ -5004,24 +5004,28 @@ w.document.write('</div>');
                                     color: #94a3b8 !important;
                                 }
                             </style>
-                            <div id="msb-wrap" style="position:relative;">
-                                <!-- Search icon inside the textbox -->
-                                <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#9ca3af; pointer-events:none; display:flex; align-items:center; z-index:1;">
-                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                                </span>
-                                <input type="text" id="member_search_textbox"
-                                       autocomplete="off"
-                                       placeholder="Type member name to search..."
-                                       value="<?= $active_chat_member ? htmlspecialchars($active_chat_member['first_name'] . ' ' . $active_chat_member['last_name'] . ' (' . $active_chat_member['department'] . ')') : '' ?>"
-                                       onfocus="this.select(); openMemberDropdown(true);"
-                                       onclick="openMemberDropdown(true);"
-                                       oninput="filterMemberDropdownLive(this.value);"
-                                       onkeydown="handleMemberSearchKey(event);">
-                                <!-- Dropdown arrow -->
-                                <span id="member_dropdown_arrow" onclick="toggleMemberDropdown();" title="Show all members"
-                                      style="position:absolute; right:62px; top:50%; transform:translateY(-50%); color:#9ca3af; cursor:pointer; user-select:none; padding:6px; display:flex; align-items:center; z-index:1;">
-                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                </span>
+                            <div id="msb-wrap">
+                                <!-- Input wrapper: relative so icons sit inside the text field -->
+                                <div style="position:relative; flex:1; display:flex; align-items:stretch;">
+                                    <!-- Search magnifier icon (left) -->
+                                    <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#9ca3af; pointer-events:none; display:flex; align-items:center; z-index:2;">
+                                        <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                    </span>
+                                    <input type="text" id="member_search_textbox"
+                                           autocomplete="off"
+                                           placeholder="Type member name to search..."
+                                           value="<?= $active_chat_member ? htmlspecialchars($active_chat_member['first_name'] . ' ' . $active_chat_member['last_name'] . ' (' . $active_chat_member['department'] . ')') : '' ?>"
+                                           onfocus="this.select(); openMemberDropdown(true);"
+                                           onclick="openMemberDropdown(true);"
+                                           oninput="filterMemberDropdownLive(this.value);"
+                                           onkeydown="handleMemberSearchKey(event);">
+                                    <!-- Dropdown toggle arrow (right, inside input) -->
+                                    <span id="member_dropdown_arrow" onclick="toggleMemberDropdown();" title="Show all members"
+                                          style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#9ca3af; cursor:pointer; user-select:none; padding:6px; display:flex; align-items:center; z-index:2;">
+                                        <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                                    </span>
+                                </div>
+                                <!-- Search button: sits cleanly beside the input, never overlapped -->
                                 <button type="button" id="member_search_btn" onclick="executeMemberSearch();">
                                     <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                     Search
