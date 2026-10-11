@@ -185,8 +185,8 @@ font-style:italic;background:rgba(255,255,255,0.95);padding:4px 0;z-index:10;bor
     margin-bottom: 2px;
 }
 .pastor-profile img, .pastor-profile .avatar-placeholder {
-    width: 64px; height: 64px; border-radius: 50%;
-    object-fit: cover; border: 2.5px solid #1e3a8a;
+    width: 90px; height: 90px; border-radius: 50%;
+    object-fit: cover; border: 3px solid #1e3a8a;
 }
 .pastor-profile .avatar-placeholder {
     background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 1.8rem;

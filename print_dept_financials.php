@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once 'db_connect.php';
 
@@ -141,7 +141,7 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
         .header-text h3 { margin: 0; font-size: 14px; color: #555; }
         
         .treasurer-profile { text-align: center; margin-bottom: 20px; }
-        .treasurer-profile img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #1e3a8a; }
+        .treasurer-profile img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #1e3a8a; }
         .treasurer-profile .name { font-weight: bold; font-size: 16px; margin-top: 5px; text-transform: uppercase; }
         .treasurer-profile .role { font-size: 10px; color: #666; }
 

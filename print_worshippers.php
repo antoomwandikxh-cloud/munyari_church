@@ -114,8 +114,8 @@ body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background:
     background: transparent; border-radius: 0; padding: 8px 16px;
     border: none; min-width: 200px;
 }
-.leader-card img { width: 44px; height: 44px; border-radius: 50% !important; object-fit: cover !important; border: none !important; overflow: hidden !important; -webkit-clip-path: circle(50% at 50% 50%) !important; clip-path: circle(50% at 50% 50%) !important; }
-.leader-card .ph { width: 44px; height: 44px; border-radius: 50%; background: #ede9fe; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; border: none; flex-shrink: 0; }
+.leader-card img { width: 72px; height: 72px; border-radius: 50% !important; object-fit: cover !important; border: 2px solid #8b5cf6 !important; overflow: hidden !important; -webkit-clip-path: circle(50% at 50% 50%) !important; clip-path: circle(50% at 50% 50%) !important; }
+.leader-card .ph { width: 72px; height: 72px; border-radius: 50%; background: #ede9fe; display: flex; align-items: center; justify-content: center; font-size: 2rem; border: none; flex-shrink: 0; }
 .leader-card .lrole { font-size: 0.65rem; font-weight: 800; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.5px; }
 .leader-card .lname { font-size: 0.88rem; font-weight: 700; color: #1e1b4b; }
 

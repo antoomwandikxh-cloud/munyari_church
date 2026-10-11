@@ -162,8 +162,8 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 14px; color: #111; fo
 }
 .lcard { text-align: center; }
 .lcard img, .lcard .avatar-ph {
-    width: 62px; height: 62px; border-radius: 50%; object-fit: cover;
-    border: 3px solid #1e3a8a; display: block; margin: 0 auto 4px;
+    width: 90px; height: 90px; border-radius: 50%; object-fit: cover;
+    border: 3px solid #1e3a8a; display: block; margin: 0 auto 6px;
 }
 .lcard .avatar-ph {
     background: #dbeafe; display: flex; align-items: center; justify-content: center;

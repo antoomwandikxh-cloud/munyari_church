@@ -174,7 +174,7 @@ if (file_exists($logo_path)) {
             border-radius: 10px;
             background: #f9fafb;
         }
-        .leader-block img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 3px solid #1e3a8a; margin-bottom: 8px; }
+        .leader-block img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #1e3a8a; margin-bottom: 10px; }
         .leader-block .lb-name { font-size: 15px; font-weight: 700; color: #1e3a8a; text-transform: uppercase; }
         .leader-block .lb-role { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
 
