@@ -5079,16 +5079,21 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
 
                                         <?php if(!$is_my_reply): ?>
                                         <!-- Inline Reply Box -->
-                                        <div id="member-reply-<?= $msg['id'] ?>" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-color); padding-left:48px;">
+                                        <div id="member-reply-<?= $msg['id'] ?>" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--border-color); padding-left:48px;">
                                             <form method="POST" action="member_action.php?action=reply_to_pastor">
                                                 <input type="hidden" name="pastor_id" value="<?= $target_pastor_id ?>">
                                                 <input type="hidden" name="reply_to_id" value="<?= $msg['id'] ?>">
-                                                <div style="font-size:0.8rem; font-weight:700; color:var(--primary); margin-bottom:6px;">
+                                                <div style="font-size:0.82rem; font-weight:700; color:var(--primary); margin-bottom:8px;">
                                                     ↩️ Replying to Pastor <?= htmlspecialchars($p_display_name) ?>:
                                                 </div>
-                                                <div style="display:flex; gap:8px; align-items:flex-start;">
-                                                    <textarea name="message" class="form-control" rows="2" placeholder="Write your reply to Pastor <?= htmlspecialchars($p_display_name) ?>..." required style="flex:1; font-size:0.88rem;"></textarea>
-                                                    <button type="submit" class="btn-submit" style="padding:8px 16px; font-size:0.85rem; height:auto; white-space:nowrap;">Send</button>
+                                                <div style="display:flex; flex-direction:column; gap:8px;">
+                                                    <textarea name="message" class="form-control" rows="4" placeholder="Write your reply to Pastor <?= htmlspecialchars($p_display_name) ?>..." required style="width:100%; font-size:0.92rem; min-height:100px; resize:vertical; padding:12px 14px; box-sizing:border-box; border-radius:10px;"></textarea>
+                                                    <div style="display:flex; justify-content:flex-end;">
+                                                        <button type="submit" class="btn-submit" style="padding:9px 24px; font-size:0.88rem; height:auto; white-space:nowrap; border-radius:8px; display:inline-flex; align-items:center; gap:6px;">
+                                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                                                            Send Reply
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </form>
                                         </div>
