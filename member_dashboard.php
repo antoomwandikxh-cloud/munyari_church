@@ -1580,6 +1580,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_worship_task'])
     }
 }
 
+// Custom Worship Task Suggestions: Add suggestion
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_worship_suggestion']) && ($is_worship_leader || $is_vice_worship_leader)) {
+    $sug = trim($_POST['suggestion_text'] ?? '');
+    if (!empty($sug)) {
+        $sug_esc = $conn->real_escape_string($sug);
+        $check = $conn->query("SELECT id FROM worship_task_suggestions WHERE LOWER(suggestion_text) = LOWER('$sug_esc') LIMIT 1");
+        if ($check && $check->num_rows == 0) {
+            $conn->query("INSERT INTO worship_task_suggestions (suggestion_text) VALUES ('$sug_esc')");
+        }
+        header("Location: member_dashboard.php?tab=manage_worshippers&success=Custom suggestion added");
+        exit();
+    }
+}
+
+// Custom Worship Task Suggestions: Delete suggestion
+if (isset($_GET['delete_worship_suggestion']) && ($is_worship_leader || $is_vice_worship_leader)) {
+    $del_id = intval($_GET['delete_worship_suggestion']);
+    if ($del_id > 0) {
+        $conn->query("DELETE FROM worship_task_suggestions WHERE id = $del_id");
+        header("Location: member_dashboard.php?tab=manage_worshippers&success=Suggestion removed");
+        exit();
+    }
+}
+
 // Worshipper marks own task as Done
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['mark_task_done'])) {
     $task_id = intval($_POST['task_id']);
@@ -2942,17 +2966,6 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <!-- Divider -->
                     <div style="width: 1px; height: 36px; background: var(--border-color);"></div>
 
-                    <!-- Dark mode toggle -->
-                    <button id="themeToggle" class="icon-btn" title="Toggle Dark/Light Theme">
-                        <svg id="moonIcon" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-                        <svg id="sunIcon" style="display:none;" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                    </button>
-
-                    <!-- Logout -->
-                    <a href="logout.php" class="icon-btn" title="Sign Out" style="color: var(--danger); border-color: transparent; background: rgba(239, 68, 68, 0.1);">
-                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                    </a>
-
                     <!-- Notification bell with dropdown -->
                     <div style="position:relative;" id="notifBellWrap">
                         <button onclick="toggleNotifDropdown(event)" class="icon-btn notif-bell-btn <?= $unread_notifs > 0 ? 'bell-shake has-unread' : '' ?>" title="Notifications" style="position:relative;">
@@ -3009,7 +3022,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     function toggleNotifDropdown(e) {
                         e.stopPropagation();
                         const d = document.getElementById('notifDropdown');
-                        d.style.display = d.style.display === 'none' ? 'block' : 'none';
+                        if (d) d.style.display = d.style.display === 'none' ? 'block' : 'none';
                     }
                     document.addEventListener('click', function(e) {
                         const wrap = document.getElementById('notifBellWrap');
@@ -3019,6 +3032,55 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         }
                     });
                     </script>
+
+                    <!-- Dark mode toggle -->
+                    <button id="themeToggle" class="icon-btn" title="Toggle Dark/Light Theme">
+                        <svg id="moonIcon" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                        <svg id="sunIcon" style="display:none;" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    </button>
+                    <script>
+                    (function() {
+                        function setupThemeToggle() {
+                            var btn = document.getElementById('themeToggle');
+                            var moon = document.getElementById('moonIcon');
+                            var sun = document.getElementById('sunIcon');
+                            var root = document.documentElement;
+                            if (!btn) return;
+                            var t = localStorage.getItem('theme') || 'light';
+                            if (t === 'dark') {
+                                root.setAttribute('data-theme', 'dark');
+                                if (moon) moon.style.display = 'none';
+                                if (sun) sun.style.display = 'block';
+                            } else {
+                                root.removeAttribute('data-theme');
+                                if (moon) moon.style.display = 'block';
+                                if (sun) sun.style.display = 'none';
+                            }
+                            btn.onclick = function(e) {
+                                e.preventDefault();
+                                var isDark = root.getAttribute('data-theme') === 'dark';
+                                if (isDark) {
+                                    root.removeAttribute('data-theme');
+                                    localStorage.setItem('theme', 'light');
+                                    if (moon) moon.style.display = 'block';
+                                    if (sun) sun.style.display = 'none';
+                                } else {
+                                    root.setAttribute('data-theme', 'dark');
+                                    localStorage.setItem('theme', 'dark');
+                                    if (moon) moon.style.display = 'none';
+                                    if (sun) sun.style.display = 'block';
+                                }
+                            };
+                        }
+                        setupThemeToggle();
+                        document.addEventListener('DOMContentLoaded', setupThemeToggle);
+                    })();
+                    </script>
+
+                    <!-- Logout -->
+                    <a href="logout.php" class="icon-btn" title="Sign Out" style="color: var(--danger); border-color: transparent; background: rgba(239, 68, 68, 0.1);">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </a>
 
                 </div>
             </div>
@@ -5131,13 +5193,40 @@ function filterWTeam() {
             <label style="font-size:0.95rem; font-weight:700; color:var(--text-main); margin-bottom:8px; display:block;">Task Description &amp; Details</label>
             <textarea id="worshipTaskInput" name="task_name" rows="3" required placeholder="Type task details here (e.g. Lead Sunday Worship Service, Coordinate Saturday Vocal Rehearsal, Keyboardist for Youth Service...)" style="padding:14px 18px; font-size:1.05rem; border-radius:12px; border:1.5px solid var(--border-color); background:var(--bg-main); color:var(--text-main); width:100%; min-height:85px; line-height:1.5; resize:vertical; box-shadow:inset 0 1px 3px rgba(0,0,0,0.05);"></textarea>
 
-            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center;">
-                <span style="font-size:0.75rem; color:var(--text-muted); font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Quick Suggestions:</span>
-                <button type="button" onclick="setWorshipTask('Lead Praise Session')" style="background:rgba(139,92,246,0.12); color:#7c3aed; border:1px solid rgba(139,92,246,0.25); padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.15s;">🎤 Lead Praise</button>
-                <button type="button" onclick="setWorshipTask('Lead Worship Session')" style="background:rgba(139,92,246,0.12); color:#7c3aed; border:1px solid rgba(139,92,246,0.25); padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.15s;">🙏 Lead Worship</button>
-                <button type="button" onclick="setWorshipTask('Instruments & Sound Setup')" style="background:rgba(139,92,246,0.12); color:#7c3aed; border:1px solid rgba(139,92,246,0.25); padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.15s;">🎹 Instruments</button>
-                <button type="button" onclick="setWorshipTask('Song Selection & Rehearsal')" style="background:rgba(139,92,246,0.12); color:#7c3aed; border:1px solid rgba(139,92,246,0.25); padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.15s;">🎼 Song Rehearsal</button>
-                <button type="button" onclick="setWorshipTask('Opening Prayer & Dedication')" style="background:rgba(139,92,246,0.12); color:#7c3aed; border:1px solid rgba(139,92,246,0.25); padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.15s;">✨ Opening Prayer</button>
+            <div style="margin-top:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                    <span style="font-size:0.78rem; color:var(--text-muted); font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Quick Suggestions (Click to use, or customize below):</span>
+                    <button type="button" onclick="var b=document.getElementById('addSuggestionBox'); b.style.display = (b.style.display==='none'?'flex':'none');" style="background:none; border:1px dashed #8b5cf6; color:#7c3aed; padding:3px 10px; border-radius:15px; font-size:0.75rem; font-weight:700; cursor:pointer;">
+                        ➕ Add New Suggestion
+                    </button>
+                </div>
+
+                <!-- Add custom suggestion inline form -->
+                <div id="addSuggestionBox" style="display:none; gap:8px; align-items:center; margin-bottom:12px; background:var(--bg-lighter); padding:8px 12px; border-radius:10px; border:1px solid var(--border-color); flex-wrap:wrap;">
+                    <input type="text" id="newSuggestionText" placeholder="e.g. Backing Vocals, Audio Mixer Setup..." style="flex:1; min-width:200px; padding:7px 12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-size:0.85rem;">
+                    <button type="button" onclick="submitNewSuggestion()" style="background:#7c3aed; color:white; border:none; padding:7px 14px; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer;">Save</button>
+                    <button type="button" onclick="document.getElementById('addSuggestionBox').style.display='none';" style="background:none; border:none; color:var(--text-muted); font-size:0.82rem; cursor:pointer;">Cancel</button>
+                </div>
+
+                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                    <?php
+                    $sug_list_q = $conn->query("SELECT * FROM worship_task_suggestions ORDER BY id ASC");
+                    if ($sug_list_q && $sug_list_q->num_rows > 0):
+                        while($sug_item = $sug_list_q->fetch_assoc()):
+                            $s_text = htmlspecialchars($sug_item['suggestion_text']);
+                            $s_id   = (int)$sug_item['id'];
+                    ?>
+                        <span style="display:inline-flex; align-items:center; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.28); border-radius:20px; padding:3px 12px; gap:8px;">
+                            <button type="button" onclick="setWorshipTask('<?= addslashes($sug_item['suggestion_text']) ?>')" style="background:none; border:none; color:#7c3aed; font-size:0.82rem; font-weight:700; cursor:pointer; padding:0;"><?= $s_text ?></button>
+                            <a href="?tab=manage_worshippers&delete_worship_suggestion=<?= $s_id ?>" onclick="return confirm('Remove this suggestion?');" title="Remove suggestion" style="color:#ef4444; text-decoration:none; font-size:0.85rem; font-weight:bold; line-height:1; padding-left:2px;">&times;</a>
+                        </span>
+                    <?php
+                        endwhile;
+                    else:
+                    ?>
+                        <span style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">No suggestions added yet. Click &ldquo;➕ Add New Suggestion&rdquo; to add your own.</span>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
 
@@ -5148,6 +5237,11 @@ function filterWTeam() {
     </form>
 </div>
 
+<form id="hiddenAddSuggestionForm" method="POST" style="display:none;">
+    <input type="hidden" name="add_worship_suggestion" value="1">
+    <input type="hidden" name="suggestion_text" id="hiddenSuggestionText">
+</form>
+
 <script>
 function setWorshipTask(task) {
     var el = document.getElementById('worshipTaskInput');
@@ -5155,6 +5249,15 @@ function setWorshipTask(task) {
         el.value = task;
         el.focus();
     }
+}
+function submitNewSuggestion() {
+    var txt = document.getElementById('newSuggestionText').value.trim();
+    if (!txt) {
+        alert('Please enter a suggestion text');
+        return;
+    }
+    document.getElementById('hiddenSuggestionText').value = txt;
+    document.getElementById('hiddenAddSuggestionForm').submit();
 }
 </script>
 
@@ -8307,35 +8410,6 @@ function setWorshipTask(task) {
     </div>
 
     <script>
-    const themeToggle = document.getElementById('themeToggle');
-    const moonIcon = document.getElementById('moonIcon');
-    const sunIcon = document.getElementById('sunIcon');
-    const htmlEl = document.documentElement;
-
-    // Load saved theme
-    if (localStorage.getItem('theme') === 'dark') {
-        htmlEl.setAttribute('data-theme', 'dark');
-        moonIcon.style.display = 'none';
-        sunIcon.style.display = 'block';
-    }
-
-    if (themeToggle) {
-        themeToggle.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (htmlEl.getAttribute('data-theme') === 'dark') {
-                htmlEl.removeAttribute('data-theme');
-                localStorage.setItem('theme', 'light');
-                if (moonIcon) moonIcon.style.display = 'block';
-                if (sunIcon) sunIcon.style.display = 'none';
-            } else {
-                htmlEl.setAttribute('data-theme', 'dark');
-                localStorage.setItem('theme', 'dark');
-                if (moonIcon) moonIcon.style.display = 'none';
-                if (sunIcon) sunIcon.style.display = 'block';
-            }
-        });
-    }
-
     // Prayer Countdown Timer
     function updateCountdowns() {
         document.querySelectorAll('.prayer-countdown').forEach(el => {
@@ -8411,7 +8485,7 @@ function setWorshipTask(task) {
                 });
             }
             const label = Array.from(document.querySelectorAll('.selected-upload-name')).find(item => {
-                return (item.dataset.for || ').split(',').includes(input.id);
+                return (item.dataset.for || '').split(',').includes(input.id);
             });
             if (label) {
                 label.textContent = input.files && input.files.length ? `Selected: ${input.files[0].name}` : '';
@@ -8442,12 +8516,12 @@ function togglePasswordField(fieldId) {
 }
 document.querySelectorAll('.member-username-check').forEach(function(input) {
     const status = input.parentElement.querySelector('.username-live-status');
-    const submit = document.getElementById(input.dataset.submitId || ');
+    const submit = document.getElementById(input.dataset.submitId || '');
     let timer = null;
 
     async function checkMemberUsername() {
         const value = input.value.trim();
-        const current = (input.dataset.currentUsername || ').trim();
+        const current = (input.dataset.currentUsername || '').trim();
         if (!value) {
             if (status) {
                 status.textContent = 'Type a username to check if it is available.';
