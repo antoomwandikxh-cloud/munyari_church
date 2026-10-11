@@ -4891,69 +4891,78 @@ w.document.write('</div>');
                         <div class="form-group" style="margin-bottom:18px; position:relative;">
                             <label style="font-weight:700; font-size:0.82rem; color:var(--text-muted); margin-bottom:6px; display:block;">Member Search &amp; Selection</label>
                             
-                            <!-- Search row: big textbox + tiny Search button -->
+                            <!-- Search row: big textbox + vivid Search button -->
                             <style>
                                 /* ===== Search Row ===== */
-                                #msb-wrap { display:flex; gap:6px; align-items:stretch; }
+                                #msb-wrap { display:flex; gap:8px; align-items:stretch; }
 
-                                /* Input: always white bg, dark text so text is ALWAYS visible */
+                                /* Input: adapts to light/dark theme, text always visible */
                                 #member_search_textbox {
                                     flex:1;
                                     padding: 0 42px 0 46px;
                                     height: 52px;
-                                    font-size: 1.08rem;
+                                    font-size: 1.05rem;
                                     font-weight: 600;
                                     font-family: inherit;
                                     border: 2px solid #2563eb;
                                     border-radius: 10px;
                                     box-sizing: border-box;
                                     outline: none;
-                                    background: #ffffff !important;
-                                    color: #111827 !important;
-                                    caret-color: #2563eb !important;
+                                    background: var(--bg-card, #ffffff);
+                                    color: var(--text-main, #111827);
+                                    caret-color: #2563eb;
                                     letter-spacing: 0.2px;
                                     transition: border-color 0.2s, box-shadow 0.2s;
                                 }
-                                #member_search_textbox::placeholder { color:#9ca3af; font-weight:400; font-size:0.9rem; }
-                                #member_search_textbox:focus {
-                                    border-color: #1d4ed8 !important;
-                                    box-shadow: 0 0 0 3px rgba(37,99,235,0.2) !important;
-                                    background: #ffffff !important;
-                                    color: #111827 !important;
+                                #member_search_textbox::placeholder {
+                                    color: var(--text-muted, #9ca3af);
+                                    font-weight: 400;
+                                    font-size: 0.9rem;
                                 }
+                                #member_search_textbox:focus {
+                                    border-color: #2563eb;
+                                    box-shadow: 0 0 0 3px rgba(37,99,235,0.2);
+                                }
+                                /* Dark mode input: dark bg + light text */
                                 [data-theme="dark"] #member_search_textbox {
-                                    background: #ffffff !important;
-                                    color: #111827 !important;
-                                    caret-color: #2563eb !important;
+                                    background: #1e293b;
+                                    color: #f1f5f9;
+                                    border-color: #3b82f6;
+                                    caret-color: #60a5fa;
+                                }
+                                [data-theme="dark"] #member_search_textbox::placeholder {
+                                    color: #64748b;
                                 }
 
-                                /* Go button: large, vivid, clearly labelled */
+                                /* ===== Go button: VERY vivid, impossible to miss ===== */
                                 #member_search_btn {
                                     flex-shrink: 0;
-                                    min-width: 56px;
-                                    padding: 0 14px;
-                                    font-size: 0.85rem;
-                                    font-weight: 800;
+                                    min-width: 64px;
+                                    padding: 0 16px;
+                                    font-size: 0.9rem;
+                                    font-weight: 900;
                                     height: 52px;
                                     border-radius: 10px;
                                     white-space: nowrap;
-                                    background: #2563eb;
+                                    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
                                     color: #ffffff;
-                                    border: 2px solid #1d4ed8;
+                                    border: none;
                                     cursor: pointer;
                                     display: inline-flex;
                                     align-items: center;
                                     justify-content: center;
-                                    gap: 5px;
-                                    letter-spacing: 0.5px;
+                                    gap: 6px;
+                                    letter-spacing: 1px;
                                     text-transform: uppercase;
-                                    box-shadow: 0 2px 8px rgba(37,99,235,0.35);
-                                    transition: background 0.15s, box-shadow 0.15s;
+                                    box-shadow: 0 4px 14px rgba(37,99,235,0.5), 0 1px 3px rgba(0,0,0,0.2);
+                                    transition: transform 0.1s, box-shadow 0.15s;
                                 }
                                 #member_search_btn:hover {
-                                    background: #1d4ed8;
-                                    box-shadow: 0 4px 14px rgba(37,99,235,0.45);
+                                    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+                                    box-shadow: 0 6px 20px rgba(37,99,235,0.6);
+                                    transform: translateY(-1px);
                                 }
+                                #member_search_btn:active { transform: translateY(0); }
 
                                 /* ===== Dropdown: adapts to system theme ===== */
                                 #member_dropdown_menu {
@@ -4963,40 +4972,36 @@ w.document.write('</div>');
                                 }
                                 #member_dropdown_menu .dropdown-member-row {
                                     background: transparent;
-                                    color: var(--text-main, #111827) !important;
                                     border-bottom: 1px solid var(--border-color, #e5e7eb);
                                 }
                                 #member_dropdown_menu .dropdown-member-row:hover {
-                                    background: rgba(37,99,235,0.08) !important;
+                                    background: rgba(37,99,235,0.07) !important;
                                 }
                                 #member_dropdown_menu .dropdown-member-row .member-name-text {
                                     color: var(--text-main, #111827) !important;
                                     font-weight: 700;
+                                    font-size: 0.88rem;
                                 }
                                 #member_dropdown_menu .dropdown-member-row .member-dept-text {
                                     color: var(--text-muted, #6b7280) !important;
+                                    font-size: 0.72rem;
                                 }
-                                /* Dark theme dropdown: dark card bg, light text */
+                                /* Dark theme dropdown */
                                 [data-theme="dark"] #member_dropdown_menu {
                                     background: #1e293b !important;
-                                    color: #f1f5f9 !important;
                                     border-color: #334155 !important;
                                 }
                                 [data-theme="dark"] #member_dropdown_menu .dropdown-member-row {
                                     border-bottom-color: #334155 !important;
-                                    color: #f1f5f9 !important;
                                 }
                                 [data-theme="dark"] #member_dropdown_menu .dropdown-member-row:hover {
-                                    background: rgba(96,165,250,0.12) !important;
+                                    background: rgba(96,165,250,0.1) !important;
                                 }
                                 [data-theme="dark"] #member_dropdown_menu .dropdown-member-row .member-name-text {
                                     color: #f1f5f9 !important;
                                 }
                                 [data-theme="dark"] #member_dropdown_menu .dropdown-member-row .member-dept-text {
                                     color: #94a3b8 !important;
-                                }
-                                [data-theme="dark"] #member_dropdown_menu .dept-ribbon-header {
-                                    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
                                 }
                             </style>
                             <div id="msb-wrap" style="position:relative;">
@@ -5018,21 +5023,11 @@ w.document.write('</div>');
                                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </span>
                                 <button type="button" id="member_search_btn" onclick="executeMemberSearch();">
-                                    <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                                    Go
+                                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                    Search
                                 </button>
                             </div>
-                            <script>
-                                // Force input styles via JS as final override for any browser/theme quirk
-                                (function(){
-                                    var inp = document.getElementById('member_search_textbox');
-                                    if (inp) {
-                                        inp.style.setProperty('background','#ffffff','important');
-                                        inp.style.setProperty('color','#111827','important');
-                                        inp.style.setProperty('caret-color','#111827','important');
-                                    }
-                                })();
-                            </script>
+
 
                             <!-- Dropdown Menu with Ribbon Colors & Hierarchical Departments (NO EMOJIS) -->
                             <div id="member_dropdown_menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; border:1px solid #e2e8f0; border-radius:10px; max-height:360px; overflow-y:auto; z-index:1050; box-shadow:0 12px 30px rgba(0,0,0,0.18);">
