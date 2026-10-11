@@ -829,21 +829,22 @@ if (!empty($action)) {
 
     // === UNASSIGN ALL ROLES GLOBALLY ===
     elseif ($action === 'unassign_all_global') {
-        $members = $conn->query("SELECT id, first_name, last_name, church_role, department FROM members WHERE church_role != 'Member' AND church_role IS NOT NULL AND church_role != ''");
+        $members = $conn->query("SELECT id, first_name, last_name, church_role, department, is_village_leader FROM members WHERE (church_role != 'Member' AND church_role IS NOT NULL AND church_role != '') OR is_village_leader = 1");
         $_SESSION['global_role_undo_backup'] = [];
         if ($members && $members->num_rows > 0) {
             while ($md = $members->fetch_assoc()) {
                 $_SESSION['global_role_undo_backup'][$md['id']] = [
-                    'role'       => $md['church_role'],
-                    'department' => $md['department']
+                    'role'              => $md['church_role'],
+                    'department'        => $md['department'],
+                    'is_village_leader' => (int)($md['is_village_leader'] ?? 0)
                 ];
                 $mid = (int)$md['id'];
-                $conn->query("UPDATE members SET church_role = 'Member' WHERE id = $mid");
-                $msg = $conn->real_escape_string("All your roles have been removed by Admin in a global reset.");
+                $conn->query("UPDATE members SET church_role = 'Member', is_village_leader = 0 WHERE id = $mid");
+                $msg = $conn->real_escape_string("All your roles have been temporarily unassigned by Admin in a global reset.");
                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($mid, 'member', '$msg')");
             }
         }
-        header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("All assigned roles have been globally removed.") . "#assignRoleSection");
+        header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("Roles have been unassigned. Click 'Confirm Delete Role Globally' to permanently wipe or 'Redo' to restore.") . "#assignRoleSection");
         exit();
     }
     
@@ -855,15 +856,31 @@ if (!empty($action)) {
                 $mid = (int)$mid;
                 $restored_role = $conn->real_escape_string($data['role']);
                 $restored_dept = $conn->real_escape_string($data['department']);
-                $conn->query("UPDATE members SET church_role = '$restored_role', department = '$restored_dept' WHERE id = $mid");
-                $msg = $conn->real_escape_string("Your roles have been restored by Admin following a global reset.");
+                $restored_vl   = (int)($data['is_village_leader'] ?? 0);
+                $conn->query("UPDATE members SET church_role = '$restored_role', department = '$restored_dept', is_village_leader = $restored_vl WHERE id = $mid");
+                $msg = $conn->real_escape_string("Your roles and leadership assignments have been restored by Admin.");
                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($mid, 'member', '$msg')");
             }
             unset($_SESSION['global_role_undo_backup']);
-            header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("All previously deleted roles have been restored.") . "#assignRoleSection");
+            header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("All previously deleted roles and village leaders have been restored.") . "#assignRoleSection");
         } else {
             header("Location: admin_dashboard.php?tab=assign_roles&error=" . urlencode("No backup found to restore") . "#assignRoleSection");
         }
+        exit();
+    }
+
+    // === CONFIRM PERMANENT DELETE ALL ROLES GLOBALLY ===
+    elseif ($action === 'confirm_delete_roles_global') {
+        // Permanently wipe all assigned roles and church village leaders in the database
+        $conn->query("UPDATE members SET church_role = 'Member', is_village_leader = 0, pending_role = NULL, pending_department = NULL WHERE 1");
+        $conn->query("DELETE FROM sunday_school_class_leaders WHERE 1");
+        unset($_SESSION['global_role_undo_backup']);
+        
+        $admin_name = 'Admin';
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $conn->query("INSERT INTO audit_logs (user_type, name, action, details, ip_address, created_at) VALUES ('admin', '$admin_name', 'Permanent Global Role Wipe', 'Permanently wiped all assigned roles and church village leaders across the database.', '$ip', NOW())");
+        
+        header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("All roles and church village leaders have been permanently wiped from the database.") . "#assignRoleSection");
         exit();
     }
     
@@ -2866,17 +2883,23 @@ w.document.write('</div>');
                     ?>
 
                     <?php if ((isset($has_any_roles) && $has_any_roles) || !empty($_SESSION['global_role_undo_backup'])): ?>
-                        <div style="margin-top: 30px; display:flex; gap:15px; justify-content:center; align-items:center; background:var(--bg-lighter); padding:20px; border-radius:8px; border:1px solid var(--border-color);">
-                            <a href="admin_dashboard.php?tab=assign_roles&action=unassign_all_global" 
-                               onclick="return confirm('WARNING: This will reset ALL assigned roles for EVERY member back to plain Member. This affects the entire church. Are you absolutely sure?');" 
-                               class="btn-sm" style="background:#ef4444;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;padding:10px 20px;font-size:1rem;display:inline-flex;align-items:center;gap:8px;">
-                               🗑 Delete All Roles Globally
-                            </a>
+                        <div style="margin-top: 30px; display:flex; gap:15px; justify-content:center; align-items:center; background:var(--bg-lighter); padding:20px; border-radius:8px; border:1px solid var(--border-color); flex-wrap:wrap;">
                             <?php if (!empty($_SESSION['global_role_undo_backup'])): ?>
+                                <a href="admin_dashboard.php?tab=assign_roles&action=confirm_delete_roles_global" 
+                                   onclick="return confirm('PERMANENT WIPE: Are you sure you want to permanently delete all roles and church village leaders globally from the database? This CANNOT be undone.');" 
+                                   class="btn-sm" style="background:#dc2626;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;padding:12px 24px;font-size:1rem;display:inline-flex;align-items:center;gap:8px;border-radius:8px;box-shadow:0 3px 10px rgba(220,38,38,0.35);">
+                                   ⚠️ Confirm Delete Role Globally
+                                </a>
                                 <a href="admin_dashboard.php?tab=assign_roles&action=redo_roles_global" 
                                    onclick="return confirm('Restore all roles that were just deleted?');" 
-                                   class="btn-sm" style="background:#10b981;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;padding:10px 20px;font-size:1rem;display:inline-flex;align-items:center;gap:8px;">
-                                   ↩ Redo Deletion
+                                   class="btn-sm" style="background:#10b981;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;padding:12px 24px;font-size:1rem;display:inline-flex;align-items:center;gap:8px;border-radius:8px;box-shadow:0 3px 10px rgba(16,185,129,0.35);">
+                                   ↩ Redo
+                                </a>
+                            <?php else: ?>
+                                <a href="admin_dashboard.php?tab=assign_roles&action=unassign_all_global" 
+                                   onclick="return confirm('WARNING: Are you sure you want to delete all assigned roles globally?');" 
+                                   class="btn-sm" style="background:#ef4444;color:white;text-decoration:none;border:none;cursor:pointer;font-weight:700;padding:12px 24px;font-size:1rem;display:inline-flex;align-items:center;gap:8px;border-radius:8px;box-shadow:0 3px 10px rgba(239,68,68,0.3);">
+                                   🗑 Delete Role Globally
                                 </a>
                             <?php endif; ?>
                         </div>

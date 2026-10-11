@@ -256,21 +256,22 @@ if (isset($_GET['action'])) {
     }
 
     elseif ($action === 'unassign_all_global') {
-        $members = $conn->query("SELECT id, first_name, last_name, church_role, department FROM members WHERE church_role != 'Member' AND church_role IS NOT NULL AND church_role != ''");
+        $members = $conn->query("SELECT id, first_name, last_name, church_role, department, is_village_leader FROM members WHERE (church_role != 'Member' AND church_role IS NOT NULL AND church_role != '') OR is_village_leader = 1");
         $_SESSION['global_role_undo_backup'] = [];
         if ($members && $members->num_rows > 0) {
             while ($md = $members->fetch_assoc()) {
                 $_SESSION['global_role_undo_backup'][$md['id']] = [
-                    'role'       => $md['church_role'],
-                    'department' => $md['department']
+                    'role'              => $md['church_role'],
+                    'department'        => $md['department'],
+                    'is_village_leader' => (int)($md['is_village_leader'] ?? 0)
                 ];
                 $mid = (int)$md['id'];
-                $conn->query("UPDATE members SET church_role = 'Member' WHERE id = $mid");
-                $msg = $conn->real_escape_string("All your roles have been removed by Pastor in a global reset.");
+                $conn->query("UPDATE members SET church_role = 'Member', is_village_leader = 0 WHERE id = $mid");
+                $msg = $conn->real_escape_string("All your roles have been temporarily unassigned by Pastor in a global reset.");
                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($mid, 'member', '$msg')");
             }
         }
-        header("Location: pastor_dashboard.php?tab=assign_roles&success=" . urlencode("All assigned roles have been globally removed.") . "#assignRoleSection");
+        header("Location: pastor_dashboard.php?tab=assign_roles&success=" . urlencode("Roles have been unassigned. Click 'Confirm Delete Role Globally' to permanently wipe or 'Redo' to restore.") . "#assignRoleSection");
         exit();
     }
 
@@ -281,15 +282,30 @@ if (isset($_GET['action'])) {
                 $mid = (int)$mid;
                 $restored_role = $conn->real_escape_string($data['role']);
                 $restored_dept = $conn->real_escape_string($data['department']);
-                $conn->query("UPDATE members SET church_role = '$restored_role', department = '$restored_dept' WHERE id = $mid");
-                $msg = $conn->real_escape_string("Your roles have been restored by Pastor following a global reset.");
+                $restored_vl   = (int)($data['is_village_leader'] ?? 0);
+                $conn->query("UPDATE members SET church_role = '$restored_role', department = '$restored_dept', is_village_leader = $restored_vl WHERE id = $mid");
+                $msg = $conn->real_escape_string("Your roles and leadership assignments have been restored by Pastor.");
                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($mid, 'member', '$msg')");
             }
             unset($_SESSION['global_role_undo_backup']);
-            header("Location: pastor_dashboard.php?tab=assign_roles&success=" . urlencode("All previously deleted roles have been restored.") . "#assignRoleSection");
+            header("Location: pastor_dashboard.php?tab=assign_roles&success=" . urlencode("All previously deleted roles and village leaders have been restored.") . "#assignRoleSection");
         } else {
             header("Location: pastor_dashboard.php?tab=assign_roles&error=" . urlencode("No backup found to restore") . "#assignRoleSection");
         }
+        exit();
+    }
+
+    elseif ($action === 'confirm_delete_roles_global') {
+        // Permanently wipe all assigned roles and church village leaders in the database
+        $conn->query("UPDATE members SET church_role = 'Member', is_village_leader = 0, pending_role = NULL, pending_department = NULL WHERE 1");
+        $conn->query("DELETE FROM sunday_school_class_leaders WHERE 1");
+        unset($_SESSION['global_role_undo_backup']);
+        
+        $pastor_name = 'Pastor';
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $conn->query("INSERT INTO audit_logs (user_type, name, action, details, ip_address, created_at) VALUES ('pastor', '$pastor_name', 'Permanent Global Role Wipe', 'Permanently wiped all assigned roles and church village leaders across the database.', '$ip', NOW())");
+        
+        header("Location: pastor_dashboard.php?tab=assign_roles&success=" . urlencode("All roles and church village leaders have been permanently wiped from the database.") . "#assignRoleSection");
         exit();
     }
     
