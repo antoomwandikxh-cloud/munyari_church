@@ -207,14 +207,14 @@ $vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) .
 ?>
 <div class="leaders-bar">
     <div class="leader-card">
-        <?php if ($wl_pic): ?><div style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:none;flex-shrink:0;"><img src="<?= $wl_pic ?>" alt="" style="width:100%;height:100%;object-fit:cover;border:none;"></div><?php else: ?><div class="ph">&#127925;</div><?php endif; ?>
+        <?php if ($wl_pic): ?><div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:none;flex-shrink:0;"><img src="<?= $wl_pic ?>" alt="" style="width:100%;height:100%;object-fit:cover;border:none;"></div><?php else: ?><div class="ph">&#127925;</div><?php endif; ?>
         <div>
             <div class="lrole">Worship Leader</div>
             <div class="lname"><?= htmlspecialchars($wl_name) ?></div>
         </div>
     </div>
     <div class="leader-card">
-        <?php if ($vwl_pic): ?><div style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:none;flex-shrink:0;"><img src="<?= $vwl_pic ?>" alt="" style="width:100%;height:100%;object-fit:cover;border:none;"></div><?php else: ?><div class="ph">&#127926;</div><?php endif; ?>
+        <?php if ($vwl_pic): ?><div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:none;flex-shrink:0;"><img src="<?= $vwl_pic ?>" alt="" style="width:100%;height:100%;object-fit:cover;border:none;"></div><?php else: ?><div class="ph">&#127926;</div><?php endif; ?>
         <div>
             <div class="lrole">Vice Worship Leader</div>
             <div class="lname"><?= htmlspecialchars($vwl_name) ?></div>
@@ -226,7 +226,7 @@ $vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) .
     <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>
     <div class="ct">
         <h1>E.A.P.C Munyari Church</h1>
-        <h2>Worship Department &mdash; Members List (<?= ucfirst($mode) ?>)</h2>
+        <h2>Worship Department &mdash; Members List</h2>
         <p>Printed on: <?= $print_date ?></p>
     </div>
 
