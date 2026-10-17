@@ -4112,7 +4112,7 @@ w.document.write('</div>');
 
                         <form method="POST" action="pastor_action.php?action=assign_role">
                             <div class="form-group">
-                                <label>First Select Role</label>
+                                <label for="assignRoleSearch">Search Roles</label>
                                 <input type="search" id="assignRoleSearch" class="form-control role-search-input" autocomplete="off"
                                     placeholder="Search role or department..." aria-label="Search roles by role or department"
                                     aria-controls="assignRoleSelect" pattern="[A-Za-z ]*"
@@ -4124,6 +4124,9 @@ w.document.write('</div>');
                                     .role-search-error[hidden]{display:none}
                                     #assignRoleSelect optgroup{font-weight:800}
                                 </style>
+                            </div>
+                            <div class="form-group">
+                                <label for="assignRoleSelect">First Select Role</label>
                                 <select name="role" id="assignRoleSelect" class="form-control" required>
                                     <option value="">-- Select Role --</option>
                                     <?php 

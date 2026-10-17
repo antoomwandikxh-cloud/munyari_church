@@ -2578,7 +2578,7 @@ w.document.write('</div>');
                         <h2>Assign to Member</h2>
                         <form method="POST" action="admin_dashboard.php?tab=assign_roles&action=assign_role">
                             <div class="form-group">
-                                <label>First Select Role</label>
+                                <label for="adminAssignRoleSearch">Search Roles</label>
                                 <input type="search" id="adminAssignRoleSearch" class="form-control admin-role-search" autocomplete="off"
                                     placeholder="Search role or department..." aria-label="Search roles by role or department"
                                     aria-controls="adminAssignRoleSelect" pattern="[A-Za-z ]*" title="Use letters and spaces only"
@@ -2590,6 +2590,9 @@ w.document.write('</div>');
                                     .admin-role-search-error[hidden]{display:none}
                                     #adminAssignRoleSelect optgroup{font-weight:800}
                                 </style>
+                            </div>
+                            <div class="form-group">
+                                <label for="adminAssignRoleSelect">First Select Role</label>
                                 <select name="role" id="adminAssignRoleSelect" class="form-control" required>
                                     <option value="">-- Select Role --</option>
                                     <?php 
