@@ -408,6 +408,15 @@ function notification_target_tab($message, $user_type, $fallback_tab = 'dashboar
     $tabs = notification_badge_tabs($message, $user_type);
     return $tabs[0] ?? $fallback_tab;
 }
+
+function notification_target_group($message, $user_type) {
+    $msg = strtolower($message);
+    if (($user_type === 'pastor' || $user_type === 'admin')
+        && strpos($msg, 'worship leadership chat') !== false) {
+        return 'worship_leaders';
+    }
+    return '';
+}
 ?>
 
 

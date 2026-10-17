@@ -9,6 +9,7 @@ if (!isset($_GET['id']) || !isset($_GET['redirect'])) {
 
 $notif_id = (int)$_GET['id'];
 $redirect_tab = $_GET['redirect'];
+$redirect_group = $_GET['group'] ?? '';
 $user_id = null;
 $user_type = null;
 
@@ -35,10 +36,12 @@ if ($stmt) {
 
 if ($user_type === 'member') {
     header("Location: member_dashboard.php?tab=" . urlencode($redirect_tab));
-} elseif ($user_type === 'admin') {
-    header("Location: admin_dashboard.php?tab=" . urlencode($redirect_tab));
-} elseif ($user_type === 'pastor') {
-    header("Location: pastor_dashboard.php?tab=" . urlencode($redirect_tab));
+} elseif ($user_type === 'admin' || $user_type === 'pastor') {
+    $destination = ($user_type === 'admin' ? 'admin_dashboard.php' : 'pastor_dashboard.php') . '?tab=' . urlencode($redirect_tab);
+    if ($redirect_tab === 'general_leadership' && $redirect_group === 'worship_leaders') {
+        $destination .= '&leader_group=worship_leaders';
+    }
+    header("Location: $destination");
 }
 exit();
 ?>

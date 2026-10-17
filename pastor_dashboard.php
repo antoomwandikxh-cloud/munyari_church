@@ -1525,8 +1525,9 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                 if ($drop_notifs && $drop_notifs->num_rows > 0):
                                     while ($dn = $drop_notifs->fetch_assoc()):
                                         $dn_target = notification_target_tab($dn['message'], 'pastor', 'dashboard');
+                                        $dn_group = notification_target_group($dn['message'], 'pastor');
                                 ?>
-                                    <a href="mark_read_and_redirect.php?id=<?= $dn['id'] ?>&redirect=<?= urlencode($dn_target) ?>" style="display:block; padding:9px 13px; border-bottom:1px solid var(--border-color); text-decoration:none; background:<?= !$dn['is_read'] ? 'rgba(37,99,235,0.06)' : 'transparent' ?>; transition:background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.1)'" onmouseout="this.style.background='<?= !$dn['is_read'] ? 'rgba(37,99,235,0.06)' : 'transparent' ?>'">
+                                    <a href="mark_read_and_redirect.php?id=<?= $dn['id'] ?>&redirect=<?= urlencode($dn_target) ?><?= $dn_group !== '' ? '&group=' . urlencode($dn_group) : '' ?>" style="display:block; padding:9px 13px; border-bottom:1px solid var(--border-color); text-decoration:none; background:<?= !$dn['is_read'] ? 'rgba(37,99,235,0.06)' : 'transparent' ?>; transition:background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.1)'" onmouseout="this.style.background='<?= !$dn['is_read'] ? 'rgba(37,99,235,0.06)' : 'transparent' ?>'">
                                         <div style="display:flex; align-items:flex-start; gap:8px;">
                                             <div style="width:7px; height:7px; border-radius:50%; background:<?= !$dn['is_read'] ? 'var(--danger)' : 'var(--border-color)' ?>; margin-top:5px; flex-shrink:0;"></div>
                                             <div style="min-width:0;">
@@ -1873,8 +1874,8 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     <?php if($pastor_notifs && $pastor_notifs->num_rows > 0): ?>
                         <div style="display:flex; flex-direction:column; gap:10px;">
                             <?php while($n = $pastor_notifs->fetch_assoc()): ?>
-                                <?php $dn_target = notification_target_tab($n['message'], 'pastor', 'dashboard'); ?>
-                                <a href="mark_read_and_redirect.php?id=<?= $n['id'] ?>&redirect=<?= urlencode($dn_target) ?>" style="display:block; padding:12px 18px; border-bottom:1px solid var(--border-color); text-decoration:none;">
+                                <?php $dn_target = notification_target_tab($n['message'], 'pastor', 'dashboard'); $dn_group = notification_target_group($n['message'], 'pastor'); ?>
+                                <a href="mark_read_and_redirect.php?id=<?= $n['id'] ?>&redirect=<?= urlencode($dn_target) ?><?= $dn_group !== '' ? '&group=' . urlencode($dn_group) : '' ?>" style="display:block; padding:12px 18px; border-bottom:1px solid var(--border-color); text-decoration:none;">
                                     <div style="font-size:0.9rem; color:var(--text-main); font-weight:500;"><?= htmlspecialchars($n['message']) ?></div>
                                     <small style="color:var(--text-muted); font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($n['created_at'])) ?></small>
                                                 <?php if (!$n["is_read"]): ?>

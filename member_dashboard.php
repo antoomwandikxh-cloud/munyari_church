@@ -1557,7 +1557,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_worship_chat']) &
         // Notification for the other worship leader
         $worship_leaders = $conn->query("SELECT id FROM members WHERE is_approved = 1 AND LOWER(church_role) LIKE '%worship leader%' AND id != $member_id");
         $sender_name = $conn->real_escape_string($member['first_name'] . ' ' . $member['last_name']);
-        $notif_msg = "Worship Leader $sender_name sent a message in Worship Leadership Chat";
+        $sender_title = ($is_vice_worship_leader && !$is_worship_leader) ? 'Vice Worship Leader' : 'Worship Leader';
+        $notif_msg = "$sender_title $sender_name sent a message in Worship Leadership Chat";
         while ($wl = $worship_leaders->fetch_assoc()) {
             $lid = $wl['id'];
             $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($lid, 'member', '$notif_msg')");
@@ -1568,6 +1569,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_worship_chat']) &
         while ($p = $pastors->fetch_assoc()) {
             $pid = $p['id'];
             $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pid, 'pastor', '$notif_msg_pastor')");
+        }
+        $admins = $conn->query("SELECT id FROM admins");
+        while ($a = $admins->fetch_assoc()) {
+            $aid = (int)$a['id'];
+            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($aid, 'admin', '$notif_msg_pastor')");
         }
         header("Location: member_dashboard.php?tab=worship_leadership_chat&success=Message sent");
         exit();
@@ -6028,7 +6034,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             <?php elseif ($tab == 'worship_leadership_chat' && ($is_worship_leader || $is_vice_worship_leader)): ?>
                 <div class="page-header">
                     <h1>Worship Leaders Chat</h1>
-                    <p>Private group chat for Worship Leaders and the Pastor.</p>
+                    <p>Communicate with the Worship Leader, Vice Worship Leader, Pastor, and Admin.</p>
                 </div>
 
                 <div class="content-card" style="margin-bottom: 20px;">
@@ -6059,7 +6065,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     }, $chat_leader_roles);
                                     ?>
                                     <div style="display:flex;align-items:center;gap:9px;min-width:210px;padding:8px 10px;border:1px solid var(--border-color);border-radius:9px;background:var(--card-bg);">
-                                        <img src="uploads/<?= htmlspecialchars($chat_leader['profile_picture'] ?? 'default_avatar.png') ?>" alt="" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid #d946ef;flex-shrink:0;">
+                                        <img src="uploads/<?= htmlspecialchars($chat_leader['profile_picture'] ?? 'default_avatar.png') ?>" alt="View <?= htmlspecialchars($chat_leader['first_name'] . ' ' . $chat_leader['last_name']) ?>'s profile photo" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid #d946ef;flex-shrink:0;cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="Click to view full photo">
                                         <div style="min-width:0;">
                                             <div style="font-weight:700;color:var(--text-main);overflow-wrap:anywhere;"><?= htmlspecialchars($chat_leader['first_name'] . ' ' . $chat_leader['last_name']) ?></div>
                                             <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.35;"><?= htmlspecialchars(implode(' / ', $chat_leader_labels)) ?></div>
@@ -6096,9 +6102,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <?php endif; ?>
                     </div>
 
-                    <form method="POST" style="display:flex; gap:10px; align-items:center;">
-                        <textarea name="chat_message" class="form-input" placeholder="Type your message..." required style="min-height:50px; height:50px; resize:none; margin:0; flex:1;"></textarea>
-                        <button type="submit" name="send_worship_chat" class="btn-submit" style="white-space:nowrap; padding:0 25px; height:50px; margin:0; display:flex; align-items:center; gap:8px;">
+                    <form method="POST" style="display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-main);">
+                        <label for="worship_chat_message" style="font-weight:700;color:var(--text-main);">Message the worship leadership team</label>
+                        <textarea id="worship_chat_message" name="chat_message" class="form-input" placeholder="Write a message to the other worship leader..." required maxlength="3000" rows="3" style="width:100%;min-height:88px;resize:vertical;margin:0;"></textarea>
+                        <button type="submit" name="send_worship_chat" class="btn-submit" style="white-space:nowrap;padding:10px 20px;margin:0;display:flex;align-items:center;justify-content:center;gap:8px;align-self:flex-end;">
                             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                             Send
                         </button>
