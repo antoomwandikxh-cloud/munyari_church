@@ -2579,6 +2579,17 @@ w.document.write('</div>');
                         <form method="POST" action="admin_dashboard.php?tab=assign_roles&action=assign_role">
                             <div class="form-group">
                                 <label>First Select Role</label>
+                                <input type="search" id="adminAssignRoleSearch" class="form-control admin-role-search" autocomplete="off"
+                                    placeholder="Search role or department..." aria-label="Search roles by role or department"
+                                    aria-controls="adminAssignRoleSelect" pattern="[A-Za-z ]*" title="Use letters and spaces only"
+                                    maxlength="80" spellcheck="false">
+                                <small id="adminRoleSearchError" class="admin-role-search-error" role="status" hidden></small>
+                                <style>
+                                    .admin-role-search{display:block;width:100%;max-width:270px;height:40px;padding:8px 11px;margin-bottom:8px}
+                                    .admin-role-search-error{display:block;margin:4px 0;color:var(--danger);font-size:.78rem}
+                                    .admin-role-search-error[hidden]{display:none}
+                                    #adminAssignRoleSelect optgroup{font-weight:800}
+                                </style>
                                 <select name="role" id="adminAssignRoleSelect" class="form-control" required>
                                     <option value="">-- Select Role --</option>
                                     <?php 
@@ -2629,6 +2640,83 @@ w.document.write('</div>');
                                 const departmentInput = document.getElementById('adminAssignRoleDepartment');
                                 const hint = document.getElementById('adminAssignRoleHint');
                                 if (!roleSelect || !memberSelect) return;
+
+                                const roleSearch = document.getElementById('adminAssignRoleSearch');
+                                const searchError = document.getElementById('adminRoleSearchError');
+                                const groupColors = {
+                                    'general church leaders': '#1e3a8a',
+                                    'elders department': '#6d28d9',
+                                    'women s ministry': '#be185d',
+                                    'youths department': '#b45309',
+                                    'sunday school': '#0e7490',
+                                    'building department': '#92400e',
+                                    'other roles': '#4b5563'
+                                };
+                                const normalizeRoleSearch = value => (value || '').toLowerCase()
+                                    .replace(/\borganis(e|ed|ing|ation)\b/g, (_, ending) => `organiz${ending}`)
+                                    .replace(/\byouths\b/g, 'youth')
+                                    .replace(/[^a-z0-9]+/g, ' ').trim();
+                                const fullRoleGroups = Array.from(roleSelect.querySelectorAll('optgroup')).map(group => group.cloneNode(true));
+                                const placeholderRole = roleSelect.querySelector('option[value=""]')?.cloneNode(true);
+                                const filterRoleOptions = () => {
+                                    const query = normalizeRoleSearch(roleSearch.value);
+                                    const currentOption = roleSelect.options[roleSelect.selectedIndex];
+                                    const selectedValue = currentOption?.value || '';
+                                    const selectedGroup = currentOption?.parentElement?.label || '';
+                                    roleSelect.replaceChildren();
+                                    if (placeholderRole) roleSelect.appendChild(placeholderRole.cloneNode(true));
+                                    fullRoleGroups.forEach(group => {
+                                        const groupName = group.label || 'Other';
+                                        const matches = Array.from(group.querySelectorAll('option')).filter(option => {
+                                            if (!query) return true;
+                                            const roleWords = normalizeRoleSearch(option.value).split(' ');
+                                            const groupWords = normalizeRoleSearch(groupName).split(' ');
+                                            const searchWords = query.length === 1 ? roleWords : [...roleWords, ...groupWords];
+                                            return query.split(' ').every(word => searchWords.some(candidate => candidate.startsWith(word)));
+                                        });
+                                        if (!matches.length) return;
+                                        const filteredGroup = document.createElement('optgroup');
+                                        filteredGroup.label = groupName;
+                                        filteredGroup.style.color = groupColors[normalizeRoleSearch(groupName)] || '#4b5563';
+                                        filteredGroup.style.fontWeight = '800';
+                                        matches.forEach(option => filteredGroup.appendChild(option.cloneNode(true)));
+                                        roleSelect.appendChild(filteredGroup);
+                                    });
+                                    const restored = Array.from(roleSelect.options).find(option =>
+                                        option.value === selectedValue && option.parentElement?.label === selectedGroup
+                                    );
+                                    if (restored) roleSelect.selectedIndex = Array.from(roleSelect.options).indexOf(restored);
+                                    if (query && roleSelect.options.length === (placeholderRole ? 1 : 0)) {
+                                        const empty = document.createElement('option');
+                                        empty.disabled = true;
+                                        empty.textContent = '-- No matching roles --';
+                                        roleSelect.appendChild(empty);
+                                    }
+                                };
+                                roleSearch.addEventListener('input', () => {
+                                    const value = roleSearch.value;
+                                    const sanitized = value.replace(/[^a-zA-Z\s]/g, '');
+                                    if (value !== sanitized) {
+                                        roleSearch.value = sanitized;
+                                        searchError.textContent = 'Numbers and symbols are not allowed. Use letters only.';
+                                        searchError.hidden = false;
+                                        roleSearch.setAttribute('aria-invalid', 'true');
+                                    } else {
+                                        searchError.textContent = '';
+                                        searchError.hidden = true;
+                                        roleSearch.removeAttribute('aria-invalid');
+                                    }
+                                    roleSelect.value = '';
+                                    filterRoleOptions();
+                                });
+                                roleSelect.addEventListener('change', () => {
+                                    if (roleSelect.value && roleSearch.value) {
+                                        roleSearch.value = '';
+                                        searchError.hidden = true;
+                                        roleSearch.removeAttribute('aria-invalid');
+                                        filterRoleOptions();
+                                    }
+                                });
 
                                 const originalOptions = Array.from(memberSelect.querySelectorAll('option[data-department]')).map(option => option.cloneNode(true));
                                 const normalize = value => (value || '').toLowerCase().replace(/'/g, '').trim();

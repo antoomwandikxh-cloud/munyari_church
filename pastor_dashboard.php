@@ -4115,25 +4115,16 @@ w.document.write('</div>');
                                 <label>First Select Role</label>
                                 <input type="search" id="assignRoleSearch" class="form-control role-search-input" autocomplete="off"
                                     placeholder="Search role or department..." aria-label="Search roles by role or department"
-                                    aria-controls="assignRoleMenu" aria-expanded="false" pattern="[A-Za-z ]*"
+                                    aria-controls="assignRoleSelect" pattern="[A-Za-z ]*"
                                     title="Use letters and spaces only" maxlength="80" spellcheck="false">
                                 <small id="assignRoleSearchError" class="role-search-error" role="status" hidden></small>
                                 <style>
                                     .role-search-input{display:block;width:100%;max-width:270px;height:40px;padding:8px 11px}
                                     .role-search-error{display:block;margin-top:4px;color:var(--danger);font-size:.78rem}
                                     .role-search-error[hidden]{display:none}
-                                    .role-search-menu{margin-top:5px;max-height:250px;overflow-y:auto;border:1px solid var(--border-color);border-radius:7px;background:var(--bg-card);box-shadow:0 5px 14px rgba(0,0,0,.14)}
-                                    .role-search-menu[hidden]{display:none}
-                                    .role-search-ribbon{padding:7px 12px;color:#fff;font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px}
-                                    .role-search-option{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border:0;border-bottom:1px solid var(--border-color);background:transparent;color:var(--text-main);text-align:left;font:inherit;cursor:pointer}
-                                    .role-search-option:hover,.role-search-option:focus-visible{background:var(--bg-main);outline:none}
-                                    .role-search-option:disabled{opacity:.6;cursor:not-allowed}
-                                    .role-search-taken{color:var(--danger);font-size:.72rem;font-weight:700}
-                                    .role-search-empty{padding:12px;color:var(--text-muted);font-size:.85rem}
-                                    .role-select-storage{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+                                    #assignRoleSelect optgroup{font-weight:800}
                                 </style>
-                                <div id="assignRoleMenu" class="role-search-menu" role="listbox" hidden></div>
-                                <select name="role" id="assignRoleSelect" class="form-control role-select-storage" aria-hidden="true" tabindex="-1">
+                                <select name="role" id="assignRoleSelect" class="form-control" required>
                                     <option value="">-- Select Role --</option>
                                     <?php 
                                     foreach ($hierarchy as $dept => $roles) {
@@ -4183,7 +4174,6 @@ w.document.write('</div>');
                                 const hint = document.getElementById('assignRoleHint');
                                 if (!roleSelect || !memberSelect) return;
                                 const roleSearch = document.getElementById('assignRoleSearch');
-                                const roleMenu = document.getElementById('assignRoleMenu');
                                 const roleSearchError = document.getElementById('assignRoleSearchError');
                                 const departmentColors = {
                                     'general church leaders': '#1e3a8a',
@@ -4199,15 +4189,14 @@ w.document.write('</div>');
                                     .replace(/\byouths\b/g, 'youth')
                                     .replace(/[^a-z0-9]+/g, ' ').trim();
                                 const fullRoleGroups = Array.from(roleSelect.querySelectorAll('optgroup')).map(group => group.cloneNode(true));
-                                const renderRoleDropdown = () => {
+                                const rolePlaceholder = roleSelect.querySelector('option[value=""]')?.cloneNode(true);
+                                const filterRoleOptions = () => {
                                     const query = normalizeRoleSearch(roleSearch.value);
-                                    roleMenu.replaceChildren();
-                                    if (!query) {
-                                        roleMenu.hidden = true;
-                                        roleSearch.setAttribute('aria-expanded', 'false');
-                                        return;
-                                    }
-                                    let visibleRoles = 0;
+                                    const selectedRole = roleSelect.options[roleSelect.selectedIndex];
+                                    const selectedValue = selectedRole?.value || '';
+                                    const selectedGroup = selectedRole?.parentElement?.label || '';
+                                    roleSelect.replaceChildren();
+                                    if (rolePlaceholder) roleSelect.appendChild(rolePlaceholder.cloneNode(true));
                                     fullRoleGroups.forEach(group => {
                                         const groupName = group.label || 'Other';
                                         const matching = Array.from(group.querySelectorAll('option')).filter(option => {
@@ -4218,51 +4207,23 @@ w.document.write('</div>');
                                             return query.split(' ').every(word => searchableWords.some(candidate => candidate.startsWith(word)));
                                         });
                                         if (!matching.length) return;
-                                        const color = departmentColors[normalizeRoleSearch(groupName)] || '#4b5563';
-                                        const ribbon = document.createElement('div');
-                                        ribbon.className = 'role-search-ribbon';
-                                        ribbon.style.background = color;
-                                        ribbon.textContent = groupName;
-                                        roleMenu.appendChild(ribbon);
-                                        matching.forEach(option => {
-                                            const button = document.createElement('button');
-                                            button.type = 'button';
-                                            button.className = 'role-search-option';
-                                            button.setAttribute('role', 'option');
-                                            button.textContent = option.textContent.replace(/\s*\(Taken\)\s*$/, '').trim();
-                                            const isTaken = option.dataset.taken === '1';
-                                            if (isTaken) {
-                                                const takenLabel = document.createElement('span');
-                                                takenLabel.className = 'role-search-taken';
-                                                takenLabel.textContent = 'Taken';
-                                                button.appendChild(takenLabel);
-                                            }
-                                            button.addEventListener('click', () => {
-                                                const actualOption = Array.from(roleSelect.options).find(item =>
-                                                    item.value === option.value && item.parentElement?.label === groupName
-                                                );
-                                                if (!actualOption) return;
-                                                roleSelect.selectedIndex = Array.from(roleSelect.options).indexOf(actualOption);
-                                                roleSearch.value = actualOption.value;
-                                                roleSearchError.hidden = true;
-                                                roleSearch.removeAttribute('aria-invalid');
-                                                roleSearch.setCustomValidity('');
-                                                roleMenu.hidden = true;
-                                                roleSearch.setAttribute('aria-expanded', 'false');
-                                                roleSelect.dispatchEvent(new Event('change', {bubbles: true}));
-                                            });
-                                            roleMenu.appendChild(button);
-                                            visibleRoles++;
-                                        });
+                                        const filteredGroup = document.createElement('optgroup');
+                                        filteredGroup.label = groupName;
+                                        filteredGroup.style.color = departmentColors[normalizeRoleSearch(groupName)] || '#4b5563';
+                                        filteredGroup.style.fontWeight = '800';
+                                        matching.forEach(option => filteredGroup.appendChild(option.cloneNode(true)));
+                                        roleSelect.appendChild(filteredGroup);
                                     });
-                                    if (!visibleRoles) {
-                                        const empty = document.createElement('div');
-                                        empty.className = 'role-search-empty';
-                                        empty.textContent = 'No matching roles found.';
-                                        roleMenu.appendChild(empty);
+                                    const restoredOption = Array.from(roleSelect.options).find(option =>
+                                        option.value === selectedValue && option.parentElement?.label === selectedGroup
+                                    );
+                                    if (restoredOption) roleSelect.selectedIndex = Array.from(roleSelect.options).indexOf(restoredOption);
+                                    if (query && roleSelect.options.length === (rolePlaceholder ? 1 : 0)) {
+                                        const noResults = document.createElement('option');
+                                        noResults.disabled = true;
+                                        noResults.textContent = '-- No matching roles --';
+                                        roleSelect.appendChild(noResults);
                                     }
-                                    roleMenu.hidden = false;
-                                    roleSearch.setAttribute('aria-expanded', 'true');
                                 };
                                 roleSearch.addEventListener('input', () => {
                                     const rawValue = roleSearch.value;
@@ -4272,36 +4233,20 @@ w.document.write('</div>');
                                         roleSearchError.textContent = 'Numbers and symbols are not allowed. Use letters only.';
                                         roleSearchError.hidden = false;
                                         roleSearch.setAttribute('aria-invalid', 'true');
-                                        roleSearch.setCustomValidity('Use letters and spaces only.');
                                     } else {
                                         roleSearchError.textContent = '';
                                         roleSearchError.hidden = true;
                                         roleSearch.removeAttribute('aria-invalid');
-                                        roleSearch.setCustomValidity('');
                                     }
                                     roleSelect.value = '';
-                                    renderRoleDropdown();
+                                    filterRoleOptions();
                                 });
-                                roleSearch.addEventListener('keydown', event => {
-                                    if (event.key === 'Escape') {
-                                        roleMenu.hidden = true;
-                                        roleSearch.setAttribute('aria-expanded', 'false');
-                                    } else if (event.key === 'Enter' && !roleMenu.hidden) {
-                                        const firstOption = roleMenu.querySelector('.role-search-option');
-                                        if (firstOption) { event.preventDefault(); firstOption.click(); }
-                                    }
-                                });
-                                document.addEventListener('click', event => {
-                                    if (!event.target.closest('#assignRoleSearch, #assignRoleMenu')) {
-                                        roleMenu.hidden = true;
-                                        roleSearch.setAttribute('aria-expanded', 'false');
-                                    }
-                                });
-                                roleSelect.form.addEventListener('submit', event => {
-                                    if (!roleSelect.value) {
-                                        event.preventDefault();
-                                        roleSearch.setCustomValidity('Choose a role from the search results first.');
-                                        roleSearch.reportValidity();
+                                roleSelect.addEventListener('change', () => {
+                                    if (roleSelect.value && roleSearch.value) {
+                                        roleSearch.value = '';
+                                        roleSearchError.hidden = true;
+                                        roleSearch.removeAttribute('aria-invalid');
+                                        filterRoleOptions();
                                     }
                                 });
                                 const originalOptions = Array.from(memberSelect.querySelectorAll('option[data-department]')).map(o => o.cloneNode(true));
