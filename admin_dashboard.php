@@ -2589,6 +2589,7 @@ w.document.write('</div>');
                                     .admin-role-search-error{display:block;margin:4px 0;color:var(--danger);font-size:.78rem}
                                     .admin-role-search-error[hidden]{display:none}
                                     #adminAssignRoleSelect optgroup{font-weight:800}
+                                    #adminAssignRoleSelect.role-options-open{height:auto;min-height:76px;max-height:300px;overflow-y:auto;padding:6px 10px}
                                 </style>
                             </div>
                             <div class="form-group">
@@ -2668,6 +2669,7 @@ w.document.write('</div>');
                                     const selectedGroup = currentOption?.parentElement?.label || '';
                                     roleSelect.replaceChildren();
                                     if (placeholderRole) roleSelect.appendChild(placeholderRole.cloneNode(true));
+                                    let visibleRoles = 0;
                                     fullRoleGroups.forEach(group => {
                                         const groupName = group.label || 'Other';
                                         const matches = Array.from(group.querySelectorAll('option')).filter(option => {
@@ -2684,6 +2686,7 @@ w.document.write('</div>');
                                         filteredGroup.style.fontWeight = '800';
                                         matches.forEach(option => filteredGroup.appendChild(option.cloneNode(true)));
                                         roleSelect.appendChild(filteredGroup);
+                                        visibleRoles += matches.length;
                                     });
                                     const restored = Array.from(roleSelect.options).find(option =>
                                         option.value === selectedValue && option.parentElement?.label === selectedGroup
@@ -2694,6 +2697,13 @@ w.document.write('</div>');
                                         empty.disabled = true;
                                         empty.textContent = '-- No matching roles --';
                                         roleSelect.appendChild(empty);
+                                    }
+                                    if (query) {
+                                        roleSelect.classList.add('role-options-open');
+                                        roleSelect.setAttribute('size', String(Math.min(Math.max(visibleRoles + 1, 2), 8)));
+                                    } else {
+                                        roleSelect.classList.remove('role-options-open');
+                                        roleSelect.removeAttribute('size');
                                     }
                                 };
                                 roleSearch.addEventListener('input', () => {
