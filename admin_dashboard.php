@@ -2596,6 +2596,8 @@ w.document.write('</div>');
                                     #adminAssignRoleSelect optgroup{font-weight:800;color:#fff;line-height:1.8}
                                     #adminAssignRoleSelect.role-options-open{height:auto;min-height:76px;max-height:300px;overflow-y:auto;padding:6px 10px}
                                     #adminAssignRoleSelect.role-options-open option{min-height:40px;padding:9px 10px;line-height:1.5}
+                                    .role-assign-submit{width:auto;min-height:38px;padding:8px 16px;font-size:.9rem}
+                                    @media(max-width:600px){.role-assign-submit{min-height:44px}}
                                 </style>
                             </div>
                             <div class="form-group">
@@ -2643,7 +2645,7 @@ w.document.write('</div>');
                                     } ?>
                                 </select>
                             </div>
-                            <button type="submit" class="btn-submit">Assign Role</button>
+                            <button type="submit" class="btn-submit role-assign-submit">Assign Role</button>
                         </form>
                         <script>
                             (function() {
