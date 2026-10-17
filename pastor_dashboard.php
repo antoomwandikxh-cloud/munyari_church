@@ -4122,8 +4122,9 @@ w.document.write('</div>');
                                     .role-search-input{display:block;width:100%;max-width:270px;height:40px;padding:8px 11px}
                                     .role-search-error{display:inline-block;margin-top:5px;padding:7px 10px;border:1px solid #b91c1c;border-radius:6px;background:#dc2626;color:#fff;font-size:.78rem;font-weight:700;box-shadow:0 4px 10px rgba(127,29,29,.2)}
                                     .role-search-error[hidden]{display:none}
-                                    #assignRoleSelect optgroup{font-weight:800;color:#fff}
+                                    #assignRoleSelect optgroup{font-weight:800;color:#fff;line-height:1.8}
                                     #assignRoleSelect.role-options-open{height:auto;min-height:76px;max-height:300px;overflow-y:auto;padding:6px 10px}
+                                    #assignRoleSelect.role-options-open option{min-height:40px;padding:9px 10px;line-height:1.5}
                                 </style>
                             </div>
                             <div class="form-group">

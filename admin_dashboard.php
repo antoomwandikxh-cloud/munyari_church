@@ -2588,8 +2588,9 @@ w.document.write('</div>');
                                     .admin-role-search{display:block;width:100%;max-width:270px;height:40px;padding:8px 11px;margin-bottom:8px}
                                     .admin-role-search-error{display:inline-block;margin:4px 0;padding:7px 10px;border:1px solid #b91c1c;border-radius:6px;background:#dc2626;color:#fff;font-size:.78rem;font-weight:700;box-shadow:0 4px 10px rgba(127,29,29,.2)}
                                     .admin-role-search-error[hidden]{display:none}
-                                    #adminAssignRoleSelect optgroup{font-weight:800;color:#fff}
+                                    #adminAssignRoleSelect optgroup{font-weight:800;color:#fff;line-height:1.8}
                                     #adminAssignRoleSelect.role-options-open{height:auto;min-height:76px;max-height:300px;overflow-y:auto;padding:6px 10px}
+                                    #adminAssignRoleSelect.role-options-open option{min-height:40px;padding:9px 10px;line-height:1.5}
                                 </style>
                             </div>
                             <div class="form-group">
