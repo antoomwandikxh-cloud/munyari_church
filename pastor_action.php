@@ -227,6 +227,9 @@ if (isset($_GET['action'])) {
     elseif ($action === 'remove_role' && isset($_GET['id']) && isset($_GET['role'])) {
         $member_id = (int)$_GET['id'];
         $role_to_remove = urldecode($_GET['role']);
+        $reassign_role = trim($_GET['reassign'] ?? normalize_role_name($role_to_remove));
+        $reassign_department = trim($_GET['assignment_department'] ?? '');
+        $reassign_group = trim($_GET['reassign_group'] ?? '');
         $member_data = $conn->query("SELECT church_role FROM members WHERE id = $member_id")->fetch_assoc();
         $old_role = $member_data['church_role'] ?? '';
         
@@ -258,8 +261,8 @@ if (isset($_GET['action'])) {
         
         $msg = $conn->real_escape_string("Your role '$role_to_remove' has been removed.");
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
-        
-        header("Location: pastor_dashboard.php?tab=assign_roles&success=Role removed from member");
+
+        header("Location: pastor_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed from member") . "&reassign=" . urlencode($reassign_role) . "&reassign_department=" . urlencode($reassign_department) . "&reassign_group=" . urlencode($reassign_group));
         exit();
     }
 

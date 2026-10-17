@@ -845,6 +845,9 @@ if (!empty($action)) {
     elseif ($action === 'remove_role' && isset($_GET['id'])) {
         $member_id = (int)$_GET['id'];
         $role_to_remove = trim($_GET['role'] ?? '');
+        $reassign_role = trim($_GET['reassign'] ?? $role_to_remove);
+        $reassign_department = trim($_GET['assignment_department'] ?? '');
+        $reassign_group = trim($_GET['reassign_group'] ?? '');
         $member_data = $conn->query("SELECT church_role FROM members WHERE id = $member_id")->fetch_assoc();
         $old_role = $member_data['church_role'] ?? '';
         
@@ -868,8 +871,8 @@ if (!empty($action)) {
             $msg = "Your roles ($old_role) have been removed by Admin.";
         }
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
-        
-        header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed successfully") . "&reassign=" . urlencode($role_to_remove) . "#assignRoleSection");
+
+        header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed successfully") . "&reassign=" . urlencode($reassign_role) . "&reassign_department=" . urlencode($reassign_department) . "&reassign_group=" . urlencode($reassign_group));
         exit();
     }
 
@@ -2673,16 +2676,16 @@ w.document.write('</div>');
                                             
                                             // Find row
                                             const expectedVal = selected.value.toLowerCase();
+                                            const expectedDepartment = (selected.dataset.assignmentDepartment || '').toLowerCase().trim();
+                                            const expectedGroup = selected.parentElement?.label || '';
                                             let targetRow = null;
                                             const removeLinks = document.querySelectorAll('a[href*="action=remove_role"]');
                                             removeLinks.forEach(link => {
-                                                const match = link.href.match(/[?&]role=([^&]+)/);
-                                                if (match) {
-                                                    const linkRole = decodeURIComponent(match[1].replace(/\+/g, '%20'));
-                                                    if (linkRole.toLowerCase() === expectedVal) {
-                                                        targetRow = link.closest('tr');
-                                                    }
-                                                }
+                                                const linkUrl = new URL(link.href);
+                                                const linkRole = (linkUrl.searchParams.get('reassign') || linkUrl.searchParams.get('role') || '').toLowerCase();
+                                                const linkDepartment = (linkUrl.searchParams.get('assignment_department') || '').toLowerCase().trim();
+                                                const linkGroup = linkUrl.searchParams.get('reassign_group') || '';
+                                                if (linkRole === expectedVal && (!expectedGroup || linkGroup === expectedGroup) && (!expectedDepartment || linkDepartment === expectedDepartment)) targetRow = link.closest('tr');
                                             });
                                             
                                             const currentRolesTable = document.getElementById('currentlyAssignedRolesTable');
@@ -2726,6 +2729,7 @@ w.document.write('</div>');
                                                         targetRow.style.backgroundColor = '';
                                                         targetRow.style.outline = '';
                                                     }, 6000);
+                                                    setTimeout(() => targetRow.querySelector('a[href*="action=remove_role"]')?.focus({preventScroll:true}), 350);
                                                 }
                                             }
                                         };
@@ -2770,6 +2774,148 @@ w.document.write('</div>');
                                         hint.textContent = allowed.length ? 'Showing members from: ' + allowed.join(', ') : 'This role can be assigned to members from the entire church.';
                                     }
                                 });
+
+                                const roleRemoveLinkFromEvent = event => {
+                                    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+                                    return target?.closest('#currentlyAssignedRolesTable a[href*="action=remove_role"]') || null;
+                                };
+                                const scrollBackToAssignRoles = () => new Promise(resolve => {
+                                    const target = document.getElementById('assignRoleSection');
+                                    const container = document.querySelector('.main-content');
+                                    if (!target || !container) return resolve();
+                                    const start = container.scrollTop;
+                                    const end = Math.max(0, Math.min(container.scrollHeight - container.clientHeight,
+                                        start + target.getBoundingClientRect().top - container.getBoundingClientRect().top - 12));
+                                    const distance = end - start;
+                                    const duration = 700;
+                                    const startedAt = performance.now();
+                                    const animate = now => {
+                                        const progress = Math.min(1, (now - startedAt) / duration);
+                                        container.scrollTop = start + distance * (1 - Math.pow(1 - progress, 3));
+                                        if (progress < 1) requestAnimationFrame(animate);
+                                        else resolve();
+                                    };
+                                    if (Math.abs(distance) < 2) resolve();
+                                    else requestAnimationFrame(animate);
+                                });
+                                const removeHolderRow = row => {
+                                    const departmentCell = row?.cells?.length >= 4 ? row.cells[0] : null;
+                                    const nextRow = row?.nextElementSibling;
+                                    if (departmentCell && departmentCell.rowSpan > 1 && nextRow) {
+                                        const carriedCell = departmentCell.cloneNode(true);
+                                        carriedCell.rowSpan = departmentCell.rowSpan - 1;
+                                        const badge = carriedCell.querySelector('.badge');
+                                        if (badge) badge.textContent = badge.textContent.replace(/\d+/, String(departmentCell.rowSpan - 1));
+                                        nextRow.insertBefore(carriedCell, nextRow.firstChild);
+                                    } else if (!departmentCell) {
+                                        for (let previous = row?.previousElementSibling; previous; previous = previous.previousElementSibling) {
+                                            const spanningCell = previous.cells?.[0];
+                                            if (spanningCell && spanningCell.rowSpan > row.rowIndex - previous.rowIndex) {
+                                                spanningCell.rowSpan -= 1;
+                                                const badge = spanningCell.querySelector('.badge');
+                                                if (badge) badge.textContent = badge.textContent.replace(/\d+/, String(spanningCell.rowSpan));
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    row?.remove();
+                                };
+                                document.addEventListener('click', async event => {
+                                    const removeLink = roleRemoveLinkFromEvent(event);
+                                    if (!removeLink || event.defaultPrevented) return;
+                                    return; // Let the confirmed removal redirect back to Assign Roles.
+                                    event.preventDefault();
+                                    if (removeLink.dataset.removing === 'true') return;
+                                    const removalUrl = removeLink.href;
+                                    removeLink.dataset.removing = 'true';
+                                    removeLink.textContent = 'Removing...';
+                                    try {
+                                        const response = await fetch(removalUrl, {
+                                            credentials: 'same-origin',
+                                            headers: {'X-Requested-With': 'XMLHttpRequest'}
+                                        });
+                                        const result = await response.json();
+                                        if (!response.ok || !result.success) throw new Error(result.message || 'Could not remove this role.');
+
+                                        const linkUrl = new URL(removalUrl);
+                                        const selectedRole = linkUrl.searchParams.get('reassign') || linkUrl.searchParams.get('role') || '';
+                                        const selectedGroup = linkUrl.searchParams.get('reassign_group') || '';
+                                        const selectedDepartment = (linkUrl.searchParams.get('assignment_department') || '').toLowerCase().trim();
+                                        const roleOption = Array.from(roleSelect.options).find(option =>
+                                            option.value.toLowerCase() === selectedRole.toLowerCase()
+                                            && (!selectedGroup || option.parentElement?.label === selectedGroup)
+                                            && (!selectedDepartment || (option.dataset.assignmentDepartment || '').toLowerCase().trim() === selectedDepartment)
+                                        );
+                                        if (roleOption) {
+                                            roleOption.removeAttribute('data-taken');
+                                            roleOption.textContent = roleOption.value;
+                                            roleSelect.selectedIndex = Array.from(roleSelect.options).indexOf(roleOption);
+                                            roleSelect.dispatchEvent(new Event('change', {bubbles:true}));
+                                        }
+
+                                        const row = removeLink.closest('tr');
+                                        removeLink.textContent = 'Removed';
+                                        removeLink.removeAttribute('href');
+                                        removeLink.style.pointerEvents = 'none';
+                                        const notice = document.createElement('div');
+                                        notice.className = 'alert alert-success';
+                                        notice.textContent = result.message || 'Role removed successfully';
+                                        document.getElementById('assignRoleSection')?.insertBefore(notice, document.getElementById('assignRoleSection').children[1] || null);
+                                        window.setTimeout(() => notice.remove(), 5000);
+                                        await scrollBackToAssignRoles();
+                                        removeHolderRow(row);
+                                    } catch (error) {
+                                        removeLink.textContent = 'Remove Role';
+                                        delete removeLink.dataset.removing;
+                                        window.alert(error.message || 'Unable to remove this role. Please try again.');
+                                    }
+                                });
+                                const query = new URLSearchParams(window.location.search);
+                                const reassignRole = query.get('reassign');
+                                const reassignDepartment = (query.get('reassign_department') || '').toLowerCase().trim();
+                                const reassignGroup = query.get('reassign_group') || '';
+                                if (reassignRole) {
+                                    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+                                    const matchingOption = Array.from(roleSelect.options).find(option =>
+                                        option.value.toLowerCase() === reassignRole.toLowerCase()
+                                        && (!reassignGroup || option.parentElement?.label === reassignGroup)
+                                        && (!reassignDepartment || (option.dataset.assignmentDepartment || '').toLowerCase().trim() === reassignDepartment)
+                                        && option.dataset.taken !== 'true'
+                                    );
+                                    if (matchingOption) {
+                                        roleSelect.selectedIndex = Array.from(roleSelect.options).indexOf(matchingOption);
+                                        roleSelect.dispatchEvent(new Event('change', {bubbles:true}));
+                                    }
+                                    const scrollToAssignmentForm = () => {
+                                        const target = document.getElementById('assignRoleSection');
+                                        const container = document.querySelector('.main-content');
+                                        if (!target || !container) return;
+                                        const containerTop = container.getBoundingClientRect().top;
+                                        const targetTop = target.getBoundingClientRect().top;
+                                        const start = container.scrollTop;
+                                        const end = Math.max(0, Math.min(container.scrollHeight - container.clientHeight, start + targetTop - containerTop - 12));
+                                        const distance = end - start;
+                                        const duration = 700;
+                                        const startedAt = performance.now();
+                                        const animateScroll = now => {
+                                            const progress = Math.min(1, (now - startedAt) / duration);
+                                            const eased = 1 - Math.pow(1 - progress, 3);
+                                            container.scrollTop = start + distance * eased;
+                                            if (progress < 1) requestAnimationFrame(animateScroll);
+                                        };
+                                        requestAnimationFrame(animateScroll);
+                                    };
+                                    const beginReturnScroll = () => {
+                                        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(scrollToAssignmentForm, 100)));
+                                    };
+                                    if (document.readyState === 'complete') beginReturnScroll();
+                                    else window.addEventListener('load', beginReturnScroll, {once:true});
+                                    const cleanUrl = new URL(window.location.href);
+                                    cleanUrl.searchParams.delete('reassign');
+                                    cleanUrl.searchParams.delete('reassign_department');
+                                    cleanUrl.searchParams.delete('reassign_group');
+                                    window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+                                }
                             })();
                         </script>
                     </div>
@@ -2922,7 +3068,14 @@ w.document.write('</div>');
                                         $pic_url = 'uploads/' . basename($pic);
                                         $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
                                         echo "<td style='font-weight: 500;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
-                                        echo "<td><a href='admin_dashboard.php?tab=assign_roles&action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($expected_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
+                                        $stored_role = $member_data['displayed_role'] ?? $expected_role;
+                                        $assignment_department = $hierarchy_department_names[$dept] ?? '';
+                                        $remove_url = 'admin_dashboard.php?tab=assign_roles&action=remove_role&id=' . (int)$member_data['id']
+                                            . '&role=' . urlencode($stored_role)
+                                            . '&reassign=' . urlencode($expected_role)
+                                            . '&assignment_department=' . urlencode($assignment_department)
+                                            . '&reassign_group=' . urlencode($dept);
+                                        echo "<td><a href='" . htmlspecialchars($remove_url, ENT_QUOTES) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
                                         echo "</tr>";
                                     }
                                 }
@@ -2946,7 +3099,8 @@ w.document.write('</div>');
                             $pic_url = 'uploads/' . basename($pic);
                             $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
                             echo "<td style='font-weight: 500;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
-                            echo "<td><a href='admin_dashboard.php?tab=assign_roles&action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($disp_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
+                            $remove_url = 'admin_dashboard.php?tab=assign_roles&action=remove_role&id=' . (int)$member_data['id'] . '&role=' . urlencode($disp_role) . '&reassign=' . urlencode($disp_role);
+                            echo "<td><a href='" . htmlspecialchars($remove_url, ENT_QUOTES) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
                             echo "</tr>";
                         }
                         echo "</tbody></table></div></div>";

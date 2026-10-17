@@ -4069,7 +4069,7 @@ w.document.write('</div>');
 
                 <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                     <!-- Assign Role Form -->
-                    <div class="content-card" style="flex: 1; min-width: 300px; margin-bottom: 20px;">
+                <div id="assignRoleSection" class="content-card" style="flex: 1; min-width: 300px; margin-bottom: 20px;">
                         <h2>Assign to Member</h2>
 
                         <!-- Popup toast for taken role -->
@@ -4077,9 +4077,38 @@ w.document.write('</div>');
                             <div style="font-size:2rem; margin-bottom:8px;">🔒</div>
                             <strong id="toastRoleTitle" style="font-size:1rem; display:block; margin-bottom:6px;">Role Already Assigned</strong>
                             <p id="toastRoleBody" style="font-size:0.88rem; color:#94a3b8; margin:0 0 14px;">This role is already taken. Remove the current holder first before reassigning.</p>
-                            <button onclick="document.getElementById('headUsherToast').style.display='none'; document.getElementById('assignRoleSelect').value='';" style="background:var(--primary,#2563eb); color:#fff; border:none; border-radius:8px; padding:8px 22px; font-size:0.9rem; cursor:pointer; font-weight:600;">OK, Got It</button>
+                            <button onclick="scrollToTakenRoleHolder()" style="background:var(--primary,#2563eb); color:#fff; border:none; border-radius:8px; padding:8px 22px; font-size:0.9rem; cursor:pointer; font-weight:600;">Okay, Show Leader</button>
                         </div>
                         <style>@keyframes fadeInDown{from{opacity:0;transform:translateX(-50%) translateY(-18px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}</style>
+                        <script>
+                            window.pendingTakenRole = '';
+                            window.pendingTakenDepartment = '';
+                            function scrollToTakenRoleHolder() {
+                                document.getElementById('headUsherToast').style.display = 'none';
+                                const role = window.pendingTakenRole.toLowerCase();
+                                const department = window.pendingTakenDepartment.toLowerCase().trim();
+                                const group = window.pendingTakenGroup || '';
+                                const links = Array.from(document.querySelectorAll('#currentlyAssignedRolesTable a[href*="action=remove_role"]'));
+                                const link = links.find(item => {
+                                    const url = new URL(item.href);
+                                    const rowRole = (url.searchParams.get('reassign') || url.searchParams.get('role') || '').toLowerCase();
+                                    const rowDepartment = (url.searchParams.get('assignment_department') || '').toLowerCase().trim();
+                                    const rowGroup = url.searchParams.get('reassign_group') || '';
+                                    return rowRole === role && (!group || rowGroup === group) && (!department || rowDepartment === department);
+                                });
+                                const row = link?.closest('tr');
+                                const target = row || document.getElementById('currentlyAssignedRolesTable');
+                                if (!target) return;
+                                target.scrollIntoView({behavior:'smooth', block:'center'});
+                                if (row) {
+                                    row.style.transition = 'background-color 250ms ease, outline 250ms ease';
+                                    row.style.backgroundColor = '#fef3c7';
+                                    row.style.outline = '3px solid #f59e0b';
+                                    setTimeout(() => { row.style.backgroundColor = ''; row.style.outline = ''; }, 6000);
+                                    setTimeout(() => link.focus({preventScroll:true}), 350);
+                                }
+                            }
+                        </script>
 
                         <form method="POST" action="pastor_action.php?action=assign_role">
                             <div class="form-group">
@@ -4147,6 +4176,9 @@ w.document.write('</div>');
                                     }
                                     
                                     if (sel && sel.dataset.taken === '1') {
+                                        window.pendingTakenRole = sel.value;
+                                        window.pendingTakenDepartment = sel.dataset.assignmentDepartment || '';
+                                        window.pendingTakenGroup = sel.parentElement?.label || '';
                                         this.value = '';
                                         const tBody = document.getElementById('toastRoleBody');
                                         const rName = sel.text.replace(' (Taken)', '');
@@ -4210,6 +4242,148 @@ w.document.write('</div>');
                                         hint.style.color = "#10b981";
                                     }
                                 });
+
+                                const roleRemoveLinkFromEvent = event => {
+                                    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+                                    return target?.closest('#currentlyAssignedRolesTable a[href*="action=remove_role"]') || null;
+                                };
+                                const scrollBackToAssignRoles = () => new Promise(resolve => {
+                                    const target = document.getElementById('assignRoleSection');
+                                    const container = document.querySelector('.main-content');
+                                    if (!target || !container) return resolve();
+                                    const start = container.scrollTop;
+                                    const end = Math.max(0, Math.min(container.scrollHeight - container.clientHeight,
+                                        start + target.getBoundingClientRect().top - container.getBoundingClientRect().top - 12));
+                                    const distance = end - start;
+                                    const duration = 700;
+                                    const startedAt = performance.now();
+                                    const animate = now => {
+                                        const progress = Math.min(1, (now - startedAt) / duration);
+                                        container.scrollTop = start + distance * (1 - Math.pow(1 - progress, 3));
+                                        if (progress < 1) requestAnimationFrame(animate);
+                                        else resolve();
+                                    };
+                                    if (Math.abs(distance) < 2) resolve();
+                                    else requestAnimationFrame(animate);
+                                });
+                                const removeHolderRow = row => {
+                                    const departmentCell = row?.cells?.length >= 4 ? row.cells[0] : null;
+                                    const nextRow = row?.nextElementSibling;
+                                    if (departmentCell && departmentCell.rowSpan > 1 && nextRow) {
+                                        const carriedCell = departmentCell.cloneNode(true);
+                                        carriedCell.rowSpan = departmentCell.rowSpan - 1;
+                                        const badge = carriedCell.querySelector('.badge');
+                                        if (badge) badge.textContent = badge.textContent.replace(/\d+/, String(departmentCell.rowSpan - 1));
+                                        nextRow.insertBefore(carriedCell, nextRow.firstChild);
+                                    } else if (!departmentCell) {
+                                        for (let previous = row?.previousElementSibling; previous; previous = previous.previousElementSibling) {
+                                            const spanningCell = previous.cells?.[0];
+                                            if (spanningCell && spanningCell.rowSpan > row.rowIndex - previous.rowIndex) {
+                                                spanningCell.rowSpan -= 1;
+                                                const badge = spanningCell.querySelector('.badge');
+                                                if (badge) badge.textContent = badge.textContent.replace(/\d+/, String(spanningCell.rowSpan));
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    row?.remove();
+                                };
+                                document.addEventListener('click', async event => {
+                                    const removeLink = roleRemoveLinkFromEvent(event);
+                                    if (!removeLink || event.defaultPrevented) return;
+                                    return; // Let the confirmed removal redirect back to Assign Roles.
+                                    event.preventDefault();
+                                    if (removeLink.dataset.removing === 'true') return;
+                                    const removalUrl = removeLink.href;
+                                    removeLink.dataset.removing = 'true';
+                                    removeLink.textContent = 'Removing...';
+                                    try {
+                                        const response = await fetch(removalUrl, {
+                                            credentials: 'same-origin',
+                                            headers: {'X-Requested-With': 'XMLHttpRequest'}
+                                        });
+                                        const result = await response.json();
+                                        if (!response.ok || !result.success) throw new Error(result.message || 'Could not remove this role.');
+
+                                        const linkUrl = new URL(removalUrl);
+                                        const selectedRole = linkUrl.searchParams.get('reassign') || linkUrl.searchParams.get('role') || '';
+                                        const selectedGroup = linkUrl.searchParams.get('reassign_group') || '';
+                                        const selectedDepartment = (linkUrl.searchParams.get('assignment_department') || '').toLowerCase().trim();
+                                        const roleOption = Array.from(roleSelect.options).find(option =>
+                                            option.value.toLowerCase() === selectedRole.toLowerCase()
+                                            && (!selectedGroup || option.parentElement?.label === selectedGroup)
+                                            && (!selectedDepartment || (option.dataset.assignmentDepartment || '').toLowerCase().trim() === selectedDepartment)
+                                        );
+                                        if (roleOption) {
+                                            roleOption.removeAttribute('data-taken');
+                                            roleOption.textContent = roleOption.value;
+                                            roleSelect.selectedIndex = Array.from(roleSelect.options).indexOf(roleOption);
+                                            roleSelect.dispatchEvent(new Event('change', {bubbles:true}));
+                                        }
+
+                                        const row = removeLink.closest('tr');
+                                        removeLink.textContent = 'Removed';
+                                        removeLink.removeAttribute('href');
+                                        removeLink.style.pointerEvents = 'none';
+                                        const notice = document.createElement('div');
+                                        notice.className = 'alert alert-success';
+                                        notice.textContent = result.message || 'Role removed successfully';
+                                        document.getElementById('assignRoleSection')?.insertBefore(notice, document.getElementById('assignRoleSection').children[1] || null);
+                                        window.setTimeout(() => notice.remove(), 5000);
+                                        await scrollBackToAssignRoles();
+                                        removeHolderRow(row);
+                                    } catch (error) {
+                                        removeLink.textContent = 'Remove Role';
+                                        delete removeLink.dataset.removing;
+                                        window.alert(error.message || 'Unable to remove this role. Please try again.');
+                                    }
+                                });
+                                const query = new URLSearchParams(window.location.search);
+                                const reassignRole = query.get('reassign');
+                                const reassignDepartment = (query.get('reassign_department') || '').toLowerCase().trim();
+                                const reassignGroup = query.get('reassign_group') || '';
+                                if (reassignRole) {
+                                    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+                                    const matchingOption = Array.from(roleSelect.options).find(option =>
+                                        option.value.toLowerCase() === reassignRole.toLowerCase()
+                                        && (!reassignGroup || option.parentElement?.label === reassignGroup)
+                                        && (!reassignDepartment || (option.dataset.assignmentDepartment || '').toLowerCase().trim() === reassignDepartment)
+                                        && option.dataset.taken !== '1'
+                                    );
+                                    if (matchingOption) {
+                                        roleSelect.selectedIndex = Array.from(roleSelect.options).indexOf(matchingOption);
+                                        roleSelect.dispatchEvent(new Event('change', {bubbles:true}));
+                                    }
+                                    const scrollToAssignmentForm = () => {
+                                        const target = document.getElementById('assignRoleSection');
+                                        const container = document.querySelector('.main-content');
+                                        if (!target || !container) return;
+                                        const containerTop = container.getBoundingClientRect().top;
+                                        const targetTop = target.getBoundingClientRect().top;
+                                        const start = container.scrollTop;
+                                        const end = Math.max(0, Math.min(container.scrollHeight - container.clientHeight, start + targetTop - containerTop - 12));
+                                        const distance = end - start;
+                                        const duration = 700;
+                                        const startedAt = performance.now();
+                                        const animateScroll = now => {
+                                            const progress = Math.min(1, (now - startedAt) / duration);
+                                            const eased = 1 - Math.pow(1 - progress, 3);
+                                            container.scrollTop = start + distance * eased;
+                                            if (progress < 1) requestAnimationFrame(animateScroll);
+                                        };
+                                        requestAnimationFrame(animateScroll);
+                                    };
+                                    const beginReturnScroll = () => {
+                                        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(scrollToAssignmentForm, 100)));
+                                    };
+                                    if (document.readyState === 'complete') beginReturnScroll();
+                                    else window.addEventListener('load', beginReturnScroll, {once:true});
+                                    const cleanUrl = new URL(window.location.href);
+                                    cleanUrl.searchParams.delete('reassign');
+                                    cleanUrl.searchParams.delete('reassign_department');
+                                    cleanUrl.searchParams.delete('reassign_group');
+                                    window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+                                }
                             })();
                         </script>
                     </div>
@@ -4313,7 +4487,7 @@ w.document.write('</div>');
                     </div>
                 </div>
                 
-                <div class="content-card">
+                <div id="currentlyAssignedRolesTable" class="content-card">
 <h2 style="margin-bottom: 20px;">Currently Assigned Roles</h2>
                     <?php 
                     $assigned_roles_q = $conn->query("SELECT id, first_name, last_name, department, church_role, profile_picture FROM members WHERE church_role IS NOT NULL AND church_role != '' AND LOWER(TRIM(church_role)) != 'member'");
@@ -4414,7 +4588,14 @@ w.document.write('</div>');
                                             $pic_url = 'uploads/' . basename($pic);
                                             $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
                                             echo "<td style='font-weight: 500; padding: 12px;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
-                                            echo "<td style='padding: 12px;'><a href='pastor_action.php?action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($expected_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
+                                            $stored_role = $member_data['displayed_role'] ?? $expected_role;
+                                            $assignment_department = $hierarchy_department_names[$dept] ?? '';
+                                            $remove_url = 'pastor_action.php?action=remove_role&id=' . (int)$member_data['id']
+                                                . '&role=' . urlencode($stored_role)
+                                                . '&reassign=' . urlencode($expected_role)
+                                                . '&assignment_department=' . urlencode($assignment_department)
+                                                . '&reassign_group=' . urlencode($dept);
+                                            echo "<td style='padding: 12px;'><a href='" . htmlspecialchars($remove_url, ENT_QUOTES) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
                                             echo "</tr>";
                                         }
                                     }
@@ -4442,7 +4623,8 @@ w.document.write('</div>');
                             $pic_url = 'uploads/' . basename($pic);
                             $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
                             echo "<td style='font-weight: 500; padding: 12px;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
-                                echo "<td style='padding: 12px;'><a href='pastor_action.php?action=remove_role&id=" . $member_data['id'] . "&role=" . urlencode($disp_role) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
+                                $remove_url = 'pastor_action.php?action=remove_role&id=' . (int)$member_data['id'] . '&role=' . urlencode($disp_role) . '&reassign=' . urlencode($disp_role);
+                                echo "<td style='padding: 12px;'><a href='" . htmlspecialchars($remove_url, ENT_QUOTES) . "' onclick=\"return confirm('Remove this role from " . htmlspecialchars($member_data['first_name']) . "?');\" class='btn-sm' style='background: var(--danger); color: white; text-decoration:none; border:none; cursor:pointer;'>Remove Role</a></td>";
                                 echo "</tr>";
                             }
                         }
