@@ -4171,10 +4171,16 @@ w.document.write('</div>');
                                 if (!target) return;
                                 target.scrollIntoView({behavior:'smooth', block:'center'});
                                 if (row) {
-                                    row.style.transition = 'background-color 250ms ease, outline 250ms ease';
-                                    row.style.backgroundColor = '#fef3c7';
-                                    row.style.outline = '3px solid #f59e0b';
-                                    setTimeout(() => { row.style.backgroundColor = ''; row.style.outline = ''; }, 6000);
+                                    row.animate([
+                                        { backgroundColor: 'rgba(250, 204, 21, 0.76)', outline: '3px solid #d97706', boxShadow: '0 0 24px 8px rgba(245, 158, 11, 0.9)' },
+                                        { backgroundColor: 'rgba(250, 204, 21, 0.25)', outline: '2px solid rgba(217, 119, 6, 0.4)', boxShadow: '0 0 5px 1px rgba(245, 158, 11, 0.2)', offset: 0.14 },
+                                        { backgroundColor: 'rgba(250, 204, 21, 0.72)', outline: '3px solid #d97706', boxShadow: '0 0 22px 7px rgba(245, 158, 11, 0.85)', offset: 0.28 },
+                                        { backgroundColor: 'rgba(250, 204, 21, 0.25)', outline: '2px solid rgba(217, 119, 6, 0.4)', boxShadow: '0 0 5px 1px rgba(245, 158, 11, 0.2)', offset: 0.42 },
+                                        { backgroundColor: 'rgba(250, 204, 21, 0.72)', outline: '3px solid #d97706', boxShadow: '0 0 22px 7px rgba(245, 158, 11, 0.85)', offset: 0.56 },
+                                        { backgroundColor: 'rgba(250, 204, 21, 0.25)', outline: '2px solid rgba(217, 119, 6, 0.4)', boxShadow: '0 0 5px 1px rgba(245, 158, 11, 0.2)', offset: 0.70 },
+                                        { backgroundColor: 'rgba(250, 204, 21, 0.7)', outline: '3px solid #d97706', boxShadow: '0 0 20px 6px rgba(245, 158, 11, 0.8)', offset: 0.84 },
+                                        { backgroundColor: 'transparent', outline: '0 solid transparent', boxShadow: '0 0 0 0 transparent' }
+                                    ], { duration: 10000, easing: 'ease-in-out' });
                                     setTimeout(() => link.focus({preventScroll:true}), 350);
                                 }
                             }
@@ -7686,7 +7692,7 @@ function filterFinanceRecords() {
             { backgroundColor: 'rgba(250, 204, 21, 0.66)', outline: '3px solid #d97706', boxShadow: '0 0 18px 5px rgba(245, 158, 11, 0.75)', offset: 0.72 },
             { backgroundColor: 'rgba(250, 204, 21, 0.42)', outline: '2px solid rgba(217, 119, 6, 0.65)', boxShadow: '0 0 12px 3px rgba(245, 158, 11, 0.5)', offset: 0.86 },
             { backgroundColor: 'transparent', outline: '0 solid transparent', boxShadow: '0 0 0 0 transparent' }
-        ], { duration: 6000, easing: 'ease-in-out' });
+        ], { duration: 10000, easing: 'ease-in-out' });
     }, 520);
 })();
 </script>
