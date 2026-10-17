@@ -4116,6 +4116,10 @@ w.document.write('</div>');
                                 <input type="search" id="assignRoleSearch" class="form-control" autocomplete="off"
                                     placeholder="Search roles or departments..." aria-label="Filter the role dropdown">
                                 <small style="display:block;margin:6px 0;color:var(--text-muted);">Type to filter the role dropdown below.</small>
+                                <style>
+                                    #assignRoleSelect.role-search-open{display:block;height:auto;min-height:76px;max-height:300px;overflow-y:auto;padding:6px 10px}
+                                    #assignRoleSelect.role-search-open option{padding:6px 8px}
+                                </style>
                                 <select name="role" id="assignRoleSelect" class="form-control" required>
                                     <option value="">-- Select Role --</option>
                                     <?php 
@@ -4213,8 +4217,20 @@ w.document.write('</div>');
                                         roleSelect.appendChild(filteredGroup);
                                         visibleRoles += matching.length;
                                     });
+                                    if (query && visibleRoles === 0) {
+                                        const noResults = document.createElement('option');
+                                        noResults.disabled = true;
+                                        noResults.textContent = '-- No matching roles --';
+                                        roleSelect.appendChild(noResults);
+                                    }
                                     if (Array.from(roleSelect.options).some(option => option.value === selectedValue)) roleSelect.value = selectedValue;
-                                    roleSelect.size = query ? Math.min(Math.max(visibleRoles, 1), 8) : 1;
+                                    if (query) {
+                                        roleSelect.classList.add('role-search-open');
+                                        roleSelect.setAttribute('size', String(Math.min(Math.max(visibleRoles + 1, 2), 8)));
+                                    } else {
+                                        roleSelect.classList.remove('role-search-open');
+                                        roleSelect.removeAttribute('size');
+                                    }
                                 };
                                 roleSearch.addEventListener('input', filterRoleDropdown);
                                 roleSelect.addEventListener('change', () => {
