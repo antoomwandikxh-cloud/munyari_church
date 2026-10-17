@@ -5339,7 +5339,7 @@ w.document.write('</div>');
                                     <input type="text" id="member_search_textbox"
                                            autocomplete="off"
                                            placeholder="Type member name..."
-                                           value="<?= $active_chat_member ? htmlspecialchars($active_chat_member['first_name'] . ' ' . $active_chat_member['last_name'] . ' (' . $active_chat_member['department'] . ')') : '' ?>"
+                                           value=""
                                            onfocus="this.select(); openMemberDropdown(true);"
                                            onclick="openMemberDropdown(true);"
                                            oninput="filterMemberDropdownLive(this.value);"
@@ -5621,10 +5621,6 @@ w.document.write('</div>');
                             } else {
                                 id = target;
                                 label = arguments[1] || '';
-                            }
-                            const txtBox = document.getElementById('member_search_textbox');
-                            if (txtBox && label) {
-                                txtBox.value = label;
                             }
                             openMemberDropdown(false);
                             window.location.href = '?tab=appointments&chat_member_id=' + id + '#chat_section';

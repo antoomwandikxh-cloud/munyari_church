@@ -2653,9 +2653,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_username'])) {
 }
 
 $messages_query = $conn->query("
-    SELECT mm.*, p.first_name as p_fn, p.last_name as p_ln, p.profile_picture as pastor_pic
+    SELECT mm.*, p.first_name as p_fn, p.last_name as p_ln, p.profile_picture as pastor_pic,
+           a.username as admin_name, a.profile_picture as admin_pic
     FROM member_messages mm
-    LEFT JOIN pastors p ON (mm.pastor_id = p.id OR p.first_name = mm.pastor_name OR CONCAT(p.first_name, ' ', p.last_name) = mm.pastor_name)
+    LEFT JOIN pastors p ON mm.sender_type <> 'admin' AND (mm.pastor_id = p.id OR p.first_name = mm.pastor_name OR CONCAT(p.first_name, ' ', p.last_name) = mm.pastor_name)
+    LEFT JOIN admins a ON mm.sender_type = 'admin' AND mm.pastor_name = a.username
     WHERE mm.member_id = $member_id
     ORDER BY mm.created_at ASC
 ");
@@ -5158,8 +5160,13 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                     $my_pic = !empty($member['profile_picture']) ? 'uploads/' . htmlspecialchars($member['profile_picture']) : 'uploads/default_avatar.png';
                                     $last_pastor_id = 15;
                                     while($msg = $messages_query->fetch_assoc()): 
-                                        $p_img = !empty($msg['pastor_pic']) ? 'uploads/' . htmlspecialchars($msg['pastor_pic']) : 'uploads/default_avatar.png';
-                                        $p_display_name = !empty($msg['p_fn']) ? trim($msg['p_fn'] . ' ' . ($msg['p_ln'] ?? '')) : $msg['pastor_name'];
+                                        $is_admin_message = ($msg['sender_type'] ?? '') === 'admin';
+                                        $p_img = $is_admin_message
+                                            ? (!empty($msg['admin_pic']) ? 'uploads/' . htmlspecialchars($msg['admin_pic']) : 'uploads/default_avatar.png')
+                                            : (!empty($msg['pastor_pic']) ? 'uploads/' . htmlspecialchars($msg['pastor_pic']) : 'uploads/default_avatar.png');
+                                        $p_display_name = $is_admin_message
+                                            ? (!empty($msg['admin_name']) ? $msg['admin_name'] : 'Admin')
+                                            : (!empty($msg['p_fn']) ? trim($msg['p_fn'] . ' ' . ($msg['p_ln'] ?? '')) : $msg['pastor_name']);
                                         $is_my_reply = ($msg['sender_type'] ?? '') === 'member';
                                         if (!empty($msg['pastor_id'])) { $last_pastor_id = (int)$msg['pastor_id']; }
                                     ?>
@@ -5176,7 +5183,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
 
                                             <div style="display:flex; flex-direction:column; align-items:<?= $is_my_reply ? 'flex-end' : 'flex-start' ?>; max-width:80%; gap:2px;">
                                                 <div style="font-size:0.72rem; font-weight:700; color:var(--text-muted); padding:0 4px;">
-                                                    <?= $is_my_reply ? 'You' : 'Pastor ' . htmlspecialchars($p_display_name) ?>
+                                                    <?= $is_my_reply ? 'You' : ($is_admin_message ? 'Admin ' : 'Pastor ') . htmlspecialchars($p_display_name) ?>
                                                 </div>
                                                 <!-- High-contrast WhatsApp style bubbles: Blue for Pastor, Vibrant Green for Member -->
                                                 <div style="background:<?= $is_my_reply ? '#16a34a' : 'var(--primary)' ?>; color:#ffffff; border-radius:<?= $is_my_reply ? '16px 4px 16px 16px' : '4px 16px 16px 16px' ?>; padding:10px 14px; font-size:0.9rem; line-height:1.5; word-break:break-word; box-shadow:0 1px 3px rgba(0,0,0,0.1);">

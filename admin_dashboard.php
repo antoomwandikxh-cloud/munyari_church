@@ -225,6 +225,37 @@ if ($admin_profile_col && $admin_profile_col->num_rows == 0) {
 }
 $admin = $conn->query("SELECT * FROM admins WHERE id = $admin_id")->fetch_assoc();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_member_message'])) {
+    $target_member_id = (int)($_POST['member_id'] ?? 0);
+    $message = trim($_POST['message'] ?? '');
+    $target = $target_member_id > 0
+        ? $conn->query("SELECT id FROM members WHERE id = $target_member_id AND is_approved = 1 LIMIT 1")
+        : false;
+
+    if ($target && $target->num_rows > 0 && $message !== '') {
+        $conn->query("ALTER TABLE member_messages ADD COLUMN IF NOT EXISTS pastor_id INT(6) UNSIGNED NULL AFTER member_id");
+        $conn->query("ALTER TABLE member_messages ADD COLUMN IF NOT EXISTS sender_type ENUM('pastor', 'member', 'admin') NOT NULL DEFAULT 'pastor' AFTER pastor_name");
+        $conn->query("ALTER TABLE member_messages ADD COLUMN IF NOT EXISTS reply_to_id INT(6) UNSIGNED NULL DEFAULT NULL AFTER message");
+        $conn->query("ALTER TABLE member_messages MODIFY COLUMN sender_type ENUM('pastor', 'member', 'admin') NOT NULL DEFAULT 'pastor'");
+
+        $admin_name = trim(($admin['username'] ?? '') ?: 'Admin');
+        $admin_name_sql = $conn->real_escape_string($admin_name);
+        $message_sql = $conn->real_escape_string($message);
+        $conn->query("INSERT INTO member_messages (member_id, pastor_id, pastor_name, sender_type, message, reply_to_id)
+                      VALUES ($target_member_id, NULL, '$admin_name_sql', 'admin', '$message_sql', NULL)");
+
+        $snippet = function_exists('mb_strlen') && mb_strlen($message) > 60
+            ? mb_substr($message, 0, 57) . '...'
+            : (strlen($message) > 60 ? substr($message, 0, 57) . '...' : $message);
+        $notification = $conn->real_escape_string("Message from Admin $admin_name: \"$snippet\". Please check your Contact Pastor tab.");
+        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($target_member_id, 'member', '$notification')");
+        header('Location: admin_dashboard.php?tab=appointments&success=' . urlencode('Message sent to member successfully'));
+    } else {
+        header('Location: admin_dashboard.php?tab=appointments&error=' . urlencode('Choose an approved member and enter a message'));
+    }
+    exit();
+}
+
 if (isset($_GET['action']) && $_GET['action'] == 'mark_all_read') {
     $conn->query("UPDATE notifications SET is_read = 1 WHERE user_id = $admin_id AND user_type = 'admin'");
     header("Location: admin_dashboard.php");
@@ -4692,15 +4723,18 @@ w.document.write('</div>');
                 <!-- Embedded Messages Tab -->
                 <div class="content-card" style="margin-top: 30px; max-width: 600px;">
                     <h2>Send Direct Message</h2>
-                    <form method="POST" action="">
+                    <?php if (!empty($_GET['success'])): ?><div class="alert alert-success" style="margin:12px 0;"><?= htmlspecialchars($_GET['success']) ?></div><?php endif; ?>
+                    <?php if (!empty($_GET['error'])): ?><div class="alert alert-danger" style="margin:12px 0;"><?= htmlspecialchars($_GET['error']) ?></div><?php endif; ?>
+                    <form method="POST" action="admin_dashboard.php?tab=appointments">
                         <div class="form-group">
-                            <label>Select Member</label>
-                            <select name="member_id" class="form-control" required>
+                            <label for="admin_member_search">Search Member</label>
+                            <input type="search" id="admin_member_search" class="form-control" placeholder="Search member name..." autocomplete="off" oninput="filterAdminMessageMembers(this.value)">
+                            <select name="member_id" id="admin_message_member" class="form-control" required style="margin-top:8px;">
                                 <option value="">-- Choose Member --</option>
                                 <?php 
                                 $members_query = $conn->query("SELECT id, first_name, last_name, department FROM members WHERE is_approved = 1 ORDER BY first_name");
                                 while($m = $members_query->fetch_assoc()): ?>
-                                    <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name'] . ' (' . $m['department'] . ')') ?></option>
+                                    <option value="<?= (int)$m['id'] ?>" data-search="<?= htmlspecialchars(strtolower($m['first_name'] . ' ' . $m['last_name'] . ' ' . $m['department']), ENT_QUOTES) ?>"><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name'] . ' (' . $m['department'] . ')') ?></option>
                                 <?php endwhile; ?>
                             </select>
                         </div>
@@ -4708,20 +4742,20 @@ w.document.write('</div>');
                             <label>Message</label>
                             <textarea name="message" class="form-control" rows="5" required></textarea>
                         </div>
-                        <button type="submit" name="send_message" class="btn-submit">Send Message</button>
+                        <button type="submit" name="send_member_message" value="1" class="btn-submit">Send Message</button>
                     </form>
-                    
-                    <?php
-                    if (isset($_POST['send_message'])) {
-                        $m_id = (int)$_POST['member_id'];
-                        $msg = $conn->real_escape_string(trim($_POST['message']));
-                        if (!empty($msg)) {
-                            $conn->query("INSERT INTO messages (pastor_id, member_id, message) VALUES ($pastor_id, $m_id, '$msg')");
-                            echo "<div class='alert alert-success' style='margin-top:20px;'>Message sent successfully!</div>";
-                        }
-                    }
-                    ?>
                 </div>
+                <script>
+                    function filterAdminMessageMembers(query) {
+                        const needle = (query || '').trim().toLowerCase();
+                        document.querySelectorAll('#admin_message_member option').forEach(option => {
+                            if (!option.value) return;
+                            option.hidden = needle !== '' && !option.dataset.search.includes(needle);
+                        });
+                        const select = document.getElementById('admin_message_member');
+                        if (select.value && select.selectedOptions[0]?.hidden) select.value = '';
+                    }
+                </script>
 
             
             

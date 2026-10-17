@@ -34,6 +34,10 @@ function notification_badge_tabs($message, $user_type) {
         }
     }
 
+    if ($user_type === 'member' && strpos($msg, 'message from admin') !== false) {
+        return ['contact_pastor'];
+    }
+
     // ─── APPOINTMENTS & CONTACT PASTOR & DIRECT MESSAGES ─────────────────────
     if (strpos($msg, 'reply from member') !== false
         || strpos($msg, 'member reply') !== false
