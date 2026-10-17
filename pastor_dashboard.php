@@ -4194,12 +4194,15 @@ w.document.write('</div>');
                                     const selectedValue = roleSelect.value;
                                     roleSelect.replaceChildren();
                                     if (rolePlaceholder) roleSelect.appendChild(rolePlaceholder.cloneNode(true));
+                                    let visibleRoles = 0;
                                     fullRoleGroups.forEach(group => {
                                         const groupName = group.label || 'Other';
                                         const matching = Array.from(group.querySelectorAll('option')).filter(option => {
                                             if (!query) return true;
-                                            const searchableText = normalizeRoleSearch(`${option.value} ${groupName}`);
-                                            return query.split(' ').every(word => searchableText.includes(word));
+                                            const roleWords = normalizeRoleSearch(option.value).split(' ');
+                                            const groupWords = normalizeRoleSearch(groupName).split(' ');
+                                            const searchableWords = query.length === 1 ? roleWords : [...roleWords, ...groupWords];
+                                            return query.split(' ').every(word => searchableWords.some(candidate => candidate.startsWith(word)));
                                         });
                                         if (!matching.length) return;
                                         const filteredGroup = document.createElement('optgroup');
@@ -4208,8 +4211,10 @@ w.document.write('</div>');
                                         filteredGroup.style.fontWeight = '700';
                                         matching.forEach(option => filteredGroup.appendChild(option.cloneNode(true)));
                                         roleSelect.appendChild(filteredGroup);
+                                        visibleRoles += matching.length;
                                     });
                                     if (Array.from(roleSelect.options).some(option => option.value === selectedValue)) roleSelect.value = selectedValue;
+                                    roleSelect.size = query ? Math.min(Math.max(visibleRoles, 1), 8) : 1;
                                 };
                                 roleSearch.addEventListener('input', filterRoleDropdown);
                                 roleSelect.addEventListener('change', () => {
