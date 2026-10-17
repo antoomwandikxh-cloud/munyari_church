@@ -7432,8 +7432,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <form method="POST" action="member_action.php?action=post_organized_event" enctype="multipart/form-data">
                         <input type="hidden" name="active_dept" value="<?= htmlspecialchars($active_org_dept) ?>">
                         <div class="form-group">
-                            <label>Event Title / Announcement</label>
-                            <input type="text" name="title" class="form-control" placeholder="e.g. Weekly Meeting" required>
+                            <label>Event Title / Announcement (Optional for voice-only posts)</label>
+                            <input type="text" name="title" class="form-control" placeholder="e.g. Weekly Meeting, or leave blank for a voice-only post">
                         </div>
                         <div class="form-group">
                             <label>Details / Message</label>

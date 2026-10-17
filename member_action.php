@@ -590,20 +590,27 @@ if (isset($_GET['action'])) {
             $department = $conn->real_escape_string($requested_department);
             $title_text = trim($_POST['title'] ?? '');
             $announcement_text = trim($_POST['announcement'] ?? '');
-            $title = $conn->real_escape_string($title_text);
             $meet_link = $conn->real_escape_string(trim($_POST['meet_link'] ?? ''));
             $whatsapp_link = $conn->real_escape_string(trim($_POST['whatsapp_link'] ?? ''));
             $voice_upload = $_FILES['pastor_voice_note'] ?? null;
             $has_voice_input = !empty($_POST['pastor_voice_note_blob'])
                 || (!empty($voice_upload) && ($voice_upload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK && !empty($voice_upload['size']));
-            if ($title_text === '' || ($announcement_text === '' && !$has_voice_input)) {
-                header("Location: member_dashboard.php?tab=organized_events&error=Enter event details or record a voice note");
+            if ($announcement_text === '' && !$has_voice_input) {
+                header("Location: member_dashboard.php?tab=organized_events&error=Add event details or record a voice note");
                 exit();
             }
             $voice_note = save_voice_note($_POST['pastor_voice_note_blob'] ?? null, $_FILES['pastor_voice_note'] ?? null);
             if ($announcement_text === '' && $voice_note) {
                 $announcement_text = 'Voice announcement from the Organising Secretary.';
             }
+            if ($title_text === '' && $voice_note) {
+                $title_text = 'Voice announcement - ' . date('M j, Y g:i A');
+            }
+            if ($title_text === '' || ($announcement_text === '' && !$voice_note)) {
+                header("Location: member_dashboard.php?tab=organized_events&error=Add event details or record a voice note");
+                exit();
+            }
+            $title = $conn->real_escape_string($title_text);
             $announcement = $conn->real_escape_string($announcement_text);
             $attendance_file = null;
 
