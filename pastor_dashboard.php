@@ -4606,7 +4606,14 @@ w.document.write('</div>');
                                             $assigned_names[] = trim($assigned_role_row['first_name'] . ' ' . $assigned_role_row['last_name']);
                                         }
                                         $allowed_departments = role_assignment_departments($expected_role);
-                                        $allowed_label = empty($allowed_departments) ? 'Entire Church' : implode(', ', $allowed_departments);
+                                        $is_worship_leadership_role = in_array(
+                                            normalize_role_name($expected_role),
+                                            ['worship leader', 'vice worship leader'],
+                                            true
+                                        );
+                                        $allowed_label = $is_worship_leadership_role
+                                            ? 'Approved members who selected Worshipper'
+                                            : (empty($allowed_departments) ? 'Entire Church' : implode(', ', $allowed_departments));
                                         if (is_subsidiary_department_role($expected_role) && !empty($context_department)) {
                                             $allowed_label = $context_department;
                                         }

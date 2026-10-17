@@ -3121,7 +3121,10 @@ w.document.write('</div>');
                                         $is_assigned = isset($assigned_role_rows[$norm_role]);
                                         $assigned_to = $assigned_role_rows[$norm_role] ?? null;
                                         $allowed_depts = role_assignment_departments($role, $context_dept);
-                                        $allowed_str = !empty($allowed_depts) ? implode(', ', $allowed_depts) : 'All Members';
+                                        $is_worship_leadership_role = in_array($norm_role, ['worship leader', 'vice worship leader'], true);
+                                        $allowed_str = $is_worship_leadership_role
+                                            ? 'Approved members who selected Worshipper'
+                                            : (!empty($allowed_depts) ? implode(', ', $allowed_depts) : 'All Members');
                                 ?>
                                 <tr style="border-bottom: 1px solid var(--border-color);">
                                     <?php if ($first_row): ?>
