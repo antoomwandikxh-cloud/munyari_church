@@ -4168,16 +4168,25 @@ w.document.write('</div>');
                                 const roleSearch = document.getElementById('assignRoleSearch');
                                 const departmentColors = {
                                     'general church': '#3b82f6',
+                                    'general church leaders': '#3b82f6',
                                     'elders': '#14b8a6',
                                     'elder ministry': '#14b8a6',
+                                    'elders department': '#14b8a6',
                                     'womens ministry': '#e11d48',
                                     'women ministry': '#e11d48',
+                                    'women s ministry': '#e11d48',
                                     'youths': '#16a34a',
                                     'youth ministry': '#16a34a',
+                                    'youths department': '#16a34a',
                                     'sunday school': '#d97706',
-                                    'building': '#0ea5e9'
+                                    'building': '#0ea5e9',
+                                    'building department': '#0ea5e9',
+                                    'other roles': '#64748b'
                                 };
-                                const normalizeRoleSearch = value => (value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+                                const normalizeRoleSearch = value => (value || '').toLowerCase()
+                                    .replace(/\borganis(e|ed|ing|ation)\b/g, (_, ending) => `organiz${ending}`)
+                                    .replace(/\byouths\b/g, 'youth')
+                                    .replace(/[^a-z0-9]+/g, ' ').trim();
                                 const fullRoleGroups = Array.from(roleSelect.querySelectorAll('optgroup')).map(group => group.cloneNode(true));
                                 const rolePlaceholder = roleSelect.querySelector('option[value=""]')?.cloneNode(true);
                                 const filterRoleDropdown = () => {
@@ -4187,9 +4196,11 @@ w.document.write('</div>');
                                     if (rolePlaceholder) roleSelect.appendChild(rolePlaceholder.cloneNode(true));
                                     fullRoleGroups.forEach(group => {
                                         const groupName = group.label || 'Other';
-                                        const matching = Array.from(group.querySelectorAll('option')).filter(option =>
-                                            !query || normalizeRoleSearch(`${option.value} ${groupName}`).includes(query)
-                                        );
+                                        const matching = Array.from(group.querySelectorAll('option')).filter(option => {
+                                            if (!query) return true;
+                                            const searchableText = normalizeRoleSearch(`${option.value} ${groupName}`);
+                                            return query.split(' ').every(word => searchableText.includes(word));
+                                        });
                                         if (!matching.length) return;
                                         const filteredGroup = document.createElement('optgroup');
                                         filteredGroup.label = groupName;
