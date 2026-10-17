@@ -40,6 +40,17 @@ function delete_organized_event_file($relative_path, $directory) {
     }
 }
 
+function ensure_organized_event_attendance_schema($conn) {
+    return $conn->query("CREATE TABLE IF NOT EXISTS organized_event_attendance (
+        event_id INT(6) UNSIGNED NOT NULL,
+        member_id INT(6) UNSIGNED NOT NULL,
+        marked_by INT(6) UNSIGNED NOT NULL,
+        marked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (event_id, member_id),
+        KEY idx_event_attendance_member (member_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+}
+
 if (!isset($_SESSION['member_id'])) {
     header("Location: login.php");
     exit();
@@ -715,6 +726,71 @@ if (isset($_GET['action'])) {
             }
         } else {
             header("Location: member_dashboard.php?tab=organized_events&error=You are not assigned to manage this department event");
+        }
+        exit();
+    }
+
+    elseif ($action === 'save_organized_event_attendance' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
+        $event_id = (int)($_POST['event_id'] ?? 0);
+        ensure_organized_event_attendance_schema($conn);
+        $event_result = $conn->query("SELECT id, department FROM organized_events WHERE id = $event_id LIMIT 1");
+        $event = $event_result ? $event_result->fetch_assoc() : null;
+        $authorized = false;
+        if ($event && member_has_role($member_query['church_role'] ?? '', 'organizing secretary')) {
+            foreach (member_organizing_secretary_departments($member_query) as $allowed_department) {
+                if (department_matches($event['department'], $allowed_department)) {
+                    $authorized = true;
+                    break;
+                }
+            }
+        }
+
+        if (!$authorized) {
+            header("Location: member_dashboard.php?tab=organized_events&error=You are not assigned to record attendance for this event");
+            exit();
+        }
+
+        $posted_ids = isset($_POST['attendee_ids']) && is_array($_POST['attendee_ids']) ? $_POST['attendee_ids'] : [];
+        $selected_ids = array_values(array_unique(array_filter(array_map('intval', $posted_ids), function ($id) {
+            return $id > 0;
+        })));
+        $allowed_ids = [];
+        if ($selected_ids) {
+            $id_list = implode(',', $selected_ids);
+            $department_filter = department_match_sql($conn, 'department', $event['department']);
+            $eligible = $conn->query("SELECT id FROM members WHERE id IN ($id_list) AND $department_filter AND is_approved = 1");
+            if (!$eligible) {
+                header("Location: member_dashboard.php?tab=organized_events&error=Could not verify selected members");
+                exit();
+            }
+            while ($row = $eligible->fetch_assoc()) $allowed_ids[] = (int)$row['id'];
+        }
+
+        $conn->begin_transaction();
+        $saved = $conn->query("DELETE FROM organized_event_attendance WHERE event_id = $event_id");
+        if ($saved && $allowed_ids) {
+            $insert = $conn->prepare("INSERT INTO organized_event_attendance (event_id, member_id, marked_by) VALUES (?, ?, ?)");
+            if ($insert) {
+                foreach ($allowed_ids as $attendee_id) {
+                    $insert->bind_param('iii', $event_id, $attendee_id, $member_id);
+                    if (!$insert->execute()) {
+                        $saved = false;
+                        break;
+                    }
+                }
+                $insert->close();
+            } else {
+                $saved = false;
+            }
+        }
+
+        if ($saved) {
+            $conn->commit();
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($event['department']) . "&success=Meeting attendance saved");
+        } else {
+            $conn->rollback();
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($event['department']) . "&error=Could not save meeting attendance");
         }
         exit();
     }

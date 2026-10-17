@@ -7462,6 +7462,17 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 </div>
                 <?php endif; ?>
 
+                <?php if ($is_organizing_secretary): ?>
+                    <?php $conn->query("CREATE TABLE IF NOT EXISTS organized_event_attendance (
+                        event_id INT(6) UNSIGNED NOT NULL,
+                        member_id INT(6) UNSIGNED NOT NULL,
+                        marked_by INT(6) UNSIGNED NOT NULL,
+                        marked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (event_id, member_id),
+                        KEY idx_event_attendance_member (member_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"); ?>
+                <?php endif; ?>
+
                 <?php foreach ($current_event_scopes as $scope_dept => $scope_label): ?>
                     <?php if ($scope_dept === 'None' || $scope_dept === '') continue; ?>
                     <div class="content-card" style="margin-bottom:24px;">
@@ -7472,7 +7483,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         if ($events && $events->num_rows > 0):
                             while($ev = $events->fetch_assoc()):
                         ?>
-                            <div style="padding: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 20px; background: rgba(255,255,255,0.02);">
+                            <div id="event-attendance-<?= (int)$ev['id'] ?>" style="padding: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 20px; background: rgba(255,255,255,0.02);">
                                 <h3 style="margin-top: 0; color: var(--primary);"><?= htmlspecialchars($ev['title']) ?></h3>
                                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;color:var(--text-muted);font-size:0.85rem;">
                                     <img src="uploads/<?= htmlspecialchars(basename($ev['profile_picture'] ?: 'default_avatar.png')) ?>" alt="<?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);cursor:zoom-in;" onclick="viewProfileImage(this.src);">
@@ -7487,6 +7498,47 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     <?php if (!empty($ev['whatsapp_link'])): ?><a href="<?= htmlspecialchars($ev['whatsapp_link']) ?>" target="_blank" class="badge" style="background: rgba(37, 99, 235, 0.15); color: var(--primary); text-decoration: none; padding: 8px 12px;">Join WhatsApp Group</a><?php endif; ?>
                                     <?php if (!empty($ev['attendance_file'])): ?><a href="uploads/<?= htmlspecialchars($ev['attendance_file']) ?>" target="_blank" class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; text-decoration: none; padding: 8px 12px;">View Attendance/Document</a><?php endif; ?>
                                 </div>
+                                <?php if ($is_organizing_secretary && department_matches($ev['department'], $scope_dept)): ?>
+                                    <?php
+                                    $event_id = (int)$ev['id'];
+                                    $attendee_filter = department_match_sql($conn, 'm.department', $ev['department']);
+                                    $attendance_members = $conn->query("SELECT m.id, m.first_name, m.last_name, m.gender, m.phone, ea.marked_at
+                                        FROM members m
+                                        LEFT JOIN organized_event_attendance ea ON ea.member_id = m.id AND ea.event_id = $event_id
+                                        WHERE $attendee_filter AND m.is_approved = 1
+                                        ORDER BY m.first_name, m.last_name");
+                                    ?>
+                                    <form method="POST" action="member_action.php?action=save_organized_event_attendance" style="margin-top:20px;">
+                                        <input type="hidden" name="event_id" value="<?= $event_id ?>">
+                                        <h4 style="margin:0 0 6px;">Meeting Attendance</h4>
+                                        <p style="color:var(--text-muted);font-size:.86rem;margin:0 0 12px;">Tick each approved department member who attended. Save to record the attendance time.</p>
+                                        <div style="overflow-x:auto;border:1px solid var(--border-color);border-radius:8px;">
+                                            <table style="width:100%;border-collapse:collapse;min-width:520px;">
+                                                <thead><tr style="background:var(--bg-main);text-align:left;">
+                                                    <th style="padding:9px;">Present</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Marked At</th>
+                                                </tr></thead>
+                                                <tbody>
+                                                <?php if ($attendance_members && $attendance_members->num_rows > 0): while ($attendee = $attendance_members->fetch_assoc()): ?>
+                                                    <tr data-attendee-row="1" data-name="<?= htmlspecialchars(trim($attendee['first_name'] . ' ' . $attendee['last_name']), ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($attendee['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($attendee['phone'] ?? '', ENT_QUOTES) ?>" data-marked-at="<?= htmlspecialchars($attendee['marked_at'] ? date('M j, Y g:i A', strtotime($attendee['marked_at'])) : '', ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
+                                                        <td style="padding:9px;"><input type="checkbox" name="attendee_ids[]" data-attendance-checkbox value="<?= (int)$attendee['id'] ?>" <?= $attendee['marked_at'] ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($attendee['first_name'] . ' ' . $attendee['last_name']) ?> present"></td>
+                                                        <td style="padding:9px;"><?= htmlspecialchars($attendee['first_name'] . ' ' . $attendee['last_name']) ?></td>
+                                                        <td style="padding:9px;"><?= htmlspecialchars($attendee['gender'] ?? '') ?></td>
+                                                        <td style="padding:9px;"><?= htmlspecialchars($attendee['phone'] ?? '') ?></td>
+                                                        <td style="padding:9px;color:var(--text-muted);font-size:.82rem;"><?= $attendee['marked_at'] ? date('M j, Y g:i A', strtotime($attendee['marked_at'])) : 'Not marked' ?></td>
+                                                    </tr>
+                                                <?php endwhile; else: ?>
+                                                    <tr><td colspan="5" style="padding:12px;color:var(--text-muted);">No approved members are registered in this department.</td></tr>
+                                                <?php endif; ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                                            <button type="submit" class="btn-submit">Save Attendance</button>
+                                            <button type="button" class="btn-sm" onclick="printOrganizedAttendance(<?= $event_id ?>, 'portrait')">Print Portrait</button>
+                                            <button type="button" class="btn-sm" onclick="printOrganizedAttendance(<?= $event_id ?>, 'landscape')">Print Landscape</button>
+                                        </div>
+                                    </form>
+                                <?php endif; ?>
                                 <?php if ($is_organizing_secretary && count(array_filter($organizing_secretary_depts, function ($assigned_department) use ($ev) { return department_matches($ev['department'], $assigned_department); })) > 0): ?>
                                     <form method="POST" action="member_action.php?action=delete_organized_event" onsubmit="return confirm('Delete this event and its recording?');" style="margin-top:14px;text-align:right;">
                                         <input type="hidden" name="event_id" value="<?= (int)$ev['id'] ?>">
@@ -7499,6 +7551,40 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
+                <?php if ($is_organizing_secretary): ?>
+                    <script>
+                    function printOrganizedAttendance(eventId, orientation) {
+                        var card = document.getElementById('event-attendance-' + eventId);
+                        if (!card) return;
+                        var form = card.querySelector('form[action*="save_organized_event_attendance"]');
+                        var selected = form ? Array.from(form.querySelectorAll('[data-attendance-checkbox]:checked')) : [];
+                        if (!selected.length) {
+                            alert('Select at least one attending member before printing.');
+                            return;
+                        }
+                        var escapeHtml = function(value) {
+                            return String(value || '').replace(/[&<>"']/g, function(char) {
+                                return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char];
+                            });
+                        };
+                        var rows = selected.map(function(checkbox, index) {
+                            var row = checkbox.closest('[data-attendee-row]');
+                            return '<tr><td>' + (index + 1) + '</td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td><td>Present</td><td>' + escapeHtml(row.dataset.markedAt || 'Just selected') + '</td></tr>';
+                        }).join('');
+                        var title = card.querySelector('h3') ? card.querySelector('h3').textContent : 'Meeting Attendance';
+                        var department = <?= json_encode($active_org_dept) ?>;
+                        var printWindow = window.open('', '_blank', 'width=900,height=700');
+                        if (!printWindow) {
+                            alert('Allow pop-ups to print the attendance register.');
+                            return;
+                        }
+                        printWindow.document.write('<!doctype html><html><head><title>Attendance Register</title><style>@page{size:A4 ' + orientation + ';margin:14mm}body{font:14px Arial,sans-serif;color:#111}h1{text-align:center;margin:0 0 8px;font-size:22px}h2{text-align:center;margin:0 0 5px;font-size:18px}p{text-align:center;margin:4px 0 18px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #444;padding:8px;text-align:left}th{background:#eee}footer{margin-top:24px;font-size:12px;text-align:right}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h1>Munyari Church</h1><h2>' + escapeHtml(title) + '</h2><p>' + escapeHtml(department) + ' Department | Attendance Register | ' + new Date().toLocaleString() + '</p><table><thead><tr><th>No.</th><th>Member Name</th><th>Gender</th><th>Phone</th><th>Status</th><th>Marked At</th></tr></thead><tbody>' + rows + '</tbody></table><footer>Present: ' + selected.length + '</footer></body></html>');
+                        printWindow.document.close();
+                        printWindow.focus();
+                        setTimeout(function() { printWindow.print(); }, 300);
+                    }
+                    </script>
+                <?php endif; ?>
             <?php endif; ?>
 
             <?php if ($tab == 'discipline' && $is_discipline_master):
