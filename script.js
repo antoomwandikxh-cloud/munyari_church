@@ -135,6 +135,97 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+const registrationPrerequisites = {
+    last_name: 'first_name',
+    phone: 'last_name',
+    address: 'phone',
+    department: 'address',
+    password: 'department',
+    confirm_password: 'password',
+    a_last_name: 'a_first_name',
+    a_phone: 'a_last_name',
+    a_dept: 'a_phone',
+    a_gender: 'a_dept',
+    a_address: 'a_gender',
+    adminRegPwd: 'a_address',
+    adminRegPwdConfirm: 'adminRegPwd',
+    p_last_name: 'p_first_name',
+    p_phone: 'p_last_name',
+    pRegDept: 'p_phone',
+    pRegGender: 'pRegDept',
+    p_address: 'pRegGender',
+    pastorRegPwd: 'p_address',
+    pastorRegPwdConfirm: 'pastorRegPwd',
+    ss_last_name: 'ss_first_name',
+    ss_phone: 'ss_last_name',
+    ss_class: 'ss_last_name',
+    ss_gender: 'ss_class',
+    ss_address: 'ss_gender',
+    ss_password: 'ss_address',
+    ss_confirm_password: 'ss_password'
+};
+
+function registrationPrerequisiteId(field) {
+    if (field.id === 'password' && document.getElementById('type_pastor')?.checked) return 'role';
+    return registrationPrerequisites[field.id] || '';
+}
+
+function registrationFieldLabel(field) {
+    if (!field) return 'the previous field';
+    const group = field.closest('.form-group');
+    const label = group?.querySelector('label');
+    return (label?.textContent || field.name || 'the previous field')
+        .replace(/\*/g, '')
+        .replace(/\(Optional\)/gi, '')
+        .replace(/:\s*$/, '')
+        .trim();
+}
+
+function syncRegistrationLockPrompts() {
+    document.querySelectorAll('[data-registration-lock-for]').forEach(overlay => {
+        const field = document.getElementById(overlay.dataset.registrationLockFor);
+        if (!field) return;
+        overlay.hidden = !field.disabled;
+        overlay.tabIndex = field.disabled ? 0 : -1;
+        overlay.setAttribute('aria-hidden', field.disabled ? 'false' : 'true');
+    });
+}
+
+function promptRegistrationPrerequisite(fieldId) {
+    const field = document.getElementById(fieldId);
+    if (!field || !field.disabled) return;
+    const prerequisite = document.getElementById(registrationPrerequisiteId(field));
+    window.alert(`Please fill in the ${registrationFieldLabel(prerequisite)} first.`);
+    prerequisite?.focus();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('input[id], select[id]').forEach(field => {
+        if (!registrationPrerequisiteId(field) || !field.parentElement) return;
+
+        const shell = field.parentElement;
+        if (getComputedStyle(shell).position === 'static') shell.style.position = 'relative';
+        const overlay = document.createElement('div');
+        overlay.dataset.registrationLockFor = field.id;
+        overlay.className = 'registration-lock-prompt';
+        overlay.setAttribute('role', 'button');
+        overlay.setAttribute('aria-label', `Locked field. Complete ${registrationFieldLabel(document.getElementById(registrationPrerequisiteId(field)))} first.`);
+        overlay.style.cssText = 'position:absolute;inset:0;z-index:5;cursor:not-allowed;background:transparent;';
+        overlay.addEventListener('click', () => promptRegistrationPrerequisite(field.id));
+        overlay.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                promptRegistrationPrerequisite(field.id);
+            }
+        });
+        shell.appendChild(overlay);
+    });
+
+    syncRegistrationLockPrompts();
+    document.addEventListener('input', syncRegistrationLockPrompts);
+    document.addEventListener('change', syncRegistrationLockPrompts);
+});
+
 function validateInput(input, type) {
     let errorMsg = input.parentNode.querySelector('.err-msg');
     if (!errorMsg) {

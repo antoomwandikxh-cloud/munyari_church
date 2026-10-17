@@ -1321,7 +1321,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
     <meta charset="UTF-8">
     <title>Pastor Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
-    <script src="script.js?v=1791214678"></script>
+    <script src="script.js?v=20261017b"></script>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
 .role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}
