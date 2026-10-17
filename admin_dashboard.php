@@ -924,7 +924,9 @@ if (!empty($action)) {
         
         $admin_name = 'Admin';
         $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-        $conn->query("INSERT INTO audit_logs (user_type, name, action, details, ip_address, created_at) VALUES ('admin', '$admin_name', 'Permanent Global Role Wipe', 'Permanently wiped all assigned roles and church village leaders across the database.', '$ip', NOW())");
+        $admin_name_sql = $conn->real_escape_string($admin_name);
+        $ip_sql = $conn->real_escape_string($ip);
+        $conn->query("INSERT INTO audit_logs (user_id, user_type, user_name, action, details, ip_address, created_at) VALUES ($admin_id, 'Admin', '$admin_name_sql', 'Permanent Global Role Wipe', 'Permanently wiped all assigned roles and church village leaders across the database.', '$ip_sql', NOW())");
         
         header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("All roles and church village leaders have been permanently wiped from the database.") . "#assignRoleSection");
         exit();
