@@ -2890,6 +2890,13 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         Organised Events
                     </a>
+                    <?php if (!$ctx_is_leader && !$ctx_is_secretary): ?>
+                    <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>" style="position:relative;">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path></svg>
+                        <?= htmlspecialchars($managed_dept) ?> Leaders Chat
+                        <?php if (!empty($tab_badges['leader_chat'])): ?><span class="tab-notif-badge"><?= $tab_badges['leader_chat'] > 99 ? '99+' : $tab_badges['leader_chat'] ?></span><?php endif; ?>
+                    </a>
+                    <?php endif; ?>
                 <?php endif; ?>
 
                 <!-- Discipline Panel -->
