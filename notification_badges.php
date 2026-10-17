@@ -123,6 +123,17 @@ function notification_badge_tabs($message, $user_type) {
         return array_values(array_unique($tabs));
     }
 
+    // A member's leadership appointment is confirmed on their dashboard. Keep this
+    // before the general role rule so its badge and bell link share one destination.
+    $is_member_role_appointment = $user_type === 'member' && (
+        strpos($msg, 'you have been assigned a new role') !== false
+        || (strpos($msg, 'welcome ') === 0 && strpos($msg, ' in the youth ministry') !== false)
+        || (strpos($msg, 'welcome ') === 0 && strpos($msg, ' in the building & construction department') !== false)
+    );
+    if ($is_member_role_appointment) {
+        return ['dashboard'];
+    }
+
     if ($user_type === 'member') {
         if (strpos($msg, 'treasurer') !== false && (strpos($msg, 'received') !== false || strpos($msg, 'sent') !== false || strpos($msg, 'record') !== false)) {
             return ['manage_department', 'received_financials'];
@@ -200,9 +211,6 @@ function notification_badge_tabs($message, $user_type) {
     // ─── 5. ROLE / APPOINTMENT ──────────────────────────────────────────────
     if (strpos($msg, 'role') !== false || strpos($msg, 'appointment to the role') !== false) {
         $tabs[] = 'assign_roles';
-        if ($user_type === 'member') {
-            $tabs[] = 'settings';
-        }
     }
     if (strpos($msg, 'appointment') !== false && strpos($msg, 'role') === false) {
         if ($user_type === 'member') {
