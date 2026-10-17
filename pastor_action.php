@@ -230,7 +230,7 @@ if (isset($_GET['action'])) {
         $reassign_role = trim($_GET['reassign'] ?? normalize_role_name($role_to_remove));
         $reassign_department = trim($_GET['assignment_department'] ?? '');
         $reassign_group = trim($_GET['reassign_group'] ?? '');
-        $member_data = $conn->query("SELECT church_role FROM members WHERE id = $member_id")->fetch_assoc();
+        $member_data = $conn->query("SELECT church_role, church_village FROM members WHERE id = $member_id")->fetch_assoc();
         $old_role = $member_data['church_role'] ?? '';
         
         $roles_arr = array_filter(array_map('trim', explode(',', str_replace('&', ',', $old_role))));
@@ -262,7 +262,11 @@ if (isset($_GET['action'])) {
         $msg = $conn->real_escape_string("Your role '$role_to_remove' has been removed.");
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
 
-        header("Location: pastor_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed from member") . "&reassign=" . urlencode($reassign_role) . "&reassign_department=" . urlencode($reassign_department) . "&reassign_group=" . urlencode($reassign_group));
+        if (stripos(trim($role_to_remove), 'village leader') !== false) {
+            header("Location: pastor_dashboard.php?tab=desired_roles&success=" . urlencode("Village leader removed. You can select a replacement.") . "&village_reopen=" . urlencode($member_data['church_village'] ?? '') . "#assignVillageLeaderForm");
+        } else {
+            header("Location: pastor_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed from member") . "&reassign=" . urlencode($reassign_role) . "&reassign_department=" . urlencode($reassign_department) . "&reassign_group=" . urlencode($reassign_group));
+        }
         exit();
     }
 

@@ -193,26 +193,34 @@ $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
 // ── Early PRG handler: assign_village_leader ──────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader'])) {
     $l_id   = (int)$_POST['leader_id'];
-    $v_name = $conn->real_escape_string($_POST['village']);
+    $village_name = trim($_POST['village'] ?? '');
+    $valid_villages = ['Akoritho', 'Philadelphia', 'Bethsaida'];
+    if (!in_array($village_name, $valid_villages, true)) {
+        header("Location: admin_dashboard.php?tab=desired_roles&error=invalid_village");
+        exit();
+    }
+    $v_name = $conn->real_escape_string($village_name);
     
-    $check_existing = $conn->query("SELECT id FROM members WHERE church_village = '$v_name' AND is_village_leader = 1 LIMIT 1");
-    if ($check_existing && $check_existing->num_rows > 0) {
-        $r = basename($_SERVER['PHP_SELF']);
-        header("Location: " . $r . "?tab=desired_roles&error=village_has_leader&vname=" . urlencode($v_name));
+    $check_existing = $conn->query("SELECT id, first_name, last_name FROM members WHERE church_village = '$v_name' AND is_village_leader = 1 LIMIT 1");
+    if ($check_existing && ($existing_leader = $check_existing->fetch_assoc())) {
+        header("Location: admin_dashboard.php?tab=desired_roles&error=village_has_leader&vname=" . urlencode($village_name) . "&leader_id=" . (int)$existing_leader['id']);
         exit();
     }
     
-    $mem_q = $conn->query("SELECT church_role FROM members WHERE id = $l_id")->fetch_assoc();
+    $mem_result = $conn->query("SELECT church_role FROM members WHERE id = $l_id AND is_approved = 1 AND church_village = '$v_name' LIMIT 1");
+    $mem_q = $mem_result ? $mem_result->fetch_assoc() : null;
     if ($mem_q) {
         $roles = array_values(array_filter(array_map('trim', explode(',', $mem_q['church_role'] ?? ''))));
         if (!in_array('Church Village Leader', $roles)) { $roles[] = 'Church Village Leader'; }
         $new_role = $conn->real_escape_string(implode(', ', $roles));
-        $conn->query("UPDATE members SET church_village = '$v_name', is_village_leader = 1, church_role = '$new_role' WHERE id = $l_id");
+        $conn->query("UPDATE members SET is_village_leader = 1, church_role = '$new_role' WHERE id = $l_id");
         $nmsg = $conn->real_escape_string("You have been assigned as the Church Village Leader for $v_name.");
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($l_id, 'member', '$nmsg')");
+    } else {
+        header("Location: admin_dashboard.php?tab=desired_roles&error=invalid_village_member&village_reopen=" . urlencode($village_name) . "#assignVillageLeaderForm");
+        exit();
     }
-    $r = basename($_SERVER['PHP_SELF']);
-    header("Location: " . $r . "?tab=desired_roles&success=village_leader_assigned&vname=" . urlencode($v_name));
+    header("Location: admin_dashboard.php?tab=desired_roles&success=village_leader_assigned&vname=" . urlencode($village_name));
     exit();
 }
 // ──────────────────────────────────────────────────────────────────────────
@@ -848,7 +856,7 @@ if (!empty($action)) {
         $reassign_role = trim($_GET['reassign'] ?? $role_to_remove);
         $reassign_department = trim($_GET['assignment_department'] ?? '');
         $reassign_group = trim($_GET['reassign_group'] ?? '');
-        $member_data = $conn->query("SELECT church_role FROM members WHERE id = $member_id")->fetch_assoc();
+        $member_data = $conn->query("SELECT church_role, church_village FROM members WHERE id = $member_id")->fetch_assoc();
         $old_role = $member_data['church_role'] ?? '';
         
         if (!empty($role_to_remove)) {
@@ -866,13 +874,20 @@ if (!empty($action)) {
                 $conn->query("UPDATE members SET church_role = '$combined' WHERE id = $member_id");
             }
             $msg = "Your role ($role_to_remove) has been removed by Admin.";
+            if (stripos($role_to_remove, 'village leader') !== false) {
+                $conn->query("UPDATE members SET is_village_leader = 0 WHERE id = $member_id");
+            }
         } else {
             $conn->query("UPDATE members SET church_role = 'Member' WHERE id = $member_id");
             $msg = "Your roles ($old_role) have been removed by Admin.";
         }
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
 
-        header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed successfully") . "&reassign=" . urlencode($reassign_role) . "&reassign_department=" . urlencode($reassign_department) . "&reassign_group=" . urlencode($reassign_group));
+        if (stripos($role_to_remove, 'village leader') !== false) {
+            header("Location: admin_dashboard.php?tab=desired_roles&success=" . urlencode("Village leader removed. You can select a replacement.") . "&village_reopen=" . urlencode($member_data['church_village'] ?? '') . "#assignVillageLeaderForm");
+        } else {
+            header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed successfully") . "&reassign=" . urlencode($reassign_role) . "&reassign_department=" . urlencode($reassign_department) . "&reassign_group=" . urlencode($reassign_group));
+        }
         exit();
     }
 
@@ -3956,7 +3971,20 @@ w.document.write('</div>');
                 <?php
 
                 ?>
-                <div class="content-card" style="margin-bottom:30px; border-left:4px solid var(--primary);">
+                <div class="content-card" id="assignVillageLeaderForm" style="margin-bottom:30px; border-left:4px solid var(--primary);">
+                    <?php if (($_GET['error'] ?? '') === 'village_has_leader'):
+                        $occupied_village = trim($_GET['vname'] ?? '');
+                        $occupied_leader_id = (int)($_GET['leader_id'] ?? 0);
+                        $occupied_leader_result = $occupied_leader_id ? $conn->query("SELECT first_name, last_name FROM members WHERE id = $occupied_leader_id LIMIT 1") : false;
+                        $occupied_leader = $occupied_leader_result ? $occupied_leader_result->fetch_assoc() : null;
+                    ?>
+                        <div role="alert" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);color:var(--text-main);padding:12px 14px;border-radius:8px;margin-bottom:16px;">
+                            <span><strong><?= htmlspecialchars($occupied_village) ?> village is already taken</strong><?= $occupied_leader ? ' by ' . htmlspecialchars($occupied_leader['first_name'] . ' ' . $occupied_leader['last_name']) : '' ?>.</span>
+                            <?php if ($occupied_leader_id): ?><a class="btn-sm" style="background:var(--primary);color:#fff;text-decoration:none;" href="#village_leader_row_<?= $occupied_leader_id ?>">View current leader</a><?php endif; ?>
+                        </div>
+                    <?php elseif (in_array($_GET['error'] ?? '', ['invalid_village', 'invalid_village_member'], true)): ?>
+                        <div role="alert" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);color:var(--danger);padding:12px 14px;border-radius:8px;margin-bottom:16px;">Please select a valid village and an approved member registered in that village.</div>
+                    <?php endif; ?>
                     <h2 style="margin-bottom:15px; color:var(--text-main); font-size:1.1rem;">Assign Church Village Leader</h2>
                     <form method="POST" action="?tab=desired_roles" style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end;">
                         <input type="hidden" name="assign_village_leader" value="1">
@@ -3982,8 +4010,29 @@ w.document.write('</div>');
                         </div>
                         <div><button type="submit" class="btn-primary">Assign Leader</button></div>
                     </form>
-                    <script>function avlFilter(v){var s=document.getElementById('avl_mem');var o=document.getElementById('avl_overlay');s.value='';if(v){o.style.display='none';s.style.opacity='1';}else{o.style.display='block';s.style.opacity='0.5';}s.querySelectorAll('option[data-v]').forEach(function(opt){opt.style.display=opt.getAttribute('data-v')===v?'':'none';});}</script>
+                    <script>function avlFilter(v){var s=document.getElementById('avl_mem');var o=document.getElementById('avl_overlay');s.value='';if(v){o.style.display='none';s.style.opacity='1';}else{o.style.display='block';s.style.opacity='0.5';}s.querySelectorAll('option[data-v]').forEach(function(opt){opt.style.display=opt.getAttribute('data-v')===v?'':'none';});}(function(){var v=<?= json_encode($_GET['village_reopen'] ?? ($_GET['vname'] ?? '')) ?>;if(v){document.getElementById('avl_sel').value=v;avlFilter(v);}if(<?= json_encode(($_GET['error'] ?? '') === 'village_has_leader') ?>){document.getElementById('avl_mem').disabled=true;}})();</script>
                 </div>
+                <?php
+                $current_village_leaders = $conn->query("SELECT id, first_name, last_name, church_village FROM members WHERE is_village_leader = 1 ORDER BY church_village, first_name");
+                if ($current_village_leaders && $current_village_leaders->num_rows > 0):
+                ?>
+                <div class="content-card" style="margin-bottom:30px;">
+                    <h3 style="margin:0 0 12px;color:var(--text-main);">Current Village Leaders</h3>
+                    <div class="table-responsive"><table><thead><tr><th>Village</th><th>Leader</th><th>Actions</th></tr></thead><tbody>
+                    <?php while ($current_leader = $current_village_leaders->fetch_assoc()):
+                        $current_leader_id = (int)$current_leader['id'];
+                        $current_village = (string)$current_leader['church_village'];
+                        $remove_village_url = 'admin_dashboard.php?tab=assign_roles&action=remove_role&id=' . $current_leader_id . '&role=' . urlencode('Church Village Leader');
+                    ?>
+                        <tr>
+                            <td><?= htmlspecialchars($current_village) ?></td>
+                            <td><?= htmlspecialchars($current_leader['first_name'] . ' ' . $current_leader['last_name']) ?></td>
+                            <td style="display:flex;gap:8px;flex-wrap:wrap;"><a class="btn-sm" style="background:var(--primary);color:#fff;text-decoration:none;" href="#village_leader_row_<?= $current_leader_id ?>">View</a><a class="btn-sm" style="background:var(--danger);color:#fff;text-decoration:none;" href="<?= htmlspecialchars($remove_village_url, ENT_QUOTES) ?>" onclick="return confirm('Remove <?= htmlspecialchars(addslashes($current_village), ENT_QUOTES) ?> village leader and open it for a replacement?');">Remove Leader</a></td>
+                        </tr>
+                    <?php endwhile; ?>
+                    </tbody></table></div>
+                </div>
+                <?php endif; ?>
                 <?php
                 
                 ?>
@@ -4056,7 +4105,7 @@ w.document.write('</div>');
                     $v_color = $village_colors[$v] ?? '#94a3b8';
                     
                     // Fetch members
-                    $v_members_res = $conn->query("SELECT first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type, " . role_rank_case_sql('church_role') . " AS role_rank FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, role_rank ASC, first_name ASC");
+                    $v_members_res = $conn->query("SELECT id, first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type, " . role_rank_case_sql('church_role') . " AS role_rank FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, role_rank ASC, first_name ASC");
                     $v_count = $v_members_res ? $v_members_res->num_rows : 0;
                     
                     $v_leaders = [];
@@ -4143,7 +4192,7 @@ w.document.write('</div>');
                                     $border_color = "var(--border-color)";
                                 }
                             ?>
-                            <tr style="<?= $bg_style ?>">
+                            <tr <?= $is_leader ? 'id="village_leader_row_' . (int)$row['id'] . '"' : '' ?> style="<?= $bg_style ?><?= $is_leader ? 'scroll-margin-top:100px;' : '' ?>">
                                 <td style="color:var(--text-muted);"><?= $i++ ?><?= $is_leader ? ' 🏆' : '' ?></td>
                                 <td>
                                     <img src="uploads/<?= $pic ?>" alt="Photo"
