@@ -2907,25 +2907,28 @@ w.document.write('</div>');
                                         roleSelect.selectedIndex = Array.from(roleSelect.options).indexOf(matchingOption);
                                         roleSelect.dispatchEvent(new Event('change', {bubbles:true}));
                                     }
+                                    let roleScrollRun = 0;
                                     const scrollToAssignmentForm = () => {
+                                        const run = ++roleScrollRun;
                                         const target = document.getElementById('assignRoleSection');
                                         const container = document.querySelector('.main-content');
                                         if (!target || !container) return;
-                                        const innerScrolls = container.scrollHeight > container.clientHeight + 1;
+                                        const innerScrolls = container.scrollHeight > container.clientHeight + 2;
                                         const pageScroller = document.scrollingElement || document.documentElement;
-                                        const scroller = innerScrolls ? container : pageScroller;
+                                        const start = innerScrolls ? container.scrollTop : window.scrollY;
                                         const targetTop = target.getBoundingClientRect().top;
-                                        const start = innerScrolls ? container.scrollTop : (window.scrollY || pageScroller.scrollTop);
                                         const offset = innerScrolls ? targetTop - container.getBoundingClientRect().top : targetTop;
-                                        const maxScroll = innerScrolls ? container.scrollHeight - container.clientHeight : pageScroller.scrollHeight - window.innerHeight;
+                                        const maxScroll = innerScrolls
+                                            ? Math.max(0, container.scrollHeight - container.clientHeight)
+                                            : Math.max(0, pageScroller.scrollHeight - window.innerHeight);
                                         const end = Math.max(0, Math.min(maxScroll, start + offset - 12));
                                         const distance = end - start;
-                                        const duration = 700;
+                                        if (Math.abs(distance) < 2) return;
                                         const startedAt = performance.now();
                                         const animateScroll = now => {
-                                            const progress = Math.min(1, (now - startedAt) / duration);
-                                            const eased = 1 - Math.pow(1 - progress, 3);
-                                            const position = start + distance * eased;
+                                            if (run !== roleScrollRun) return;
+                                            const progress = Math.min(1, (now - startedAt) / 850);
+                                            const position = start + distance * (1 - Math.pow(1 - progress, 3));
                                             if (innerScrolls) container.scrollTop = position;
                                             else window.scrollTo(0, position);
                                             if (progress < 1) requestAnimationFrame(animateScroll);
@@ -2941,7 +2944,7 @@ w.document.write('</div>');
                                             sessionStorage.removeItem('adminRoleWindowScrollY');
                                             sessionStorage.removeItem('adminRoleContentScrollTop');
                                         } catch (e) {}
-                                        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(scrollToAssignmentForm, 100)));
+                                        [80, 350, 800].forEach(delay => setTimeout(scrollToAssignmentForm, delay));
                                     };
                                     if (document.readyState === 'complete') beginReturnScroll();
                                     else window.addEventListener('load', beginReturnScroll, {once:true});
