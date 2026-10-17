@@ -4,6 +4,7 @@ require_once 'db_connect.php';
 require_once 'notification_badges.php';
 require_once 'role_departments.php';
 require_once 'voice_note_helper.php';
+require_once 'organized_event_helper.php';
 if (!isset($_SESSION['member_id'])) { header("Location: login.php"); exit(); }
 
 $member_id = $_SESSION['member_id'];
@@ -7463,14 +7464,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <?php endif; ?>
 
                 <?php if ($is_organizing_secretary): ?>
-                    <?php $conn->query("CREATE TABLE IF NOT EXISTS organized_event_attendance (
-                        event_id INT(6) UNSIGNED NOT NULL,
-                        member_id INT(6) UNSIGNED NOT NULL,
-                        marked_by INT(6) UNSIGNED NOT NULL,
-                        marked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        PRIMARY KEY (event_id, member_id),
-                        KEY idx_event_attendance_member (member_id)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"); ?>
+                    <?php ensure_organized_event_attendance_schema($conn); ?>
                 <?php endif; ?>
 
                 <?php foreach ($current_event_scopes as $scope_dept => $scope_label): ?>
@@ -7503,40 +7497,67 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     $event_id = (int)$ev['id'];
                                     $saved_present_count = 0;
                                     $attendee_filter = department_match_sql($conn, 'm.department', $ev['department']);
-                                    $attendance_members = $conn->query("SELECT m.id, m.first_name, m.last_name, m.gender, m.phone, ea.marked_at
+                                    $attendance_members = $conn->query("SELECT m.id, m.first_name, m.last_name, m.gender, m.phone, m.profile_picture, ea.marked_at, ea.joined_at
                                         FROM members m
                                         LEFT JOIN organized_event_attendance ea ON ea.member_id = m.id AND ea.event_id = $event_id
                                         WHERE $attendee_filter AND m.is_approved = 1
                                         ORDER BY m.first_name, m.last_name");
+                                    $manual_attendees = $conn->query("SELECT id, attendee_name, gender, phone, profile_picture, is_present, joined_at FROM organized_event_manual_attendance WHERE event_id = $event_id ORDER BY attendee_name");
                                     ?>
-                                    <form method="POST" action="member_action.php?action=save_organized_event_attendance" style="margin-top:20px;">
+                                    <form method="POST" action="member_action.php?action=save_organized_event_attendance" enctype="multipart/form-data" style="margin-top:20px;">
                                         <input type="hidden" name="event_id" value="<?= $event_id ?>">
                                         <h4 style="margin:0 0 6px;">Meeting Attendance</h4>
-                                        <p style="color:var(--text-muted);font-size:.86rem;margin:0 0 12px;">Tick each approved department member who attended. Save to record the attendance time.</p>
+                                        <p style="color:var(--text-muted);font-size:.86rem;margin:0 0 12px;">Set the scheduled date, tick those present, and record when they joined. You can also add a walk-in attendee manually.</p>
+                                        <div class="form-group" style="max-width:260px;margin-bottom:14px;">
+                                            <label for="meeting-date-<?= $event_id ?>">Scheduled Meeting Date</label>
+                                            <input id="meeting-date-<?= $event_id ?>" type="date" name="meeting_date" class="form-control" value="<?= htmlspecialchars($ev['meeting_date'] ?? date('Y-m-d')) ?>" required>
+                                        </div>
                                         <div style="overflow-x:auto;border:1px solid var(--border-color);border-radius:8px;">
-                                            <table style="width:100%;border-collapse:collapse;min-width:520px;">
+                                            <table style="width:100%;border-collapse:collapse;min-width:760px;">
                                                 <thead><tr style="background:var(--bg-main);text-align:left;">
-                                                    <th style="padding:9px;">Present</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Marked At</th>
+                                                    <th style="padding:9px;">Present</th><th style="padding:9px;">Profile</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Time Joined</th>
                                                 </tr></thead>
                                                 <tbody>
                                                 <?php if ($attendance_members && $attendance_members->num_rows > 0): while ($attendee = $attendance_members->fetch_assoc()): if (!empty($attendee['marked_at'])) $saved_present_count++; ?>
-                                                    <tr data-attendee-row="1" data-name="<?= htmlspecialchars(trim($attendee['first_name'] . ' ' . $attendee['last_name']), ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($attendee['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($attendee['phone'] ?? '', ENT_QUOTES) ?>" data-marked-at="<?= htmlspecialchars($attendee['marked_at'] ? date('M j, Y g:i A', strtotime($attendee['marked_at'])) : '', ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
+                                                    <?php
+                                                    $attendee_photo = 'uploads/' . basename($attendee['profile_picture'] ?: 'default_avatar.png');
+                                                    $attendee_joined_time = !empty($attendee['joined_at']) ? substr($attendee['joined_at'], 0, 5) : (!empty($attendee['marked_at']) ? date('H:i', strtotime($attendee['marked_at'])) : '');
+                                                    ?>
+                                                    <tr data-attendee-row="1" data-name="<?= htmlspecialchars(trim($attendee['first_name'] . ' ' . $attendee['last_name']), ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($attendee['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($attendee['phone'] ?? '', ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($attendee_photo, ENT_QUOTES) ?>" data-joined-at="<?= htmlspecialchars($attendee_joined_time, ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
                                                         <td style="padding:9px;"><input type="checkbox" name="attendee_ids[]" data-attendance-checkbox value="<?= (int)$attendee['id'] ?>" <?= $attendee['marked_at'] ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($attendee['first_name'] . ' ' . $attendee['last_name']) ?> present"></td>
+                                                        <td style="padding:7px;"><img src="<?= htmlspecialchars($attendee_photo) ?>" alt="Profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:36px;height:36px;border-radius:50%;object-fit:cover;"></td>
                                                         <td style="padding:9px;"><?= htmlspecialchars($attendee['first_name'] . ' ' . $attendee['last_name']) ?></td>
                                                         <td style="padding:9px;"><?= htmlspecialchars($attendee['gender'] ?? '') ?></td>
                                                         <td style="padding:9px;"><?= htmlspecialchars($attendee['phone'] ?? '') ?></td>
-                                                        <td style="padding:9px;color:var(--text-muted);font-size:.82rem;"><?= $attendee['marked_at'] ? date('M j, Y g:i A', strtotime($attendee['marked_at'])) : 'Not marked' ?></td>
+                                                        <td style="padding:7px;"><input type="time" name="attendance_times[<?= (int)$attendee['id'] ?>]" value="<?= htmlspecialchars($attendee_joined_time) ?>" aria-label="Time <?= htmlspecialchars($attendee['first_name'] . ' ' . $attendee['last_name']) ?> joined" style="min-width:112px;"></td>
                                                     </tr>
                                                 <?php endwhile; else: ?>
-                                                    <tr><td colspan="5" style="padding:12px;color:var(--text-muted);">No approved members are registered in this department.</td></tr>
+                                                    <tr><td colspan="6" style="padding:12px;color:var(--text-muted);">No approved members are registered in this department.</td></tr>
                                                 <?php endif; ?>
+                                                <?php if ($manual_attendees): while ($manual = $manual_attendees->fetch_assoc()): if ((int)$manual['is_present'] === 1) $saved_present_count++; ?>
+                                                    <?php $manual_photo = !empty($manual['profile_picture']) ? 'uploads/' . ltrim($manual['profile_picture'], '/') : 'uploads/default_avatar.png'; ?>
+                                                    <tr data-attendee-row="1" data-name="<?= htmlspecialchars($manual['attendee_name'], ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($manual['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($manual['phone'] ?? '', ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($manual_photo, ENT_QUOTES) ?>" data-joined-at="<?= htmlspecialchars(substr($manual['joined_at'] ?? '', 0, 5), ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
+                                                        <td style="padding:9px;"><input type="checkbox" name="manual_attendee_ids[]" data-attendance-checkbox value="<?= (int)$manual['id'] ?>" <?= (int)$manual['is_present'] === 1 ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($manual['attendee_name']) ?> present"></td>
+                                                        <td style="padding:7px;"><img src="<?= htmlspecialchars($manual_photo) ?>" alt="Profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:36px;height:36px;border-radius:50%;object-fit:cover;"></td>
+                                                        <td style="padding:9px;"><?= htmlspecialchars($manual['attendee_name']) ?> <small style="color:var(--text-muted);">(Manual)</small></td>
+                                                        <td style="padding:9px;"><?= htmlspecialchars($manual['gender'] ?? '') ?></td>
+                                                        <td style="padding:9px;"><?= htmlspecialchars($manual['phone'] ?? '') ?></td>
+                                                        <td style="padding:7px;"><input type="time" name="manual_attendance_times[<?= (int)$manual['id'] ?>]" value="<?= htmlspecialchars(substr($manual['joined_at'] ?? '', 0, 5)) ?>" aria-label="Time <?= htmlspecialchars($manual['attendee_name']) ?> joined" style="min-width:112px;"></td>
+                                                    </tr>
+                                                <?php endwhile; endif; ?>
                                                 </tbody>
                                             </table>
                                         </div>
+                                        <div style="margin-top:16px;padding:14px;border:1px solid var(--border-color);border-radius:8px;">
+                                            <strong>Add Member Manually</strong>
+                                            <p style="margin:4px 0 10px;color:var(--text-muted);font-size:.84rem;">For a visitor or attendee who is not in the registered department list. Choose a profile photo from your device gallery.</p>
+                                            <div data-manual-attendee-list></div>
+                                            <button type="button" class="btn-sm" onclick="addManualEventAttendee(this)">Add Manual Attendee</button>
+                                        </div>
                                         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
                                             <button type="submit" class="btn-submit">Save Attendance</button>
-                                            <button type="button" class="btn-sm" data-print-attendance <?= $saved_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $event_id ?>, 'portrait')">Print / Save PDF - Portrait</button>
-                                            <button type="button" class="btn-sm" data-print-attendance <?= $saved_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $event_id ?>, 'landscape')">Print / Save PDF - Landscape</button>
+                                            <button type="button" class="btn-sm" data-print-attendance <?= ($saved_present_count && !empty($ev['meeting_date'])) ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $event_id ?>, 'portrait')">Print / Save PDF - Portrait</button>
+                                            <button type="button" class="btn-sm" data-print-attendance <?= ($saved_present_count && !empty($ev['meeting_date'])) ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $event_id ?>, 'landscape')">Print / Save PDF - Landscape</button>
                                         </div>
                                     </form>
                                 <?php endif; ?>
@@ -7574,25 +7595,55 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         };
                         var rows = selected.map(function(checkbox, index) {
                             var row = checkbox.closest('[data-attendee-row]');
-                            return '<tr><td>' + (index + 1) + '</td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td><td>Present</td><td>' + escapeHtml(row.dataset.markedAt || 'Just selected') + '</td></tr>';
+                            var photo = new URL(row.dataset.photo || 'uploads/default_avatar.png', window.location.href).href;
+                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td><td>' + escapeHtml(row.dataset.joinedAt || '-') + '</td></tr>';
                         }).join('');
                         var title = card.querySelector('h3') ? card.querySelector('h3').textContent : 'Meeting Attendance';
                         var department = <?= json_encode($active_org_dept) ?>;
+                        var meetingDate = form.querySelector('[name="meeting_date"]').value;
+                        var leaderName = <?= json_encode(strtoupper($member['first_name'] . ' ' . $member['last_name'])) ?>;
+                        var leaderPhoto = new URL(<?= json_encode('uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png')) ?>, window.location.href).href;
+                        var logoUrl = new URL('church_logo.jpg', window.location.href).href;
                         var printWindow = window.open('', '_blank', 'width=900,height=700');
                         if (!printWindow) {
                             alert('Allow pop-ups to print the attendance register.');
                             return;
                         }
-                        printWindow.document.write('<!doctype html><html><head><title>Attendance Register</title><style>@page{size:A4 ' + orientation + ';margin:14mm}body{font:14px Arial,sans-serif;color:#111}h1{text-align:center;margin:0 0 8px;font-size:22px}h2{text-align:center;margin:0 0 5px;font-size:18px}p{text-align:center;margin:4px 0 18px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #444;padding:8px;text-align:left}th{background:#eee}footer{margin-top:24px;font-size:12px;text-align:right}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h1>Munyari Church</h1><h2>' + escapeHtml(title) + '</h2><p>' + escapeHtml(department) + ' Department | Attendance Register | ' + new Date().toLocaleString() + '</p><table><thead><tr><th>No.</th><th>Member Name</th><th>Gender</th><th>Phone</th><th>Status</th><th>Marked At</th></tr></thead><tbody>' + rows + '</tbody></table><footer>Present: ' + selected.length + '</footer></body></html>');
+                        printWindow.document.write('<!doctype html><html><head><title>Attendance Register</title><style>@page{size:A4 ' + orientation + ';margin:12mm 10mm 24mm}*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#17202a;margin:0;padding:8px 4px 30px}.watermark{position:fixed;top:43%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:50px;color:rgba(14,116,144,.055);font-weight:800;white-space:nowrap;z-index:-1}.leader{text-align:center;margin:0 auto 14px}.leader img{width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}.leader-name{font-size:14px;font-weight:800;color:#0e7490;margin-top:4px}.brand{position:relative;text-align:center;border-bottom:2px solid #0e7490;padding:0 80px 10px;margin-bottom:14px}.brand img{position:absolute;left:0;top:0;width:62px;height:62px;object-fit:contain}.brand h1{font-size:18px;color:#0e7490;margin:4px 0}.brand p{font-size:11px;color:#555;margin:4px 0}.report-title{text-align:center;font-size:16px;font-weight:800;margin:8px 0 4px}.report-meta{text-align:center;margin:0 0 14px;color:#444}table{width:100%;border-collapse:collapse;position:relative}thead{display:table-header-group}tr{page-break-inside:avoid;break-inside:avoid}th,td{border:1px solid #888;padding:6px;text-align:left;vertical-align:middle}th{background:#0e7490;color:#fff;font-size:10px;text-transform:uppercase}.member-photo{display:block;width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #aaa}.signature{display:flex;justify-content:space-between;gap:28px;margin:26px 24px 0;page-break-inside:avoid}.sign-line{border-top:1px solid #333;padding-top:5px;text-align:center;min-width:190px}.stamp{width:82px;height:82px;border:2px dashed #999;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#777;font-size:10px}.footer{position:fixed;bottom:-16mm;left:0;right:0;border-top:1px solid #0e7490;padding-top:5px;text-align:center;font-size:9px;color:#53606b}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><div class="watermark">E.A.P.C MUNYARI CHURCH</div><div class="leader"><img src="' + escapeHtml(leaderPhoto) + '" alt="Organising Secretary"><div class="leader-name">' + escapeHtml(leaderName) + '</div><div style="font-size:10px;color:#555">Organising Secretary</div></div><div class="brand"><img src="' + escapeHtml(logoUrl) + '" alt="Church logo"><h1>E.A.P.C MUNYARI CHURCH</h1><div class="report-title">' + escapeHtml(title) + '</div><p>' + escapeHtml(department) + ' Department Attendance Register</p></div><p class="report-meta">Meeting date: ' + escapeHtml(meetingDate) + ' | Printed: ' + new Date().toLocaleString() + '</p><table><thead><tr><th>No.</th><th>Profile Photo</th><th>Member Name</th><th>Gender</th><th>Phone</th><th>Time Joined</th></tr></thead><tbody>' + rows + '</tbody></table><div class="signature"><div class="sign-line">Organising Secretary Signature<br>' + escapeHtml(leaderName) + '</div><div class="stamp">OFFICIAL<br>STAMP</div><div class="sign-line">Verified By / Date</div></div><div class="footer">E.A.P.C Munyari Church | ' + escapeHtml(department) + ' Department | Present: ' + selected.length + ' | Official attendance record</div></body></html>');
                         printWindow.document.close();
                         printWindow.focus();
-                        setTimeout(function() { printWindow.print(); }, 300);
+                        setTimeout(function() { printWindow.print(); }, 650);
+                    }
+                    var manualEventAttendeeIndex = 0;
+                    function markOrganizedAttendanceDirty(form) {
+                        if (!form) return;
+                        form.dataset.attendanceDirty = 'true';
+                        form.querySelectorAll('[data-print-attendance]').forEach(function(button) { button.disabled = true; });
+                    }
+                    function addManualEventAttendee(button) {
+                        var form = button.closest('form');
+                        var list = form.querySelector('[data-manual-attendee-list]');
+                        var index = manualEventAttendeeIndex++;
+                        var now = new Date();
+                        var joinedAt = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+                        var row = document.createElement('div');
+                        row.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;padding:10px 0;border-bottom:1px solid var(--border-color);align-items:end;';
+                        row.innerHTML = '<div><label>Full Name</label><input class="form-control" name="manual_attendees[' + index + '][name]" required></div><div><label>Gender</label><select class="form-control" name="manual_attendees[' + index + '][gender]"><option value="">Select</option><option>Female</option><option>Male</option></select></div><div><label>Phone</label><input class="form-control" name="manual_attendees[' + index + '][phone]" inputmode="tel"></div><div><label>Time Joined</label><input class="form-control" type="time" name="manual_attendees[' + index + '][joined_at]" value="' + joinedAt + '"></div><div><label>Profile Photo</label><input type="file" name="manual_photos[' + index + ']" accept="image/*" required></div><button type="button" class="btn-sm" style="background:var(--danger);color:white;" onclick="this.closest(\'div[style]\').remove();markOrganizedAttendanceDirty(this.closest(\'form\'))">Remove</button>';
+                        list.appendChild(row);
+                        markOrganizedAttendanceDirty(form);
                     }
                     document.querySelectorAll('form[action*="save_organized_event_attendance"]').forEach(function(form) {
+                        form.addEventListener('input', function() { markOrganizedAttendanceDirty(form); });
                         form.addEventListener('change', function(event) {
                             if (event.target.matches('[data-attendance-checkbox]')) {
-                                form.dataset.attendanceDirty = 'true';
-                                form.querySelectorAll('[data-print-attendance]').forEach(function(button) { button.disabled = true; });
+                                if (event.target.checked) {
+                                    var timeInput = event.target.closest('tr').querySelector('input[type="time"]');
+                                    if (timeInput && !timeInput.value) {
+                                        var now = new Date();
+                                        timeInput.value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+                                    }
+                                }
+                                markOrganizedAttendanceDirty(form);
                             }
                         });
                     });
