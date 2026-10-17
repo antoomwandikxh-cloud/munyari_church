@@ -1515,7 +1515,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                     <?php if($unread_notifs > 0): ?>
                                         <span style="background:var(--danger); color:white; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:20px;"><?= $unread_notifs ?> new</span>
                                     <?php endif; ?>
-                                    <button type="button" onclick="event.stopPropagation(); document.getElementById('notifDropdown').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); font-size:1rem; cursor:pointer; line-height:1; padding:2px 4px;" title="Close">✕</button>
+                                    <button type="button" onclick="event.stopPropagation(); document.getElementById('notifDropdown').style.display='none';" style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); color:#ef4444; font-size:0.75rem; font-weight:700; border-radius:6px; cursor:pointer; padding:3px 8px; display:inline-flex; align-items:center;" title="Close Notifications">Close</button>
                                 </div>
                             </div>
                             <div style="max-height:240px; overflow-y:auto;">
@@ -4098,7 +4098,7 @@ w.document.write('</div>');
                                     <?php 
                                     $approved_members->data_seek(0);
                                     while($m = $approved_members->fetch_assoc()): ?>
-                                        <option value="<?= $m['id'] ?>" data-department="<?= htmlspecialchars($m['department'] ?? '') ?>">
+                                        <option value="<?= $m['id'] ?>" data-department="<?= htmlspecialchars($m['department'] ?? '') ?>" data-worshipper="<?= (($m['desired_role_pref'] ?? '') === 'Worshipper') ? '1' : '0' ?>">
                                             <?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?> - <?= htmlspecialchars($m['department'] ?? 'No Department') ?> (Current: <?= htmlspecialchars(role_display_label($m['church_role'] ?? 'Member', $m['department'] ?? null)) ?>)
                                         </option>
                                     <?php endwhile; ?>
@@ -4149,6 +4149,8 @@ w.document.write('</div>');
                                     
                                     departmentInput.value = sel.dataset.assignmentDepartment || '';
 
+                                    const needsWorshipperPreference = ['worship leader', 'vice worship leader'].includes((sel.value || '').toLowerCase());
+
                                     memberSelect.innerHTML = '<option value="">-- Select Member --</option>';
                                     let count = 0;
                                     originalOptions.forEach(opt => {
@@ -4166,6 +4168,10 @@ w.document.write('</div>');
                                             if (allowedLower.includes('elders') && optLower === 'elders') isAllowed = true;
                                         }
 
+                                        if (needsWorshipperPreference && opt.dataset.worshipper !== '1') {
+                                            isAllowed = false;
+                                        }
+
                                         if (isAllowed) {
                                             memberSelect.appendChild(opt.cloneNode(true));
                                             count++;
@@ -4173,10 +4179,14 @@ w.document.write('</div>');
                                     });
 
                                     if (count === 0) {
-                                        hint.innerText = `No eligible members found. Role requires: ${allowedDepts.length ? allowedDepts.join(', ') : 'Any'}`;
+                                        hint.innerText = needsWorshipperPreference
+                                            ? 'No approved members have selected Worshipper yet.'
+                                            : `No eligible members found. Role requires: ${allowedDepts.length ? allowedDepts.join(', ') : 'Any'}`;
                                         hint.style.color = "var(--danger)";
                                     } else {
-                                        hint.innerText = `Found ${count} eligible member(s) for this role.`;
+                                        hint.innerText = needsWorshipperPreference
+                                            ? `Found ${count} approved Worshipper member(s) for this leadership role.`
+                                            : `Found ${count} eligible member(s) for this role.`;
                                         hint.style.color = "#10b981";
                                     }
                                 });

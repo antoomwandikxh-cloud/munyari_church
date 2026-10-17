@@ -3175,7 +3175,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                     <?php if($unread_notifs > 0): ?>
                                         <span style="background:var(--danger); color:white; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:20px;"><?= $unread_notifs ?> new</span>
                                     <?php endif; ?>
-                                    <button type="button" onclick="event.stopPropagation(); document.getElementById('notifDropdown').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); font-size:1rem; cursor:pointer; line-height:1; padding:2px 4px;" title="Close">✕</button>
+                                    <button type="button" onclick="event.stopPropagation(); document.getElementById('notifDropdown').style.display='none';" style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); color:#ef4444; font-size:0.75rem; font-weight:700; border-radius:6px; cursor:pointer; padding:3px 8px; display:inline-flex; align-items:center;" title="Close Notifications">Close</button>
                                 </div>
                             </div>
                             <div style="max-height:240px; overflow-y:auto;">

@@ -86,8 +86,16 @@ if (isset($_GET['action'])) {
             }
         }
 
-        $member_data = $conn->query("SELECT department, church_role FROM members WHERE id = $member_id AND is_approved = 1")->fetch_assoc();
+        $member_data = $conn->query("SELECT department, church_role, desired_role_pref FROM members WHERE id = $member_id AND is_approved = 1")->fetch_assoc();
         $member_department = $member_data['department'] ?? '';
+
+        // Worship leadership is reserved for members who personally selected
+        // Worshipper as their desired service role during registration/settings.
+        if (in_array($new_normalized, ['worship leader', 'vice worship leader'], true) && ($member_data['desired_role_pref'] ?? '') !== 'Worshipper') {
+            header("Location: pastor_dashboard.php?tab=assign_roles&error=" . urlencode("Worship Leader and Vice Worship Leader can only be assigned to approved members who selected Worshipper."));
+            exit();
+        }
+
         $can_receive = $member_data && (empty($allowed_departments) || array_filter($allowed_departments, function($department) use ($member_department) {
             return department_matches($member_department, $department);
         }));
