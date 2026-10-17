@@ -176,7 +176,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <label>First Name (or Username)</label>
                     <div style="position: relative;">
                         <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #10b981; pointer-events: none;"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></span>
-                        <input type="text" id="login_username" name="username" class="form-control" placeholder="Enter your name" required autocomplete="new-username" spellcheck="false" style="padding-left: 40px;" oninput="seqUnlock('login_username','login_password'); document.getElementById('login_password_toggle').disabled = !this.value.trim();">
+                        <input type="text" id="login_username" name="username" class="form-control" placeholder="Enter your name" required autocomplete="new-username" spellcheck="false" style="padding-left: 40px;" oninput="updateLoginPasswordAccess()">
                     </div>
                 </div>
                 <div class="form-group">
@@ -187,6 +187,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <button type="button" id="login_password_toggle" onclick="togglePassword('login_password')" disabled style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: not-allowed; color: var(--text-muted); opacity: 0.45;">
                             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                         </button>
+                        <div id="login_password_lock_overlay" role="button" tabindex="0" aria-label="Password locked. Enter username first" onclick="promptLoginUsername()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();promptLoginUsername();}" style="position:absolute;inset:0;z-index:2;cursor:not-allowed;"></div>
                     </div>
                 </div>
                 <button type="submit" class="btn-submit" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
@@ -203,6 +204,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
     <script src="script.js?v=20261017"></script>
     <script>
+        function promptLoginUsername() {
+            window.alert('Please fill in your username first.');
+            document.getElementById('login_username').focus();
+        }
+
+        function updateLoginPasswordAccess() {
+            const password = document.getElementById('login_password');
+            const toggle = document.getElementById('login_password_toggle');
+            const overlay = document.getElementById('login_password_lock_overlay');
+            seqUnlock('login_username', 'login_password');
+            toggle.disabled = password.disabled;
+            toggle.style.cursor = password.disabled ? 'not-allowed' : 'pointer';
+            toggle.style.opacity = password.disabled ? '0.45' : '1';
+            overlay.hidden = !password.disabled;
+        }
+
         function togglePassword(inputId) {
             const input = document.getElementById(inputId);
             if (input.type === 'password') {
