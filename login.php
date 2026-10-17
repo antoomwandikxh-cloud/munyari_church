@@ -125,12 +125,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
             <?php if(isset($_GET['success'])): ?>
                 <?php if($_GET['success'] == 'member'): ?>
-                    <div class="alert alert-success">
+                    <div class="alert alert-success flash-success">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         <span>Registration successful! Please wait for pastor approval before logging in.</span>
                     </div>
                 <?php elseif($_GET['success'] == 'pastor'): ?>
-                    <div class="alert alert-success">
+                    <div class="alert alert-success flash-success">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         <span>Registration successful! Please wait for admin approval before logging in.</span>
                     </div>
@@ -229,5 +229,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         }
     </script>
+    <script src="flash_messages.js?v=1"></script>
 </body>
 </html>

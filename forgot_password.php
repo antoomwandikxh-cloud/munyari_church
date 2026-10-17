@@ -95,9 +95,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             session_destroy();
             echo "<!DOCTYPE html><html lang='en'><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><link rel='stylesheet' href='style.css'></head><body><div class='auth-wrapper'><div class='auth-card'>";
             echo "<div class='auth-header'><img src='church_logo.jpg' alt='Munyari' style='width:120px;border-radius:12px;margin:0 auto 16px;display:block;'><h2>Password Reset!</h2></div>";
-            echo "<div class='alert alert-success'>Your password has been changed successfully. You may now sign in.</div>";
+            echo "<div class='alert alert-success flash-success'>Your password has been changed successfully. You may now sign in.</div>";
             echo "<a href='login.php' class='btn-submit' style='margin-top:20px; display:block; text-align:center;'>Go to Sign In &rarr;</a>";
-            echo "</div></div></body></html>";
+            echo "</div></div><script src='flash_messages.js?v=1'></script></body></html>";
             exit();
         }
     }
@@ -190,5 +190,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             el.type = el.type === 'password' ? 'text' : 'password';
         }
     </script>
+    <script src="flash_messages.js?v=1"></script>
 </body>
 </html>

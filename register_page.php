@@ -46,9 +46,9 @@ session_start();
             <?php
             if (isset($_GET['success'])) {
                 if ($_GET['success'] === 'pastor') {
-                    echo '<div class="alert alert-success"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Registration successful! Your account is pending admin approval.</div>';
+                    echo '<div class="alert alert-success flash-success"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Registration successful! Your account is pending admin approval.</div>';
                 } else {
-                    echo '<div class="alert alert-success"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Registration successful! Your account is pending pastor approval.</div>';
+                    echo '<div class="alert alert-success flash-success"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Registration successful! Your account is pending pastor approval.</div>';
                 }
             }
             if (isset($_GET['error'])) {
@@ -399,5 +399,6 @@ session_start();
         }
     }
     </script>
+    <script src="flash_messages.js?v=1"></script>
 </body>
 </html>

@@ -29,7 +29,7 @@ if ($tab == 'church_buildings' || $tab == 'manage_building'):
     </div>
 
     <?php if (isset($_GET['success'])): ?>
-        <div class="alert alert-success" style="margin-bottom:20px;">✅ <?= htmlspecialchars($_GET['success']) ?></div>
+        <div class="alert alert-success flash-success" style="margin-bottom:20px;">✅ <?= htmlspecialchars($_GET['success']) ?></div>
     <?php endif; ?>
 
     <!-- ===== CHAIRPERSON/VICE: POSTING & SCHEDULE PANEL ===== -->

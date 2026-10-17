@@ -1587,7 +1587,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                 </a>
             </div>
             <?php if(isset($_GET['success'])): ?>
-                <div <?= $tab === 'assign_roles' ? 'id="roleActionFlash"' : (($tab === 'desired_roles' && ($_GET['success'] ?? '') === 'Village leader assigned successfully') ? 'id="villageAssignFlash"' : '') ?> class="alert alert-success"><?= htmlspecialchars($_GET['success']) ?></div>
+                <div <?= $tab === 'assign_roles' ? 'id="roleActionFlash"' : (($tab === 'desired_roles' && ($_GET['success'] ?? '') === 'Village leader assigned successfully') ? 'id="villageAssignFlash"' : '') ?> class="alert alert-success flash-success"><?= htmlspecialchars($_GET['success']) ?></div>
             <?php elseif(isset($_GET['error']) && !($tab === 'desired_roles' && in_array($_GET['error'], ['village_has_leader', 'invalid_village', 'invalid_village_member'], true))): ?>
                 <div <?= $tab === 'assign_roles' ? 'id="roleActionFlash"' : '' ?> class="alert alert-error"><?= htmlspecialchars($_GET['error']) ?></div>
             <?php endif; ?>
@@ -1949,7 +1949,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         </div>
                     </div>
                     <?php if (!empty($_GET['success'])): ?>
-                        <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:var(--success);padding:12px 16px;border-radius:10px;margin-bottom:18px;">✅ <?= htmlspecialchars($_GET['success']) ?></div>
+                        <div class="flash-success" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:var(--success);padding:12px 16px;border-radius:10px;margin-bottom:18px;">✅ <?= htmlspecialchars($_GET['success']) ?></div>
                     <?php endif; ?>
                     <?php if (!empty($_GET['error'])): ?>
                         <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);padding:12px 16px;border-radius:10px;margin-bottom:18px;">❌ <?= htmlspecialchars($_GET['error']) ?></div>
@@ -6654,7 +6654,7 @@ w.document.write('</div>');
                         if ($np === $cp) {
                             $hash = password_hash($np, PASSWORD_DEFAULT);
                             $conn->query("UPDATE pastors SET password = '$hash' WHERE id = $pastor_id");
-                            echo "<div class='alert alert-success' style='margin-top:20px;'>Password updated successfully.</div>";
+                            echo "<div class='alert alert-success flash-success' style='margin-top:20px;'>Password updated successfully.</div>";
                         } else {
                             echo "<div class='alert alert-danger' style='margin-top:20px;'>Passwords do not match.</div>";
                         }
@@ -6680,7 +6680,7 @@ w.document.write('</div>');
                     </div>
                     <a href="#assignSsClassLeader" class="btn-submit" style="width:auto;height:auto;padding:9px 14px;text-decoration:none;font-size:0.86rem;margin:0;">Assign Leader</a>
                 </div>
-                <?php if (isset($_GET['success'])): ?><div class="alert alert-success" style="margin-bottom:16px;"><?= htmlspecialchars($_GET['success']) ?></div><?php endif; ?>
+                <?php if (isset($_GET['success'])): ?><div class="alert alert-success flash-success" style="margin-bottom:16px;"><?= htmlspecialchars($_GET['success']) ?></div><?php endif; ?>
                 <?php if (isset($_GET['error'])): ?><div class="alert alert-danger" style="margin-bottom:16px;"><?= htmlspecialchars($_GET['error']) ?></div><?php endif; ?>
                 <div id="assignSsClassLeader" class="content-card" style="margin-bottom:24px;border-left:4px solid #0ea5e9;">
                     <h2 style="margin-bottom:14px;">Assign Sunday School Class Leader</h2>
@@ -7697,5 +7697,6 @@ function filterFinanceRecords() {
 })();
 </script>
 <?php endif; ?>
+<script src="flash_messages.js?v=1"></script>
 </body>
 </html>

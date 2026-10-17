@@ -3358,7 +3358,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 </div>
             </div>
             <?php if(isset($_GET['success'])): ?>
-                <div class="alert alert-success"><?= htmlspecialchars($_GET['success']) ?></div>
+                <div class="alert alert-success flash-success"><?= htmlspecialchars($_GET['success']) ?></div>
             <?php elseif(isset($_GET['error'])): ?>
                 <div class="alert alert-error"><?= htmlspecialchars($_GET['error']) ?></div>
             <?php endif; ?>
@@ -3802,7 +3802,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         <p>Transactions sent by the treasurer for <strong><?= htmlspecialchars($active_received_dept) ?></strong>.</p>
                     </div>
 
-                    <?php if (isset($_GET['success'])): ?><div class="alert alert-success" style="margin-bottom:16px;"><?= htmlspecialchars($_GET['success']) ?></div><?php endif; ?>
+                    <?php if (isset($_GET['success'])): ?><div class="alert alert-success flash-success" style="margin-bottom:16px;"><?= htmlspecialchars($_GET['success']) ?></div><?php endif; ?>
                     <?php if (isset($_GET['error'])): ?><div class="alert alert-danger" style="margin-bottom:16px;"><?= htmlspecialchars($_GET['error']) ?></div><?php endif; ?>
 
                     <?php if (count($_chair_finance_depts) > 1): ?>
@@ -3953,7 +3953,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 }
                 $total_ss = $conn->query("SELECT COUNT(*) as cnt FROM members WHERE department = 'Sunday School' AND is_approved = 1")->fetch_assoc()['cnt'];
                 ?>
-                <?php if (isset($_GET['success'])): ?><div class="alert alert-success" style="margin-bottom:16px;"><?= htmlspecialchars($_GET['success']) ?></div><?php endif; ?>
+                <?php if (isset($_GET['success'])): ?><div class="alert alert-success flash-success" style="margin-bottom:16px;"><?= htmlspecialchars($_GET['success']) ?></div><?php endif; ?>
                 <?php if (isset($_GET['error'])): ?><div class="alert alert-danger" style="margin-bottom:16px;"><?= htmlspecialchars($_GET['error']) ?></div><?php endif; ?>
                 <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
                     <div>
@@ -5932,7 +5932,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </div>
                     </div>
                     <?php if (!empty($_GET['success'])): ?>
-                        <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:var(--success);padding:12px 16px;border-radius:10px;margin-bottom:16px;">
+                        <div class="flash-success" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:var(--success);padding:12px 16px;border-radius:10px;margin-bottom:16px;">
                             ✅ <?= htmlspecialchars($_GET['success']) ?>
                         </div>
                     <?php endif; ?>
@@ -6697,7 +6697,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </div>
                     <?php endif; ?>
                 </div>
-                <?php if (isset($_GET['success'])): ?><div class="alert alert-success" style="max-width:520px;margin-bottom:16px;"><?= htmlspecialchars($_GET['success']) ?></div><?php endif; ?>
+                <?php if (isset($_GET['success'])): ?><div class="alert alert-success flash-success" style="max-width:520px;margin-bottom:16px;"><?= htmlspecialchars($_GET['success']) ?></div><?php endif; ?>
                 <?php if (isset($_GET['error'])): ?><div class="alert alert-danger" style="max-width:520px;margin-bottom:16px;"><?= htmlspecialchars($_GET['error']) ?></div><?php endif; ?>
 
                 <?php if (!$is_ss_member): ?>
@@ -7331,7 +7331,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     ?>
 
                     <?php if (isset($_GET['success'])): ?>
-                        <div class="alert alert-success"><?= htmlspecialchars($_GET['success']) ?></div>
+                        <div class="alert alert-success flash-success"><?= htmlspecialchars($_GET['success']) ?></div>
                     <?php elseif (isset($_GET['error'])): ?>
                         <div class="alert alert-error"><?= htmlspecialchars($_GET['error']) ?></div>
                     <?php endif; ?>
@@ -8331,7 +8331,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 </div>
 
                 <?php if (isset($_GET['success'])): ?>
-                    <div class="alert-success" style="background:rgba(16,185,129,0.1);border:1px solid #10b981;border-radius:10px;padding:12px 18px;margin-bottom:20px;color:#10b981;"><?= htmlspecialchars($_GET['success']) ?></div>
+                    <div class="alert-success flash-success" style="background:rgba(16,185,129,0.1);border:1px solid #10b981;border-radius:10px;padding:12px 18px;margin-bottom:20px;color:#10b981;"><?= htmlspecialchars($_GET['success']) ?></div>
                 <?php endif; ?>
 
                 <div style="display:flex; gap:25px; flex-wrap:wrap; align-items:flex-start; margin-bottom:30px;">
@@ -8485,7 +8485,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             </div>
 
             <?php if (isset($_GET['success'])): ?>
-                <div class="alert" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid #10b981; padding: 12px 18px; border-radius: 10px; margin-bottom: 20px;">
+                <div class="alert flash-success" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid #10b981; padding: 12px 18px; border-radius: 10px; margin-bottom: 20px;">
                     ✅ <?= htmlspecialchars($_GET['success']) ?>
                 </div>
             <?php endif; ?>
@@ -8715,7 +8715,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 </div>
             <?php endif; ?>
             <?php if (isset($_GET['success'])): ?>
-                <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:#065f46;padding:12px 16px;border-radius:10px;margin-bottom:18px;">
+                <div class="flash-success" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:#065f46;padding:12px 16px;border-radius:10px;margin-bottom:18px;">
                     <?= htmlspecialchars($_GET['success']) ?>
                 </div>
             <?php endif; ?>
@@ -8948,7 +8948,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             <?php render_worship_leader_profiles_card($conn); ?>
 
             <?php if (isset($_GET['success'])): ?>
-            <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); color:#065f46; padding:14px 18px; border-radius:10px; margin-bottom:20px; font-weight:500;">
+            <div class="flash-success" style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); color:#065f46; padding:14px 18px; border-radius:10px; margin-bottom:20px; font-weight:500;">
                 ✅ <?= htmlspecialchars($_GET['success']) ?>
             </div>
             <?php endif; ?>
@@ -9300,6 +9300,7 @@ if (typeof filterWTeam !== 'function') {
     };
 }
 </script>
+<script src="flash_messages.js?v=1"></script>
 </body>
 </html>
 

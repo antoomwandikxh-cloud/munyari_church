@@ -15,7 +15,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $hashed = password_hash($password, PASSWORD_DEFAULT);
     
     $conn->query("INSERT INTO pastors (first_name, last_name, phone, role, password) VALUES ('$fn', '$ln', '$phone', '$role', '$hashed')");
-    $message = "<div class='alert alert-success'>Pastor registered successfully!</div>";
+    $message = "<div class='alert alert-success flash-success'>Pastor registered successfully!</div>";
 }
 ?>
 <!DOCTYPE html>
@@ -64,5 +64,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </form>
         </div>
     </div>
+    <script src="flash_messages.js?v=1"></script>
 </body>
 </html>
