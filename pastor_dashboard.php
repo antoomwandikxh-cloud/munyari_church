@@ -1444,7 +1444,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                 <a href="logout.php" class="sidebar-logout" style="margin-top: 0;">Sign Out</a>
             </div>
         </div>
-        <div class="main-content"<?= isset($_GET['reassign']) ? ' style="scroll-behavior:smooth;"' : '' ?>>
+        <div class="main-content">
             <?php if (!$setup_completed): ?>
             <div style="background: linear-gradient(90deg, #6366f1, #8b5cf6); color:#fff; padding: 16px 40px 20px 40px; margin: -40px -40px 30px -40px; display:flex; flex-direction:column; gap:12px;">
                 <div style="display:flex; align-items:flex-start; gap:12px;">
@@ -4247,6 +4247,21 @@ w.document.write('</div>');
                                     const target = event.target instanceof Element ? event.target : event.target?.parentElement;
                                     return target?.closest('#currentlyAssignedRolesTable a[href*="action=remove_role"]') || null;
                                 };
+                                document.addEventListener('click', event => {
+                                    if (!roleRemoveLinkFromEvent(event)) return;
+                                    try {
+                                        sessionStorage.setItem('pastorRoleWindowScrollY', String(window.scrollY || document.documentElement.scrollTop || 0));
+                                        sessionStorage.setItem('pastorRoleContentScrollTop', String(document.querySelector('.main-content')?.scrollTop || 0));
+                                    } catch (e) {}
+                                }, true);
+                                document.addEventListener('click', event => {
+                                    if (event.defaultPrevented && roleRemoveLinkFromEvent(event)) {
+                                        try {
+                                            sessionStorage.removeItem('pastorRoleWindowScrollY');
+                                            sessionStorage.removeItem('pastorRoleContentScrollTop');
+                                        } catch (e) {}
+                                    }
+                                });
                                 const scrollBackToAssignRoles = () => new Promise(resolve => {
                                     const target = document.getElementById('assignRoleSection');
                                     const container = document.querySelector('.main-content');
@@ -4344,6 +4359,12 @@ w.document.write('</div>');
                                 const reassignGroup = query.get('reassign_group') || '';
                                 if (reassignRole) {
                                     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+                                    let savedWindowScrollY = null;
+                                    let savedContentScrollTop = null;
+                                    try {
+                                        savedWindowScrollY = sessionStorage.getItem('pastorRoleWindowScrollY');
+                                        savedContentScrollTop = sessionStorage.getItem('pastorRoleContentScrollTop');
+                                    } catch (e) {}
                                     const matchingOption = Array.from(roleSelect.options).find(option =>
                                         option.value.toLowerCase() === reassignRole.toLowerCase()
                                         && (!reassignGroup || option.parentElement?.label === reassignGroup)
@@ -4358,22 +4379,35 @@ w.document.write('</div>');
                                         const target = document.getElementById('assignRoleSection');
                                         const container = document.querySelector('.main-content');
                                         if (!target || !container) return;
-                                        const containerTop = container.getBoundingClientRect().top;
+                                        const innerScrolls = container.scrollHeight > container.clientHeight + 1;
+                                        const pageScroller = document.scrollingElement || document.documentElement;
                                         const targetTop = target.getBoundingClientRect().top;
-                                        const start = container.scrollTop;
-                                        const end = Math.max(0, Math.min(container.scrollHeight - container.clientHeight, start + targetTop - containerTop - 12));
+                                        const start = innerScrolls ? container.scrollTop : (window.scrollY || pageScroller.scrollTop);
+                                        const offset = innerScrolls ? targetTop - container.getBoundingClientRect().top : targetTop;
+                                        const maxScroll = innerScrolls ? container.scrollHeight - container.clientHeight : pageScroller.scrollHeight - window.innerHeight;
+                                        const end = Math.max(0, Math.min(maxScroll, start + offset - 12));
                                         const distance = end - start;
                                         const duration = 700;
                                         const startedAt = performance.now();
                                         const animateScroll = now => {
                                             const progress = Math.min(1, (now - startedAt) / duration);
                                             const eased = 1 - Math.pow(1 - progress, 3);
-                                            container.scrollTop = start + distance * eased;
+                                            const position = start + distance * eased;
+                                            if (innerScrolls) container.scrollTop = position;
+                                            else window.scrollTo(0, position);
                                             if (progress < 1) requestAnimationFrame(animateScroll);
                                         };
                                         requestAnimationFrame(animateScroll);
                                     };
                                     const beginReturnScroll = () => {
+                                        const container = document.querySelector('.main-content');
+                                        const innerScrolls = container && container.scrollHeight > container.clientHeight + 1;
+                                        if (innerScrolls && savedContentScrollTop !== null) container.scrollTop = Number(savedContentScrollTop) || 0;
+                                        else if (savedWindowScrollY !== null) window.scrollTo(0, Number(savedWindowScrollY) || 0);
+                                        try {
+                                            sessionStorage.removeItem('pastorRoleWindowScrollY');
+                                            sessionStorage.removeItem('pastorRoleContentScrollTop');
+                                        } catch (e) {}
                                         requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(scrollToAssignmentForm, 100)));
                                     };
                                     if (document.readyState === 'complete') beginReturnScroll();

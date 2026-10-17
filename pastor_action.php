@@ -262,7 +262,7 @@ if (isset($_GET['action'])) {
         $msg = $conn->real_escape_string("Your role '$role_to_remove' has been removed.");
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
 
-        header("Location: pastor_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed from member") . "&reassign=" . urlencode($reassign_role) . "&reassign_department=" . urlencode($reassign_department) . "&reassign_group=" . urlencode($reassign_group) . "#assignRoleSection");
+        header("Location: pastor_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed from member") . "&reassign=" . urlencode($reassign_role) . "&reassign_department=" . urlencode($reassign_department) . "&reassign_group=" . urlencode($reassign_group));
         exit();
     }
 
