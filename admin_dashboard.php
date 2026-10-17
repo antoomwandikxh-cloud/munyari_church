@@ -2586,9 +2586,9 @@ w.document.write('</div>');
                                 <small id="adminRoleSearchError" class="admin-role-search-error" role="status" hidden></small>
                                 <style>
                                     .admin-role-search{display:block;width:100%;max-width:270px;height:40px;padding:8px 11px;margin-bottom:8px}
-                                    .admin-role-search-error{display:block;margin:4px 0;color:var(--danger);font-size:.78rem}
+                                    .admin-role-search-error{display:inline-block;margin:4px 0;padding:7px 10px;border:1px solid #b91c1c;border-radius:6px;background:#dc2626;color:#fff;font-size:.78rem;font-weight:700;box-shadow:0 4px 10px rgba(127,29,29,.2)}
                                     .admin-role-search-error[hidden]{display:none}
-                                    #adminAssignRoleSelect optgroup{font-weight:800}
+                                    #adminAssignRoleSelect optgroup{font-weight:800;color:#fff}
                                     #adminAssignRoleSelect.role-options-open{height:auto;min-height:76px;max-height:300px;overflow-y:auto;padding:6px 10px}
                                 </style>
                             </div>
@@ -2597,7 +2597,9 @@ w.document.write('</div>');
                                 <select name="role" id="adminAssignRoleSelect" class="form-control" required>
                                     <option value="">-- Select Role --</option>
                                     <?php 
+                                    $role_ribbon_colors = ['General Church Leaders'=>'#1e3a8a','Elders Department'=>'#6d28d9',"Women's Ministry"=>'#be185d','Youths Department'=>'#b45309','Sunday School'=>'#0e7490','Building Department'=>'#92400e','Other Roles'=>'#4b5563'];
                                     foreach ($hierarchy as $dept => $roles) {
+                                        $ribbon_color = $role_ribbon_colors[$dept] ?? '#4b5563';
                                         $context_department = $hierarchy_department_names[$dept] ?? '';
                                         $options_html = '';
                                         foreach ($roles as $expected_role) {
@@ -2612,7 +2614,7 @@ w.document.write('</div>');
                                             }
                                         }
                                         if ($options_html !== '') {
-                                            echo "<optgroup label=\"" . htmlspecialchars($dept) . "\">$options_html</optgroup>";
+                                            echo "<optgroup label=\"" . htmlspecialchars($dept, ENT_QUOTES) . "\" style=\"color:#fff;background-color:$ribbon_color;font-weight:800;\">$options_html</optgroup>";
                                         }
                                     }
                                     ?>
@@ -2682,7 +2684,8 @@ w.document.write('</div>');
                                         if (!matches.length) return;
                                         const filteredGroup = document.createElement('optgroup');
                                         filteredGroup.label = groupName;
-                                        filteredGroup.style.color = groupColors[normalizeRoleSearch(groupName)] || '#4b5563';
+                                        filteredGroup.style.color = '#fff';
+                                        filteredGroup.style.backgroundColor = groupColors[normalizeRoleSearch(groupName)] || '#4b5563';
                                         filteredGroup.style.fontWeight = '800';
                                         matches.forEach(option => filteredGroup.appendChild(option.cloneNode(true)));
                                         roleSelect.appendChild(filteredGroup);
