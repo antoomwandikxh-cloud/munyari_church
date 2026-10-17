@@ -1555,7 +1555,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_worship_chat']) &
     if (!empty($msg)) {
         $conn->query("INSERT INTO worship_leadership_chat (sender_id, message) VALUES ($member_id, '$msg')");
         // Notification for the other worship leader
-        $worship_leaders = $conn->query("SELECT id FROM members WHERE is_approved = 1 AND LOWER(TRIM(church_role)) IN ('worship leader', 'vice worship leader') AND id != $member_id");
+        $worship_leaders = $conn->query("SELECT id FROM members WHERE is_approved = 1 AND LOWER(church_role) LIKE '%worship leader%' AND id != $member_id");
         $sender_name = $conn->real_escape_string($member['first_name'] . ' ' . $member['last_name']);
         $notif_msg = "Worship Leader $sender_name sent a message in Worship Leadership Chat";
         while ($wl = $worship_leaders->fetch_assoc()) {
@@ -6033,6 +6033,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
                 <div class="content-card" style="margin-bottom: 20px;">
                     <?php
+                    $worship_chat_leaders = $conn->query("SELECT id, first_name, last_name, church_role, profile_picture FROM members WHERE is_approved = 1 AND LOWER(church_role) LIKE '%worship leader%' ORDER BY first_name ASC, last_name ASC");
                     $chat_msgs = $conn->query("
                         SELECT wlc.id, 'worship_leaders' as dept_key, wlc.sender_id, wlc.message, wlc.created_at, m.first_name, m.last_name, m.church_role, 'Worship Dept' as department, NULL as is_pastor
                         FROM worship_leadership_chat wlc
@@ -6045,6 +6046,31 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         ORDER BY created_at ASC
                     ");
                     ?>
+                    <div style="margin-bottom:18px;padding:14px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-main);">
+                        <div style="font-weight:750;color:var(--text-main);margin-bottom:10px;">Worship Leaders</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                            <?php if ($worship_chat_leaders && $worship_chat_leaders->num_rows > 0): ?>
+                                <?php while ($chat_leader = $worship_chat_leaders->fetch_assoc()): ?>
+                                    <?php
+                                    $chat_leader_roles = array_values(array_intersect(get_member_roles($chat_leader['church_role'] ?? ''), ['worship leader', 'vice worship leader']));
+                                    if (!$chat_leader_roles) continue;
+                                    $chat_leader_labels = array_map(static function ($role) {
+                                        return $role === 'vice worship leader' ? 'Vice Worship Leader' : 'Worship Leader';
+                                    }, $chat_leader_roles);
+                                    ?>
+                                    <div style="display:flex;align-items:center;gap:9px;min-width:210px;padding:8px 10px;border:1px solid var(--border-color);border-radius:9px;background:var(--card-bg);">
+                                        <img src="uploads/<?= htmlspecialchars($chat_leader['profile_picture'] ?? 'default_avatar.png') ?>" alt="" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid #d946ef;flex-shrink:0;">
+                                        <div style="min-width:0;">
+                                            <div style="font-weight:700;color:var(--text-main);overflow-wrap:anywhere;"><?= htmlspecialchars($chat_leader['first_name'] . ' ' . $chat_leader['last_name']) ?></div>
+                                            <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.35;"><?= htmlspecialchars(implode(' / ', $chat_leader_labels)) ?></div>
+                                        </div>
+                                    </div>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <span style="color:var(--text-muted);font-size:0.9rem;">No active worship leaders are assigned.</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                     <div style="background:var(--card-bg);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:20px;height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:15px;margin-bottom:20px;" id="worship_chat_box">
                         <?php if ($chat_msgs && $chat_msgs->num_rows > 0): ?>
                             <?php while($msg = $chat_msgs->fetch_assoc()): ?>
