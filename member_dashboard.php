@@ -1423,7 +1423,7 @@ if ($is_secretary_council_member) {
 
 // Find ALL other leaders in the same department for chat (chairmen + secretaries + treasurers)
 $chat_partners = [];
-if ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary || $is_choir_leader || $is_youth_advisor) {
+if ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary || $is_choir_leader || $is_youth_advisor || $is_discipline_master || $is_graduands_secretary) {
     // Combine both maps to find ALL leadership roles in the same department
     $all_dept_roles = [];
     foreach ($leader_departments as $role => $dept) {
@@ -1433,7 +1433,7 @@ if ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary
         if ($dept === $managed_dept) $all_dept_roles[] = $role;
     }
     // Also include special roles: organizing secretary, discipline master, graduands secretary, prayer coordinator
-    $special_roles = ['organizing secretary (subsidiary)', 'discipline master (subsidiary)', 'graduands secretary (subsidiary)', 'prayer coordinator (subsidiary)', 'sport secretary (subsidiary)', 'sports secretary (subsidiary)', 'choir leader (subsidiary)'];
+    $special_roles = ['organizing secretary', 'discipline master', 'graduands secretary', 'prayer coordinator', 'sport secretary', 'sports secretary', 'choir leader'];
     if ($managed_dept === 'Youths') {
         $special_roles[] = 'mama youth';
         $special_roles[] = 'baba youth';
@@ -1451,7 +1451,7 @@ if ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary
     $dept_condition = $managed_dept === 'Youths'
         ? "(department='$esc_managed_dept' OR LOWER(TRIM(church_role)) LIKE '%mama youth%' OR LOWER(TRIM(church_role)) LIKE '%baba youth%')"
         : "department='$esc_managed_dept'";
-    $partners_result = $conn->query("SELECT id, first_name, last_name, church_role FROM members WHERE $dept_condition AND ($role_sql) AND id != $member_id AND is_approved = 1");
+    $partners_result = $conn->query("SELECT id, first_name, last_name, church_role, profile_picture FROM members WHERE $dept_condition AND ($role_sql) AND id != $member_id AND is_approved = 1");
     if ($partners_result && $partners_result->num_rows > 0) {
         while ($p = $partners_result->fetch_assoc()) {
             $chat_partners[] = $p;
@@ -1518,18 +1518,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
 $has_church_village = !empty($member['church_village']);
 
 // Handle sending leadership chat message
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_leader_msg']) && ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary || $is_choir_leader || $is_youth_advisor) && !empty($dept_key)) {
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_leader_msg']) && ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary || $is_choir_leader || $is_youth_advisor || $is_discipline_master || $is_graduands_secretary) && !empty($dept_key)) {
     $msg = $conn->real_escape_string(trim($_POST['leader_message']));
     if (!empty($msg)) {
         $conn->query("INSERT INTO leader_messages (dept_key, sender_id, message) VALUES ('$dept_key', $member_id, '$msg')");
 
         $sender_name = $conn->real_escape_string($member['first_name'] . ' ' . $member['last_name']);
-        $notif_msg = $conn->real_escape_string("New message in " . $managed_dept . " Leaders Chat from $sender_name");
+        $notif_msg = $conn->real_escape_string("Department leaders chat message in $dept_key from $sender_name");
 
         // Notify chat partners
         $esc_managed_dept = $conn->real_escape_string($managed_dept);
         $role_conditions = [];
-        $all_dept_roles = array_merge(array_keys(array_filter($leader_departments, fn($d) => $d === $managed_dept)), array_keys(array_filter($secretary_departments, fn($d) => $d === $managed_dept)), ['prayer coordinator (subsidiary)', 'sport secretary (subsidiary)', 'sports secretary (subsidiary)', 'choir leader (subsidiary)', 'organizing secretary (subsidiary)', 'mama youth', 'baba youth']);
+        $all_dept_roles = array_merge(array_keys(array_filter($leader_departments, fn($d) => $d === $managed_dept)), array_keys(array_filter($secretary_departments, fn($d) => $d === $managed_dept)), ['prayer coordinator', 'sport secretary', 'sports secretary', 'choir leader', 'organizing secretary', 'discipline master', 'graduands secretary', 'mama youth', 'baba youth']);
         foreach ($all_dept_roles as $r) {
             $role_conditions[] = "LOWER(TRIM(church_role)) LIKE '%" . $conn->real_escape_string($r) . "%'";
         }
@@ -1542,6 +1542,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_leader_msg']) && 
         if ($partners) {
             while ($p = $partners->fetch_assoc()) {
                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$p['id']}, 'member', '$notif_msg')");
+            }
+        }
+        $pastors = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
+        if ($pastors) {
+            while ($pastor_row = $pastors->fetch_assoc()) {
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$pastor_row['id']}, 'pastor', '$notif_msg')");
+            }
+        }
+        $admins = $conn->query("SELECT id FROM admins");
+        if ($admins) {
+            while ($admin_row = $admins->fetch_assoc()) {
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$admin_row['id']}, 'admin', '$notif_msg')");
             }
         }
         header("Location: member_dashboard.php?tab=leader_chat&sent=1");
@@ -2865,6 +2877,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
                         <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
+                        <?= render_tab_notification_badge($tab_badges, 'leader_chat') ?>
                     </a>
                 <?php endif; ?>
 
@@ -2879,6 +2892,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
                         <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
+                        <?= render_tab_notification_badge($tab_badges, 'leader_chat') ?>
                     </a>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -2894,7 +2908,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>" style="position:relative;">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path></svg>
                         <?= htmlspecialchars($managed_dept) ?> Leaders Chat
-                        <?php if (!empty($tab_badges['leader_chat'])): ?><span class="tab-notif-badge"><?= $tab_badges['leader_chat'] > 99 ? '99+' : $tab_badges['leader_chat'] ?></span><?php endif; ?>
+                        <?= render_tab_notification_badge($tab_badges, 'leader_chat') ?>
                     </a>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -2910,6 +2924,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
                         <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
+                        <?= render_tab_notification_badge($tab_badges, 'leader_chat') ?>
                     </a>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -2925,6 +2940,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
                         <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
+                        <?= render_tab_notification_badge($tab_badges, 'leader_chat') ?>
                     </a>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -2939,6 +2955,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
                         <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
+                        <?= render_tab_notification_badge($tab_badges, 'leader_chat') ?>
                     </a>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -2954,6 +2971,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
                         <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
+                        <?= render_tab_notification_badge($tab_badges, 'leader_chat') ?>
                     </a>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -2969,6 +2987,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
                         <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
+                        <?= render_tab_notification_badge($tab_badges, 'leader_chat') ?>
                     </a>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -2988,6 +3007,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
                         <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
+                        <?= render_tab_notification_badge($tab_badges, 'leader_chat') ?>
                     </a>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -3062,6 +3082,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 <a href="?tab=leader_chat&leader_dept=Sunday+School" class="sidebar-link <?= ($tab == 'leader_chat' && $managed_dept == 'Sunday School') ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
                     Sunday School Leaders Chat
+                    <?= render_tab_notification_badge($tab_badges, 'leader_chat') ?>
                 </a>
                 <?php endif; ?>
                 <?php if ($is_ss_class_teacher): ?>
@@ -3199,11 +3220,12 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 if ($drop_notifs && $drop_notifs->num_rows > 0):
                                     while ($dn = $drop_notifs->fetch_assoc()):
                                         $target_tab = notification_target_tab($dn['message'], 'member', 'dashboard');
+                                        $dn_group = notification_target_group($dn['message'], 'member');
                                         if ($is_choir_leader && $target_tab === 'choir_songs') {
                                             $target_tab = 'manage_songs';
                                         }
                                 ?>
-                                    <a href="mark_read_and_redirect.php?id=<?= $dn['id'] ?>&redirect=<?= urlencode($target_tab) ?>" style="display:block; padding:9px 13px; border-bottom:1px solid var(--border-color); text-decoration:none; background:<?= !$dn['is_read'] ? 'rgba(37,99,235,0.06)' : 'transparent' ?>; transition:background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.1)'" onmouseout="this.style.background='<?= !$dn['is_read'] ? 'rgba(37,99,235,0.06)' : 'transparent' ?>'">
+                                    <a href="mark_read_and_redirect.php?id=<?= $dn['id'] ?>&redirect=<?= urlencode($target_tab) ?><?= $dn_group !== '' ? '&group=' . urlencode($dn_group) : '' ?>" style="display:block; padding:9px 13px; border-bottom:1px solid var(--border-color); text-decoration:none; background:<?= !$dn['is_read'] ? 'rgba(37,99,235,0.06)' : 'transparent' ?>; transition:background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.1)'" onmouseout="this.style.background='<?= !$dn['is_read'] ? 'rgba(37,99,235,0.06)' : 'transparent' ?>'">
                                         <div style="display:flex; align-items:flex-start; gap:8px;">
                                             <div style="width:7px; height:7px; border-radius:50%; background:<?= !$dn['is_read'] ? 'var(--danger)' : 'var(--border-color)' ?>; margin-top:5px; flex-shrink:0;"></div>
                                             <div style="min-width:0;">
@@ -4784,29 +4806,26 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 <?php if (!empty($chat_partners)): ?>
                     <div class="content-card" style="margin-bottom: 20px;">
                         <!-- Online Members -->
-                        <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color);">
+                        <div style="display:flex;gap:10px;margin-bottom:15px;padding:4px 2px 14px;border-bottom:1px solid var(--border-color);overflow-x:auto;">
                             <?php foreach ($chat_partners as $cp): ?>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px;">
-                                    <?= strtoupper(substr($cp['first_name'], 0, 1)) ?>
-                                </div>
-                                <div style="line-height: 1.2;">
-                                    <strong style="font-size: 0.9rem;"><?= htmlspecialchars($cp['first_name'] . ' ' . $cp['last_name']) ?></strong>
-                                    <div style="font-size: 0.75rem; color: var(--text-muted);"><?= htmlspecialchars($cp['church_role']) ?></div>
-                                </div>
-                            </div>
+                            <?php $chat_profile = 'uploads/' . ($cp['profile_picture'] ?? 'default_avatar.png'); ?>
+                            <button type="button" onclick="viewProfileImage('<?= htmlspecialchars($chat_profile, ENT_QUOTES) ?>')" title="View <?= htmlspecialchars($cp['first_name'] . ' ' . $cp['last_name'], ENT_QUOTES) ?>'s profile photo" style="display:flex;flex:0 0 112px;flex-direction:column;align-items:center;gap:6px;padding:7px 5px;border:0;background:transparent;color:var(--text-main);cursor:pointer;">
+                                <img src="<?= htmlspecialchars($chat_profile, ENT_QUOTES) ?>" alt="<?= htmlspecialchars($cp['first_name'] . ' ' . $cp['last_name']) ?>" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);">
+                                <strong style="max-width:108px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.8rem;"><?= htmlspecialchars($cp['first_name'] . ' ' . $cp['last_name']) ?></strong>
+                                <span style="max-width:108px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:0.68rem;"><?= htmlspecialchars($cp['church_role']) ?></span>
+                            </button>
                             <?php endforeach; ?>
                         </div>
 
                         <!-- Chat Messages -->
                         <?php
                         $chat_msgs = $conn->query("
-                            SELECT lm.id, lm.dept_key, lm.sender_id, lm.message, lm.created_at, m.first_name, m.last_name, NULL as is_pastor
+                            SELECT lm.id, lm.dept_key, lm.sender_id, lm.message, lm.created_at, m.first_name, m.last_name, m.profile_picture, NULL as is_pastor
                             FROM leader_messages lm
                             JOIN members m ON lm.sender_id = m.id
                             WHERE lm.dept_key = '$dept_key'
                             UNION ALL
-                            SELECT plm.id, plm.dept_key, plm.pastor_id as sender_id, plm.message, plm.created_at, p.first_name, p.last_name, 1 as is_pastor
+                            SELECT plm.id, plm.dept_key, plm.pastor_id as sender_id, plm.message, plm.created_at, p.first_name, p.last_name, p.profile_picture, 1 as is_pastor
                             FROM pastor_leader_messages plm
                             JOIN pastors p ON plm.pastor_id = p.id
                             WHERE plm.dept_key = '$dept_key'
@@ -4814,7 +4833,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         ");
                         // Fallback if pastor table missing somehow
                         if (!$chat_msgs) {
-                            $chat_msgs = $conn->query("SELECT lm.id, lm.dept_key, lm.sender_id, lm.message, lm.created_at, m.first_name, m.last_name, NULL as is_pastor FROM leader_messages lm JOIN members m ON lm.sender_id = m.id WHERE lm.dept_key = '$dept_key' ORDER BY lm.created_at ASC");
+                            $chat_msgs = $conn->query("SELECT lm.id, lm.dept_key, lm.sender_id, lm.message, lm.created_at, m.first_name, m.last_name, m.profile_picture, NULL as is_pastor FROM leader_messages lm JOIN members m ON lm.sender_id = m.id WHERE lm.dept_key = '$dept_key' ORDER BY lm.created_at ASC");
                         }
                         ?>
                         <div id="chatBox" style="max-height: 400px; overflow-y: auto; padding: 15px; background: var(--bg-main); border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 15px;">
@@ -4828,11 +4847,11 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 ?>
                                     <div style="display: flex; justify-content: <?= $is_mine ? 'flex-end' : 'flex-start' ?>; margin-bottom: 10px;">
                                         <div style="max-width: 75%; padding: 10px 14px; border-radius: 16px; background: <?= $bg ?>; color: <?= $color ?>; border: <?= $border ?>;">
-                                            <?php if (!$is_mine): ?>
-                                                <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; opacity: 0.8;">
-                                                    <?= $is_pastor ? '⛪ Pastor ' : '' ?><?= htmlspecialchars($cm['first_name'] . ($is_pastor ? ' ' . $cm['last_name'] : '')) ?>
-                                                </div>
-                                            <?php endif; ?>
+                                            <div style="display:flex;align-items:center;gap:7px;font-size:0.75rem;font-weight:600;margin-bottom:5px;opacity:0.9;">
+                                                <?php $sender_profile = 'uploads/' . ($cm['profile_picture'] ?? 'default_avatar.png'); ?>
+                                                <img src="<?= htmlspecialchars($sender_profile, ENT_QUOTES) ?>" alt="<?= htmlspecialchars($cm['first_name'] . ' ' . $cm['last_name']) ?>" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src)" title="View profile photo" style="width:27px;height:27px;border-radius:50%;object-fit:cover;cursor:zoom-in;">
+                                                <span><?= $is_pastor ? 'Pastor ' : '' ?><?= htmlspecialchars($cm['first_name'] . ' ' . $cm['last_name']) ?></span>
+                                            </div>
                                             <p style="margin: 0; line-height: 1.5; white-space: pre-wrap;"><?= htmlspecialchars($cm['message']) ?></p>
                                             <div style="font-size: 0.7rem; margin-top: 4px; opacity: 0.6; text-align: <?= $is_mine ? 'right' : 'left' ?>;"><?= date('M j, g:i A', strtotime($cm['created_at'])) ?></div>
                                         </div>
@@ -5084,11 +5103,12 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         <?php while($n = $notifications->fetch_assoc()): ?>
                             <?php
                             $target_tab = notification_target_tab($n['message'], 'member', 'dashboard');
+                            $dn_group = notification_target_group($n['message'], 'member');
                             if ($is_choir_leader && $target_tab === 'choir_songs') {
                                 $target_tab = 'manage_songs';
                             }
                             ?>
-                            <a href="mark_read_and_redirect.php?id=<?= $n['id'] ?>&redirect=<?= urlencode($target_tab) ?>" class="notification-item <?= !$n['is_read'] ? 'unread' : '' ?>">
+                            <a href="mark_read_and_redirect.php?id=<?= $n['id'] ?>&redirect=<?= urlencode($target_tab) ?><?= $dn_group !== '' ? '&group=' . urlencode($dn_group) : '' ?>" class="notification-item <?= !$n['is_read'] ? 'unread' : '' ?>">
                                 <p><?= htmlspecialchars($n['message']) ?></p>
                                 <div class="notification-meta">
                                     <small><?= date('M j, Y g:i A', strtotime($n['created_at'])) ?></small>

@@ -176,14 +176,18 @@ function notification_badge_tabs($message, $user_type) {
     }
 
     // ─── 3. LEADERSHIP CHAT MESSAGES ────────────────────────────────────────
+    if (strpos($msg, 'department leaders chat message in ') !== false) {
+        return [$user_type === 'member' ? 'leader_chat' : 'general_leadership'];
+    }
     if (strpos($msg, 'leadership chat') !== false) {
         if (strpos($msg, 'worship') !== false) {
             $tabs[] = $user_type === 'member' ? 'worship_leadership_chat' : 'general_leadership';
         } elseif (strpos($msg, 'building') !== false || strpos($msg, 'construction') !== false) {
             $tabs[] = $user_type === 'member' ? 'building_leadership_chat' : 'general_leadership';
-        } else {
-            // youths, womens, sunday school, general church, etc.
+        } elseif (strpos($msg, 'general church') !== false || strpos($msg, 'secretary council') !== false) {
             $tabs[] = $user_type === 'member' ? 'general_leader_chat' : 'general_leadership';
+        } else {
+            $tabs[] = $user_type === 'member' ? 'leader_chat' : 'general_leadership';
         }
         return array_values(array_unique($tabs)); // early exit
     }
@@ -419,8 +423,19 @@ function notification_target_tab($message, $user_type, $fallback_tab = 'dashboar
     return $tabs[0] ?? $fallback_tab;
 }
 
+function render_tab_notification_badge($badges, $tab) {
+    $count = (int)($badges[$tab] ?? 0);
+    if ($count < 1) {
+        return '';
+    }
+    return '<span class="tab-notif-badge">' . ($count > 99 ? '99+' : $count) . '</span>';
+}
+
 function notification_target_group($message, $user_type) {
     $msg = strtolower($message);
+    if (preg_match('/department leaders chat message in ([a-z_]+)/', $msg, $matches)) {
+        return $matches[1];
+    }
     if (($user_type === 'pastor' || $user_type === 'admin')
         && strpos($msg, 'worship leadership chat') !== false) {
         return 'worship_leaders';

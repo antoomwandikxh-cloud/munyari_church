@@ -1077,7 +1077,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['pastor_leader_chat']))
     if (!empty($dept_key) && !empty($plm_msg)) {
         $conn->query("INSERT INTO pastor_leader_messages (dept_key, pastor_id, message) VALUES ('$dept_key', $pastor_id, '$plm_msg')");
         $pastor_display = $conn->real_escape_string($pastor['first_name'] . ' ' . $pastor['last_name']);
-        $notif_text = $conn->real_escape_string("Pastor $pastor_display sent a message in the " . ucwords(str_replace('_', ' ', $dept_key)) . " leadership chat");
+        $notif_text = $conn->real_escape_string("Department leaders chat message in $dept_key from Pastor $pastor_display");
         // Notify relevant leaders based on the department key
         $leaders = null;
         if ($dept_key === 'youths') {
