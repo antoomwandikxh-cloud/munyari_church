@@ -4043,15 +4043,15 @@ w.document.write('</div>');
                 ?>
                 <div class="content-card" style="margin-bottom:30px;">
                     <h3 style="margin:0 0 12px;color:var(--text-main);">Current Village Leaders</h3>
-                    <div class="table-responsive"><table><thead><tr><th>Village</th><th>Photo</th><th>Leader</th><th>Actions</th></tr></thead><tbody>
+                    <div class="table-responsive"><table><thead><tr><th>Profile</th><th>Name</th><th>Village Leader</th><th>Actions</th></tr></thead><tbody>
                     <?php while ($current_leader = $current_village_leaders->fetch_assoc()):
                         $current_leader_id = (int)$current_leader['id'];
                         $current_village = (string)$current_leader['church_village'];
                     ?>
                         <tr>
-                            <td><?= htmlspecialchars($current_village) ?></td>
                             <td><img src="uploads/<?= htmlspecialchars(basename($current_leader['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($current_leader['first_name'] . ' ' . $current_leader['last_name']) ?> profile photo" onclick="viewProfileImage(this.src)" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);cursor:zoom-in;"></td>
                             <td><?= htmlspecialchars($current_leader['first_name'] . ' ' . $current_leader['last_name']) ?></td>
+                            <td><?= htmlspecialchars($current_village) ?> Village Leader</td>
                             <td><a class="btn-sm" style="background:var(--primary);color:#fff;text-decoration:none;" href="admin_dashboard.php?tab=assign_roles&amp;view_village_leader=<?= $current_leader_id ?>">View in Assign Role</a></td>
                         </tr>
                     <?php endwhile; ?>
