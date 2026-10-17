@@ -220,7 +220,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader
         header("Location: admin_dashboard.php?tab=desired_roles&error=invalid_village_member&village_reopen=" . urlencode($village_name) . "#assignVillageLeaderForm");
         exit();
     }
-    header("Location: admin_dashboard.php?tab=desired_roles&success=village_leader_assigned&vname=" . urlencode($village_name));
+    header("Location: admin_dashboard.php?tab=desired_roles&success=" . urlencode('Village leader assigned successfully') . "&vname=" . urlencode($village_name));
     exit();
 }
 // ──────────────────────────────────────────────────────────────────────────
@@ -1253,8 +1253,8 @@ if (!empty($action)) {
                 </div>
             </div>
                                 <?php if(isset($_GET['success'])): ?>
-                <div <?= $tab === 'assign_roles' ? 'id="roleActionFlash"' : '' ?> class="alert alert-success"><?= htmlspecialchars($_GET['success']) ?></div>
-            <?php elseif(isset($_GET['error'])): ?>
+                <div <?= $tab === 'assign_roles' ? 'id="roleActionFlash"' : (($tab === 'desired_roles' && ($_GET['success'] ?? '') === 'Village leader assigned successfully') ? 'id="villageAssignFlash"' : '') ?> class="alert alert-success"><?= htmlspecialchars($_GET['success']) ?></div>
+            <?php elseif(isset($_GET['error']) && !($tab === 'desired_roles' && in_array($_GET['error'], ['village_has_leader', 'invalid_village', 'invalid_village_member'], true))): ?>
                 <div <?= $tab === 'assign_roles' ? 'id="roleActionFlash"' : '' ?> class="alert alert-error"><?= htmlspecialchars($_GET['error']) ?></div>
             <?php elseif(isset($_GET['approved'])): ?>
                 <div class="alert alert-success">Account approved successfully!</div>
@@ -1262,6 +1262,23 @@ if (!empty($action)) {
                 <div class="alert alert-error" style="background: rgba(245, 158, 11, 0.1); color: #d97706; border-color: rgba(245, 158, 11, 0.2);">Account deactivated successfully.</div>
             <?php elseif(isset($_GET['removed'])): ?>
                 <div class="alert alert-error">Account removed permanently.</div>
+            <?php endif; ?>
+            <?php if ($tab === 'desired_roles' && ($_GET['success'] ?? '') === 'Village leader assigned successfully'): ?>
+                <script>
+                    (() => {
+                        const flash = document.getElementById('villageAssignFlash');
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete('success');
+                        window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+                        if (!flash) return;
+                        window.setTimeout(() => {
+                            flash.style.transition = 'opacity 250ms ease, transform 250ms ease';
+                            flash.style.opacity = '0';
+                            flash.style.transform = 'translateY(-6px)';
+                            window.setTimeout(() => flash.remove(), 250);
+                        }, 5000);
+                    })();
+                </script>
             <?php endif; ?>
             <?php if ($tab === 'assign_roles' && (isset($_GET['success']) || isset($_GET['error']))): ?>
                 <script>
@@ -3167,7 +3184,7 @@ w.document.write('</div>');
                 <div id="currentlyAssignedRolesTable" class="content-card" style="margin-top: 20px;">
 <h2 style="margin-bottom: 20px;">Currently Assigned Roles</h2>
                     <?php 
-                    $assigned_roles_q = $conn->query("SELECT id, first_name, last_name, department, church_role, profile_picture FROM members WHERE church_role IS NOT NULL AND church_role != '' AND LOWER(TRIM(church_role)) != 'member'");
+                    $assigned_roles_q = $conn->query("SELECT id, first_name, last_name, department, church_role, profile_picture, is_village_leader FROM members WHERE (church_role IS NOT NULL AND church_role != '' AND LOWER(TRIM(church_role)) != 'member') OR is_village_leader = 1");
                     
                     // Organize fetched members into the hierarchy structure
                     $categorized_members = [];
@@ -3175,6 +3192,9 @@ w.document.write('</div>');
                     
                     while($ar = $assigned_roles_q->fetch_assoc()) {
                         $member_roles = array_filter(array_map('trim', explode(',', str_replace('&', ',', $ar['church_role'] ?? ''))));
+                        if (!empty($ar['is_village_leader']) && stripos(implode(',', $member_roles), 'village leader') === false) {
+                            $member_roles[] = 'Church Village Leader';
+                        }
                         foreach ($member_roles as $role_clean) {
                             $placed = false;
                             
@@ -3230,13 +3250,14 @@ w.document.write('</div>');
                                 if (!empty($categorized_members[$dept][$expected_role])) {
                                     foreach ($categorized_members[$dept][$expected_role] as $member_data) {
                                         $role_label = role_display_label($expected_role, $member_data['department'] ?? null);
-                                        echo "<tr>";
+                                        $stored_role = $member_data['displayed_role'] ?? $expected_role;
+                                        $assigned_row_id = stripos($stored_role, 'village leader') !== false ? ' id="assigned_village_leader_' . (int)$member_data['id'] . '"' : '';
+                                        echo "<tr" . $assigned_row_id . " style='scroll-margin-top:100px;'>";
                                         echo "<td><span class='badge' style='background: var(--primary); color: white; font-weight: bold;'>" . htmlspecialchars($role_label) . "</span></td>";
                                         $pic = empty($member_data['profile_picture']) ? 'default_avatar.png' : $member_data['profile_picture'];
                                         $pic_url = 'uploads/' . basename($pic);
                                         $img_html = "<img src='" . htmlspecialchars($pic_url) . "' style='width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;border:1px solid #ccc;cursor:zoom-in;' onclick=\"viewProfileImage(this.src);\" onerror=\"this.onerror=null; this.src='uploads/default_avatar.png';\">";
                                         echo "<td style='font-weight: 500;'><div style='display:flex; align-items:center;'>" . $img_html . "<span>" . htmlspecialchars($member_data['first_name'] . ' ' . $member_data['last_name']) . "</span></div></td>";
-                                        $stored_role = $member_data['displayed_role'] ?? $expected_role;
                                         $assignment_department = $hierarchy_department_names[$dept] ?? '';
                                         $remove_url = 'admin_dashboard.php?tab=assign_roles&action=remove_role&id=' . (int)$member_data['id']
                                             . '&role=' . urlencode($stored_role)
@@ -3261,7 +3282,8 @@ w.document.write('</div>');
                         echo "<thead><tr><th style='width: 40%;'>Assigned Role</th><th>Member</th><th>Action</th></tr></thead><tbody>";
                         foreach ($uncategorized as $member_data) {
                             $disp_role = $member_data['displayed_role'] ?? $member_data['church_role'];
-                            echo "<tr>";
+                            $assigned_row_id = stripos($disp_role, 'village leader') !== false ? ' id="assigned_village_leader_' . (int)$member_data['id'] . '"' : '';
+                            echo "<tr" . $assigned_row_id . " style='scroll-margin-top:100px;'>";
                             echo "<td><span class='badge' style='background: var(--primary); color: white; font-weight: bold;'>" . htmlspecialchars(role_display_label($disp_role, $member_data['department'] ?? null)) . "</span></td>";
                             $pic = empty($member_data['profile_picture']) ? 'default_avatar.png' : $member_data['profile_picture'];
                             $pic_url = 'uploads/' . basename($pic);
@@ -3980,7 +4002,7 @@ w.document.write('</div>');
                     ?>
                         <div role="alert" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);color:var(--text-main);padding:12px 14px;border-radius:8px;margin-bottom:16px;">
                             <span><strong><?= htmlspecialchars($occupied_village) ?> village is already taken</strong><?= $occupied_leader ? ' by ' . htmlspecialchars($occupied_leader['first_name'] . ' ' . $occupied_leader['last_name']) : '' ?>.</span>
-                            <?php if ($occupied_leader_id): ?><a class="btn-sm" style="background:var(--primary);color:#fff;text-decoration:none;" href="#village_leader_row_<?= $occupied_leader_id ?>">View current leader</a><?php endif; ?>
+                            <?php if ($occupied_leader_id): ?><a class="btn-sm" style="background:var(--primary);color:#fff;text-decoration:none;" href="admin_dashboard.php?tab=assign_roles#assigned_village_leader_<?= $occupied_leader_id ?>">View current leader</a><?php endif; ?>
                         </div>
                     <?php elseif (in_array($_GET['error'] ?? '', ['invalid_village', 'invalid_village_member'], true)): ?>
                         <div role="alert" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);color:var(--danger);padding:12px 14px;border-radius:8px;margin-bottom:16px;">Please select a valid village and an approved member registered in that village.</div>
@@ -4022,12 +4044,11 @@ w.document.write('</div>');
                     <?php while ($current_leader = $current_village_leaders->fetch_assoc()):
                         $current_leader_id = (int)$current_leader['id'];
                         $current_village = (string)$current_leader['church_village'];
-                        $remove_village_url = 'admin_dashboard.php?tab=assign_roles&action=remove_role&id=' . $current_leader_id . '&role=' . urlencode('Church Village Leader');
                     ?>
                         <tr>
                             <td><?= htmlspecialchars($current_village) ?></td>
                             <td><?= htmlspecialchars($current_leader['first_name'] . ' ' . $current_leader['last_name']) ?></td>
-                            <td style="display:flex;gap:8px;flex-wrap:wrap;"><a class="btn-sm" style="background:var(--primary);color:#fff;text-decoration:none;" href="#village_leader_row_<?= $current_leader_id ?>">View</a><a class="btn-sm" style="background:var(--danger);color:#fff;text-decoration:none;" href="<?= htmlspecialchars($remove_village_url, ENT_QUOTES) ?>" onclick="return confirm('Remove <?= htmlspecialchars(addslashes($current_village), ENT_QUOTES) ?> village leader and open it for a replacement?');">Remove Leader</a></td>
+                            <td><a class="btn-sm" style="background:var(--primary);color:#fff;text-decoration:none;" href="admin_dashboard.php?tab=assign_roles#assigned_village_leader_<?= $current_leader_id ?>">View in Assign Role</a></td>
                         </tr>
                     <?php endwhile; ?>
                     </tbody></table></div>
