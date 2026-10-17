@@ -4113,10 +4113,15 @@ w.document.write('</div>');
                         <form method="POST" action="pastor_action.php?action=assign_role">
                             <div class="form-group">
                                 <label>First Select Role</label>
-                                <input type="search" id="assignRoleSearch" class="form-control" autocomplete="off"
+                                <input type="search" id="assignRoleSearch" class="form-control role-search-input" autocomplete="off"
                                     placeholder="Search role or department..." aria-label="Search roles by role or department"
-                                    aria-controls="assignRoleMenu" aria-expanded="false">
+                                    aria-controls="assignRoleMenu" aria-expanded="false" pattern="[A-Za-z ]*"
+                                    title="Use letters and spaces only" maxlength="80" spellcheck="false">
+                                <small id="assignRoleSearchError" class="role-search-error" role="status" hidden></small>
                                 <style>
+                                    .role-search-input{display:block;width:100%;max-width:270px;height:40px;padding:8px 11px}
+                                    .role-search-error{display:block;margin-top:4px;color:var(--danger);font-size:.78rem}
+                                    .role-search-error[hidden]{display:none}
                                     .role-search-menu{margin-top:5px;max-height:250px;overflow-y:auto;border:1px solid var(--border-color);border-radius:7px;background:var(--bg-card);box-shadow:0 5px 14px rgba(0,0,0,.14)}
                                     .role-search-menu[hidden]{display:none}
                                     .role-search-ribbon{padding:7px 12px;color:#fff;font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px}
@@ -4179,6 +4184,7 @@ w.document.write('</div>');
                                 if (!roleSelect || !memberSelect) return;
                                 const roleSearch = document.getElementById('assignRoleSearch');
                                 const roleMenu = document.getElementById('assignRoleMenu');
+                                const roleSearchError = document.getElementById('assignRoleSearchError');
                                 const departmentColors = {
                                     'general church leaders': '#1e3a8a',
                                     'elders department': '#6d28d9',
@@ -4238,6 +4244,8 @@ w.document.write('</div>');
                                                 if (!actualOption) return;
                                                 roleSelect.selectedIndex = Array.from(roleSelect.options).indexOf(actualOption);
                                                 roleSearch.value = actualOption.value;
+                                                roleSearchError.hidden = true;
+                                                roleSearch.removeAttribute('aria-invalid');
                                                 roleSearch.setCustomValidity('');
                                                 roleMenu.hidden = true;
                                                 roleSearch.setAttribute('aria-expanded', 'false');
@@ -4257,8 +4265,21 @@ w.document.write('</div>');
                                     roleSearch.setAttribute('aria-expanded', 'true');
                                 };
                                 roleSearch.addEventListener('input', () => {
+                                    const rawValue = roleSearch.value;
+                                    const sanitizedValue = rawValue.replace(/[^a-zA-Z\s]/g, '');
+                                    if (rawValue !== sanitizedValue) {
+                                        roleSearch.value = sanitizedValue;
+                                        roleSearchError.textContent = 'Numbers and symbols are not allowed. Use letters only.';
+                                        roleSearchError.hidden = false;
+                                        roleSearch.setAttribute('aria-invalid', 'true');
+                                        roleSearch.setCustomValidity('Use letters and spaces only.');
+                                    } else {
+                                        roleSearchError.textContent = '';
+                                        roleSearchError.hidden = true;
+                                        roleSearch.removeAttribute('aria-invalid');
+                                        roleSearch.setCustomValidity('');
+                                    }
                                     roleSelect.value = '';
-                                    roleSearch.setCustomValidity('');
                                     renderRoleDropdown();
                                 });
                                 roleSearch.addEventListener('keydown', event => {
