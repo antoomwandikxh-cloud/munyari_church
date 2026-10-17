@@ -1579,18 +1579,29 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                 </a>
             </div>
             <?php if(isset($_GET['success'])): ?>
-                <div class="alert alert-success"><?= htmlspecialchars($_GET['success']) ?></div>
+                <div <?= $tab === 'assign_roles' ? 'id="roleActionFlash"' : '' ?> class="alert alert-success"><?= htmlspecialchars($_GET['success']) ?></div>
             <?php elseif(isset($_GET['error'])): ?>
-                <div class="alert alert-error"><?= htmlspecialchars($_GET['error']) ?></div>
+                <div <?= $tab === 'assign_roles' ? 'id="roleActionFlash"' : '' ?> class="alert alert-error"><?= htmlspecialchars($_GET['error']) ?></div>
             <?php endif; ?>
-            <script>
-                (() => {
-                    const url = new URL(window.location.href);
-                    if (url.searchParams.get('success') !== 'All assigned roles and church village leader roles have been deleted.') return;
-                    url.searchParams.delete('success');
-                    window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
-                })();
-            </script>
+            <?php if ($tab === 'assign_roles' && (isset($_GET['success']) || isset($_GET['error']))): ?>
+                <script>
+                    (() => {
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete('success');
+                        url.searchParams.delete('error');
+                        window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+
+                        const flash = document.getElementById('roleActionFlash');
+                        if (!flash) return;
+                        window.setTimeout(() => {
+                            flash.style.transition = 'opacity 250ms ease, transform 250ms ease';
+                            flash.style.opacity = '0';
+                            flash.style.transform = 'translateY(-6px)';
+                            window.setTimeout(() => flash.remove(), 250);
+                        }, 5000);
+                    })();
+                </script>
+            <?php endif; ?>
 
 
 <?php if ($tab == 'dashboard'): ?>
