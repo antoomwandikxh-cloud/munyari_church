@@ -1058,6 +1058,7 @@ if (!empty($action)) {
                 <a href="?tab=organized_events" class="sidebar-link <?= $tab == 'organized_events' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     Organised Events
+                    <?= render_tab_notification_badge($tab_badges, 'organized_events') ?>
                 </a>
                 <a href="?tab=general_leadership" class="sidebar-link <?= $tab == 'general_leadership' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M9 20H4v-2a3 3 0 015.356-1.857M15 11a4 4 0 10-6 0 4 4 0 006 0zm6-1a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
@@ -3641,6 +3642,9 @@ w.document.write('</div>');
                             <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Posted by Organizing Secretary <?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> on <?= date('M j, Y g:i A', strtotime($ev['created_at'])) ?></p>
                             
                             <p style="white-space: pre-wrap; line-height: 1.6; margin-bottom: 20px;"><?= htmlspecialchars($ev['announcement']) ?></p>
+                            <?php if (!empty($ev['audio_path'])): ?>
+                                <?= render_whatsapp_voice_player($ev['audio_path'], $ev['first_name'] . ' ' . $ev['last_name'], $ev['profile_picture'] ?? null, $ev['created_at']) ?>
+                            <?php endif; ?>
                             
                             <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                                 <?php if (!empty($ev['meet_link'])): ?>

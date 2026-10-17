@@ -3,6 +3,10 @@ function notification_badge_tabs($message, $user_type) {
     $msg  = strtolower($message);
     $tabs = [];
 
+    if (strpos($msg, 'department event') !== false && strpos($msg, 'organising secretary') !== false) {
+        return ['organized_events'];
+    }
+
     // ─── WORSHIP TASKS & TEAM NOTIFICATIONS ────────────────────────────────
     if (strpos($msg, 'worship task') !== false 
         || strpos($msg, 'worship assignment') !== false 

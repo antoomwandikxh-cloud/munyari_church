@@ -357,7 +357,8 @@ function render_whatsapp_voice_player($audio_path, $speaker_name = 'Pastor', $sp
 /**
  * Render the WhatsApp-style voice recorder widget for Pastor announcement form
  */
-function render_voice_note_recorder() {
+function render_voice_note_recorder($audience_label = 'all church members') {
+    $audience_label = htmlspecialchars($audience_label, ENT_QUOTES, 'UTF-8');
     ob_start();
     ?>
     <style>
@@ -403,7 +404,7 @@ function render_voice_note_recorder() {
                 </div>
                 <div>
                     <strong style="font-size:0.95rem; color:var(--text-main); display:block;">🎙️ Record Audio Here</strong>
-                    <span style="font-size:0.78rem; color:var(--text-muted);">Tap the button below to record a voice note for all church members</span>
+                    <span style="font-size:0.78rem; color:var(--text-muted);">Tap the button below to record a voice note for <?= $audience_label ?></span>
                 </div>
             </div>
             <span id="vn_status_badge" style="display:none; font-size:0.78rem; font-weight:800; padding:4px 12px; border-radius:20px; background:#fee2e2; color:#ef4444; border:1px solid #fca5a5;">
@@ -420,7 +421,7 @@ function render_voice_note_recorder() {
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 003-3V5a3 3 0 00-6 0v6a3 3 0 003 3z"/></svg>
                     Record Voice Note
                 </button>
-                <span style="font-size:0.82rem; color:var(--text-muted);">Tap to record your pastoral voice note</span>
+                <span style="font-size:0.82rem; color:var(--text-muted);">Tap to record your voice note</span>
             </div>
 
             <!-- 2. Recording State: Animated WhatsApp Sound Waves, Stop & Cancel -->

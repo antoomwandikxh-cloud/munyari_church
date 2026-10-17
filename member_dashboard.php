@@ -2837,6 +2837,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 <a href="?tab=organized_events" class="sidebar-link <?= $tab == 'organized_events' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     Organised Events
+                    <?= render_tab_notification_badge($tab_badges, 'organized_events') ?>
                 </a>
                 <?php endif; ?>
                 <?php if ((department_allows_graduation_and_sport($member['department'] ?? '') || $is_youth_advisor_scope) && !$is_sport_secretary): ?>
@@ -2935,6 +2936,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <a href="?tab=organized_events" class="sidebar-link <?= $tab == 'organized_events' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         Organised Events
+                        <?= render_tab_notification_badge($tab_badges, 'organized_events') ?>
                     </a>
                     <?php if (!$ctx_is_leader && !$ctx_is_secretary): ?>
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>" style="position:relative;">
@@ -7435,7 +7437,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </div>
                         <div class="form-group">
                             <label>Details / Message</label>
-                            <textarea name="announcement" class="form-control" rows="4" placeholder="Provide details about the event..." required></textarea>
+                            <textarea name="announcement" class="form-control" rows="4" placeholder="Provide event details, or leave blank and record a voice note"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Voice Announcement (Optional)</label>
+                            <?= render_voice_note_recorder('approved members of your department') ?>
                         </div>
                         <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                             <div class="form-group" style="flex: 1;">
@@ -7470,6 +7476,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <h3 style="margin-top: 0; color: var(--primary);"><?= htmlspecialchars($ev['title']) ?></h3>
                                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Posted by <?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> on <?= date('M j, Y g:i A', strtotime($ev['created_at'])) ?></p>
                                 <p style="white-space: pre-wrap; line-height: 1.6; margin-bottom: 20px;"><?= htmlspecialchars($ev['announcement']) ?></p>
+                                <?php if (!empty($ev['audio_path'])): ?>
+                                    <?= render_whatsapp_voice_player($ev['audio_path'], $ev['first_name'] . ' ' . $ev['last_name'], $ev['profile_picture'] ?? null, $ev['created_at']) ?>
+                                <?php endif; ?>
                                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                                     <?php if (!empty($ev['meet_link'])): ?><a href="<?= htmlspecialchars($ev['meet_link']) ?>" target="_blank" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; text-decoration: none; padding: 8px 12px;">Join Google Meet</a><?php endif; ?>
                                     <?php if (!empty($ev['whatsapp_link'])): ?><a href="<?= htmlspecialchars($ev['whatsapp_link']) ?>" target="_blank" class="badge" style="background: rgba(37, 99, 235, 0.15); color: var(--primary); text-decoration: none; padding: 8px 12px;">Join WhatsApp Group</a><?php endif; ?>

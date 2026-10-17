@@ -556,12 +556,66 @@ if (isset($_GET['action'])) {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         
         if (member_has_role($member_query['church_role'] ?? '', 'organizing secretary')) {
-            $department = isset($_POST['active_dept']) ? $conn->real_escape_string(trim($_POST['active_dept'])) : $conn->real_escape_string($member_query['department']);
-            $title = $conn->real_escape_string($_POST['title']);
-            $announcement = $conn->real_escape_string($_POST['announcement']);
-            $meet_link = $conn->real_escape_string($_POST['meet_link']);
-            $whatsapp_link = $conn->real_escape_string($_POST['whatsapp_link']);
+            $requested_department = trim($_POST['active_dept'] ?? ($member_query['department'] ?? ''));
+            $allowed_departments = [];
+            foreach (preg_split('/\s*,\s*/', str_replace('&', ',', $member_query['church_role'] ?? '')) as $assigned_role) {
+                if (!in_array(normalize_role_name($assigned_role), ['organizing secretary', 'vice organizing secretary'], true)) {
+                    continue;
+                }
+                if (preg_match_all('/\(([^)]+)\)/', $assigned_role, $context_matches) && !empty($context_matches[1])) {
+                    $role_departments = array_values(array_filter(array_map('trim', $context_matches[1]), function ($context) {
+                        return strtolower($context) !== 'subsidiary';
+                    }));
+                    if ($role_departments) {
+                        $allowed_departments = array_merge($allowed_departments, $role_departments);
+                    } elseif (!empty($member_query['department'])) {
+                        $allowed_departments[] = $member_query['department'];
+                    }
+                } elseif (!empty($member_query['department'])) {
+                    $allowed_departments[] = $member_query['department'];
+                }
+            }
+            $department_is_allowed = false;
+            foreach (array_unique($allowed_departments) as $allowed_department) {
+                if (department_matches($requested_department, $allowed_department)) {
+                    $department_is_allowed = true;
+                    break;
+                }
+            }
+            if (!$department_is_allowed) {
+                header("Location: member_dashboard.php?tab=organized_events&error=You are not assigned to organize events for that department");
+                exit();
+            }
+
+            $department = $conn->real_escape_string($requested_department);
+            $title_text = trim($_POST['title'] ?? '');
+            $announcement_text = trim($_POST['announcement'] ?? '');
+            $title = $conn->real_escape_string($title_text);
+            $meet_link = $conn->real_escape_string(trim($_POST['meet_link'] ?? ''));
+            $whatsapp_link = $conn->real_escape_string(trim($_POST['whatsapp_link'] ?? ''));
+            $voice_upload = $_FILES['pastor_voice_note'] ?? null;
+            $has_voice_input = !empty($_POST['pastor_voice_note_blob'])
+                || (!empty($voice_upload) && ($voice_upload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK && !empty($voice_upload['size']));
+            if ($title_text === '' || ($announcement_text === '' && !$has_voice_input)) {
+                header("Location: member_dashboard.php?tab=organized_events&error=Enter event details or record a voice note");
+                exit();
+            }
+            $voice_note = save_voice_note($_POST['pastor_voice_note_blob'] ?? null, $_FILES['pastor_voice_note'] ?? null);
+            if ($announcement_text === '' && $voice_note) {
+                $announcement_text = 'Voice announcement from the Organising Secretary.';
+            }
+            $announcement = $conn->real_escape_string($announcement_text);
             $attendance_file = null;
+
+            $audio_column = $conn->query("SHOW COLUMNS FROM organized_events LIKE 'audio_path'");
+            if ($audio_column && $audio_column->num_rows === 0) {
+                $conn->query("ALTER TABLE organized_events ADD COLUMN audio_path VARCHAR(255) NULL AFTER attendance_file");
+            }
+
+            if ($announcement_text === '' && !$voice_note) {
+                header("Location: member_dashboard.php?tab=organized_events&error=Enter event details or record a voice note");
+                exit();
+            }
             
             if (isset($_FILES['attendance_file']) && $_FILES['attendance_file']['error'] == 0) {
                 $allowed = ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'];
@@ -576,18 +630,31 @@ if (isset($_GET['action'])) {
                 }
             }
             
-            $sql = "INSERT INTO organized_events (department, organizer_id, title, announcement, meet_link, whatsapp_link, attendance_file) 
-                    VALUES ('$department', $member_id, '$title', '$announcement', '$meet_link', '$whatsapp_link', " . ($attendance_file ? "'$attendance_file'" : "NULL") . ")";
+            $sql = "INSERT INTO organized_events (department, organizer_id, title, announcement, meet_link, whatsapp_link, attendance_file, audio_path)
+                    VALUES ('$department', $member_id, '$title', '$announcement', '$meet_link', '$whatsapp_link', " . ($attendance_file ? "'$attendance_file'" : "NULL") . ", " . ($voice_note ? "'" . $conn->real_escape_string($voice_note) . "'" : "NULL") . ")";
             
             if ($conn->query($sql) === TRUE) {
-                // Notify all active members in the department
-                $org_name = htmlspecialchars($member_query['first_name'] . ' ' . $member_query['last_name']);
-                $notif_msg = $conn->real_escape_string("New event posted by Organizing Secretary $org_name: $title");
-                
-                $dept_members = $conn->query("SELECT id FROM members WHERE department = '$department' AND is_approved = 1 AND id != $member_id");
-                while ($dm = $dept_members->fetch_assoc()) {
-                    $did = $dm['id'];
-                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($did, 'member', '$notif_msg')");
+                $org_name = trim($member_query['first_name'] . ' ' . $member_query['last_name']);
+                $audio_label = $voice_note ? ' (voice note included)' : '';
+                $notif_msg = $conn->real_escape_string("New department event from Organising Secretary $org_name: $title$audio_label");
+
+                $member_department_filter = department_match_sql($conn, 'department', $requested_department);
+                $dept_members = $conn->query("SELECT id FROM members WHERE $member_department_filter AND is_approved = 1 AND id != $member_id");
+                if ($dept_members) {
+                    while ($dm = $dept_members->fetch_assoc()) {
+                        $did = (int)$dm['id'];
+                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($did, 'member', '$notif_msg')");
+                    }
+                }
+
+                foreach (['pastors' => 'pastor', 'admins' => 'admin'] as $table => $user_type) {
+                    $leaders = $conn->query("SELECT id FROM $table");
+                    if ($leaders) {
+                        while ($leader = $leaders->fetch_assoc()) {
+                            $leader_id = (int)$leader['id'];
+                            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($leader_id, '$user_type', '$notif_msg')");
+                        }
+                    }
                 }
                 
                 header("Location: member_dashboard.php?tab=organized_events&success=Event posted successfully!");
