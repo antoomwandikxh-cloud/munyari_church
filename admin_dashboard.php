@@ -1245,6 +1245,14 @@ if (!empty($action)) {
             <?php elseif(isset($_GET['removed'])): ?>
                 <div class="alert alert-error">Account removed permanently.</div>
             <?php endif; ?>
+            <script>
+                (() => {
+                    const url = new URL(window.location.href);
+                    if (url.searchParams.get('success') !== 'All assigned roles and church village leader roles have been deleted.') return;
+                    url.searchParams.delete('success');
+                    window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+                })();
+            </script>
 
             <?php if ($tab == 'dashboard'): ?>
                 <div class="page-header">
