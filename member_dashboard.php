@@ -7501,6 +7501,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <?php if ($is_organizing_secretary && department_matches($ev['department'], $scope_dept)): ?>
                                     <?php
                                     $event_id = (int)$ev['id'];
+                                    $saved_present_count = 0;
                                     $attendee_filter = department_match_sql($conn, 'm.department', $ev['department']);
                                     $attendance_members = $conn->query("SELECT m.id, m.first_name, m.last_name, m.gender, m.phone, ea.marked_at
                                         FROM members m
@@ -7518,7 +7519,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                     <th style="padding:9px;">Present</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Marked At</th>
                                                 </tr></thead>
                                                 <tbody>
-                                                <?php if ($attendance_members && $attendance_members->num_rows > 0): while ($attendee = $attendance_members->fetch_assoc()): ?>
+                                                <?php if ($attendance_members && $attendance_members->num_rows > 0): while ($attendee = $attendance_members->fetch_assoc()): if (!empty($attendee['marked_at'])) $saved_present_count++; ?>
                                                     <tr data-attendee-row="1" data-name="<?= htmlspecialchars(trim($attendee['first_name'] . ' ' . $attendee['last_name']), ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($attendee['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($attendee['phone'] ?? '', ENT_QUOTES) ?>" data-marked-at="<?= htmlspecialchars($attendee['marked_at'] ? date('M j, Y g:i A', strtotime($attendee['marked_at'])) : '', ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
                                                         <td style="padding:9px;"><input type="checkbox" name="attendee_ids[]" data-attendance-checkbox value="<?= (int)$attendee['id'] ?>" <?= $attendee['marked_at'] ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($attendee['first_name'] . ' ' . $attendee['last_name']) ?> present"></td>
                                                         <td style="padding:9px;"><?= htmlspecialchars($attendee['first_name'] . ' ' . $attendee['last_name']) ?></td>
@@ -7534,8 +7535,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         </div>
                                         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
                                             <button type="submit" class="btn-submit">Save Attendance</button>
-                                            <button type="button" class="btn-sm" onclick="printOrganizedAttendance(<?= $event_id ?>, 'portrait')">Print Portrait</button>
-                                            <button type="button" class="btn-sm" onclick="printOrganizedAttendance(<?= $event_id ?>, 'landscape')">Print Landscape</button>
+                                            <button type="button" class="btn-sm" data-print-attendance <?= $saved_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $event_id ?>, 'portrait')">Print / Save PDF - Portrait</button>
+                                            <button type="button" class="btn-sm" data-print-attendance <?= $saved_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $event_id ?>, 'landscape')">Print / Save PDF - Landscape</button>
                                         </div>
                                     </form>
                                 <?php endif; ?>
@@ -7557,6 +7558,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         var card = document.getElementById('event-attendance-' + eventId);
                         if (!card) return;
                         var form = card.querySelector('form[action*="save_organized_event_attendance"]');
+                        if (!form || form.dataset.attendanceDirty === 'true') {
+                            alert('Save your attendance changes before printing or downloading.');
+                            return;
+                        }
                         var selected = form ? Array.from(form.querySelectorAll('[data-attendance-checkbox]:checked')) : [];
                         if (!selected.length) {
                             alert('Select at least one attending member before printing.');
@@ -7583,6 +7588,14 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         printWindow.focus();
                         setTimeout(function() { printWindow.print(); }, 300);
                     }
+                    document.querySelectorAll('form[action*="save_organized_event_attendance"]').forEach(function(form) {
+                        form.addEventListener('change', function(event) {
+                            if (event.target.matches('[data-attendance-checkbox]')) {
+                                form.dataset.attendanceDirty = 'true';
+                                form.querySelectorAll('[data-print-attendance]').forEach(function(button) { button.disabled = true; });
+                            }
+                        });
+                    });
                     </script>
                 <?php endif; ?>
             <?php endif; ?>
