@@ -6162,7 +6162,7 @@ w.document.write('</div>');
                 <div class="content-card">
                     <h2>Recent Events</h2>
                     <?php
-                    $events = $conn->query("SELECT oe.*, m.first_name, m.last_name FROM organized_events oe JOIN members m ON oe.organizer_id = m.id ORDER BY oe.created_at DESC");
+                    $events = $conn->query("SELECT oe.*, m.first_name, m.last_name, m.profile_picture FROM organized_events oe JOIN members m ON oe.organizer_id = m.id ORDER BY oe.created_at DESC");
                     
                     if ($events && $events->num_rows > 0):
                         while($ev = $events->fetch_assoc()):
@@ -6171,11 +6171,14 @@ w.document.write('</div>');
                             <span class="badge" style="position: absolute; top: 20px; right: 20px; background: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 0.8rem;"><?= htmlspecialchars($ev['department']) ?></span>
                             
                             <h3 style="margin-top: 0; color: var(--primary); padding-right: 120px;"><?= htmlspecialchars($ev['title']) ?></h3>
-                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Posted by Organizing Secretary <?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> on <?= date('M j, Y g:i A', strtotime($ev['created_at'])) ?></p>
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;color:var(--text-muted);font-size:0.85rem;">
+                                <img src="uploads/<?= htmlspecialchars(basename($ev['profile_picture'] ?: 'default_avatar.png')) ?>" alt="<?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);cursor:zoom-in;" onclick="viewProfileImage(this.src);">
+                                <span>Posted by Organizing Secretary <?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> on <?= date('M j, Y g:i A', strtotime($ev['created_at'])) ?></span>
+                            </div>
                             
                             <p style="white-space: pre-wrap; line-height: 1.6; margin-bottom: 20px;"><?= htmlspecialchars($ev['announcement']) ?></p>
                             <?php if (!empty($ev['audio_path'])): ?>
-                                <?= render_whatsapp_voice_player($ev['audio_path'], $ev['first_name'] . ' ' . $ev['last_name'], $ev['profile_picture'] ?? null, $ev['created_at']) ?>
+                                <?= render_whatsapp_voice_player($ev['audio_path'], $ev['first_name'] . ' ' . $ev['last_name'], 'uploads/' . basename($ev['profile_picture'] ?: 'default_avatar.png'), $ev['created_at']) ?>
                             <?php endif; ?>
                             
                             <div style="display: flex; gap: 15px; flex-wrap: wrap;">

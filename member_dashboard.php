@@ -7468,22 +7468,31 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <h2><?= htmlspecialchars($scope_label) ?> Events</h2>
                         <?php
                         $esc_dept = $conn->real_escape_string($scope_dept);
-                        $events = $conn->query("SELECT oe.*, m.first_name, m.last_name FROM organized_events oe JOIN members m ON oe.organizer_id = m.id WHERE oe.department = '$esc_dept' ORDER BY oe.created_at DESC");
+                        $events = $conn->query("SELECT oe.*, m.first_name, m.last_name, m.profile_picture FROM organized_events oe JOIN members m ON oe.organizer_id = m.id WHERE oe.department = '$esc_dept' ORDER BY oe.created_at DESC");
                         if ($events && $events->num_rows > 0):
                             while($ev = $events->fetch_assoc()):
                         ?>
                             <div style="padding: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 20px; background: rgba(255,255,255,0.02);">
                                 <h3 style="margin-top: 0; color: var(--primary);"><?= htmlspecialchars($ev['title']) ?></h3>
-                                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Posted by <?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> on <?= date('M j, Y g:i A', strtotime($ev['created_at'])) ?></p>
+                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;color:var(--text-muted);font-size:0.85rem;">
+                                    <img src="uploads/<?= htmlspecialchars(basename($ev['profile_picture'] ?: 'default_avatar.png')) ?>" alt="<?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);cursor:zoom-in;" onclick="viewProfileImage(this.src);">
+                                    <span>Posted by <?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> on <?= date('M j, Y g:i A', strtotime($ev['created_at'])) ?></span>
+                                </div>
                                 <p style="white-space: pre-wrap; line-height: 1.6; margin-bottom: 20px;"><?= htmlspecialchars($ev['announcement']) ?></p>
                                 <?php if (!empty($ev['audio_path'])): ?>
-                                    <?= render_whatsapp_voice_player($ev['audio_path'], $ev['first_name'] . ' ' . $ev['last_name'], $ev['profile_picture'] ?? null, $ev['created_at']) ?>
+                                    <?= render_whatsapp_voice_player($ev['audio_path'], $ev['first_name'] . ' ' . $ev['last_name'], 'uploads/' . basename($ev['profile_picture'] ?: 'default_avatar.png'), $ev['created_at']) ?>
                                 <?php endif; ?>
                                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                                     <?php if (!empty($ev['meet_link'])): ?><a href="<?= htmlspecialchars($ev['meet_link']) ?>" target="_blank" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; text-decoration: none; padding: 8px 12px;">Join Google Meet</a><?php endif; ?>
                                     <?php if (!empty($ev['whatsapp_link'])): ?><a href="<?= htmlspecialchars($ev['whatsapp_link']) ?>" target="_blank" class="badge" style="background: rgba(37, 99, 235, 0.15); color: var(--primary); text-decoration: none; padding: 8px 12px;">Join WhatsApp Group</a><?php endif; ?>
                                     <?php if (!empty($ev['attendance_file'])): ?><a href="uploads/<?= htmlspecialchars($ev['attendance_file']) ?>" target="_blank" class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; text-decoration: none; padding: 8px 12px;">View Attendance/Document</a><?php endif; ?>
                                 </div>
+                                <?php if ($is_organizing_secretary && count(array_filter($organizing_secretary_depts, function ($assigned_department) use ($ev) { return department_matches($ev['department'], $assigned_department); })) > 0): ?>
+                                    <form method="POST" action="member_action.php?action=delete_organized_event" onsubmit="return confirm('Delete this event and its recording?');" style="margin-top:14px;text-align:right;">
+                                        <input type="hidden" name="event_id" value="<?= (int)$ev['id'] ?>">
+                                        <button type="submit" class="btn-sm" style="background:var(--danger);color:#fff;border:0;">Delete Event</button>
+                                    </form>
+                                <?php endif; ?>
                             </div>
                         <?php endwhile; else: ?>
                             <p style="color: var(--text-muted);">No events have been posted for this department yet.</p>

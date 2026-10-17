@@ -13,6 +13,33 @@ function get_member_roles($church_role_string) {
     return array_filter(array_map('normalize_role_name', explode(',', str_replace('&', ',', $church_role_string ?? ''))));
 }
 
+function member_organizing_secretary_departments($member) {
+    $departments = [];
+    foreach (preg_split('/\s*,\s*/', str_replace('&', ',', $member['church_role'] ?? '')) as $assigned_role) {
+        if (!in_array(normalize_role_name($assigned_role), ['organizing secretary', 'vice organizing secretary'], true)) {
+            continue;
+        }
+        if (preg_match_all('/\(([^)]+)\)/', $assigned_role, $contexts) && !empty($contexts[1])) {
+            $role_departments = array_values(array_filter(array_map('trim', $contexts[1]), function ($context) {
+                return strtolower($context) !== 'subsidiary';
+            }));
+            $departments = array_merge($departments, $role_departments ?: [$member['department'] ?? '']);
+        } else {
+            $departments[] = $member['department'] ?? '';
+        }
+    }
+    return array_values(array_unique(array_filter($departments)));
+}
+
+function delete_organized_event_file($relative_path, $directory) {
+    if (empty($relative_path)) return;
+    $base = realpath(__DIR__ . '/' . trim($directory, '/\\'));
+    $file = realpath(__DIR__ . '/' . $directory . '/' . basename($relative_path));
+    if ($base && $file && strpos($file, $base . DIRECTORY_SEPARATOR) === 0 && is_file($file)) {
+        @unlink($file);
+    }
+}
+
 if (!isset($_SESSION['member_id'])) {
     header("Location: login.php");
     exit();
@@ -558,26 +585,8 @@ if (isset($_GET['action'])) {
         
         if (member_has_role($member_query['church_role'] ?? '', 'organizing secretary')) {
             $requested_department = trim($_POST['active_dept'] ?? ($member_query['department'] ?? ''));
-            $allowed_departments = [];
-            foreach (preg_split('/\s*,\s*/', str_replace('&', ',', $member_query['church_role'] ?? '')) as $assigned_role) {
-                if (!in_array(normalize_role_name($assigned_role), ['organizing secretary', 'vice organizing secretary'], true)) {
-                    continue;
-                }
-                if (preg_match_all('/\(([^)]+)\)/', $assigned_role, $context_matches) && !empty($context_matches[1])) {
-                    $role_departments = array_values(array_filter(array_map('trim', $context_matches[1]), function ($context) {
-                        return strtolower($context) !== 'subsidiary';
-                    }));
-                    if ($role_departments) {
-                        $allowed_departments = array_merge($allowed_departments, $role_departments);
-                    } elseif (!empty($member_query['department'])) {
-                        $allowed_departments[] = $member_query['department'];
-                    }
-                } elseif (!empty($member_query['department'])) {
-                    $allowed_departments[] = $member_query['department'];
-                }
-            }
             $department_is_allowed = false;
-            foreach (array_unique($allowed_departments) as $allowed_department) {
+            foreach (member_organizing_secretary_departments($member_query) as $allowed_department) {
                 if (department_matches($requested_department, $allowed_department)) {
                     $department_is_allowed = true;
                     break;
@@ -674,6 +683,40 @@ if (isset($_GET['action'])) {
             header("Location: member_dashboard.php?error=Unauthorized access");
             exit();
         }
+    }
+
+    elseif ($action === 'delete_organized_event' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
+        $event_id = (int)($_POST['event_id'] ?? 0);
+        $audio_column = $conn->query("SHOW COLUMNS FROM organized_events LIKE 'audio_path'");
+        if ($audio_column && $audio_column->num_rows === 0) {
+            $conn->query("ALTER TABLE organized_events ADD COLUMN audio_path VARCHAR(255) NULL AFTER attendance_file");
+        }
+        $event_result = $conn->query("SELECT id, department, audio_path, attendance_file FROM organized_events WHERE id = $event_id LIMIT 1");
+        $event = $event_result ? $event_result->fetch_assoc() : null;
+        $authorized = false;
+        if ($event && member_has_role($member_query['church_role'] ?? '', 'organizing secretary')) {
+            foreach (member_organizing_secretary_departments($member_query) as $allowed_department) {
+                if (department_matches($event['department'], $allowed_department)) {
+                    $authorized = true;
+                    break;
+                }
+            }
+        }
+
+        if ($authorized) {
+            $event_department = $conn->real_escape_string($event['department']);
+            if ($conn->query("DELETE FROM organized_events WHERE id = $event_id AND department = '$event_department'")) {
+                delete_organized_event_file($event['audio_path'], 'uploads/voice_notes');
+                delete_organized_event_file($event['attendance_file'], 'uploads');
+                header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($event['department']) . "&success=Event deleted successfully");
+            } else {
+                header("Location: member_dashboard.php?tab=organized_events&error=Could not delete event");
+            }
+        } else {
+            header("Location: member_dashboard.php?tab=organized_events&error=You are not assigned to manage this department event");
+        }
+        exit();
     }
     
     // Discipline Master: Add Fine Template
