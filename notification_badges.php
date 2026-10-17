@@ -75,6 +75,12 @@ function notification_badge_tabs($message, $user_type) {
     if (strpos($msg, 'new member registration pending approval') !== false) {
         $tabs[] = 'manage_members';
     }
+    // Role removals are shown on the member dashboard, where current role/status is visible.
+    if ($user_type === 'member'
+        && strpos($msg, 'your role') !== false
+        && strpos($msg, 'removed') !== false) {
+        return ['dashboard'];
+    }
     if (strpos($msg, 'approved by the pastor') !== false || strpos($msg, 'approved by the admin') !== false) {
         $tabs[] = 'dashboard';
     }
