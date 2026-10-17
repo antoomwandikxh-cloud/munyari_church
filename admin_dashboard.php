@@ -709,8 +709,15 @@ if (!empty($action)) {
         $raw_role = trim($_POST['role'] ?? '');
         $assignment_department = trim($_POST['assignment_department'] ?? '');
         
-        $member_data = $conn->query("SELECT department FROM members WHERE id = $member_id AND is_approved = 1")->fetch_assoc();
+        $member_data = $conn->query("SELECT department, desired_role_pref FROM members WHERE id = $member_id AND is_approved = 1")->fetch_assoc();
         $member_department = $member_data['department'] ?? '';
+
+        // Worship leadership is reserved for members who selected Worshipper
+        // as their desired service role during registration or account settings.
+        if (in_array(normalize_role_name($raw_role), ['worship leader', 'vice worship leader'], true) && ($member_data['desired_role_pref'] ?? '') !== 'Worshipper') {
+            header("Location: admin_dashboard.php?tab=assign_roles&error=" . urlencode("Worship Leader and Vice Worship Leader can only be assigned to approved members who selected Worshipper."));
+            exit();
+        }
 
         if (is_subsidiary_department_role($raw_role) && !empty($assignment_department) && !department_matches($member_department, $assignment_department)) {
             $raw_role = trim(str_ireplace('(subsidiary)', '', $raw_role)) . ' (' . $assignment_department . ')';
@@ -2689,7 +2696,7 @@ w.document.write('</div>');
                                         if (isWorshipLeadership) {
                                             const pref = normalize(option.dataset.desiredrolepref);
                                             
-                                            const isWorshiper = pref.includes('worshiper') || pref.includes('worshipper');
+                                            const isWorshiper = pref === 'worshipper';
                                             
                                             if (!isWorshiper) {
                                                 return false;
@@ -2705,7 +2712,7 @@ w.document.write('</div>');
                                     if (!roleSelect.value) {
                                         hint.textContent = 'Choose a role first to open the correct members.';
                                     } else if (isWorshipLeadership) {
-                                        hint.textContent = 'Showing only members who chose "Worshiper" as their role.';
+                                        hint.textContent = 'Showing only approved members who selected "Worshipper" as their role.';
                                     } else {
                                         hint.textContent = allowed.length ? 'Showing members from: ' + allowed.join(', ') : 'This role can be assigned to members from the entire church.';
                                     }
