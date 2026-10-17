@@ -4844,17 +4844,24 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                     $bg = $is_mine ? 'var(--primary)' : ($is_pastor ? 'rgba(16,185,129,0.1)' : 'var(--border-color)');
                                     $color = $is_mine ? 'white' : 'var(--text-main)';
                                     $border = $is_pastor ? '2px solid #10b981' : 'none';
+                                    $sender_profile = 'uploads/' . ($cm['profile_picture'] ?? 'default_avatar.png');
                                 ?>
-                                    <div style="display: flex; justify-content: <?= $is_mine ? 'flex-end' : 'flex-start' ?>; margin-bottom: 10px;">
-                                        <div style="max-width: 75%; padding: 10px 14px; border-radius: 16px; background: <?= $bg ?>; color: <?= $color ?>; border: <?= $border ?>;">
-                                            <div style="display:flex;align-items:center;gap:7px;font-size:0.75rem;font-weight:600;margin-bottom:5px;opacity:0.9;">
-                                                <?php $sender_profile = 'uploads/' . ($cm['profile_picture'] ?? 'default_avatar.png'); ?>
-                                                <img src="<?= htmlspecialchars($sender_profile, ENT_QUOTES) ?>" alt="<?= htmlspecialchars($cm['first_name'] . ' ' . $cm['last_name']) ?>" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src)" title="View profile photo" style="width:27px;height:27px;border-radius:50%;object-fit:cover;cursor:zoom-in;">
-                                                <span><?= $is_pastor ? 'Pastor ' : '' ?><?= htmlspecialchars($cm['first_name'] . ' ' . $cm['last_name']) ?></span>
+                                    <div style="display:flex;justify-content:<?= $is_mine ? 'flex-end' : 'flex-start' ?>;align-items:flex-end;gap:8px;margin-bottom:12px;">
+                                        <?php if (!$is_mine): ?>
+                                            <img src="<?= htmlspecialchars($sender_profile, ENT_QUOTES) ?>" alt="<?= htmlspecialchars($cm['first_name'] . ' ' . $cm['last_name']) ?>" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src)" title="View profile photo" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:zoom-in;flex:0 0 36px;">
+                                        <?php endif; ?>
+                                        <div style="max-width:min(75%,620px);min-width:0;">
+                                            <div style="font-size:0.75rem;font-weight:600;margin:0 5px 4px;opacity:0.9;text-align:<?= $is_mine ? 'right' : 'left' ?>;">
+                                                <?= $is_pastor ? 'Pastor ' : '' ?><?= htmlspecialchars($cm['first_name'] . ' ' . $cm['last_name']) ?>
                                             </div>
-                                            <p style="margin: 0; line-height: 1.5; white-space: pre-wrap;"><?= htmlspecialchars($cm['message']) ?></p>
-                                            <div style="font-size: 0.7rem; margin-top: 4px; opacity: 0.6; text-align: <?= $is_mine ? 'right' : 'left' ?>;"><?= date('M j, g:i A', strtotime($cm['created_at'])) ?></div>
+                                            <div style="padding:10px 14px;border-radius:16px;background:<?= $bg ?>;color:<?= $color ?>;border:<?= $border ?>;overflow-wrap:anywhere;">
+                                                <p style="margin:0;line-height:1.5;white-space:pre-wrap;"><?= htmlspecialchars($cm['message']) ?></p>
+                                                <div style="font-size:0.7rem;margin-top:4px;opacity:0.65;text-align:right;"><?= date('M j, g:i A', strtotime($cm['created_at'])) ?></div>
+                                            </div>
                                         </div>
+                                        <?php if ($is_mine): ?>
+                                            <img src="<?= htmlspecialchars($sender_profile, ENT_QUOTES) ?>" alt="Your profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src)" title="View your profile photo" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:zoom-in;flex:0 0 36px;">
+                                        <?php endif; ?>
                                     </div>
                                 <?php endwhile; ?>
                             <?php else: ?>
