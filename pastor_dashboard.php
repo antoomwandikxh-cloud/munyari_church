@@ -3235,7 +3235,7 @@ w.document.write('</div>');
                     ?>
                         <div role="alert" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);color:var(--text-main);padding:12px 14px;border-radius:8px;margin-bottom:16px;">
                             <span><strong><?= htmlspecialchars($occupied_village) ?> village is already taken</strong><?= $occupied_leader ? ' by ' . htmlspecialchars($occupied_leader['first_name'] . ' ' . $occupied_leader['last_name']) : '' ?>.</span>
-                            <?php if ($occupied_leader_id): ?><a class="btn-sm" style="background:var(--primary);color:#fff;text-decoration:none;" href="pastor_dashboard.php?tab=assign_roles#assigned_village_leader_<?= $occupied_leader_id ?>">View current leader</a><?php endif; ?>
+                            <?php if ($occupied_leader_id): ?><a class="btn-sm" style="background:var(--primary);color:#fff;text-decoration:none;" href="pastor_dashboard.php?tab=assign_roles&amp;view_village_leader=<?= $occupied_leader_id ?>">View current leader</a><?php endif; ?>
                         </div>
                     <?php elseif (in_array($_GET['error'] ?? '', ['invalid_village', 'invalid_village_member'], true)): ?>
                         <div role="alert" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);color:var(--danger);padding:12px 14px;border-radius:8px;margin-bottom:16px;">Please select a valid village and an approved member registered in that village.</div>
@@ -3298,20 +3298,21 @@ w.document.write('</div>');
                     </script>
                 </div>
                 <?php
-                $current_village_leaders = $conn->query("SELECT id, first_name, last_name, church_village FROM members WHERE is_village_leader = 1 ORDER BY church_village, first_name");
+                $current_village_leaders = $conn->query("SELECT id, first_name, last_name, church_village, profile_picture FROM members WHERE is_village_leader = 1 ORDER BY church_village, first_name");
                 if ($current_village_leaders && $current_village_leaders->num_rows > 0):
                 ?>
                 <div class="content-card" style="margin-bottom:30px;">
                     <h3 style="margin:0 0 12px;color:var(--text-main);">Current Village Leaders</h3>
-                    <div class="table-responsive"><table><thead><tr><th>Village</th><th>Leader</th><th>Actions</th></tr></thead><tbody>
+                    <div class="table-responsive"><table><thead><tr><th>Village</th><th>Photo</th><th>Leader</th><th>Actions</th></tr></thead><tbody>
                     <?php while ($current_leader = $current_village_leaders->fetch_assoc()):
                         $current_leader_id = (int)$current_leader['id'];
                         $current_village = (string)$current_leader['church_village'];
                     ?>
                         <tr>
                             <td><?= htmlspecialchars($current_village) ?></td>
+                            <td><img src="uploads/<?= htmlspecialchars(basename($current_leader['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($current_leader['first_name'] . ' ' . $current_leader['last_name']) ?> profile photo" onclick="viewProfileImage(this.src)" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);cursor:zoom-in;"></td>
                             <td><?= htmlspecialchars($current_leader['first_name'] . ' ' . $current_leader['last_name']) ?></td>
-                            <td><a class="btn-sm" style="background:var(--primary);color:#fff;text-decoration:none;" href="pastor_dashboard.php?tab=assign_roles#assigned_village_leader_<?= $current_leader_id ?>">View in Assign Role</a></td>
+                            <td><a class="btn-sm" style="background:var(--primary);color:#fff;text-decoration:none;" href="pastor_dashboard.php?tab=assign_roles&amp;view_village_leader=<?= $current_leader_id ?>">View in Assign Role</a></td>
                         </tr>
                     <?php endwhile; ?>
                     </tbody></table></div>
@@ -7631,5 +7632,47 @@ function filterFinanceRecords() {
     if (el) el.textContent = query ? shown + " result(s) found" : "";
 }
 </script>
+<?php if ($tab === 'assign_roles' && !empty($_GET['view_village_leader'])): ?>
+<script>
+(() => {
+    const leaderId = <?= (int)$_GET['view_village_leader'] ?>;
+    const target = document.getElementById('assigned_village_leader_' + leaderId);
+    const section = document.getElementById('assignRoleSection');
+    const scroller = document.querySelector('.main-content');
+    if (!target || !section || !scroller) return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete('view_village_leader');
+    window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+
+    const animateScroll = (destination, duration) => {
+        const start = scroller.scrollTop;
+        const distance = destination - start;
+        const started = performance.now();
+        const step = now => {
+            const progress = Math.min((now - started) / duration, 1);
+            const eased = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+            scroller.scrollTop = start + distance * eased;
+            if (progress < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    };
+
+    const containerTop = scroller.getBoundingClientRect().top;
+    const maxScroll = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+    const topDestination = Math.max(0, Math.min(maxScroll, scroller.scrollTop + section.getBoundingClientRect().top - containerTop - 12));
+    animateScroll(topDestination, 450);
+    window.setTimeout(() => {
+        const destination = Math.max(0, Math.min(maxScroll, scroller.scrollTop + target.getBoundingClientRect().top - containerTop - (scroller.clientHeight * 0.42)));
+        animateScroll(destination, 1350);
+        target.animate([
+            { backgroundColor: 'rgba(250, 204, 21, 0.72)', outline: '3px solid #d97706' },
+            { backgroundColor: 'rgba(250, 204, 21, 0.48)', outline: '2px solid #d97706', offset: 0.45 },
+            { backgroundColor: 'transparent', outline: '0 solid transparent' }
+        ], { duration: 3200, easing: 'ease-out' });
+    }, 520);
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>
