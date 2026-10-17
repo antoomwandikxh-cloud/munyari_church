@@ -1165,6 +1165,15 @@ $choir_leader_depts         = [];
 $prayer_coordinator_depts   = [];
 $organizing_secretary_depts = [];
 $sport_secretary_depts      = [];
+$subsidiary_leader_depts    = [];
+$department_subsidiary_roles = [
+    'organizing secretary', 'vice organizing secretary',
+    'discipline master', 'vice discipline master',
+    'prayer coordinator', 'vice prayer coordinator',
+    'choir leader', 'vice choir leader',
+    'sport secretary', 'sports secretary', 'vice sport secretary', 'vice sports secretary',
+    'graduands secretary', 'vice graduands secretary'
+];
 
 // Track Sunday School cross-church leadership roles held by member
 // (a member stays in their home dept but can also serve Sunday School)
@@ -1256,6 +1265,11 @@ foreach ($raw_church_roles as $raw_role) {
     if (empty($role_context_dept)) {
         $role_context_dept = $member['department'] ?? '';
     }
+    $_subsidiary_role_name = trim(preg_replace('/\s*\(subsidiary\)\s*/i', '', $current_role));
+    if (in_array($_subsidiary_role_name, $department_subsidiary_roles, true) && !empty($role_context_dept)
+        && !in_array($role_context_dept, $subsidiary_leader_depts, true)) {
+        $subsidiary_leader_depts[] = $role_context_dept;
+    }
 
     if (in_array($current_role, ['organizing secretary (subsidiary)', 'organizing secretary'], true)) {
         $is_organizing_secretary = true;
@@ -1331,7 +1345,7 @@ $involved_departments = [];
 if (!empty($member['department']) && $member['department'] !== 'None') {
     $involved_departments[] = $member['department'];
 }
-$involved_departments = array_merge($involved_departments, $ss_leader_depts, $ss_secretary_depts, $ss_treasurer_depts, $organizing_secretary_depts, $discipline_master_depts, $prayer_coordinator_depts, $sport_secretary_depts, $choir_leader_depts);
+$involved_departments = array_merge($involved_departments, $treasurer_depts, $ss_leader_depts, $ss_secretary_depts, $ss_treasurer_depts, $organizing_secretary_depts, $discipline_master_depts, $prayer_coordinator_depts, $sport_secretary_depts, $choir_leader_depts, $subsidiary_leader_depts);
 if (!empty($leadership_managed_dept)) {
     $involved_departments[] = $leadership_managed_dept;
 }
@@ -1388,6 +1402,14 @@ $ctx_is_prayer_coordinator    = $is_prayer_coordinator   && in_array($active_das
 $ctx_is_sport_secretary       = $is_sport_secretary      && in_array($active_dashboard_dept, $sport_secretary_depts);
 // Graduation secretary is department-specific — only show if active dept supports it
 $ctx_is_graduands_secretary   = $is_graduands_secretary  && department_allows_graduation_and_sport($active_dashboard_dept);
+$ctx_is_subsidiary_leader = in_array($active_dashboard_dept, $subsidiary_leader_depts, true);
+$can_use_department_leader_chat = $ctx_is_leader || $ctx_is_secretary || $ctx_is_organizing_secretary
+    || $ctx_is_discipline_master || $ctx_is_graduands_secretary || $ctx_is_prayer_coordinator
+    || $ctx_is_sport_secretary || $ctx_is_choir_leader || $ctx_is_subsidiary_leader || ($is_youth_advisor && $active_dashboard_dept === 'Youths')
+    || ($ctx_is_treasurer && $active_dashboard_dept !== 'General Church');
+$department_chat_has_role_panel_link = $ctx_is_leader || $ctx_is_secretary || $ctx_is_organizing_secretary
+    || $ctx_is_discipline_master || $ctx_is_graduands_secretary || $ctx_is_prayer_coordinator
+    || $ctx_is_sport_secretary || $ctx_is_choir_leader || ($is_youth_advisor && $active_dashboard_dept === 'Youths');
 
 $general_leader_roles = ['general church secretary', 'vice church secretary', 'treasurer', 'senior church elder'];
 $general_leader_partners = [];
@@ -1423,7 +1445,7 @@ if ($is_secretary_council_member) {
 
 // Find ALL other leaders in the same department for chat (chairmen + secretaries + treasurers)
 $chat_partners = [];
-if ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary || $is_choir_leader || $is_youth_advisor || $is_discipline_master || $is_graduands_secretary) {
+if ($can_use_department_leader_chat) {
     // Combine both maps to find ALL leadership roles in the same department
     $all_dept_roles = [];
     foreach ($leader_departments as $role => $dept) {
@@ -1432,8 +1454,11 @@ if ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary
     foreach ($secretary_departments as $role => $dept) {
         if ($dept === $managed_dept) $all_dept_roles[] = $role;
     }
+    foreach ($treasurer_departments as $role => $dept) {
+        if ($dept === $managed_dept) $all_dept_roles[] = $role;
+    }
     // Also include special roles: organizing secretary, discipline master, graduands secretary, prayer coordinator
-    $special_roles = ['organizing secretary', 'discipline master', 'graduands secretary', 'prayer coordinator', 'sport secretary', 'sports secretary', 'choir leader'];
+    $special_roles = $department_subsidiary_roles;
     if ($managed_dept === 'Youths') {
         $special_roles[] = 'mama youth';
         $special_roles[] = 'baba youth';
@@ -1447,10 +1472,12 @@ if ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary
         $role_conditions[] = "LOWER(TRIM(church_role)) LIKE '%" . $conn->real_escape_string($r) . "%'";
     }
     $esc_managed_dept = $conn->real_escape_string($managed_dept);
+    $dept_suffix_pattern = $conn->real_escape_string('%(' . strtolower($managed_dept) . ')%');
     $role_sql = implode(' OR ', $role_conditions);
-    $dept_condition = $managed_dept === 'Youths'
-        ? "(department='$esc_managed_dept' OR LOWER(TRIM(church_role)) LIKE '%mama youth%' OR LOWER(TRIM(church_role)) LIKE '%baba youth%')"
-        : "department='$esc_managed_dept'";
+    $dept_condition = "(department='$esc_managed_dept' OR LOWER(TRIM(church_role)) LIKE '$dept_suffix_pattern')";
+    if ($managed_dept === 'Youths') {
+        $dept_condition = "($dept_condition OR LOWER(TRIM(church_role)) LIKE '%mama youth%' OR LOWER(TRIM(church_role)) LIKE '%baba youth%')";
+    }
     $partners_result = $conn->query("SELECT id, first_name, last_name, church_role, profile_picture FROM members WHERE $dept_condition AND ($role_sql) AND id != $member_id AND is_approved = 1");
     if ($partners_result && $partners_result->num_rows > 0) {
         while ($p = $partners_result->fetch_assoc()) {
@@ -1518,7 +1545,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
 $has_church_village = !empty($member['church_village']);
 
 // Handle sending leadership chat message
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_leader_msg']) && ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary || $is_choir_leader || $is_youth_advisor || $is_discipline_master || $is_graduands_secretary) && !empty($dept_key)) {
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_leader_msg']) && $can_use_department_leader_chat && !empty($dept_key)) {
     $msg = $conn->real_escape_string(trim($_POST['leader_message']));
     if (!empty($msg)) {
         $conn->query("INSERT INTO leader_messages (dept_key, sender_id, message) VALUES ('$dept_key', $member_id, '$msg')");
@@ -1528,15 +1555,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_leader_msg']) && 
 
         // Notify chat partners
         $esc_managed_dept = $conn->real_escape_string($managed_dept);
+        $dept_suffix_pattern = $conn->real_escape_string('%(' . strtolower($managed_dept) . ')%');
         $role_conditions = [];
-        $all_dept_roles = array_merge(array_keys(array_filter($leader_departments, fn($d) => $d === $managed_dept)), array_keys(array_filter($secretary_departments, fn($d) => $d === $managed_dept)), ['prayer coordinator', 'sport secretary', 'sports secretary', 'choir leader', 'organizing secretary', 'discipline master', 'graduands secretary', 'mama youth', 'baba youth']);
+        $all_dept_roles = array_merge(array_keys(array_filter($leader_departments, fn($d) => $d === $managed_dept)), array_keys(array_filter($secretary_departments, fn($d) => $d === $managed_dept)), array_keys(array_filter($treasurer_departments, fn($d) => $d === $managed_dept)), $department_subsidiary_roles);
+        if ($managed_dept === 'Youths') {
+            $all_dept_roles = array_merge($all_dept_roles, ['mama youth', 'baba youth']);
+        }
         foreach ($all_dept_roles as $r) {
             $role_conditions[] = "LOWER(TRIM(church_role)) LIKE '%" . $conn->real_escape_string($r) . "%'";
         }
         $role_sql = implode(' OR ', $role_conditions);
-        $dept_condition = $managed_dept === 'Youths'
-            ? "(department='$esc_managed_dept' OR LOWER(TRIM(church_role)) LIKE '%mama youth%' OR LOWER(TRIM(church_role)) LIKE '%baba youth%')"
-            : "department='$esc_managed_dept'";
+        $dept_condition = "(department='$esc_managed_dept' OR LOWER(TRIM(church_role)) LIKE '$dept_suffix_pattern')";
+        if ($managed_dept === 'Youths') {
+            $dept_condition = "($dept_condition OR LOWER(TRIM(church_role)) LIKE '%mama youth%' OR LOWER(TRIM(church_role)) LIKE '%baba youth%')";
+        }
 
         $partners = $conn->query("SELECT id FROM members WHERE $dept_condition AND ($role_sql) AND id != $member_id AND is_approved = 1");
         if ($partners) {
@@ -3133,6 +3165,13 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 <?php endif; ?>
 
                 <?php endif; // end has_church_village gate for nav links ?>
+                <?php if ($can_use_department_leader_chat && !$department_chat_has_role_panel_link): ?>
+                <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 012 2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path></svg>
+                    <?= htmlspecialchars($managed_dept) ?> Leaders Chat
+                    <?= render_tab_notification_badge($tab_badges, 'leader_chat') ?>
+                </a>
+                <?php endif; ?>
             </div>
 
             <div>
@@ -4797,7 +4836,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     </div>
                 </div>
 
-            <?php elseif ($tab == 'leader_chat' && ($is_leader || $is_secretary || $is_prayer_coordinator || $is_sport_secretary || $is_choir_leader || $is_youth_advisor || $is_discipline_master || $is_graduands_secretary)): ?>
+            <?php elseif ($tab == 'leader_chat' && $can_use_department_leader_chat): ?>
                 <div class="page-header">
                     <h1>Leadership Chat — <?= htmlspecialchars($managed_dept) ?></h1>
                     <p>Private group chat for all <?= htmlspecialchars($managed_dept) ?> department leaders.</p>
