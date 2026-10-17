@@ -176,15 +176,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <label>First Name (or Username)</label>
                     <div style="position: relative;">
                         <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #10b981; pointer-events: none;"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></span>
-                        <input type="text" id="login_username" name="username" class="form-control" placeholder="Enter your name" required autocomplete="new-username" spellcheck="false" style="padding-left: 40px;">
+                        <input type="text" id="login_username" name="username" class="form-control" placeholder="Enter your name" required autocomplete="new-username" spellcheck="false" style="padding-left: 40px;" oninput="seqUnlock('login_username','login_password'); document.getElementById('login_password_toggle').disabled = !this.value.trim();">
                     </div>
                 </div>
                 <div class="form-group">
                     <label>Password</label>
                     <div style="position: relative;">
                         <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #ef4444; pointer-events: none;"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></span>
-                        <input type="password" id="login_password" name="password" class="form-control" placeholder="Enter your password" required autocomplete="new-password" style="padding-left: 40px; padding-right: 40px;">
-                        <button type="button" onclick="togglePassword('login_password')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted);">
+                        <input type="password" id="login_password" name="password" class="form-control" placeholder="Enter your password" required autocomplete="new-password" disabled style="padding-left: 40px; padding-right: 40px;">
+                        <button type="button" id="login_password_toggle" onclick="togglePassword('login_password')" disabled style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: not-allowed; color: var(--text-muted); opacity: 0.45;">
                             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                         </button>
                     </div>
