@@ -2,6 +2,7 @@
 session_start();
 require_once 'db_connect.php';
 require_once 'role_departments.php';
+require_once 'voice_note_helper.php';
 
 function member_has_role($church_role_string, $target_role) {
     $roles = array_map('normalize_role_name', explode(',', str_replace('&', ',', $church_role_string ?? '')));
