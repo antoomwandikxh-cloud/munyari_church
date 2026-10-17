@@ -872,7 +872,7 @@ if (!empty($action)) {
         }
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($member_id, 'member', '$msg')");
 
-        header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed successfully") . "&reassign=" . urlencode($reassign_role) . "&reassign_department=" . urlencode($reassign_department) . "&reassign_group=" . urlencode($reassign_group));
+        header("Location: admin_dashboard.php?tab=assign_roles&success=" . urlencode("Role removed successfully") . "&reassign=" . urlencode($reassign_role) . "&reassign_department=" . urlencode($reassign_department) . "&reassign_group=" . urlencode($reassign_group) . "#assignRoleSection");
         exit();
     }
 
@@ -1117,7 +1117,7 @@ if (!empty($action)) {
             </div>
         </div>
 
-        <div class="main-content">
+        <div class="main-content"<?= isset($_GET['reassign']) ? ' style="scroll-behavior:smooth;"' : '' ?>>
             <div class="topbar" style="justify-content: space-between;">
                 <!-- Mobile Menu Button -->
                 <button class="icon-btn mobile-menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open'); event.stopPropagation();" title="Toggle Menu">

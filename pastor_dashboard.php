@@ -1444,7 +1444,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                 <a href="logout.php" class="sidebar-logout" style="margin-top: 0;">Sign Out</a>
             </div>
         </div>
-        <div class="main-content">
+        <div class="main-content"<?= isset($_GET['reassign']) ? ' style="scroll-behavior:smooth;"' : '' ?>>
             <?php if (!$setup_completed): ?>
             <div style="background: linear-gradient(90deg, #6366f1, #8b5cf6); color:#fff; padding: 16px 40px 20px 40px; margin: -40px -40px 30px -40px; display:flex; flex-direction:column; gap:12px;">
                 <div style="display:flex; align-items:flex-start; gap:12px;">
