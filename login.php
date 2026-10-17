@@ -176,7 +176,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <label>First Name (or Username)</label>
                     <div style="position: relative;">
                         <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #10b981; pointer-events: none;"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></span>
-                        <input type="text" name="username" class="form-control" placeholder="Enter your name" required autocomplete="new-username" spellcheck="false" style="padding-left: 40px;">
+                        <input type="text" id="login_username" name="username" class="form-control" placeholder="Enter your name" required autocomplete="new-username" spellcheck="false" style="padding-left: 40px;">
                     </div>
                 </div>
                 <div class="form-group">
@@ -201,6 +201,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
         </div>
     </div>
+    <script src="script.js?v=20261017"></script>
     <script>
         function togglePassword(inputId) {
             const input = document.getElementById(inputId);
