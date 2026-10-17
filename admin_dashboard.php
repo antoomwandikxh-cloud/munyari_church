@@ -6317,30 +6317,41 @@ function filterWorshippersTable() {
     const section = document.getElementById('assignRoleSection');
     const scroller = document.querySelector('.main-content');
     if (!target || !section || !scroller) return;
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    const innerScrolls = scroller.scrollHeight > scroller.clientHeight + 2;
+    const pageScroller = document.scrollingElement || document.documentElement;
+    const viewportTop = innerScrolls ? scroller.getBoundingClientRect().top : 0;
+    const viewportHeight = innerScrolls ? scroller.clientHeight : window.innerHeight;
+    const maxScroll = innerScrolls
+        ? Math.max(0, scroller.scrollHeight - scroller.clientHeight)
+        : Math.max(0, pageScroller.scrollHeight - window.innerHeight);
+    const currentScroll = () => innerScrolls ? scroller.scrollTop : window.scrollY;
+    const setScroll = value => {
+        if (innerScrolls) scroller.scrollTop = value;
+        else window.scrollTo(0, value);
+    };
 
     const url = new URL(window.location.href);
     url.searchParams.delete('view_village_leader');
     window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
 
     const animateScroll = (destination, duration) => {
-        const start = scroller.scrollTop;
+        const start = currentScroll();
         const distance = destination - start;
         const started = performance.now();
         const step = now => {
             const progress = Math.min((now - started) / duration, 1);
             const eased = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-            scroller.scrollTop = start + distance * eased;
+            setScroll(start + distance * eased);
             if (progress < 1) requestAnimationFrame(step);
         };
         requestAnimationFrame(step);
     };
 
-    const containerTop = scroller.getBoundingClientRect().top;
-    const maxScroll = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
-    const topDestination = Math.max(0, Math.min(maxScroll, scroller.scrollTop + section.getBoundingClientRect().top - containerTop - 12));
+    const topDestination = Math.max(0, Math.min(maxScroll, currentScroll() + section.getBoundingClientRect().top - viewportTop - 12));
     animateScroll(topDestination, 450);
     window.setTimeout(() => {
-        const destination = Math.max(0, Math.min(maxScroll, scroller.scrollTop + target.getBoundingClientRect().top - containerTop - (scroller.clientHeight * 0.42)));
+        const destination = Math.max(0, Math.min(maxScroll, currentScroll() + target.getBoundingClientRect().top - viewportTop - (viewportHeight * 0.42)));
         animateScroll(destination, 1350);
         target.animate([
             { backgroundColor: 'rgba(250, 204, 21, 0.72)', outline: '3px solid #d97706' },
