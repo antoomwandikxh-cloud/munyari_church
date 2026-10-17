@@ -6041,11 +6041,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php
                     $worship_chat_leaders = $conn->query("SELECT id, first_name, last_name, church_role, profile_picture FROM members WHERE is_approved = 1 AND LOWER(church_role) LIKE '%worship leader%' ORDER BY first_name ASC, last_name ASC");
                     $chat_msgs = $conn->query("
-                        SELECT wlc.id, 'worship_leaders' as dept_key, wlc.sender_id, wlc.message, wlc.created_at, m.first_name, m.last_name, m.church_role, 'Worship Dept' as department, NULL as is_pastor
+                        SELECT wlc.id, 'worship_leaders' as dept_key, wlc.sender_id, wlc.message, wlc.created_at, m.first_name, m.last_name, m.church_role, m.profile_picture, 'Worship Dept' as department, NULL as is_pastor
                         FROM worship_leadership_chat wlc
                         JOIN members m ON wlc.sender_id = m.id
                         UNION ALL
-                        SELECT plm.id, plm.dept_key, plm.pastor_id as sender_id, plm.message, plm.created_at, p.first_name, p.last_name, p.role as church_role, 'Pastoral Office' as department, 1 as is_pastor
+                        SELECT plm.id, plm.dept_key, plm.pastor_id as sender_id, plm.message, plm.created_at, p.first_name, p.last_name, p.role as church_role, p.profile_picture, 'Pastoral Office' as department, 1 as is_pastor
                         FROM pastor_leader_messages plm
                         JOIN pastors p ON plm.pastor_id = p.id
                         WHERE plm.dept_key = 'worship_leaders'
@@ -6077,24 +6077,29 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <?php endif; ?>
                         </div>
                     </div>
-                    <div style="background:var(--card-bg);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:20px;height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:15px;margin-bottom:20px;" id="worship_chat_box">
+                    <div style="background:var(--card-bg);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:16px;height:440px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin-bottom:20px;" id="worship_chat_box">
                         <?php if ($chat_msgs && $chat_msgs->num_rows > 0): ?>
                             <?php while($msg = $chat_msgs->fetch_assoc()): ?>
                                 <?php $is_me = ($msg['sender_id'] == $member_id && !$msg['is_pastor']); ?>
-                                <div style="display:flex; flex-direction:column; align-items:<?= $is_me ? 'flex-end' : 'flex-start' ?>;">
-                                    <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; margin-left:2px; margin-right:2px;">
-                                        <?= htmlspecialchars($msg['first_name'] . ' ' . $msg['last_name']) ?>
-                                        <span style="opacity:0.7; font-size:0.7rem; margin-left:4px;"><?= htmlspecialchars($msg['church_role'] ?? '') ?></span>
-                                        <?php if ($msg['is_pastor']): ?>
-                                            <span style="background:rgba(239,68,68,0.1);color:var(--danger);padding:1px 6px;border-radius:10px;font-weight:600;margin-left:4px;">Pastor</span>
-                                        <?php endif; ?>
+                                <div style="display:flex;justify-content:<?= $is_me ? 'flex-end' : 'flex-start' ?>;align-items:flex-end;gap:8px;">
+                                    <?php if (!$is_me): ?>
+                                        <img src="uploads/<?= htmlspecialchars($msg['profile_picture'] ?? 'default_avatar.png') ?>" alt="View <?= htmlspecialchars($msg['first_name'] . ' ' . $msg['last_name']) ?>'s profile photo" style="width:34px;height:34px;border-radius:50%;object-fit:cover;cursor:zoom-in;flex:0 0 34px;" onclick="viewProfileImage(this.src);" title="Click to view full photo">
+                                    <?php endif; ?>
+                                    <div style="max-width:min(78%,620px);display:flex;flex-direction:column;align-items:<?= $is_me ? 'flex-end' : 'flex-start' ?>;">
+                                        <div style="font-size:0.72rem;color:var(--text-muted);margin:0 4px 4px;">
+                                            <?= htmlspecialchars($msg['first_name'] . ' ' . $msg['last_name']) ?>
+                                            <span style="opacity:0.8;margin-left:4px;"><?= htmlspecialchars($msg['church_role'] ?? '') ?></span>
+                                        </div>
+                                        <div style="background:<?= $is_me ? 'var(--primary)' : 'var(--bg-lighter)' ?>;color:<?= $is_me ? 'white' : 'var(--text-main)' ?>;padding:10px 13px;border-radius:16px;<?= $is_me ? 'border-bottom-right-radius:4px;' : 'border-bottom-left-radius:4px;' ?>line-height:1.45;overflow-wrap:anywhere;">
+                                            <?= nl2br(htmlspecialchars($msg['message'])) ?>
+                                            <div style="font-size:0.64rem;color:<?= $is_me ? 'rgba(255,255,255,0.78)' : 'var(--text-muted)' ?>;text-align:right;margin-top:5px;">
+                                                <?= date('M j, g:i A', strtotime($msg['created_at'])) ?>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div style="background:<?= $is_me ? 'var(--primary)' : 'var(--bg-lighter)' ?>; color:<?= $is_me ? 'white' : 'var(--text-main)' ?>; padding:10px 14px; border-radius:12px; <?= $is_me ? 'border-bottom-right-radius:2px;' : 'border-bottom-left-radius:2px;' ?> max-width:80%; line-height:1.4;">
-                                        <?= nl2br(htmlspecialchars($msg['message'])) ?>
-                                    </div>
-                                    <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">
-                                        <?= date('M j, g:i A', strtotime($msg['created_at'])) ?>
-                                    </div>
+                                    <?php if ($is_me): ?>
+                                        <img src="uploads/<?= htmlspecialchars($msg['profile_picture'] ?? 'default_avatar.png') ?>" alt="View your profile photo" style="width:34px;height:34px;border-radius:50%;object-fit:cover;cursor:zoom-in;flex:0 0 34px;" onclick="viewProfileImage(this.src);" title="Click to view full photo">
+                                    <?php endif; ?>
                                 </div>
                             <?php endwhile; ?>
                         <?php else: ?>

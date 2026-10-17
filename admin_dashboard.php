@@ -3083,11 +3083,11 @@ w.document.write('</div>');
                     $esc_dept_key = $conn->real_escape_string($active_dept_key);
                     if ($esc_dept_key === 'building_construction') {
                         $chat_msgs = $conn->query("
-                            SELECT blc.id, 'building_construction' as dept_key, blc.sender_id, blc.message, blc.created_at, m.first_name, m.last_name, m.church_role, 'Building & Construction' as department, NULL as is_pastor 
+                            SELECT blc.id, 'building_construction' as dept_key, blc.sender_id, blc.message, blc.created_at, m.first_name, m.last_name, m.church_role, m.profile_picture, 'Building & Construction' as department, NULL as is_pastor
                             FROM building_leadership_chat blc 
                             JOIN members m ON blc.sender_id = m.id 
                             UNION ALL 
-                            SELECT plm.id, plm.dept_key, plm.pastor_id as sender_id, plm.message, plm.created_at, p.first_name, p.last_name, p.role as church_role, 'Pastoral Office' as department, 1 as is_pastor 
+                            SELECT plm.id, plm.dept_key, plm.pastor_id as sender_id, plm.message, plm.created_at, p.first_name, p.last_name, p.role as church_role, p.profile_picture, 'Pastoral Office' as department, 1 as is_pastor
                             FROM pastor_leader_messages plm 
                             JOIN pastors p ON plm.pastor_id = p.id 
                             WHERE plm.dept_key = 'building_construction' 
@@ -3095,11 +3095,11 @@ w.document.write('</div>');
                         ");
                     } elseif ($esc_dept_key === 'worship_leaders') {
                         $chat_msgs = $conn->query("
-                            SELECT wlc.id, 'worship_leaders' as dept_key, wlc.sender_id, wlc.message, wlc.created_at, m.first_name, m.last_name, m.church_role, 'Worship Dept' as department, NULL as is_pastor 
+                            SELECT wlc.id, 'worship_leaders' as dept_key, wlc.sender_id, wlc.message, wlc.created_at, m.first_name, m.last_name, m.church_role, m.profile_picture, 'Worship Dept' as department, NULL as is_pastor
                             FROM worship_leadership_chat wlc 
                             JOIN members m ON wlc.sender_id = m.id 
                             UNION ALL 
-                            SELECT plm.id, plm.dept_key, plm.pastor_id as sender_id, plm.message, plm.created_at, p.first_name, p.last_name, p.role as church_role, 'Pastoral Office' as department, 1 as is_pastor 
+                            SELECT plm.id, plm.dept_key, plm.pastor_id as sender_id, plm.message, plm.created_at, p.first_name, p.last_name, p.role as church_role, p.profile_picture, 'Pastoral Office' as department, 1 as is_pastor
                             FROM pastor_leader_messages plm 
                             JOIN pastors p ON plm.pastor_id = p.id 
                             WHERE plm.dept_key = 'worship_leaders' 
@@ -3107,14 +3107,14 @@ w.document.write('</div>');
                         ");
                     } else {
                         $chat_msgs = $conn->query("
-                            SELECT lm.*, m.first_name, m.last_name, m.church_role, m.department,
+                            SELECT lm.*, m.first_name, m.last_name, m.church_role, m.department, m.profile_picture,
                                    NULL as is_pastor
                             FROM leader_messages lm
                             JOIN members m ON lm.sender_id = m.id
                             WHERE lm.dept_key = '$esc_dept_key'
                             UNION ALL
                             SELECT plm.id, plm.dept_key, plm.pastor_id as sender_id, plm.message, plm.created_at,
-                                   p.first_name, p.last_name, p.role as church_role, 'Pastoral Office' as department,
+                                   p.first_name, p.last_name, p.role as church_role, 'Pastoral Office' as department, p.profile_picture,
                                    1 as is_pastor
                             FROM pastor_leader_messages plm
                             JOIN pastors p ON plm.pastor_id = p.id
@@ -3124,7 +3124,7 @@ w.document.write('</div>');
                         if (!$chat_msgs) {
                             // table may not exist yet — only show member messages
                             $chat_msgs = $conn->query("
-                                SELECT lm.*, m.first_name, m.last_name, m.church_role, m.department, 0 as is_pastor
+                                SELECT lm.*, m.first_name, m.last_name, m.church_role, m.department, m.profile_picture, 0 as is_pastor
                                 FROM leader_messages lm
                                 JOIN members m ON lm.sender_id = m.id
                                 WHERE lm.dept_key = '$esc_dept_key'
@@ -3140,15 +3140,23 @@ w.document.write('</div>');
                             $bg = $is_pastor_msg ? 'rgba(16,185,129,0.08)' : 'var(--bg-main)';
                             $border = $is_pastor_msg ? '#10b981' : $active_color;
                         ?>
-                        <div style="margin-bottom:12px;padding:12px 14px;border-radius:10px;background:<?= $bg ?>;border-left:3px solid <?= $border ?>;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-                                <span style="font-weight:600;font-size:0.9rem;color:var(--text-main);">
-                                    <?= $is_pastor_msg ? '⛪ ' : '' ?><?= htmlspecialchars($msg['first_name'] . ' ' . $msg['last_name']) ?>
-                                    <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400;"> — <?= htmlspecialchars($msg['church_role']) ?></span>
-                                </span>
-                                <small style="color:var(--text-muted);font-size:0.72rem;"><?= date('M j, g:i A', strtotime($msg['created_at'])) ?></small>
+                        <div style="display:flex;justify-content:<?= $is_pastor_msg ? 'flex-end' : 'flex-start' ?>;align-items:flex-end;gap:9px;margin-bottom:12px;">
+                            <?php if (!$is_pastor_msg): ?>
+                                <img src="uploads/<?= htmlspecialchars($msg['profile_picture'] ?? 'default_avatar.png') ?>" alt="View <?= htmlspecialchars($msg['first_name'] . ' ' . $msg['last_name']) ?>'s profile photo" style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:zoom-in;flex:0 0 38px;" onclick="viewProfileImage(this.src);" title="Click to view full photo">
+                            <?php endif; ?>
+                            <div style="max-width:min(78%,680px);min-width:140px;">
+                                <div style="font-weight:650;font-size:0.82rem;color:var(--text-main);margin:0 4px 4px;">
+                                    <?= htmlspecialchars($msg['first_name'] . ' ' . $msg['last_name']) ?>
+                                    <span style="font-size:0.72rem;color:var(--text-muted);font-weight:400;"> · <?= htmlspecialchars($msg['church_role']) ?></span>
+                                </div>
+                                <div style="padding:11px 14px;border-radius:15px;background:<?= $bg ?>;border-left:3px solid <?= $border ?>;color:var(--text-main);overflow-wrap:anywhere;">
+                                    <p style="margin:0;font-size:0.9rem;white-space:pre-wrap;line-height:1.5;"><?= htmlspecialchars($msg['message']) ?></p>
+                                    <small style="display:block;text-align:right;color:var(--text-muted);font-size:0.68rem;margin-top:6px;"><?= date('M j, g:i A', strtotime($msg['created_at'])) ?></small>
+                                </div>
                             </div>
-                            <p style="margin:0;font-size:0.9rem;white-space:pre-wrap;line-height:1.5;"><?= htmlspecialchars($msg['message']) ?></p>
+                            <?php if ($is_pastor_msg): ?>
+                                <img src="uploads/<?= htmlspecialchars($msg['profile_picture'] ?? 'default_avatar.png') ?>" alt="View <?= htmlspecialchars($msg['first_name'] . ' ' . $msg['last_name']) ?>'s profile photo" style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:zoom-in;flex:0 0 38px;" onclick="viewProfileImage(this.src);" title="Click to view full photo">
+                            <?php endif; ?>
                         </div>
                         <?php endwhile; ?>
                     </div>
