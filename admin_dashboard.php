@@ -6354,10 +6354,16 @@ function filterWorshippersTable() {
         const destination = Math.max(0, Math.min(maxScroll, currentScroll() + target.getBoundingClientRect().top - viewportTop - (viewportHeight * 0.42)));
         animateScroll(destination, 1350);
         target.animate([
-            { backgroundColor: 'rgba(250, 204, 21, 0.72)', outline: '3px solid #d97706' },
-            { backgroundColor: 'rgba(250, 204, 21, 0.48)', outline: '2px solid #d97706', offset: 0.45 },
-            { backgroundColor: 'transparent', outline: '0 solid transparent' }
-        ], { duration: 3200, easing: 'ease-out' });
+            { backgroundColor: 'rgba(250, 204, 21, 0.72)', outline: '3px solid #d97706', boxShadow: '0 0 22px 7px rgba(245, 158, 11, 0.85)' },
+            { backgroundColor: 'rgba(250, 204, 21, 0.28)', outline: '2px solid rgba(217, 119, 6, 0.45)', boxShadow: '0 0 5px 1px rgba(245, 158, 11, 0.25)', offset: 0.12 },
+            { backgroundColor: 'rgba(250, 204, 21, 0.68)', outline: '3px solid #d97706', boxShadow: '0 0 20px 6px rgba(245, 158, 11, 0.8)', offset: 0.24 },
+            { backgroundColor: 'rgba(250, 204, 21, 0.3)', outline: '2px solid rgba(217, 119, 6, 0.45)', boxShadow: '0 0 5px 1px rgba(245, 158, 11, 0.25)', offset: 0.36 },
+            { backgroundColor: 'rgba(250, 204, 21, 0.68)', outline: '3px solid #d97706', boxShadow: '0 0 20px 6px rgba(245, 158, 11, 0.8)', offset: 0.48 },
+            { backgroundColor: 'rgba(250, 204, 21, 0.3)', outline: '2px solid rgba(217, 119, 6, 0.45)', boxShadow: '0 0 5px 1px rgba(245, 158, 11, 0.25)', offset: 0.60 },
+            { backgroundColor: 'rgba(250, 204, 21, 0.66)', outline: '3px solid #d97706', boxShadow: '0 0 18px 5px rgba(245, 158, 11, 0.75)', offset: 0.72 },
+            { backgroundColor: 'rgba(250, 204, 21, 0.42)', outline: '2px solid rgba(217, 119, 6, 0.65)', boxShadow: '0 0 12px 3px rgba(245, 158, 11, 0.5)', offset: 0.86 },
+            { backgroundColor: 'transparent', outline: '0 solid transparent', boxShadow: '0 0 0 0 transparent' }
+        ], { duration: 6000, easing: 'ease-in-out' });
     }, 520);
 })();
 </script>
