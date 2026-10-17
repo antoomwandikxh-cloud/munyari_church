@@ -4113,13 +4113,18 @@ w.document.write('</div>');
                         <form method="POST" action="pastor_action.php?action=assign_role">
                             <div class="form-group">
                                 <label for="assignRoleSearch">Search Roles</label>
-                                <input type="search" id="assignRoleSearch" class="form-control role-search-input" autocomplete="off"
-                                    placeholder="Search role or department..." aria-label="Search roles by role or department"
-                                    aria-controls="assignRoleSelect" pattern="[A-Za-z ]*"
-                                    title="Use letters and spaces only" maxlength="80" spellcheck="false">
+                                <div class="role-search-field">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.2 4.2"></path></svg>
+                                    <input type="search" id="assignRoleSearch" class="form-control role-search-input" autocomplete="off"
+                                        placeholder="Search role or department..." aria-label="Search roles by role or department"
+                                        aria-controls="assignRoleSelect" pattern="[A-Za-z ]*"
+                                        title="Use letters and spaces only" maxlength="80" spellcheck="false">
+                                </div>
                                 <small id="assignRoleSearchError" class="role-search-error" role="status" hidden></small>
                                 <style>
-                                    .role-search-input{display:block;width:100%;max-width:270px;height:40px;padding:8px 11px}
+                                    .role-search-field{position:relative;width:100%;max-width:270px}
+                                    .role-search-field svg{position:absolute;left:10px;top:50%;width:17px;height:17px;transform:translateY(-50%);fill:none;stroke:var(--text-muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+                                    .role-search-input{display:block;width:100%;height:40px;padding:8px 11px 8px 34px}
                                     .role-search-error{display:inline-block;margin-top:5px;padding:7px 10px;border:1px solid #b91c1c;border-radius:6px;background:#dc2626;color:#fff;font-size:.78rem;font-weight:700;box-shadow:0 4px 10px rgba(127,29,29,.2)}
                                     .role-search-error[hidden]{display:none}
                                     #assignRoleSelect optgroup{font-weight:800;color:#fff;line-height:1.8}

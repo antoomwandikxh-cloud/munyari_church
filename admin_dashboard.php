@@ -2579,13 +2579,18 @@ w.document.write('</div>');
                         <form method="POST" action="admin_dashboard.php?tab=assign_roles&action=assign_role">
                             <div class="form-group">
                                 <label for="adminAssignRoleSearch">Search Roles</label>
-                                <input type="search" id="adminAssignRoleSearch" class="form-control admin-role-search" autocomplete="off"
-                                    placeholder="Search role or department..." aria-label="Search roles by role or department"
-                                    aria-controls="adminAssignRoleSelect" pattern="[A-Za-z ]*" title="Use letters and spaces only"
-                                    maxlength="80" spellcheck="false">
+                                <div class="admin-role-search-field">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.2 4.2"></path></svg>
+                                    <input type="search" id="adminAssignRoleSearch" class="form-control admin-role-search" autocomplete="off"
+                                        placeholder="Search role or department..." aria-label="Search roles by role or department"
+                                        aria-controls="adminAssignRoleSelect" pattern="[A-Za-z ]*" title="Use letters and spaces only"
+                                        maxlength="80" spellcheck="false">
+                                </div>
                                 <small id="adminRoleSearchError" class="admin-role-search-error" role="status" hidden></small>
                                 <style>
-                                    .admin-role-search{display:block;width:100%;max-width:270px;height:40px;padding:8px 11px;margin-bottom:8px}
+                                    .admin-role-search-field{position:relative;width:100%;max-width:270px;margin-bottom:8px}
+                                    .admin-role-search-field svg{position:absolute;left:10px;top:50%;width:17px;height:17px;transform:translateY(-50%);fill:none;stroke:var(--text-muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+                                    .admin-role-search{display:block;width:100%;height:40px;padding:8px 11px 8px 34px}
                                     .admin-role-search-error{display:inline-block;margin:4px 0;padding:7px 10px;border:1px solid #b91c1c;border-radius:6px;background:#dc2626;color:#fff;font-size:.78rem;font-weight:700;box-shadow:0 4px 10px rgba(127,29,29,.2)}
                                     .admin-role-search-error[hidden]{display:none}
                                     #adminAssignRoleSelect optgroup{font-weight:800;color:#fff;line-height:1.8}
