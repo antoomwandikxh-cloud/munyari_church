@@ -7717,6 +7717,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         var presentCount = allCheckboxes.filter(function(checkbox) { return checkbox.checked; }).length;
                         var absentCount = totalMembers - presentCount;
                         var statusLabel = isAbsentReport ? 'Absent' : 'Present';
+                        var joinedTimeHeader = isAbsentReport ? '' : '<th>Time Joined</th>';
                         var selected = allCheckboxes.filter(function(checkbox) { return isAbsentReport ? !checkbox.checked : checkbox.checked; });
                         selected.sort(function(a, b) {
                             var rowA = a.closest('[data-attendee-row]');
@@ -7747,7 +7748,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 var hour = parseInt(timeParts[0], 10);
                                 displayTime = (hour % 12 || 12) + ':' + timeParts[1] + ' ' + (hour >= 12 ? 'PM' : 'AM');
                             }
-                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td><td>' + escapeHtml(displayTime) + '</td><td>' + statusLabel + '</td></tr>';
+                            var joinedTimeCell = isAbsentReport ? '' : '<td>' + escapeHtml(displayTime) + '</td>';
+                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td>' + joinedTimeCell + '<td>' + statusLabel + '</td></tr>';
                         }).join('');
                         var department = card.dataset.department || <?= json_encode($active_org_dept) ?>;
                         var meetingDate = form.querySelector('[name="meeting_date"]').value;
@@ -7785,7 +7787,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <div class="leader"><img src="${escapeHtml(leaderPhoto)}" alt="Organising Secretary"><div class="leader-name">${escapeHtml(leaderName)}</div><div style="font-size:10px;color:#555">Organising Secretary</div></div>
                             <div class="brand"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"><h1>E.A.P.C MUNYARI ${escapeHtml(meetingType)} ATTENDANCE REGISTER</h1><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"></div>
                             <p class="report-meta">${escapeHtml(department)} Department | Meeting date: ${escapeHtml(meetingDate)}<br>Total Members: ${totalMembers} | Present: ${presentCount} | Absent: ${absentCount}<br><strong>Printed list: ${statusLabel} (${selected.length})</strong></p>
-                            <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Member Name</th><th>Gender</th><th>Phone</th><th>Time Joined</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+                            <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Member Name</th><th>Gender</th><th>Phone</th>${joinedTimeHeader}<th>Status</th></tr></thead><tbody>${rows}</tbody></table>
                             <div class="signature">
                                 <div class="signature-details">
                                     <div class="signature-row"><span class="signature-label">Organising Secretary Signature</span><span class="signature-line"></span></div>
