@@ -5578,16 +5578,21 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     ?>
                         <?php if(count($videos) > 0): ?>
                             <h3 style="margin-top: 10px; color: var(--primary);">Video Highlights</h3>
-                            <div style="display:flex;gap:20px;overflow-x:auto;padding:2px 2px 12px;margin-top:15px;margin-bottom:30px;scroll-snap-type:x proximity;">
-                                <?php foreach($videos as $h):
+                            <div id="churchVideoHighlights" style="display:flex;gap:20px;overflow-x:auto;padding:2px 2px 12px;margin-top:15px;margin-bottom:30px;scroll-snap-type:x proximity;">
+                                <?php $videos = array_values($videos); foreach($videos as $video_index => $h):
                                     $ext = strtolower(pathinfo($h['image_file'], PATHINFO_EXTENSION));
                                     $highlight_filename = basename($h['image_file']);
                                     $highlight_video_mime = ['mp4' => 'video/mp4', 'webm' => 'video/webm', 'ogg' => 'video/ogg'][$ext] ?? 'video/mp4';
                                 ?>
-                                    <div style="flex:0 0 280px;max-width:82vw;scroll-snap-align:start;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-card);">
+                                    <div data-highlight-video-card style="flex:0 0 280px;max-width:82vw;scroll-snap-align:start;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-card);">
                                         <video controls playsinline preload="metadata" aria-label="Play video highlight<?= $h['caption'] ? ': ' . htmlspecialchars($h['caption'], ENT_QUOTES) : '' ?>" style="width: 100%; height: 200px; object-fit: cover; background: #000;">
                                             <source src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" type="<?= htmlspecialchars($highlight_video_mime, ENT_QUOTES) ?>">
                                         </video>
+                                        <div style="display:flex;gap:7px;padding:10px 12px 0;">
+                                            <button type="button" onclick="moveChurchHighlightVideo(this, -1)" <?= $video_index === 0 ? 'disabled' : '' ?> aria-label="Previous video highlight" style="flex:1;padding:7px 5px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-main);color:var(--text-main);font-size:.8rem;cursor:pointer;">Previous</button>
+                                            <button type="button" data-highlight-play-button onclick="toggleChurchHighlightVideo(this)" aria-label="Play video highlight" style="flex:1;padding:7px 5px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-main);color:var(--text-main);font-size:.8rem;cursor:pointer;">Play</button>
+                                            <button type="button" onclick="moveChurchHighlightVideo(this, 1)" <?= $video_index === count($videos) - 1 ? 'disabled' : '' ?> aria-label="Next video highlight" style="flex:1;padding:7px 5px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-main);color:var(--text-main);font-size:.8rem;cursor:pointer;">Next</button>
+                                        </div>
                                         <div style="padding: 15px;">
                                             <?php if($h['caption']): ?>
                                                 <p style="font-size: 1rem; color: var(--text-main); margin-bottom: 8px;"><?= htmlspecialchars($h['caption']) ?></p>
@@ -9987,6 +9992,41 @@ function viewProfileImage(src) {
     img.src = src;
     modal.style.display = 'flex';
 }
+function toggleChurchHighlightVideo(button) {
+    const video = button.closest('[data-highlight-video-card]')?.querySelector('video');
+    if (!video) return;
+    if (video.paused) {
+        const playRequest = video.play();
+        if (playRequest && typeof playRequest.catch === 'function') playRequest.catch(() => {});
+    } else {
+        video.pause();
+    }
+}
+function moveChurchHighlightVideo(button, direction) {
+    const section = button.closest('#churchVideoHighlights');
+    if (!section) return;
+    const cards = Array.from(section.querySelectorAll('[data-highlight-video-card]'));
+    const currentCard = button.closest('[data-highlight-video-card]');
+    const nextCard = cards[cards.indexOf(currentCard) + direction];
+    if (!nextCard) return;
+    currentCard.querySelector('video')?.pause();
+    nextCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    const playRequest = nextCard.querySelector('video')?.play();
+    if (playRequest && typeof playRequest.catch === 'function') playRequest.catch(() => {});
+}
+document.querySelectorAll('#churchVideoHighlights [data-highlight-video-card]').forEach(function(card) {
+    const video = card.querySelector('video');
+    const playButton = card.querySelector('[data-highlight-play-button]');
+    if (!video || !playButton) return;
+    video.addEventListener('play', function() {
+        playButton.textContent = 'Pause';
+        playButton.setAttribute('aria-label', 'Pause video highlight');
+    });
+    video.addEventListener('pause', function() {
+        playButton.textContent = 'Play';
+        playButton.setAttribute('aria-label', 'Play video highlight');
+    });
+});
 function togglePasswordField(fieldId) {
     const input = document.getElementById(fieldId);
     if (!input) return;
