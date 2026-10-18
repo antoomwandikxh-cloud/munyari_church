@@ -7630,8 +7630,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape', 'absent')">Print Absent - Landscape</button>
                                                 <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait', 'apology')">Print Apologies - Portrait</button>
                                                 <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape', 'apology')">Print Apologies - Landscape</button>
-                                                <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait', 'no-apology')">Print No Apology - Portrait</button>
-                                                <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape', 'no-apology')">Print No Apology - Landscape</button>
                                             </div>
                                         </form>
                                         <dialog id="attendance-member-editor-<?= $register_id ?>" class="attendance-member-dialog">
@@ -7736,13 +7734,12 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         }
                         var totalMembers = form.querySelectorAll('tbody tr[data-attendee-row]').length;
                         var isApologyReport = attendanceStatus === 'apology';
-                        var isNoApologyReport = attendanceStatus === 'no-apology';
-                        var isAbsentReport = attendanceStatus === 'absent' || isApologyReport || isNoApologyReport;
+                        var isAbsentReport = attendanceStatus === 'absent' || isApologyReport;
                         var allCheckboxes = Array.from(form.querySelectorAll('[data-attendance-checkbox]'));
                         var presentCount = allCheckboxes.filter(function(checkbox) { return checkbox.checked; }).length;
                         var absentCount = totalMembers - presentCount;
-                        var statusLabel = isApologyReport ? 'Absent with Apology' : (isNoApologyReport ? 'Absent with No Apology' : (isAbsentReport ? 'Absent' : 'Present'));
-                        var reportHeading = isApologyReport ? 'These members were absent with apology' : (isNoApologyReport ? 'These members were absent with no apology' : (isAbsentReport ? 'These members were absent' : 'Members present'));
+                        var statusLabel = isApologyReport ? 'Absent with Apology' : (isAbsentReport ? 'Absent' : 'Present');
+                        var reportHeading = isApologyReport ? 'These members were absent with apology' : (isAbsentReport ? 'These members were absent' : 'Members present');
                         var absenceHeaders = isAbsentReport ? '<th>Apology received</th><th>Reason for apology</th>' : '';
                         var joinedTimeHeader = isAbsentReport ? '' : '<th>Time Joined</th>';
                         var selected = allCheckboxes.filter(function(checkbox) {
@@ -7750,11 +7747,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 var row = checkbox.closest('[data-attendee-row]');
                                 var apologyCheckbox = row && row.querySelector('[data-apology-checkbox]');
                                 return !checkbox.checked && apologyCheckbox && apologyCheckbox.checked;
-                            }
-                            if (isNoApologyReport) {
-                                var row = checkbox.closest('[data-attendee-row]');
-                                var apologyCheckbox = row && row.querySelector('[data-apology-checkbox]');
-                                return !checkbox.checked && (!apologyCheckbox || !apologyCheckbox.checked);
                             }
                             return isAbsentReport ? !checkbox.checked : checkbox.checked;
                         });
@@ -7769,7 +7761,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             return timeA.localeCompare(timeB) || rowA.dataset.name.localeCompare(rowB.dataset.name);
                         });
                         if (!selected.length) {
-                            alert(isApologyReport ? 'There are no absent members with an apology to print.' : (isNoApologyReport ? 'There are no absent members without an apology to print.' : (isAbsentReport ? 'There are no absent members to print.' : 'Select at least one attending member before printing.')));
+                            alert(isApologyReport ? 'There are no absent members with an apology to print.' : (isAbsentReport ? 'There are no absent members to print.' : 'Select at least one attending member before printing.'));
                             return;
                         }
                         var escapeHtml = function(value) {
