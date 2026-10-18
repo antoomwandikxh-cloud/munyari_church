@@ -4,6 +4,7 @@
 error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
 session_start();
 require_once __DIR__ . '/db_connect.php';
+require_once __DIR__ . '/notification_badges.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
@@ -96,19 +97,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if ($account_type === 'member') {
             $member_name = trim($first_name_raw . ' ' . $last_name_raw);
-            $notif_msg   = $conn->real_escape_string("New member registration: $member_name in $department department is pending approval.");
+            $notif_message = "New member registration: $member_name in $department department is pending approval.";
+            $has_related_member_id = ensure_notification_focus_schema($conn);
+            $recipients = [];
 
             $pastors = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
             if ($pastors) {
                 while ($p = $pastors->fetch_assoc()) {
-                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$p['id']}, 'pastor', '$notif_msg')");
+                    $recipients[] = ['id' => (int)$p['id'], 'type' => 'pastor'];
                 }
             }
             $admins = $conn->query("SELECT id FROM admins");
             if ($admins) {
                 while ($a = $admins->fetch_assoc()) {
-                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$a['id']}, 'admin', '$notif_msg')");
+                    $recipients[] = ['id' => (int)$a['id'], 'type' => 'admin'];
                 }
+            }
+
+            $notice = $has_related_member_id
+                ? $conn->prepare("INSERT INTO notifications (user_id, user_type, message, related_member_id) VALUES (?, ?, ?, ?)")
+                : $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
+            if ($notice) {
+                foreach ($recipients as $recipient) {
+                    $recipient_id = $recipient['id'];
+                    $recipient_type = $recipient['type'];
+                    if ($has_related_member_id) {
+                        $notice->bind_param('issi', $recipient_id, $recipient_type, $notif_message, $new_id);
+                    } else {
+                        $notice->bind_param('iss', $recipient_id, $recipient_type, $notif_message);
+                    }
+                    $notice->execute();
+                }
+                $notice->close();
             }
             header("Location: login.php?success=member");
             exit();
