@@ -25,6 +25,7 @@ function render_role_pills($church_role_raw, $is_pastor = false, $is_leader = fa
 
 session_start();
 require_once 'db_connect.php';
+require_once 'highlight_retention.php';
 if (isset($_POST['add_custom_role'])) {
     $role_name = trim($_POST['custom_role_name']);
     if (!empty($role_name)) {
@@ -308,6 +309,7 @@ require_once 'notification_badges.php';
 if (!isset($_SESSION['pastor_id'])) { header("Location: login.php"); exit(); }
 
 $pastor_id = $_SESSION['pastor_id'];
+cleanup_expired_church_highlight_videos($conn);
 $pastor_name = $_SESSION['pastor_name'];
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
 
@@ -530,7 +532,7 @@ if ($current_daily_message) {
         $current_daily_message_views = count($current_daily_message_viewers);
     }
 }
-$highlights = $conn->query("SELECT * FROM church_highlights WHERE pastor_id = $pastor_id ORDER BY created_at DESC");
+$highlights = $conn->query("SELECT * FROM church_highlights WHERE pastor_id = $pastor_id AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY created_at DESC");
 
 $has_username = !empty($pastor['username']);
 $has_profile_pic = ($pastor['profile_picture'] !== 'default_avatar.png' && !empty($pastor['profile_picture']));
@@ -1084,23 +1086,37 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_daily_message']))
 
 // Handle Upload Highlight
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['upload_highlight'])) {
-    $caption = $conn->real_escape_string($_POST['caption']);
+    $caption = trim($_POST['caption'] ?? '');
     if (isset($_FILES['highlight_image']) && $_FILES['highlight_image']['error'] == 0) {
         $ext = strtolower(pathinfo($_FILES['highlight_image']['name'], PATHINFO_EXTENSION));
         if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'webm', 'ogg'])) {
-            $img_name = 'highlight_' . time() . '.' . $ext;
-            if (move_uploaded_file($_FILES['highlight_image']['tmp_name'], 'uploads/' . $img_name)) {
-                $conn->query("INSERT INTO church_highlights (pastor_id, image_file, caption) VALUES ($pastor_id, '$img_name', '$caption')");
-                
-                // Notify all members
-                $members_result = $conn->query("SELECT id FROM members");
-                while($mem = $members_result->fetch_assoc()) {
-                    $m_id = $mem['id'];
-                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($m_id, 'member', 'Pastor $pastor_name has uploaded a new Church Highlight!')");
+            $is_video = in_array($ext, ['mp4', 'webm', 'ogg'], true);
+            $img_name = 'highlight_' . date('YmdHis') . '_' . bin2hex(random_bytes(5)) . '.' . $ext;
+            $upload_path = __DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . $img_name;
+            if (move_uploaded_file($_FILES['highlight_image']['tmp_name'], $upload_path)) {
+                $insert_highlight = $conn->prepare("INSERT INTO church_highlights (pastor_id, image_file, caption, expires_at) VALUES (?, ?, ?, CASE WHEN ? = 1 THEN DATE_ADD(NOW(), INTERVAL 1 YEAR) ELSE NULL END)");
+                if ($insert_highlight) {
+                    $insert_highlight->bind_param('issi', $pastor_id, $img_name, $caption, $is_video);
+                    $saved_highlight = $insert_highlight->execute();
+                    $insert_highlight->close();
+                } else {
+                    $saved_highlight = false;
                 }
 
-                header("Location: pastor_dashboard.php?tab=inspiration_highlights&success=Highlight Uploaded");
-                exit();
+                if ($saved_highlight) {
+                    // Notify all members
+                    $members_result = $conn->query("SELECT id FROM members");
+                    while ($mem = $members_result->fetch_assoc()) {
+                        $m_id = (int)$mem['id'];
+                        $highlight_notice = $conn->real_escape_string("Pastor $pastor_name has uploaded a new Church Highlight!");
+                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($m_id, 'member', '$highlight_notice')");
+                    }
+
+                    header("Location: pastor_dashboard.php?tab=inspiration_highlights&success=Highlight Uploaded");
+                    exit();
+                }
+
+                @unlink($upload_path);
             }
         }
     }
@@ -6737,7 +6753,8 @@ w.document.write('</div>');
                             <input type="hidden" name="upload_highlight" value="1">
                             <div class="form-group">
                                 <label>Select Image / Video</label>
-                                <input type="file" name="highlight_image" class="form-control" accept="image/*,video/mp4,video/webm" required>
+                                <input type="file" name="highlight_image" class="form-control" accept="image/*,video/mp4,video/webm,video/ogg" required>
+                                <small style="display:block;margin-top:6px;color:var(--text-muted);">Uploaded files are stored on the church server. Videos are deleted after one year; photos stay until removed.</small>
                             </div>
                             <div class="form-group">
                                 <label>Caption</label>
@@ -6762,14 +6779,15 @@ w.document.write('</div>');
                         <?php if(count($videos) > 0): ?>
                             <h3 style="margin-bottom: 15px; color: var(--primary);">🎥 Video Highlights</h3>
                             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-bottom: 30px;">
-                                <?php foreach($videos as $h): $ext = strtolower(pathinfo($h['image_file'], PATHINFO_EXTENSION)); ?>
+                                <?php foreach($videos as $h): $ext = strtolower(pathinfo($h['image_file'], PATHINFO_EXTENSION)); $highlight_filename = basename($h['image_file']); ?>
                                     <div style="border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; background: var(--card-bg); position: relative;">
                                         <video controls style="width: 100%; height: 200px; object-fit: cover; background: #000;">
-                                            <source src="uploads/<?= htmlspecialchars($h['image_file']) ?>" type="video/<?= $ext ?>">
+                                            <source src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" type="video/<?= htmlspecialchars($ext, ENT_QUOTES) ?>">
                                         </video>
                                         <div style="padding: 12px;">
                                             <?php if($h['caption']): ?><p style="font-weight: 500; color: var(--text-main); margin-bottom: 5px;"><?= htmlspecialchars($h['caption']) ?></p><?php endif; ?>
                                             <p style="font-size: 0.78rem; color: var(--text-muted);"><?= date('M j, Y', strtotime($h['created_at'])) ?></p>
+                                            <a href="uploads/<?= rawurlencode($highlight_filename) ?>" download="<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" class="btn" style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;text-decoration:none;background:var(--primary);color:#fff;">Download video</a>
                                         </div>
                                         <a href="pastor_dashboard.php?tab=inspiration_highlights&action=delete_highlight&id=<?= $h['id'] ?>" onclick="return confirm('Delete this highlight?')" style="position: absolute; top: 8px; right: 8px; background: rgba(239,68,68,0.85); color: white; padding: 4px 10px; border-radius: 5px; text-decoration: none; font-size: 0.78rem;">✕ Delete</a>
                                     </div>
@@ -6780,12 +6798,13 @@ w.document.write('</div>');
                         <?php if(count($photos) > 0): ?>
                             <h3 style="margin-bottom: 15px; color: var(--primary);">📷 Photo Highlights</h3>
                             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;">
-                                <?php foreach($photos as $h): ?>
+                                <?php foreach($photos as $h): $highlight_filename = basename($h['image_file']); ?>
                                     <div style="border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; background: var(--card-bg); position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                                        <img src="uploads/<?= htmlspecialchars($h['image_file']) ?>" alt="Highlight" style="width: 100%; height: 190px; object-fit: cover;">
+                                        <img src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" alt="Highlight" style="width: 100%; height: 190px; object-fit: cover;">
                                         <div style="padding: 12px;">
                                             <?php if($h['caption']): ?><p style="font-weight: 500; color: var(--text-main); margin-bottom: 5px;"><?= htmlspecialchars($h['caption']) ?></p><?php endif; ?>
                                             <p style="font-size: 0.78rem; color: var(--text-muted);"><?= date('M j, Y', strtotime($h['created_at'])) ?></p>
+                                            <a href="uploads/<?= rawurlencode($highlight_filename) ?>" download="<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" class="btn" style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;text-decoration:none;background:var(--primary);color:#fff;">Download photo</a>
                                         </div>
                                         <a href="pastor_dashboard.php?tab=inspiration_highlights&action=delete_highlight&id=<?= $h['id'] ?>" onclick="return confirm('Delete this highlight?')" style="position: absolute; top: 8px; right: 8px; background: rgba(239,68,68,0.85); color: white; padding: 4px 10px; border-radius: 5px; text-decoration: none; font-size: 0.78rem;">✕ Delete</a>
                                     </div>

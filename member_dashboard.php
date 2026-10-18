@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'db_connect.php';
+require_once 'highlight_retention.php';
 require_once 'notification_badges.php';
 require_once 'role_departments.php';
 require_once 'voice_note_helper.php';
@@ -8,6 +9,7 @@ require_once 'organized_event_helper.php';
 if (!isset($_SESSION['member_id'])) { header("Location: login.php"); exit(); }
 
 $member_id = $_SESSION['member_id'];
+cleanup_expired_church_highlight_videos($conn);
 $conn->query("
     CREATE TABLE IF NOT EXISTS sunday_school_class_requests (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -5524,6 +5526,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
 
                 <div class="content-card">
                     <h2 style="font-size: 1.25rem; margin-top: 0; margin-bottom: 20px; color: var(--text-main);">Church Highlights</h2>
+                    <p style="margin:-8px 0 18px;color:var(--text-muted);font-size:.9rem;">Download photos and videos to your device. Highlight videos are kept for one year; photos remain until removed.</p>
                     <?php
                     if ($highlights->num_rows > 0):
                         $all_highlights = [];
@@ -5547,10 +5550,11 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 15px; margin-bottom: 30px;">
                                 <?php foreach($videos as $h):
                                     $ext = strtolower(pathinfo($h['image_file'], PATHINFO_EXTENSION));
+                                    $highlight_filename = basename($h['image_file']);
                                 ?>
                                     <div style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: var(--bg-card); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
                                         <video controls style="width: 100%; height: 200px; object-fit: cover; background: #000;">
-                                            <source src="uploads/<?= htmlspecialchars($h['image_file']) ?>" type="video/<?= $ext === 'ogg' ? 'ogg' : $ext ?>">
+                                            <source src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" type="video/<?= htmlspecialchars($ext === 'ogg' ? 'ogg' : $ext, ENT_QUOTES) ?>">
                                         </video>
                                         <div style="padding: 15px;">
                                             <?php if($h['caption']): ?>
@@ -5559,6 +5563,10 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                             <p style="font-size: 0.8rem; color: var(--text-muted);">
                                                 Posted by Pastor <?= htmlspecialchars($h['first_name']) ?> on <?= date('M j, Y', strtotime($h['created_at'])) ?>
                                             </p>
+                                            <a href="uploads/<?= rawurlencode($highlight_filename) ?>" download="<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" class="btn" style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;text-decoration:none;background:var(--primary);color:#fff;">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg>
+                                                Download video
+                                            </a>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -5568,9 +5576,9 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         <?php if(count($photos) > 0): ?>
                             <h3 style="margin-top: 10px; color: var(--primary);">Photo Highlights</h3>
                             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 15px;">
-                                <?php foreach($photos as $h): ?>
+                                <?php foreach($photos as $h): $highlight_filename = basename($h['image_file']); ?>
                                     <div style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: var(--bg-card); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                                        <img src="uploads/<?= htmlspecialchars($h['image_file']) ?>" alt="Highlight" style="width: 100%; height: 200px; object-fit: cover;">
+                                        <img src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" alt="Highlight" style="width: 100%; height: 200px; object-fit: cover;">
                                         <div style="padding: 15px;">
                                             <?php if($h['caption']): ?>
                                                 <p style="font-size: 1rem; color: var(--text-main); margin-bottom: 8px;"><?= htmlspecialchars($h['caption']) ?></p>
@@ -5578,6 +5586,10 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                             <p style="font-size: 0.8rem; color: var(--text-muted);">
                                                 Posted by Pastor <?= htmlspecialchars($h['first_name']) ?> on <?= date('M j, Y', strtotime($h['created_at'])) ?>
                                             </p>
+                                            <a href="uploads/<?= rawurlencode($highlight_filename) ?>" download="<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" class="btn" style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;text-decoration:none;background:var(--primary);color:#fff;">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg>
+                                                Download photo
+                                            </a>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

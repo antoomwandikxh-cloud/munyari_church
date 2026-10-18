@@ -25,6 +25,7 @@ function render_role_pills($church_role_raw, $is_pastor = false, $is_leader = fa
 
 session_start();
 require_once 'db_connect.php';
+require_once 'highlight_retention.php';
 if (isset($_POST['add_custom_role'])) {
     $role_name = trim($_POST['custom_role_name']);
     if (!empty($role_name)) {
@@ -226,6 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader
 // ──────────────────────────────────────────────────────────────────────────
 
 $admin_id = $_SESSION['admin_id'];
+cleanup_expired_church_highlight_videos($conn);
 $tab_badges = build_tab_notification_badges($conn, $admin_id, 'admin', $tab);
 $admin_profile_col = $conn->query("SHOW COLUMNS FROM admins LIKE 'profile_picture'");
 if ($admin_profile_col && $admin_profile_col->num_rows == 0) {
@@ -431,7 +433,7 @@ $audit_logs = $conn->query("SELECT * FROM audit_logs ORDER BY created_at DESC");
 
 // Church Content
 $all_daily_messages = $conn->query("SELECT dm.*, p.first_name, p.last_name FROM daily_messages dm JOIN pastors p ON dm.pastor_id = p.id ORDER BY dm.created_at DESC");
-$all_highlights = $conn->query("SELECT ch.*, p.first_name, p.last_name FROM church_highlights ch JOIN pastors p ON ch.pastor_id = p.id ORDER BY ch.created_at DESC");
+$all_highlights = $conn->query("SELECT ch.*, p.first_name, p.last_name FROM church_highlights ch JOIN pastors p ON ch.pastor_id = p.id WHERE ch.expires_at IS NULL OR ch.expires_at > NOW() ORDER BY ch.created_at DESC");
 
 // Handle Member Edit (by Pastor/Admin)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_member_submit'])) {
