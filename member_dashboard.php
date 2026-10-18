@@ -7630,6 +7630,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape', 'absent')">Print Absent - Landscape</button>
                                                 <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait', 'apology')">Print Apologies - Portrait</button>
                                                 <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape', 'apology')">Print Apologies - Landscape</button>
+                                                <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait', 'no-apology')">Print No Apology - Portrait</button>
+                                                <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape', 'no-apology')">Print No Apology - Landscape</button>
                                             </div>
                                         </form>
                                         <dialog id="attendance-member-editor-<?= $register_id ?>" class="attendance-member-dialog">
@@ -7734,11 +7736,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         }
                         var totalMembers = form.querySelectorAll('tbody tr[data-attendee-row]').length;
                         var isApologyReport = attendanceStatus === 'apology';
-                        var isAbsentReport = attendanceStatus === 'absent' || isApologyReport;
+                        var isNoApologyReport = attendanceStatus === 'no-apology';
+                        var isAbsentReport = attendanceStatus === 'absent' || isApologyReport || isNoApologyReport;
                         var allCheckboxes = Array.from(form.querySelectorAll('[data-attendance-checkbox]'));
                         var presentCount = allCheckboxes.filter(function(checkbox) { return checkbox.checked; }).length;
                         var absentCount = totalMembers - presentCount;
-                        var statusLabel = isApologyReport ? 'Absent with Apology' : (isAbsentReport ? 'Absent' : 'Present');
+                        var statusLabel = isApologyReport ? 'Absent with Apology' : (isNoApologyReport ? 'Absent with No Apology' : (isAbsentReport ? 'Absent' : 'Present'));
+                        var reportHeading = isApologyReport ? 'These members were absent with apology' : (isNoApologyReport ? 'These members were absent with no apology' : (isAbsentReport ? 'These members were absent' : 'Members present'));
                         var absenceHeaders = isAbsentReport ? '<th>Apology received</th><th>Reason for apology</th>' : '';
                         var joinedTimeHeader = isAbsentReport ? '' : '<th>Time Joined</th>';
                         var selected = allCheckboxes.filter(function(checkbox) {
@@ -7746,6 +7750,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 var row = checkbox.closest('[data-attendee-row]');
                                 var apologyCheckbox = row && row.querySelector('[data-apology-checkbox]');
                                 return !checkbox.checked && apologyCheckbox && apologyCheckbox.checked;
+                            }
+                            if (isNoApologyReport) {
+                                var row = checkbox.closest('[data-attendee-row]');
+                                var apologyCheckbox = row && row.querySelector('[data-apology-checkbox]');
+                                return !checkbox.checked && (!apologyCheckbox || !apologyCheckbox.checked);
                             }
                             return isAbsentReport ? !checkbox.checked : checkbox.checked;
                         });
@@ -7760,7 +7769,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             return timeA.localeCompare(timeB) || rowA.dataset.name.localeCompare(rowB.dataset.name);
                         });
                         if (!selected.length) {
-                            alert(isApologyReport ? 'There are no absent members with an apology to print.' : (isAbsentReport ? 'There are no absent members to print.' : 'Select at least one attending member before printing.'));
+                            alert(isApologyReport ? 'There are no absent members with an apology to print.' : (isNoApologyReport ? 'There are no absent members without an apology to print.' : (isAbsentReport ? 'There are no absent members to print.' : 'Select at least one attending member before printing.')));
                             return;
                         }
                         var escapeHtml = function(value) {
@@ -7784,7 +7793,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 ? '<td>' + (apologyCheckbox && apologyCheckbox.checked ? 'Yes' : 'No') + '</td><td style="max-width:220px;white-space:normal;overflow-wrap:anywhere">' + escapeHtml(apologyCheckbox && apologyCheckbox.checked && apologyReason ? apologyReason.value.trim() : 'Not recorded') + '</td>'
                                 : '';
                             var joinedTimeCell = isAbsentReport ? '' : '<td>' + escapeHtml(displayTime) + '</td>';
-                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td>' + apologyCells + joinedTimeCell + '<td>' + statusLabel + '</td></tr>';
+                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td>' + apologyCells + joinedTimeCell + '<td>' + (isAbsentReport ? 'Absent' : 'Present') + '</td></tr>';
                         }).join('');
                         var department = card.dataset.department || <?= json_encode($active_org_dept) ?>;
                         var meetingDate = form.querySelector('[name="meeting_date"]').value;
@@ -7802,11 +7811,12 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             @page{size:A4 ${orientation};margin:12mm 10mm 24mm}*{box-sizing:border-box}
                             body{position:relative;font:12px Arial,sans-serif;color:#17202a;margin:0;padding:8px 4px 30px}
                             .watermark{position:fixed;top:43%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:44px;color:rgba(14,116,144,.18);font-weight:900;white-space:nowrap;z-index:0;pointer-events:none}
-                            .leader,.brand,.report-meta,table,.signature{position:relative;z-index:1}
+                            .leader,.brand,.report-heading,.report-meta,table,.signature{position:relative;z-index:1}
                             .leader{text-align:center;margin:0 auto 14px}.leader img{width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}
                             .leader-name{font-size:14px;font-weight:800;color:#0e7490;margin-top:4px}
                             .brand{display:grid;grid-template-columns:62px 1fr 62px;align-items:center;gap:12px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 10px;margin-bottom:14px}
                             .brand-logo{width:62px;height:62px;object-fit:contain}.brand h1{font-size:18px;line-height:1.3;color:#0e7490;text-transform:uppercase;margin:4px 0}
+                            .report-heading{text-align:center;font-size:16px;font-weight:800;color:#17202a;text-transform:uppercase;margin:0 0 8px}
                             .brand p{font-size:11px;color:#555;margin:4px 0}.report-meta{text-align:center;margin:0 0 14px;color:#444}
                             table{width:100%;border-collapse:collapse;position:relative}thead{display:table-header-group}tr{page-break-inside:avoid;break-inside:avoid}
                             th,td{border:1px solid #888;padding:6px;text-align:left;vertical-align:middle}th{background:#0e7490;color:#fff;font-size:10px;text-transform:uppercase}
@@ -7821,6 +7831,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
                             <div class="leader"><img src="${escapeHtml(leaderPhoto)}" alt="Organising Secretary"><div class="leader-name">${escapeHtml(leaderName)}</div><div style="font-size:10px;color:#555">Organising Secretary</div></div>
                             <div class="brand"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"><h1>E.A.P.C MUNYARI ${escapeHtml(meetingType)} ATTENDANCE REGISTER</h1><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"></div>
+                            <div class="report-heading">${escapeHtml(reportHeading)}</div>
                             <p class="report-meta">${escapeHtml(department)} Department | Meeting date: ${escapeHtml(meetingDate)}<br>Total Members: ${totalMembers} | Present: ${presentCount} | Absent: ${absentCount}<br><strong>Printed list: ${statusLabel} (${selected.length})</strong></p>
                             <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Member Name</th><th>Gender</th><th>Phone</th>${absenceHeaders}${joinedTimeHeader}<th>Status</th></tr></thead><tbody>${rows}</tbody></table>
                             <div class="signature">
