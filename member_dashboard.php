@@ -7419,56 +7419,74 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     }
                 }
                 ?>
-                <div class="page-header">
-                    <h1><?= $is_youth_advisor_scope ? 'Youth & ' . htmlspecialchars($active_org_dept) . ' Organised Events' : htmlspecialchars($active_org_dept) . ' Organised Events' ?></h1>
+                <div id="organized-events-page" class="organized-events-page">
+                <div class="page-header oe-page-header">
+                    <div class="oe-header-main">
+                        <div>
+                            <p class="oe-eyebrow">Community events & attendance</p>
+                            <h1><?= $is_youth_advisor_scope ? 'Youth & ' . htmlspecialchars($active_org_dept) . ' Organised Events' : htmlspecialchars($active_org_dept) . ' Organised Events' ?></h1>
+                            <p><?= $is_organizing_secretary ? 'Share department updates, publish events, and manage attendance in one place.' : 'View the latest events and updates for your department.' ?></p>
+                        </div>
+                        <span class="oe-department-chip"><?= htmlspecialchars($active_org_dept) ?> Department</span>
+                    </div>
                     <?php if (count($organizing_secretary_depts) > 1): ?>
-                    <p>You serve as Organizing Secretary in multiple departments. Select one to manage:</p>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;margin-bottom:15px;">
+                    <div class="oe-department-switcher" aria-label="Choose department">
                         <?php foreach ($organizing_secretary_depts as $od): ?>
                             <a href="?tab=organized_events&org_dept=<?= urlencode($od) ?>"
                                class="btn-sm<?= (strtolower($od) === strtolower($active_org_dept)) ? ' btn-success' : '' ?>"
-                               style="text-decoration:none;<?= (strtolower($od) !== strtolower($active_org_dept)) ? 'background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-main);' : '' ?>">
+                               <?= strtolower($od) === strtolower($active_org_dept) ? 'aria-current="page"' : '' ?>>
                                <?= htmlspecialchars($od) ?>
                             </a>
                         <?php endforeach; ?>
                     </div>
-                    <?php else: ?>
-                    <p>Meetings, announcements, and events organized for your active department scope.</p>
                     <?php endif; ?>
+                    <nav class="oe-quick-nav" aria-label="Organised Events sections">
+                        <?php if ($is_organizing_secretary): ?>
+                            <a href="#organized-event-compose">Post an event</a>
+                            <a href="#organized-attendance">Attendance registers</a>
+                        <?php endif; ?>
+                        <?php foreach ($current_event_scopes as $quick_scope => $quick_label): ?>
+                            <a href="<?= '#organized-event-feed-' . substr(sha1((string)$quick_scope), 0, 12) ?>"><?= htmlspecialchars($quick_label) ?> events</a>
+                        <?php endforeach; ?>
+                    </nav>
                 </div>
 
                 <?php if ($is_organizing_secretary): ?>
-                <div class="content-card" style="margin-bottom: 30px; border-left: 4px solid var(--primary);">
-                    <h2>Post a New Event</h2>
-                    <form method="POST" action="member_action.php?action=post_organized_event" enctype="multipart/form-data">
+                <div id="organized-event-compose" class="content-card oe-compose-card">
+                    <div class="oe-section-heading">
+                        <div><span class="oe-section-kicker">Organising Secretary</span><h2>Post an event or announcement</h2><p>Members in your department will be notified when you publish.</p></div>
+                    </div>
+                    <form method="POST" action="member_action.php?action=post_organized_event" enctype="multipart/form-data" class="oe-event-form">
                         <input type="hidden" name="active_dept" value="<?= htmlspecialchars($active_org_dept) ?>">
-                        <div class="form-group">
+                        <div class="form-group oe-title-field">
                             <label>Event Title / Announcement (Optional for voice-only posts)</label>
                             <input type="text" name="title" class="form-control" placeholder="e.g. Weekly Meeting, or leave blank for a voice-only post">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group oe-message-field">
                             <label>Details / Message</label>
                             <textarea name="announcement" class="form-control" rows="4" placeholder="Provide event details, or leave blank and record a voice note"></textarea>
                         </div>
-                        <div class="form-group">
-                            <label>Voice Announcement (Optional)</label>
-                            <?= render_voice_note_recorder('approved members of your department') ?>
-                        </div>
-                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                            <div class="form-group" style="flex: 1;">
+                        <div class="oe-link-grid">
+                            <div class="form-group">
                                 <label>Google Meet Link (Optional)</label>
                                 <input type="url" name="meet_link" class="form-control" placeholder="https://meet.google.com/...">
                             </div>
-                            <div class="form-group" style="flex: 1;">
+                            <div class="form-group">
                                 <label>WhatsApp Link (Optional)</label>
                                 <input type="url" name="whatsapp_link" class="form-control" placeholder="https://chat.whatsapp.com/...">
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>Upload Attendance / Document (Optional)</label>
-                            <input type="file" name="attendance_file" class="form-control">
+                        <div class="oe-attachment-grid">
+                            <div class="form-group">
+                                <label>Voice Announcement (Optional)</label>
+                                <?= render_voice_note_recorder('approved members of your department') ?>
+                            </div>
+                            <div class="form-group">
+                                <label>Upload Attendance / Document (Optional)</label>
+                                <input type="file" name="attendance_file" class="form-control">
+                            </div>
                         </div>
-                        <button type="submit" class="btn-submit">Post Event</button>
+                        <div class="oe-form-actions"><button type="submit" class="btn-submit">Post Event</button></div>
                     </form>
                 </div>
                 <?php endif; ?>
@@ -7507,9 +7525,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         $safe_register_dept = $conn->real_escape_string($register_dept);
                         $registers = $conn->query("SELECT * FROM organized_attendance_registers WHERE department = '$safe_register_dept' ORDER BY created_at DESC, id DESC");
                         ?>
-                        <section class="content-card" style="margin-bottom:24px;">
-                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-                                <h2 style="margin:0;"><?= htmlspecialchars($register_label) ?> Attendance Registers</h2>
+                        <section id="organized-attendance" class="content-card oe-attendance-section" style="margin-bottom:24px;">
+                            <div class="oe-section-heading">
+                                <div><span class="oe-section-kicker">Attendance</span><h2><?= htmlspecialchars($register_label) ?> registers</h2><p>Create a register to mark attendance and print the saved list.</p></div>
                                 <form method="POST" action="member_action.php?action=create_organized_attendance_register">
                                     <input type="hidden" name="department" value="<?= htmlspecialchars($register_dept) ?>">
                                     <button type="submit" class="btn-submit">Create a Register</button>
@@ -7538,18 +7556,18 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         }
                                     }
                                     ?>
-                                    <div id="attendance-register-<?= $register_id ?>" data-department="<?= htmlspecialchars($attendance_register['department'], ENT_QUOTES) ?>" style="padding:16px 0;border-top:1px solid var(--border-color);">
-                                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                                    <div id="attendance-register-<?= $register_id ?>" data-department="<?= htmlspecialchars($attendance_register['department'], ENT_QUOTES) ?>" class="oe-register-block">
+                                        <div class="oe-register-top">
                                             <div>
-                                                <h3 style="margin:0;color:var(--primary);">Register #<?= $register_id ?></h3>
-                                                <small style="color:var(--text-muted);">Created <?= date('M j, Y g:i A', strtotime($attendance_register['created_at'])) ?></small>
+                                                <h3>Register #<?= $register_id ?></h3>
+                                                <small>Created <?= date('M j, Y g:i A', strtotime($attendance_register['created_at'])) ?></small>
                                             </div>
                                             <form method="POST" action="member_action.php?action=delete_organized_attendance_register" onsubmit="return confirm('Delete this attendance register and its saved attendance? This cannot be undone.');">
                                                 <input type="hidden" name="register_id" value="<?= $register_id ?>">
                                                 <button type="submit" class="btn-sm" style="background:var(--bg-card);color:var(--danger);border:1px solid var(--danger);">Delete Register</button>
                                             </form>
                                         </div>
-                                        <form method="POST" data-organized-attendance-form action="member_action.php?action=save_organized_attendance_register" enctype="multipart/form-data" style="margin-top:10px;">
+                                        <form method="POST" data-organized-attendance-form action="member_action.php?action=save_organized_attendance_register" enctype="multipart/form-data" class="oe-register-form">
                                             <input type="hidden" name="register_id" value="<?= $register_id ?>">
                                             <p style="color:var(--text-muted);font-size:.86rem;margin:0 0 12px;">Mark attendees present, or check Absent with Apology and enter the reason. Join times are optional.</p>
                                             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;max-width:620px;margin-bottom:14px;">
@@ -7562,7 +7580,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                     <input id="register-type-<?= $register_id ?>" type="text" name="meeting_type" class="form-control" value="<?= htmlspecialchars($attendance_register['meeting_type']) ?>" maxlength="100" placeholder="Online, Physical, or another heading" required>
                                                 </div>
                                             </div>
-                                            <div style="overflow-x:auto;border:1px solid var(--border-color);border-radius:8px;">
+                                            <div class="oe-register-table-wrap">
                                                 <table style="width:100%;border-collapse:collapse;min-width:1280px;">
                                                     <thead><tr style="background:var(--bg-main);text-align:left;">
                                                         <th style="padding:9px;">Present</th><th style="padding:9px;">Profile</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Time Joined (Optional)</th><th style="padding:9px;">Absent with Apology</th><th style="padding:9px;">Reason for Apology</th><th style="padding:9px;">Details</th>
@@ -7616,13 +7634,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                     </tbody>
                                                 </table>
                                             </div>
-                                            <div style="margin-top:16px;padding:14px;border:1px solid var(--border-color);border-radius:8px;">
+                                            <div class="oe-add-attendee">
                                                 <strong>Add Member Manually</strong>
                                                 <p style="margin:4px 0 10px;color:var(--text-muted);font-size:.84rem;">Add a visitor or attendee who is not in the approved <?= htmlspecialchars($attendance_register['department']) ?> member list. Add a profile photo from your device.</p>
                                                 <div data-manual-register-attendee-list></div>
                                                 <button type="button" class="btn-sm" onclick="addManualRegisterAttendee(this)">Add Manual Attendee</button>
                                             </div>
-                                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                                            <div class="oe-attendance-actions">
                                                 <button type="submit" class="btn-submit">Save Attendance</button>
                                                 <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait')">Print Present - Portrait</button>
                                                 <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape')">Print Present - Landscape</button>
@@ -7679,31 +7697,40 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
                 <?php foreach ($current_event_scopes as $scope_dept => $scope_label): ?>
                     <?php if ($scope_dept === 'None' || $scope_dept === '') continue; ?>
-                    <div class="content-card" style="margin-bottom:24px;">
-                        <h2><?= htmlspecialchars($scope_label) ?> Events</h2>
+                    <section id="organized-event-feed-<?= substr(sha1((string)$scope_dept), 0, 12) ?>" class="oe-feed">
+                        <div class="oe-section-heading">
+                            <div><span class="oe-section-kicker">Community feed</span><h2><?= htmlspecialchars($scope_label) ?> events</h2><p>Announcements and event details shared with approved department members.</p></div>
+                        </div>
                         <?php
                         $esc_dept = $conn->real_escape_string($scope_dept);
                         $events = $conn->query("SELECT oe.*, m.first_name, m.last_name, m.profile_picture FROM organized_events oe JOIN members m ON oe.organizer_id = m.id WHERE oe.department = '$esc_dept' ORDER BY oe.created_at DESC");
                         if ($events && $events->num_rows > 0):
+                        ?>
+                        <div class="oe-events-list">
+                        <?php
                             while($ev = $events->fetch_assoc()):
                         ?>
-                            <div id="organized-event-<?= (int)$ev['id'] ?>" style="padding: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 20px; background: rgba(255,255,255,0.02);">
-                                <h3 style="margin-top: 0; color: var(--primary);"><?= htmlspecialchars($ev['title']) ?></h3>
-                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;color:var(--text-muted);font-size:0.85rem;">
-                                    <img src="uploads/<?= htmlspecialchars(basename($ev['profile_picture'] ?: 'default_avatar.png')) ?>" alt="<?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);cursor:zoom-in;" onclick="viewProfileImage(this.src);">
+                            <div id="organized-event-<?= (int)$ev['id'] ?>" class="oe-event-card">
+                                <h3><?= htmlspecialchars($ev['title'] ?: 'Department announcement') ?></h3>
+                                <div class="oe-event-author">
+                                    <img src="uploads/<?= htmlspecialchars(basename($ev['profile_picture'] ?: 'default_avatar.png')) ?>" alt="<?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src);">
                                     <span>Posted by <?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> on <?= date('M j, Y g:i A', strtotime($ev['created_at'])) ?></span>
                                 </div>
-                                <p style="white-space: pre-wrap; line-height: 1.6; margin-bottom: 20px;"><?= htmlspecialchars($ev['announcement']) ?></p>
+                                <?php if (trim((string)($ev['announcement'] ?? '')) !== ''): ?>
+                                    <p class="oe-event-message"><?= htmlspecialchars($ev['announcement']) ?></p>
+                                <?php endif; ?>
                                 <?php if (!empty($ev['audio_path'])): ?>
                                     <?= render_whatsapp_voice_player($ev['audio_path'], $ev['first_name'] . ' ' . $ev['last_name'], 'uploads/' . basename($ev['profile_picture'] ?: 'default_avatar.png'), $ev['created_at']) ?>
                                 <?php endif; ?>
-                                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                <?php if (!empty($ev['meet_link']) || !empty($ev['whatsapp_link']) || !empty($ev['attendance_file'])): ?>
+                                <div class="oe-event-links">
                                     <?php if (!empty($ev['meet_link'])): ?><a href="<?= htmlspecialchars($ev['meet_link']) ?>" target="_blank" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; text-decoration: none; padding: 8px 12px;">Join Google Meet</a><?php endif; ?>
                                     <?php if (!empty($ev['whatsapp_link'])): ?><a href="<?= htmlspecialchars($ev['whatsapp_link']) ?>" target="_blank" class="badge" style="background: rgba(37, 99, 235, 0.15); color: var(--primary); text-decoration: none; padding: 8px 12px;">Join WhatsApp Group</a><?php endif; ?>
                                     <?php if (!empty($ev['attendance_file'])): ?><a href="uploads/<?= htmlspecialchars($ev['attendance_file']) ?>" target="_blank" class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; text-decoration: none; padding: 8px 12px;">View Attendance/Document</a><?php endif; ?>
                                 </div>
+                                <?php endif; ?>
                                 <?php if ($is_organizing_secretary && count(array_filter($organizing_secretary_depts, function ($assigned_department) use ($ev) { return department_matches($ev['department'], $assigned_department); })) > 0): ?>
-                                    <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px;">
+                                    <div class="oe-event-actions">
                                         <?php if (!empty($ev['audio_path'])): ?>
                                             <form method="POST" action="member_action.php?action=delete_organized_event_recording" onsubmit="return confirm('Delete only this voice recording? The event and attendance register will remain.');">
                                                 <input type="hidden" name="event_id" value="<?= (int)$ev['id'] ?>">
@@ -7717,10 +7744,12 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     </div>
                                 <?php endif; ?>
                             </div>
-                        <?php endwhile; else: ?>
-                            <p style="color: var(--text-muted);">No events have been posted for this department yet.</p>
+                        <?php endwhile; ?>
+                        </div>
+                        <?php else: ?>
+                            <p class="oe-empty-state">No events have been posted for this department yet.</p>
                         <?php endif; ?>
-                    </div>
+                    </section>
                 <?php endforeach; ?>
                 <?php if ($is_organizing_secretary): ?>
                     <script>
@@ -7999,6 +8028,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     });
                     </script>
                 <?php endif; ?>
+                </div>
             <?php endif; ?>
 
             <?php if ($tab == 'discipline' && $is_discipline_master):
