@@ -449,6 +449,86 @@ function notification_target_tab($message, $user_type, $fallback_tab = 'dashboar
     return $tabs[0] ?? $fallback_tab;
 }
 
+function notification_focus_message_with_media_id($conn, $message, $notification_created_at) {
+    $message = (string)$message;
+    if (preg_match('/\bdaily quote\s*#\s*\d+/i', $message) || preg_match('/\bchurch highlight\s*#\s*\d+/i', $message)) {
+        return $message;
+    }
+
+    if (preg_match('/\bdaily quote\b/i', $message)) {
+        $media_table = 'daily_messages';
+        $media_alias = 'dm';
+        $media_id_column = 'dm.id';
+        $media_time_column = 'dm.created_at';
+        $media_type = 'daily quote';
+        $author_pattern = '/^Pastor\s+(.+?)\s+has posted a new Daily Quote!?$/i';
+    } elseif (preg_match('/\bchurch highlight\b/i', $message)) {
+        $media_table = 'church_highlights';
+        $media_alias = 'ch';
+        $media_id_column = 'ch.id';
+        $media_time_column = 'ch.created_at';
+        $media_type = 'Church Highlight';
+        $author_pattern = '/^Pastor\s+(.+?)\s+has uploaded a new Church Highlight!?$/i';
+    } else {
+        return $message;
+    }
+
+    $notification_timestamp = strtotime((string)$notification_created_at);
+    if ($notification_timestamp === false) {
+        return $message;
+    }
+    $notification_time_for_sql = (string)$notification_created_at;
+    $author_name = '';
+    if (preg_match($author_pattern, trim($message), $author_match)) {
+        $author_name = trim($author_match[1]);
+    }
+
+    $find_media_id = function ($filter_author) use ($conn, $media_table, $media_alias, $media_id_column, $media_time_column, $notification_time_for_sql, $author_name, $notification_timestamp) {
+        $sql = "SELECT $media_id_column, $media_time_column FROM $media_table $media_alias JOIN pastors p ON p.id = $media_alias.pastor_id WHERE $media_time_column BETWEEN DATE_SUB(?, INTERVAL 15 MINUTE) AND DATE_ADD(?, INTERVAL 15 MINUTE)";
+        if ($filter_author && $author_name !== '') {
+            $sql .= " AND p.first_name = ?";
+        }
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            return 0;
+        }
+        if ($filter_author && $author_name !== '') {
+            $stmt->bind_param('sss', $notification_time_for_sql, $notification_time_for_sql, $author_name);
+        } else {
+            $stmt->bind_param('ss', $notification_time_for_sql, $notification_time_for_sql);
+        }
+        if (!$stmt->execute()) {
+            $stmt->close();
+            return 0;
+        }
+
+        $candidate_id = 0;
+        $candidate_created_at = '';
+        $stmt->bind_result($candidate_id, $candidate_created_at);
+        $best_id = 0;
+        $best_distance = PHP_INT_MAX;
+        while ($stmt->fetch()) {
+            $candidate_timestamp = strtotime($candidate_created_at);
+            if ($candidate_timestamp === false) {
+                continue;
+            }
+            $distance = abs($candidate_timestamp - $notification_timestamp);
+            if ($distance < $best_distance || ($distance === $best_distance && (int)$candidate_id > $best_id)) {
+                $best_id = (int)$candidate_id;
+                $best_distance = $distance;
+            }
+        }
+        $stmt->close();
+        return $best_id;
+    };
+
+    $media_id = $find_media_id(true);
+    if (!$media_id) {
+        $media_id = $find_media_id(false);
+    }
+    return $media_id ? $message . ' ' . $media_type . ' #' . $media_id : $message;
+}
+
 function render_tab_notification_badge($badges, $tab) {
     $count = (int)($badges[$tab] ?? 0);
     if ($count < 1) {

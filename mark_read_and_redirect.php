@@ -29,12 +29,14 @@ if (isset($_SESSION['member_id'])) {
 }
 
 $notification_message = '';
+$notification_created_at = '';
+$notification_focus_message = '';
 $notification_found = false;
-$lookup_stmt = $conn->prepare("SELECT message FROM notifications WHERE id = ? AND user_id = ? AND user_type = ? LIMIT 1");
+$lookup_stmt = $conn->prepare("SELECT message, created_at FROM notifications WHERE id = ? AND user_id = ? AND user_type = ? LIMIT 1");
 if ($lookup_stmt) {
     $lookup_stmt->bind_param("iis", $notif_id, $user_id, $user_type);
     $lookup_stmt->execute();
-    $lookup_stmt->bind_result($notification_message);
+    $lookup_stmt->bind_result($notification_message, $notification_created_at);
     $notification_found = $lookup_stmt->fetch();
     $lookup_stmt->close();
 }
@@ -42,10 +44,11 @@ if ($lookup_stmt) {
 unset($_SESSION['notification_tab_glow'], $_SESSION['notification_row_focus'], $_SESSION['fine_notification_highlight']);
 if ($notification_found) {
     $redirect_tab = notification_target_tab($notification_message, $user_type, 'dashboard');
+    $notification_focus_message = notification_focus_message_with_media_id($conn, $notification_message, $notification_created_at);
     $_SESSION['notification_tab_glow'] = $redirect_tab;
     $_SESSION['notification_row_focus'] = [
         'tab' => $redirect_tab,
-        'message' => (string)$notification_message
+        'message' => $notification_focus_message
     ];
 }
 
