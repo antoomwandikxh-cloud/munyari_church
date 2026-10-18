@@ -755,6 +755,160 @@ if (isset($_GET['action'])) {
         exit();
     }
 
+    elseif ($action === 'create_organized_attendance_register' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
+        $department = trim($_POST['department'] ?? '');
+        $authorized = false;
+        if ($department !== '' && member_has_role($member_query['church_role'] ?? '', 'organizing secretary')) {
+            foreach (member_organizing_secretary_departments($member_query) as $allowed_department) {
+                if (department_matches($department, $allowed_department)) {
+                    $authorized = true;
+                    $department = $allowed_department;
+                    break;
+                }
+            }
+        }
+        if (!$authorized || !ensure_organized_event_attendance_schema($conn)) {
+            header("Location: member_dashboard.php?tab=organized_events&error=You are not assigned to create a register for this department");
+            exit();
+        }
+
+        $create_register = $conn->prepare("INSERT INTO organized_attendance_registers (department, organizer_id, meeting_date, meeting_type) VALUES (?, ?, ?, 'Online')");
+        if ($create_register) {
+            $today = date('Y-m-d');
+            $create_register->bind_param('sis', $department, $member_id, $today);
+            $created = $create_register->execute();
+            $created_register_id = (int)$create_register->insert_id;
+            $create_register->close();
+        } else {
+            $created = false;
+            $created_register_id = 0;
+        }
+
+        if ($created) {
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($department) . "&success=Attendance register created#attendance-register-" . $created_register_id);
+        } else {
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($department) . "&error=Could not create attendance register");
+        }
+        exit();
+    }
+
+    elseif ($action === 'save_organized_attendance_register' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
+        $register_id = (int)($_POST['register_id'] ?? 0);
+        if (!ensure_organized_event_attendance_schema($conn)) {
+            header("Location: member_dashboard.php?tab=organized_events&error=Attendance register storage is unavailable");
+            exit();
+        }
+        $register_result = $conn->query("SELECT id, department FROM organized_attendance_registers WHERE id = $register_id LIMIT 1");
+        $register = $register_result ? $register_result->fetch_assoc() : null;
+        $authorized = false;
+        if ($register && member_has_role($member_query['church_role'] ?? '', 'organizing secretary')) {
+            foreach (member_organizing_secretary_departments($member_query) as $allowed_department) {
+                if (department_matches($register['department'], $allowed_department)) {
+                    $authorized = true;
+                    break;
+                }
+            }
+        }
+        if (!$authorized) {
+            header("Location: member_dashboard.php?tab=organized_events&error=You are not assigned to manage this attendance register");
+            exit();
+        }
+
+        $meeting_date = trim($_POST['meeting_date'] ?? '');
+        $date_value = DateTime::createFromFormat('!Y-m-d', $meeting_date);
+        $meeting_type = trim($_POST['meeting_type'] ?? '');
+        if (!$date_value || $date_value->format('Y-m-d') !== $meeting_date || $meeting_type === '' || strlen($meeting_type) > 100) {
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Enter a valid date and meeting heading");
+            exit();
+        }
+
+        $posted_ids = isset($_POST['register_attendee_ids']) && is_array($_POST['register_attendee_ids']) ? $_POST['register_attendee_ids'] : [];
+        $selected_ids = array_values(array_unique(array_filter(array_map('intval', $posted_ids), function ($id) { return $id > 0; })));
+        $allowed_ids = [];
+        if ($selected_ids) {
+            $id_list = implode(',', $selected_ids);
+            $department_filter = department_match_sql($conn, 'm.department', $register['department']);
+            $eligible = $conn->query("SELECT m.id FROM members m WHERE m.id IN ($id_list) AND $department_filter AND m.is_approved = 1");
+            if (!$eligible) {
+                header("Location: member_dashboard.php?tab=organized_events&error=Could not verify selected members");
+                exit();
+            }
+            while ($row = $eligible->fetch_assoc()) $allowed_ids[] = (int)$row['id'];
+        }
+
+        $member_times = isset($_POST['register_attendance_times']) && is_array($_POST['register_attendance_times']) ? $_POST['register_attendance_times'] : [];
+        $safe_meeting_date = $conn->real_escape_string($meeting_date);
+        $safe_meeting_type = $conn->real_escape_string($meeting_type);
+        $conn->begin_transaction();
+        $saved = $conn->query("UPDATE organized_attendance_registers SET meeting_date = '$safe_meeting_date', meeting_type = '$safe_meeting_type' WHERE id = $register_id");
+        if ($saved) $saved = $conn->query("DELETE FROM organized_attendance_register_members WHERE register_id = $register_id");
+        if ($saved && $allowed_ids) {
+            $insert = $conn->prepare("INSERT INTO organized_attendance_register_members (register_id, member_id, marked_by, joined_at) VALUES (?, ?, ?, ?)");
+            if ($insert) {
+                foreach ($allowed_ids as $attendee_id) {
+                    $joined_at = trim($member_times[$attendee_id] ?? '');
+                    if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $joined_at)) $joined_at = null;
+                    else $joined_at .= ':00';
+                    $insert->bind_param('iiis', $register_id, $attendee_id, $member_id, $joined_at);
+                    if (!$insert->execute()) {
+                        $saved = false;
+                        break;
+                    }
+                }
+                $insert->close();
+            } else {
+                $saved = false;
+            }
+        }
+
+        if ($saved) {
+            $conn->commit();
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&success=Attendance register saved#attendance-register-" . $register_id);
+        } else {
+            $conn->rollback();
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Could not save attendance register");
+        }
+        exit();
+    }
+
+    elseif ($action === 'delete_organized_attendance_register' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
+        $register_id = (int)($_POST['register_id'] ?? 0);
+        if (!ensure_organized_event_attendance_schema($conn)) {
+            header("Location: member_dashboard.php?tab=organized_events&error=Attendance register storage is unavailable");
+            exit();
+        }
+        $register_result = $conn->query("SELECT id, department FROM organized_attendance_registers WHERE id = $register_id LIMIT 1");
+        $register = $register_result ? $register_result->fetch_assoc() : null;
+        $authorized = false;
+        if ($register && member_has_role($member_query['church_role'] ?? '', 'organizing secretary')) {
+            foreach (member_organizing_secretary_departments($member_query) as $allowed_department) {
+                if (department_matches($register['department'], $allowed_department)) {
+                    $authorized = true;
+                    break;
+                }
+            }
+        }
+        if (!$authorized) {
+            header("Location: member_dashboard.php?tab=organized_events&error=You are not assigned to delete this attendance register");
+            exit();
+        }
+
+        $conn->begin_transaction();
+        $deleted = $conn->query("DELETE FROM organized_attendance_register_members WHERE register_id = $register_id");
+        if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_registers WHERE id = $register_id");
+        if ($deleted) {
+            $conn->commit();
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&success=Attendance register deleted");
+        } else {
+            $conn->rollback();
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Could not delete attendance register");
+        }
+        exit();
+    }
+
     elseif ($action === 'save_organized_event_attendance' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
         $event_id = (int)($_POST['event_id'] ?? 0);

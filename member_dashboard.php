@@ -7400,6 +7400,16 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             <?php if ($tab == 'organized_events' && !empty($member['department']) && $member['department'] !== 'None'): ?>
                 <?php 
                 $active_org_dept = $_GET['org_dept'] ?? (in_array($active_dashboard_dept, $organizing_secretary_depts) ? $active_dashboard_dept : ($organizing_secretary_depts[0] ?? $active_dashboard_dept));
+                if ($is_organizing_secretary) {
+                    $allowed_active_department = null;
+                    foreach ($organizing_secretary_depts as $assigned_department) {
+                        if (department_matches($active_org_dept, $assigned_department)) {
+                            $allowed_active_department = $assigned_department;
+                            break;
+                        }
+                    }
+                    $active_org_dept = $allowed_active_department ?? ($organizing_secretary_depts[0] ?? $active_dashboard_dept);
+                }
                 $current_event_scopes = [];
                 if ($is_organizing_secretary) {
                     $current_event_scopes[$active_org_dept] = $active_org_dept . ' Department';
@@ -7467,6 +7477,98 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php ensure_organized_event_attendance_schema($conn); ?>
                 <?php endif; ?>
 
+                <?php if ($is_organizing_secretary): ?>
+                    <?php foreach ($current_event_scopes as $register_dept => $register_label): ?>
+                        <?php if ($register_dept === 'None' || $register_dept === '') continue; ?>
+                        <?php
+                        $safe_register_dept = $conn->real_escape_string($register_dept);
+                        $registers = $conn->query("SELECT * FROM organized_attendance_registers WHERE department = '$safe_register_dept' ORDER BY created_at DESC, id DESC");
+                        ?>
+                        <section class="content-card" style="margin-bottom:24px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+                                <h2 style="margin:0;"><?= htmlspecialchars($register_label) ?> Attendance Registers</h2>
+                                <form method="POST" action="member_action.php?action=create_organized_attendance_register">
+                                    <input type="hidden" name="department" value="<?= htmlspecialchars($register_dept) ?>">
+                                    <button type="submit" class="btn-submit">Create a Register</button>
+                                </form>
+                            </div>
+                            <?php if ($registers && $registers->num_rows > 0): ?>
+                                <?php while ($attendance_register = $registers->fetch_assoc()): ?>
+                                    <?php
+                                    $register_id = (int)$attendance_register['id'];
+                                    $register_present_count = 0;
+                                    $register_member_filter = department_match_sql($conn, 'm.department', $attendance_register['department']);
+                                    $register_members = $conn->query("SELECT m.id, m.first_name, m.last_name, m.gender, m.phone, m.profile_picture, ram.marked_at, ram.joined_at
+                                        FROM members m
+                                        LEFT JOIN organized_attendance_register_members ram ON ram.member_id = m.id AND ram.register_id = $register_id
+                                        WHERE $register_member_filter AND m.is_approved = 1
+                                        ORDER BY (ram.marked_at IS NULL), (ram.joined_at IS NULL), ram.joined_at, m.first_name, m.last_name");
+                                    ?>
+                                    <div id="attendance-register-<?= $register_id ?>" style="padding:16px 0;border-top:1px solid var(--border-color);">
+                                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                                            <div>
+                                                <h3 style="margin:0;color:var(--primary);">Register #<?= $register_id ?></h3>
+                                                <small style="color:var(--text-muted);">Created <?= date('M j, Y g:i A', strtotime($attendance_register['created_at'])) ?></small>
+                                            </div>
+                                            <form method="POST" action="member_action.php?action=delete_organized_attendance_register" onsubmit="return confirm('Delete this attendance register and its saved attendance? This cannot be undone.');">
+                                                <input type="hidden" name="register_id" value="<?= $register_id ?>">
+                                                <button type="submit" class="btn-sm" style="background:var(--bg-card);color:var(--danger);border:1px solid var(--danger);">Delete Register</button>
+                                            </form>
+                                        </div>
+                                        <form method="POST" data-organized-attendance-form action="member_action.php?action=save_organized_attendance_register" style="margin-top:10px;">
+                                            <input type="hidden" name="register_id" value="<?= $register_id ?>">
+                                            <p style="color:var(--text-muted);font-size:.86rem;margin:0 0 12px;">Select approved members of <?= htmlspecialchars($attendance_register['department']) ?>. Join times are optional.</p>
+                                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;max-width:620px;margin-bottom:14px;">
+                                                <div class="form-group" style="margin-bottom:0;">
+                                                    <label for="register-date-<?= $register_id ?>">Meeting Date</label>
+                                                    <input id="register-date-<?= $register_id ?>" type="date" name="meeting_date" class="form-control" value="<?= htmlspecialchars($attendance_register['meeting_date']) ?>" required>
+                                                </div>
+                                                <div class="form-group" style="margin-bottom:0;">
+                                                    <label for="register-type-<?= $register_id ?>">Meeting Heading</label>
+                                                    <input id="register-type-<?= $register_id ?>" type="text" name="meeting_type" class="form-control" value="<?= htmlspecialchars($attendance_register['meeting_type']) ?>" maxlength="100" placeholder="Online, Physical, or another heading" required>
+                                                </div>
+                                            </div>
+                                            <div style="overflow-x:auto;border:1px solid var(--border-color);border-radius:8px;">
+                                                <table style="width:100%;border-collapse:collapse;min-width:760px;">
+                                                    <thead><tr style="background:var(--bg-main);text-align:left;">
+                                                        <th style="padding:9px;">Present</th><th style="padding:9px;">Profile</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Time Joined (Optional)</th>
+                                                    </tr></thead>
+                                                    <tbody>
+                                                        <?php if ($register_members && $register_members->num_rows > 0): while ($register_member = $register_members->fetch_assoc()): if (!empty($register_member['marked_at'])) $register_present_count++; ?>
+                                                            <?php
+                                                            $register_photo = 'uploads/' . basename($register_member['profile_picture'] ?: 'default_avatar.png');
+                                                            $register_joined_time = !empty($register_member['joined_at']) ? substr($register_member['joined_at'], 0, 5) : '';
+                                                            $register_member_name = trim($register_member['first_name'] . ' ' . $register_member['last_name']);
+                                                            ?>
+                                                            <tr data-attendee-row="1" data-name="<?= htmlspecialchars($register_member_name, ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($register_member['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($register_member['phone'] ?? '', ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($register_photo, ENT_QUOTES) ?>" data-joined-at="<?= htmlspecialchars($register_joined_time, ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
+                                                                <td style="padding:9px;"><input type="checkbox" name="register_attendee_ids[]" data-attendance-checkbox value="<?= (int)$register_member['id'] ?>" <?= !empty($register_member['marked_at']) ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($register_member_name) ?> present"></td>
+                                                                <td style="padding:7px;"><img src="<?= htmlspecialchars($register_photo) ?>" alt="Profile photo" title="Click to view full photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:zoom-in;"></td>
+                                                                <td style="padding:9px;"><?= htmlspecialchars($register_member_name) ?></td>
+                                                                <td style="padding:9px;"><?= htmlspecialchars($register_member['gender'] ?? '') ?></td>
+                                                                <td style="padding:9px;"><?= htmlspecialchars($register_member['phone'] ?? '') ?></td>
+                                                                <td style="padding:7px;"><input type="time" name="register_attendance_times[<?= (int)$register_member['id'] ?>]" value="<?= htmlspecialchars($register_joined_time) ?>" aria-label="Time <?= htmlspecialchars($register_member_name) ?> joined" style="min-width:112px;"></td>
+                                                            </tr>
+                                                        <?php endwhile; else: ?>
+                                                            <tr><td colspan="6" style="padding:12px;color:var(--text-muted);">No approved members are registered in this department.</td></tr>
+                                                        <?php endif; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                                                <button type="submit" class="btn-submit">Save Attendance</button>
+                                                <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait', true)">Print / Save PDF - Portrait</button>
+                                                <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape', true)">Print / Save PDF - Landscape</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <p style="margin:0;color:var(--text-muted);">No attendance registers yet. Create one to select members and record attendance.</p>
+                            <?php endif; ?>
+                        </section>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+
                 <?php foreach ($current_event_scopes as $scope_dept => $scope_label): ?>
                     <?php if ($scope_dept === 'None' || $scope_dept === '') continue; ?>
                     <div class="content-card" style="margin-bottom:24px;">
@@ -7504,7 +7606,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         ORDER BY (ea.marked_at IS NULL), (ea.joined_at IS NULL), ea.joined_at, m.first_name, m.last_name");
                                     $manual_attendees = $conn->query("SELECT id, attendee_name, gender, phone, profile_picture, is_present, joined_at FROM organized_event_manual_attendance WHERE event_id = $event_id ORDER BY is_present DESC, (joined_at IS NULL), joined_at, attendee_name");
                                     ?>
-                                    <form method="POST" action="member_action.php?action=save_organized_event_attendance" enctype="multipart/form-data" style="margin-top:20px;">
+                                    <form method="POST" data-organized-attendance-form action="member_action.php?action=save_organized_event_attendance" enctype="multipart/form-data" style="margin-top:20px;">
                                         <input type="hidden" name="event_id" value="<?= $event_id ?>">
                                         <h4 style="margin:0 0 6px;">Meeting Attendance</h4>
                                         <p style="color:var(--text-muted);font-size:.86rem;margin:0 0 12px;">Set the date and editable meeting heading. Join times are optional; attendees with times will be arranged from earliest to latest.</p>
@@ -7589,10 +7691,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <?php endforeach; ?>
                 <?php if ($is_organizing_secretary): ?>
                     <script>
-                    function printOrganizedAttendance(eventId, orientation) {
-                        var card = document.getElementById('event-attendance-' + eventId);
+                    function printOrganizedAttendance(eventId, orientation, standaloneRegister) {
+                        var cardId = (standaloneRegister ? 'attendance-register-' : 'event-attendance-') + eventId;
+                        var card = document.getElementById(cardId);
                         if (!card) return;
-                        var form = card.querySelector('form[action*="save_organized_event_attendance"]');
+                        var form = card.querySelector('form[data-organized-attendance-form]');
                         if (!form || form.dataset.attendanceDirty === 'true') {
                             alert('Save your attendance changes before printing or downloading.');
                             return;
@@ -7707,7 +7810,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             return timeA.localeCompare(timeB) || a.dataset.name.localeCompare(b.dataset.name);
                         }).forEach(function(row) { body.appendChild(row); });
                     }
-                    document.querySelectorAll('form[action*="save_organized_event_attendance"]').forEach(function(form) {
+                    document.querySelectorAll('form[data-organized-attendance-form]').forEach(function(form) {
                         sortOrganizedAttendanceRows(form);
                         form.addEventListener('input', function() { markOrganizedAttendanceDirty(form); });
                         form.addEventListener('change', function(event) {

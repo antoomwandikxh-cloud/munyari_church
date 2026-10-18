@@ -31,7 +31,7 @@ function ensure_organized_event_attendance_schema($conn) {
         if (!$conn->query("ALTER TABLE organized_events ADD COLUMN meeting_type VARCHAR(100) NOT NULL DEFAULT 'Online' AFTER meeting_date")) return false;
     }
 
-    return (bool)$conn->query("CREATE TABLE IF NOT EXISTS organized_event_manual_attendance (
+    $manual_created = $conn->query("CREATE TABLE IF NOT EXISTS organized_event_manual_attendance (
         id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
         event_id INT(6) UNSIGNED NOT NULL,
         attendee_name VARCHAR(255) NOT NULL,
@@ -44,6 +44,30 @@ function ensure_organized_event_attendance_schema($conn) {
         marked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
         KEY idx_manual_attendance_event (event_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+    if (!$manual_created) return false;
+
+    $registers_created = $conn->query("CREATE TABLE IF NOT EXISTS organized_attendance_registers (
+        id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+        department VARCHAR(100) NOT NULL,
+        organizer_id INT(6) UNSIGNED NOT NULL,
+        meeting_date DATE NOT NULL,
+        meeting_type VARCHAR(100) NOT NULL DEFAULT 'Online',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_attendance_register_department (department),
+        KEY idx_attendance_register_organizer (organizer_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+    if (!$registers_created) return false;
+
+    return (bool)$conn->query("CREATE TABLE IF NOT EXISTS organized_attendance_register_members (
+        register_id INT(10) UNSIGNED NOT NULL,
+        member_id INT(6) UNSIGNED NOT NULL,
+        marked_by INT(6) UNSIGNED NOT NULL,
+        marked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        joined_at TIME NULL,
+        PRIMARY KEY (register_id, member_id),
+        KEY idx_register_member (member_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 }
 
