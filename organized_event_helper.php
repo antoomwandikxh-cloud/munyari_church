@@ -26,6 +26,11 @@ function ensure_organized_event_attendance_schema($conn) {
         if (!$conn->query("ALTER TABLE organized_events ADD COLUMN meeting_date DATE NULL AFTER audio_path")) return false;
     }
 
+    $meeting_type_column = $conn->query("SHOW COLUMNS FROM organized_events LIKE 'meeting_type'");
+    if ($meeting_type_column && $meeting_type_column->num_rows === 0) {
+        if (!$conn->query("ALTER TABLE organized_events ADD COLUMN meeting_type VARCHAR(100) NOT NULL DEFAULT 'Online' AFTER meeting_date")) return false;
+    }
+
     return (bool)$conn->query("CREATE TABLE IF NOT EXISTS organized_event_manual_attendance (
         id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
         event_id INT(6) UNSIGNED NOT NULL,

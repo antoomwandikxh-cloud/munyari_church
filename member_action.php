@@ -755,6 +755,11 @@ if (isset($_GET['action'])) {
             header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($event['department']) . "&error=Choose the scheduled meeting date");
             exit();
         }
+        $meeting_type = trim($_POST['meeting_type'] ?? '');
+        if ($meeting_type === '' || strlen($meeting_type) > 100) {
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($event['department']) . "&error=Enter a meeting heading up to 100 characters");
+            exit();
+        }
 
         $posted_ids = isset($_POST['attendee_ids']) && is_array($_POST['attendee_ids']) ? $_POST['attendee_ids'] : [];
         $selected_ids = array_values(array_unique(array_filter(array_map('intval', $posted_ids), function ($id) {
@@ -795,13 +800,13 @@ if (isset($_GET['action'])) {
                 exit();
             }
             $time = trim($manual['joined_at'] ?? '');
-            if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time)) $time = date('H:i');
+            if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time)) $time = '';
             $new_manual_attendees[] = [
                 'name' => $name,
                 'gender' => trim($manual['gender'] ?? ''),
                 'phone' => trim($manual['phone'] ?? ''),
                 'photo' => $photo_path,
-                'joined_at' => $time . ':00'
+                'joined_at' => $time === '' ? null : $time . ':00'
             ];
         }
 
@@ -813,15 +818,16 @@ if (isset($_GET['action'])) {
 
         $conn->begin_transaction();
         $safe_meeting_date = $conn->real_escape_string($meeting_date);
-        $saved = $conn->query("UPDATE organized_events SET meeting_date = '$safe_meeting_date' WHERE id = $event_id");
+        $safe_meeting_type = $conn->real_escape_string($meeting_type);
+        $saved = $conn->query("UPDATE organized_events SET meeting_date = '$safe_meeting_date', meeting_type = '$safe_meeting_type' WHERE id = $event_id");
         if ($saved) $saved = $conn->query("DELETE FROM organized_event_attendance WHERE event_id = $event_id");
         if ($saved && $allowed_ids) {
             $insert = $conn->prepare("INSERT INTO organized_event_attendance (event_id, member_id, marked_by, joined_at) VALUES (?, ?, ?, ?)");
             if ($insert) {
                 foreach ($allowed_ids as $attendee_id) {
                     $joined_at = trim($member_times[$attendee_id] ?? '');
-                    if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $joined_at)) $joined_at = date('H:i');
-                    $joined_at .= ':00';
+                    if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $joined_at)) $joined_at = null;
+                    else $joined_at .= ':00';
                     $insert->bind_param('iiis', $event_id, $attendee_id, $member_id, $joined_at);
                     if (!$insert->execute()) {
                         $saved = false;
@@ -842,8 +848,8 @@ if (isset($_GET['action'])) {
             if ($update_manual) {
                 foreach ($manual_ids as $manual_id) {
                     $joined_at = trim($manual_times[$manual_id] ?? '');
-                    if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $joined_at)) $joined_at = date('H:i');
-                    $joined_at .= ':00';
+                    if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $joined_at)) $joined_at = null;
+                    else $joined_at .= ':00';
                     $update_manual->bind_param('siii', $joined_at, $member_id, $manual_id, $event_id);
                     if (!$update_manual->execute()) {
                         $saved = false;

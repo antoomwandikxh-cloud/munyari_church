@@ -7501,27 +7501,33 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         FROM members m
                                         LEFT JOIN organized_event_attendance ea ON ea.member_id = m.id AND ea.event_id = $event_id
                                         WHERE $attendee_filter AND m.is_approved = 1
-                                        ORDER BY m.first_name, m.last_name");
-                                    $manual_attendees = $conn->query("SELECT id, attendee_name, gender, phone, profile_picture, is_present, joined_at FROM organized_event_manual_attendance WHERE event_id = $event_id ORDER BY attendee_name");
+                                        ORDER BY (ea.marked_at IS NULL), (ea.joined_at IS NULL), ea.joined_at, m.first_name, m.last_name");
+                                    $manual_attendees = $conn->query("SELECT id, attendee_name, gender, phone, profile_picture, is_present, joined_at FROM organized_event_manual_attendance WHERE event_id = $event_id ORDER BY is_present DESC, (joined_at IS NULL), joined_at, attendee_name");
                                     ?>
                                     <form method="POST" action="member_action.php?action=save_organized_event_attendance" enctype="multipart/form-data" style="margin-top:20px;">
                                         <input type="hidden" name="event_id" value="<?= $event_id ?>">
                                         <h4 style="margin:0 0 6px;">Meeting Attendance</h4>
-                                        <p style="color:var(--text-muted);font-size:.86rem;margin:0 0 12px;">Set the scheduled date, tick those present, and record when they joined. You can also add a walk-in attendee manually.</p>
-                                        <div class="form-group" style="max-width:260px;margin-bottom:14px;">
-                                            <label for="meeting-date-<?= $event_id ?>">Scheduled Meeting Date</label>
-                                            <input id="meeting-date-<?= $event_id ?>" type="date" name="meeting_date" class="form-control" value="<?= htmlspecialchars($ev['meeting_date'] ?? date('Y-m-d')) ?>" required>
+                                        <p style="color:var(--text-muted);font-size:.86rem;margin:0 0 12px;">Set the date and editable meeting heading. Join times are optional; attendees with times will be arranged from earliest to latest.</p>
+                                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;max-width:620px;margin-bottom:14px;">
+                                            <div class="form-group" style="margin-bottom:0;">
+                                                <label for="meeting-date-<?= $event_id ?>">Scheduled Meeting Date</label>
+                                                <input id="meeting-date-<?= $event_id ?>" type="date" name="meeting_date" class="form-control" value="<?= htmlspecialchars($ev['meeting_date'] ?? date('Y-m-d')) ?>" required>
+                                            </div>
+                                            <div class="form-group" style="margin-bottom:0;">
+                                                <label for="meeting-type-<?= $event_id ?>">Meeting Heading</label>
+                                                <input id="meeting-type-<?= $event_id ?>" type="text" name="meeting_type" class="form-control" value="<?= htmlspecialchars($ev['meeting_type'] ?? 'Online') ?>" maxlength="100" placeholder="Online, Physical, or another heading" required>
+                                            </div>
                                         </div>
                                         <div style="overflow-x:auto;border:1px solid var(--border-color);border-radius:8px;">
                                             <table style="width:100%;border-collapse:collapse;min-width:760px;">
                                                 <thead><tr style="background:var(--bg-main);text-align:left;">
-                                                    <th style="padding:9px;">Present</th><th style="padding:9px;">Profile</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Time Joined</th>
+                                                    <th style="padding:9px;">Present</th><th style="padding:9px;">Profile</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Time Joined (Optional)</th>
                                                 </tr></thead>
                                                 <tbody>
                                                 <?php if ($attendance_members && $attendance_members->num_rows > 0): while ($attendee = $attendance_members->fetch_assoc()): if (!empty($attendee['marked_at'])) $saved_present_count++; ?>
                                                     <?php
                                                     $attendee_photo = 'uploads/' . basename($attendee['profile_picture'] ?: 'default_avatar.png');
-                                                    $attendee_joined_time = !empty($attendee['joined_at']) ? substr($attendee['joined_at'], 0, 5) : (!empty($attendee['marked_at']) ? date('H:i', strtotime($attendee['marked_at'])) : '');
+                                                    $attendee_joined_time = !empty($attendee['joined_at']) ? substr($attendee['joined_at'], 0, 5) : '';
                                                     ?>
                                                     <tr data-attendee-row="1" data-name="<?= htmlspecialchars(trim($attendee['first_name'] . ' ' . $attendee['last_name']), ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($attendee['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($attendee['phone'] ?? '', ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($attendee_photo, ENT_QUOTES) ?>" data-joined-at="<?= htmlspecialchars($attendee_joined_time, ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
                                                         <td style="padding:9px;"><input type="checkbox" name="attendee_ids[]" data-attendance-checkbox value="<?= (int)$attendee['id'] ?>" <?= $attendee['marked_at'] ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($attendee['first_name'] . ' ' . $attendee['last_name']) ?> present"></td>
@@ -7584,6 +7590,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             return;
                         }
                         var selected = form ? Array.from(form.querySelectorAll('[data-attendance-checkbox]:checked')) : [];
+                        selected.sort(function(a, b) {
+                            var timeA = a.closest('[data-attendee-row]').dataset.joinedAt || '';
+                            var timeB = b.closest('[data-attendee-row]').dataset.joinedAt || '';
+                            if (!timeA && timeB) return 1;
+                            if (timeA && !timeB) return -1;
+                            return timeA.localeCompare(timeB) || a.closest('[data-attendee-row]').dataset.name.localeCompare(b.closest('[data-attendee-row]').dataset.name);
+                        });
                         if (!selected.length) {
                             alert('Select at least one attending member before printing.');
                             return;
@@ -7596,10 +7609,18 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         var rows = selected.map(function(checkbox, index) {
                             var row = checkbox.closest('[data-attendee-row]');
                             var photo = new URL(row.dataset.photo || 'uploads/default_avatar.png', window.location.href).href;
-                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td><td>' + escapeHtml(row.dataset.joinedAt || '-') + '</td></tr>';
+                            var joinedAt = row.dataset.joinedAt || '';
+                            var displayTime = '';
+                            if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(joinedAt)) {
+                                var timeParts = joinedAt.split(':');
+                                var hour = parseInt(timeParts[0], 10);
+                                displayTime = (hour % 12 || 12) + ':' + timeParts[1] + ' ' + (hour >= 12 ? 'PM' : 'AM');
+                            }
+                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td><td>' + escapeHtml(displayTime) + '</td></tr>';
                         }).join('');
                         var department = <?= json_encode($active_org_dept) ?>;
                         var meetingDate = form.querySelector('[name="meeting_date"]').value;
+                        var meetingType = form.querySelector('[name="meeting_type"]').value.trim() || 'Online';
                         var leaderName = <?= json_encode(strtoupper($member['first_name'] . ' ' . $member['last_name'])) ?>;
                         var leaderPhoto = new URL(<?= json_encode('uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png')) ?>, window.location.href).href;
                         var logoUrl = new URL('church_logo.jpg', window.location.href).href;
@@ -7616,27 +7637,29 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             .leader{text-align:center;margin:0 auto 14px}.leader img{width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}
                             .leader-name{font-size:14px;font-weight:800;color:#0e7490;margin-top:4px}
                             .brand{display:grid;grid-template-columns:62px 1fr 62px;align-items:center;gap:12px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 10px;margin-bottom:14px}
-                            .brand-logo{width:62px;height:62px;object-fit:contain}.brand h1{font-size:18px;line-height:1.3;color:#0e7490;margin:4px 0}
+                            .brand-logo{width:62px;height:62px;object-fit:contain}.brand h1{font-size:18px;line-height:1.3;color:#0e7490;text-transform:uppercase;margin:4px 0}
                             .brand p{font-size:11px;color:#555;margin:4px 0}.report-meta{text-align:center;margin:0 0 14px;color:#444}
                             table{width:100%;border-collapse:collapse;position:relative}thead{display:table-header-group}tr{page-break-inside:avoid;break-inside:avoid}
                             th,td{border:1px solid #888;padding:6px;text-align:left;vertical-align:middle}th{background:#0e7490;color:#fff;font-size:10px;text-transform:uppercase}
                             .member-photo{display:block;width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #aaa}
-                            .signature{display:flex;flex-direction:column;gap:16px;width:min(100%,420px);margin:28px auto 0;page-break-inside:avoid}
-                            .signature-row{display:grid;grid-template-columns:170px 1fr;gap:12px;align-items:end;min-height:24px}
+                            .signature{display:grid;grid-template-columns:minmax(0,1fr) 100px;align-items:center;gap:28px;width:min(100%,560px);margin:28px auto 0;page-break-inside:avoid}
+                            .signature-details{display:flex;flex-direction:column;gap:14px}.signature-row{display:grid;grid-template-columns:170px minmax(80px,1fr);gap:12px;align-items:end;min-height:24px}
                             .signature-label{font-weight:700}.signature-line{height:20px;border-bottom:1px solid #333}
-                            .stamp{width:82px;height:64px;margin:4px auto 0;border:2px dashed #999;display:flex;align-items:center;justify-content:center;text-align:center;color:#777;font-size:10px}
+                            .stamp{width:82px;height:82px;justify-self:end;border:2px dashed #999;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#777;font-size:10px}
                             .footer{position:fixed;bottom:-16mm;left:0;right:0;border-top:1px solid #0e7490;padding-top:5px;text-align:center;font-size:9px;color:#53606b}
                             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
                         </style></head><body>
                             <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
                             <div class="leader"><img src="${escapeHtml(leaderPhoto)}" alt="Organising Secretary"><div class="leader-name">${escapeHtml(leaderName)}</div><div style="font-size:10px;color:#555">Organising Secretary</div></div>
-                            <div class="brand"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"><h1>E.A.P.C MUNYARI ONLINE ATTENDANCE REGISTER</h1><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"></div>
+                            <div class="brand"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"><h1>E.A.P.C MUNYARI ${escapeHtml(meetingType)} ATTENDANCE REGISTER</h1><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"></div>
                             <p class="report-meta">${escapeHtml(department)} Department | Meeting date: ${escapeHtml(meetingDate)}</p>
                             <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Member Name</th><th>Gender</th><th>Phone</th><th>Time Joined</th></tr></thead><tbody>${rows}</tbody></table>
                             <div class="signature">
-                                <div class="signature-row"><span class="signature-label">Organising Secretary Signature</span><span class="signature-line"></span></div>
-                                <div class="signature-row"><span class="signature-label">Name: ${escapeHtml(leaderName)}</span><span></span></div>
-                                <div class="signature-row"><span class="signature-label">Date</span><span class="signature-line"></span></div>
+                                <div class="signature-details">
+                                    <div class="signature-row"><span class="signature-label">Organising Secretary Signature</span><span class="signature-line"></span></div>
+                                    <div class="signature-row"><span class="signature-label">Name: ${escapeHtml(leaderName)}</span><span></span></div>
+                                    <div class="signature-row"><span class="signature-label">Date</span><span class="signature-line"></span></div>
+                                </div>
                                 <div class="stamp">OFFICIAL<br>STAMP</div>
                             </div>
                             <div class="footer">E.A.P.C Munyari Online Attendance Register | ${escapeHtml(department)} Department | Present: ${selected.length} | Generated: ${escapeHtml(generatedAt)}</div>
@@ -7656,26 +7679,39 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         var form = button.closest('form');
                         var list = form.querySelector('[data-manual-attendee-list]');
                         var index = manualEventAttendeeIndex++;
-                        var now = new Date();
-                        var joinedAt = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                         var row = document.createElement('div');
                         row.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;padding:10px 0;border-bottom:1px solid var(--border-color);align-items:end;';
-                        row.innerHTML = '<div><label>Full Name</label><input class="form-control" name="manual_attendees[' + index + '][name]" required></div><div><label>Gender</label><select class="form-control" name="manual_attendees[' + index + '][gender]"><option value="">Select</option><option>Female</option><option>Male</option></select></div><div><label>Phone</label><input class="form-control" name="manual_attendees[' + index + '][phone]" inputmode="tel"></div><div><label>Time Joined</label><input class="form-control" type="time" name="manual_attendees[' + index + '][joined_at]" value="' + joinedAt + '"></div><div><label>Profile Photo</label><input type="file" name="manual_photos[' + index + ']" accept="image/*" required></div><button type="button" class="btn-sm" style="background:var(--danger);color:white;" onclick="this.closest(\'div[style]\').remove();markOrganizedAttendanceDirty(this.closest(\'form\'))">Remove</button>';
+                        row.innerHTML = '<div><label>Full Name</label><input class="form-control" name="manual_attendees[' + index + '][name]" required></div><div><label>Gender</label><select class="form-control" name="manual_attendees[' + index + '][gender]"><option value="">Select</option><option>Female</option><option>Male</option></select></div><div><label>Phone</label><input class="form-control" name="manual_attendees[' + index + '][phone]" inputmode="tel"></div><div><label>Time Joined (Optional)</label><input class="form-control" type="time" name="manual_attendees[' + index + '][joined_at]"></div><div><label>Profile Photo</label><input type="file" name="manual_photos[' + index + ']" accept="image/*" required></div><button type="button" class="btn-sm" style="background:var(--danger);color:white;" onclick="this.closest(\'div[style]\').remove();markOrganizedAttendanceDirty(this.closest(\'form\'))">Remove</button>';
                         list.appendChild(row);
                         markOrganizedAttendanceDirty(form);
                     }
+                    function sortOrganizedAttendanceRows(form) {
+                        var body = form.querySelector('tbody');
+                        if (!body) return;
+                        Array.from(body.querySelectorAll('tr[data-attendee-row]')).sort(function(a, b) {
+                            var presentA = a.querySelector('[data-attendance-checkbox]').checked;
+                            var presentB = b.querySelector('[data-attendance-checkbox]').checked;
+                            if (presentA !== presentB) return presentA ? -1 : 1;
+                            var timeA = a.dataset.joinedAt || '';
+                            var timeB = b.dataset.joinedAt || '';
+                            if (timeA && !timeB) return -1;
+                            if (!timeA && timeB) return 1;
+                            return timeA.localeCompare(timeB) || a.dataset.name.localeCompare(b.dataset.name);
+                        }).forEach(function(row) { body.appendChild(row); });
+                    }
                     document.querySelectorAll('form[action*="save_organized_event_attendance"]').forEach(function(form) {
+                        sortOrganizedAttendanceRows(form);
                         form.addEventListener('input', function() { markOrganizedAttendanceDirty(form); });
                         form.addEventListener('change', function(event) {
                             if (event.target.matches('[data-attendance-checkbox]')) {
-                                if (event.target.checked) {
-                                    var timeInput = event.target.closest('tr').querySelector('input[type="time"]');
-                                    if (timeInput && !timeInput.value) {
-                                        var now = new Date();
-                                        timeInput.value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-                                    }
-                                }
+                                sortOrganizedAttendanceRows(form);
                                 markOrganizedAttendanceDirty(form);
+                            } else if (event.target.matches('input[type="time"]')) {
+                                var row = event.target.closest('tr[data-attendee-row]');
+                                if (row) {
+                                    row.dataset.joinedAt = event.target.value;
+                                    sortOrganizedAttendanceRows(form);
+                                }
                             }
                         });
                     });
