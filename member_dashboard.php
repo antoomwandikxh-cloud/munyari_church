@@ -3413,19 +3413,19 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
             <?php if ($tab == 'dashboard'): ?>
                 <div class="page-header">
                     <?php if (!empty($welcome_role_lines)): ?>
-                        <h1>Welcome <?= htmlspecialchars(ucwords(strtolower($member['first_name']))) ?> to Munyari Church 🙏</h1>
+                        <h1 data-welcome-greeting>Welcome <?= htmlspecialchars(ucwords(strtolower($member['first_name']))) ?> to Munyari Church 🙏</h1>
                         <div style="margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-family: 'Inter', 'Segoe UI', sans-serif; font-size: 1rem; font-weight: 700; color: #111; letter-spacing: 0.01em;">
                         <?php foreach ($welcome_role_lines as $i => $wrl): ?>
                             <?php if ($i > 0): ?>
                                 <span style="color: #555; font-weight: 400; font-size: 1.2rem; line-height: 1;">·</span>
                             <?php endif; ?>
-                            <span style="color: #111; font-weight: 800;"><?= htmlspecialchars($wrl['role']) ?></span>
+                            <span data-welcome-role="<?= htmlspecialchars(normalize_role_name($wrl['role']), ENT_QUOTES) ?>" style="display:inline-block;color: #111; font-weight: 800;"><?= htmlspecialchars($wrl['role']) ?></span>
                             <span style="color: #444; font-weight: 500; font-size: 0.9rem; font-style: italic;">Under</span>
                             <span style="color: #111; font-weight: 700;"><?= htmlspecialchars($wrl['scope']) ?></span>
                         <?php endforeach; ?>
                         </div>
                     <?php else: ?>
-                        <h1>Welcome <?= htmlspecialchars(ucwords(strtolower($member['first_name']))) ?> to Munyari Church 🙏</h1>
+                        <h1 data-welcome-greeting>Welcome <?= htmlspecialchars(ucwords(strtolower($member['first_name']))) ?> to Munyari Church 🙏</h1>
                         <p>Welcome to your personal portal. Here is what's happening in your department.</p>
                         <?php if (!empty($member_home_department) && $member_home_department !== 'None'): ?>
                         <div style="margin-top: 10px; display: flex; align-items: center; gap: 6px; font-family: 'Inter', 'Segoe UI', sans-serif; font-size: 1rem; font-weight: 700; color: #111;">

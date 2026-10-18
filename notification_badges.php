@@ -612,6 +612,35 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
         }
+        if (/\byour roles?\b[\s\S]*\bremoved\b/i.test(notificationMessage)) {
+            main.classList.add("notification-dashboard-glow");
+            return;
+        }
+
+        var assignedRole = "";
+        var roleAssignmentMatch = notificationMessage.match(/you have been assigned a new role:\s*(.+)$/i);
+        if (roleAssignmentMatch) {
+            assignedRole = roleAssignmentMatch[1]
+                .replace(/\s+by\s+(?:admin|pastor)\.?\s*$/i, "")
+                .replace(/\s+under\s+.+$/i, "")
+                .replace(/[.!?]+\s*$/, "")
+                .trim();
+        } else {
+            var welcomeRoleMatch = notificationMessage.match(/\bwelcome\s+.+?\s+as\s+(.+?)\s+in\s+the\s+.+$/i);
+            if (welcomeRoleMatch) assignedRole = welcomeRoleMatch[1].trim();
+        }
+        if (assignedRole) {
+            var roleKey = assignedRole.replace(/\([^)]*\)/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+            var roleNode = Array.from(main.querySelectorAll("[data-welcome-role]")).find(function (node) {
+                return node.getAttribute("data-welcome-role") === roleKey;
+            });
+            if (roleNode) {
+                addHighlightedRow(main.querySelector("[data-welcome-greeting]"));
+                roleNode.classList.add("notification-role-glow");
+                addHighlightedRow(roleNode);
+                return;
+            }
+        }
         var fineMatch = notificationMessage.match(/\bfine record\s*#\s*(\d+)/i);
         if (fineMatch) {
             var fineRow = main.querySelector('[data-notification-row="member-fine-' + fineMatch[1] + '"]');
