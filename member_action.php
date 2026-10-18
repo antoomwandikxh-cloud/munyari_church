@@ -959,6 +959,95 @@ if (isset($_GET['action'])) {
         exit();
     }
 
+    elseif ($action === 'update_organized_attendance_member' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
+        $register_id = (int)($_POST['register_id'] ?? 0);
+        $target_member_id = (int)($_POST['member_id'] ?? 0);
+        $manual_attendee_id = (int)($_POST['manual_attendee_id'] ?? 0);
+        $phone = trim($_POST['phone'] ?? '');
+        if (!ensure_organized_event_attendance_schema($conn)) {
+            header("Location: member_dashboard.php?tab=organized_events&error=Attendance register storage is unavailable");
+            exit();
+        }
+
+        $register_result = $conn->query("SELECT id, department FROM organized_attendance_registers WHERE id = $register_id LIMIT 1");
+        $register = $register_result ? $register_result->fetch_assoc() : null;
+        $authorized = false;
+        if ($register && member_has_role($member_query['church_role'] ?? '', 'organizing secretary')) {
+            foreach (member_organizing_secretary_departments($member_query) as $allowed_department) {
+                if (department_matches($register['department'], $allowed_department)) {
+                    $authorized = true;
+                    break;
+                }
+            }
+        }
+        if (!$authorized || ($target_member_id < 1 && $manual_attendee_id < 1)) {
+            header("Location: member_dashboard.php?tab=organized_events&error=You are not assigned to edit this register member");
+            exit();
+        }
+        if (strlen($phone) > 40) {
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Phone number must be 40 characters or fewer#attendance-register-" . $register_id);
+            exit();
+        }
+
+        $old_profile_path = null;
+        if ($manual_attendee_id > 0) {
+            $manual_result = $conn->query("SELECT id, profile_picture FROM organized_attendance_register_manual_members WHERE id = $manual_attendee_id AND register_id = $register_id LIMIT 1");
+            $manual_attendee = $manual_result ? $manual_result->fetch_assoc() : null;
+            if (!$manual_attendee) {
+                header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Manual attendee was not found in this register#attendance-register-" . $register_id);
+                exit();
+            }
+            $old_profile_path = $manual_attendee['profile_picture'] ?? null;
+        } else {
+            $member_filter = department_match_sql($conn, 'department', $register['department']);
+            $eligible = $conn->query("SELECT id FROM members WHERE id = $target_member_id AND $member_filter AND is_approved = 1 LIMIT 1");
+            if (!$eligible || !$eligible->fetch_assoc()) {
+                header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=That member is not an approved member of this department#attendance-register-" . $register_id);
+                exit();
+            }
+        }
+
+        $photo_upload = $_FILES['profile_photo'] ?? null;
+        $new_photo_path = save_organized_event_attendee_photo($photo_upload);
+        if ($new_photo_path === false) {
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Choose a valid profile photo under 5 MB#attendance-register-" . $register_id);
+            exit();
+        }
+
+        if ($manual_attendee_id > 0) {
+            $save_details = $conn->prepare("UPDATE organized_attendance_register_manual_members SET phone = ?, profile_picture = COALESCE(?, profile_picture) WHERE id = ? AND register_id = ?");
+            if ($save_details) {
+                $save_details->bind_param('ssii', $phone, $new_photo_path, $manual_attendee_id, $register_id);
+                $saved_override = $save_details->execute();
+                $save_details->close();
+            } else {
+                $saved_override = false;
+            }
+        } else {
+            $old_override_result = $conn->query("SELECT profile_picture_override FROM organized_attendance_register_member_overrides WHERE register_id = $register_id AND member_id = $target_member_id LIMIT 1");
+            $old_override = $old_override_result ? $old_override_result->fetch_assoc() : null;
+            $old_profile_path = $old_override['profile_picture_override'] ?? null;
+            $save_override = $conn->prepare("INSERT INTO organized_attendance_register_member_overrides (register_id, member_id, phone_override, profile_picture_override, updated_by) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE phone_override = VALUES(phone_override), profile_picture_override = COALESCE(VALUES(profile_picture_override), profile_picture_override), updated_by = VALUES(updated_by), updated_at = CURRENT_TIMESTAMP");
+            if ($save_override) {
+                $save_override->bind_param('iissi', $register_id, $target_member_id, $phone, $new_photo_path, $member_id);
+                $saved_override = $save_override->execute();
+                $save_override->close();
+            } else {
+                $saved_override = false;
+            }
+        }
+
+        if ($saved_override) {
+            if ($new_photo_path && !empty($old_profile_path)) delete_organized_event_file($old_profile_path, 'uploads/organized_event_attendees');
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&success=Register member details updated#attendance-register-" . $register_id);
+        } else {
+            if ($new_photo_path) delete_organized_event_file($new_photo_path, 'uploads/organized_event_attendees');
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Could not update register member details#attendance-register-" . $register_id);
+        }
+        exit();
+    }
+
     elseif ($action === 'delete_organized_attendance_register' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
         $register_id = (int)($_POST['register_id'] ?? 0);
@@ -984,6 +1073,7 @@ if (isset($_GET['action'])) {
 
         $conn->begin_transaction();
         $manual_photo_paths = [];
+        $override_photo_paths = [];
         $manual_photo_rows = $conn->query("SELECT profile_picture FROM organized_attendance_register_manual_members WHERE register_id = $register_id");
         if ($manual_photo_rows) {
             while ($manual_photo = $manual_photo_rows->fetch_assoc()) {
@@ -991,12 +1081,23 @@ if (isset($_GET['action'])) {
             }
         }
         $deleted = (bool)$manual_photo_rows;
+        $override_photo_rows = $deleted ? $conn->query("SELECT profile_picture_override FROM organized_attendance_register_member_overrides WHERE register_id = $register_id") : false;
+        if ($override_photo_rows) {
+            while ($override_photo = $override_photo_rows->fetch_assoc()) {
+                if (!empty($override_photo['profile_picture_override'])) $override_photo_paths[] = $override_photo['profile_picture_override'];
+            }
+        }
+        $deleted = $deleted && (bool)$override_photo_rows;
         if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_register_manual_members WHERE register_id = $register_id");
+        if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_register_member_overrides WHERE register_id = $register_id");
         if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_register_members WHERE register_id = $register_id");
         if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_registers WHERE id = $register_id");
         if ($deleted) {
             $conn->commit();
             foreach ($manual_photo_paths as $photo_path) {
+                delete_organized_event_file($photo_path, 'uploads/organized_event_attendees');
+            }
+            foreach ($override_photo_paths as $photo_path) {
                 delete_organized_event_file($photo_path, 'uploads/organized_event_attendees');
             }
             header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&success=Attendance register deleted");

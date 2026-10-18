@@ -7498,9 +7498,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     $register_id = (int)$attendance_register['id'];
                                     $register_present_count = 0;
                                     $register_member_filter = department_match_sql($conn, 'm.department', $attendance_register['department']);
-                                    $register_members = $conn->query("SELECT m.id, m.first_name, m.last_name, m.gender, m.phone, m.profile_picture, ram.marked_at, ram.joined_at
+                                    $register_members = $conn->query("SELECT m.id, m.first_name, m.last_name, m.gender, m.phone, m.profile_picture, ram.marked_at, ram.joined_at, rmo.phone_override, rmo.profile_picture_override
                                         FROM members m
                                         LEFT JOIN organized_attendance_register_members ram ON ram.member_id = m.id AND ram.register_id = $register_id
+                                        LEFT JOIN organized_attendance_register_member_overrides rmo ON rmo.member_id = m.id AND rmo.register_id = $register_id
                                         WHERE $register_member_filter AND m.is_approved = 1
                                         ORDER BY (ram.marked_at IS NULL), (ram.joined_at IS NULL), ram.joined_at, m.first_name, m.last_name");
                                     $register_manual_members = $conn->query("SELECT id, attendee_name, gender, phone, profile_picture, is_present, joined_at FROM organized_attendance_register_manual_members WHERE register_id = $register_id ORDER BY is_present DESC, (joined_at IS NULL), joined_at, attendee_name");
@@ -7530,27 +7531,29 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 </div>
                                             </div>
                                             <div style="overflow-x:auto;border:1px solid var(--border-color);border-radius:8px;">
-                                                <table style="width:100%;border-collapse:collapse;min-width:760px;">
+                                                <table style="width:100%;border-collapse:collapse;min-width:900px;">
                                                     <thead><tr style="background:var(--bg-main);text-align:left;">
-                                                        <th style="padding:9px;">Present</th><th style="padding:9px;">Profile</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Time Joined (Optional)</th>
+                                                        <th style="padding:9px;">Present</th><th style="padding:9px;">Profile</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Time Joined (Optional)</th><th style="padding:9px;">Details</th>
                                                     </tr></thead>
                                                     <tbody>
                                                         <?php if ($register_members && $register_members->num_rows > 0): while ($register_member = $register_members->fetch_assoc()): if (!empty($register_member['marked_at'])) $register_present_count++; ?>
                                                             <?php
-                                                            $register_photo = 'uploads/' . basename($register_member['profile_picture'] ?: 'default_avatar.png');
+                                                            $register_photo = !empty($register_member['profile_picture_override']) ? 'uploads/' . ltrim($register_member['profile_picture_override'], '/') : 'uploads/' . basename($register_member['profile_picture'] ?: 'default_avatar.png');
+                                                            $register_phone = $register_member['phone_override'] !== null ? $register_member['phone_override'] : ($register_member['phone'] ?? '');
                                                             $register_joined_time = !empty($register_member['joined_at']) ? substr($register_member['joined_at'], 0, 5) : '';
                                                             $register_member_name = trim($register_member['first_name'] . ' ' . $register_member['last_name']);
                                                             ?>
-                                                            <tr data-attendee-row="1" data-name="<?= htmlspecialchars($register_member_name, ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($register_member['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($register_member['phone'] ?? '', ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($register_photo, ENT_QUOTES) ?>" data-joined-at="<?= htmlspecialchars($register_joined_time, ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
+                                                            <tr data-attendee-row="1" data-name="<?= htmlspecialchars($register_member_name, ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($register_member['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($register_phone, ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($register_photo, ENT_QUOTES) ?>" data-joined-at="<?= htmlspecialchars($register_joined_time, ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
                                                                 <td style="padding:9px;"><input type="checkbox" name="register_attendee_ids[]" data-attendance-checkbox value="<?= (int)$register_member['id'] ?>" <?= !empty($register_member['marked_at']) ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($register_member_name) ?> present"></td>
                                                                 <td style="padding:7px;"><img src="<?= htmlspecialchars($register_photo) ?>" alt="Profile photo" title="Click to view full photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:zoom-in;"></td>
                                                                 <td style="padding:9px;"><?= htmlspecialchars($register_member_name) ?></td>
                                                                 <td style="padding:9px;"><?= htmlspecialchars($register_member['gender'] ?? '') ?></td>
-                                                                <td style="padding:9px;"><?= htmlspecialchars($register_member['phone'] ?? '') ?></td>
+                                                                <td style="padding:9px;"><?= htmlspecialchars($register_phone) ?></td>
                                                                 <td style="padding:7px;"><input type="time" name="register_attendance_times[<?= (int)$register_member['id'] ?>]" value="<?= htmlspecialchars($register_joined_time) ?>" aria-label="Time <?= htmlspecialchars($register_member_name) ?> joined" style="min-width:112px;"></td>
+                                                                <td style="padding:7px;"><button type="button" class="btn-sm" data-attendee-type="member" data-register-id="<?= $register_id ?>" data-member-id="<?= (int)$register_member['id'] ?>" data-member-name="<?= htmlspecialchars($register_member_name, ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($register_phone, ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($register_photo, ENT_QUOTES) ?>" onclick="openAttendanceMemberEditor(this)">Edit</button></td>
                                                             </tr>
                                                         <?php endwhile; else: ?>
-                                                            <tr><td colspan="6" style="padding:12px;color:var(--text-muted);">No approved members are registered in this department.</td></tr>
+                                                            <tr><td colspan="7" style="padding:12px;color:var(--text-muted);">No approved members are registered in this department.</td></tr>
                                                         <?php endif; ?>
                                                         <?php if ($register_manual_members): while ($manual_member = $register_manual_members->fetch_assoc()): if ((int)$manual_member['is_present'] === 1) $register_present_count++; ?>
                                                             <?php
@@ -7564,6 +7567,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                                 <td style="padding:9px;"><?= htmlspecialchars($manual_member['gender'] ?? '') ?></td>
                                                                 <td style="padding:9px;"><?= htmlspecialchars($manual_member['phone'] ?? '') ?></td>
                                                                 <td style="padding:7px;"><input type="time" name="manual_register_attendance_times[<?= (int)$manual_member['id'] ?>]" value="<?= htmlspecialchars($manual_register_time) ?>" aria-label="Time <?= htmlspecialchars($manual_member['attendee_name']) ?> joined" style="min-width:112px;"></td>
+                                                                <td style="padding:7px;"><button type="button" class="btn-sm" data-attendee-type="manual" data-register-id="<?= $register_id ?>" data-attendee-id="<?= (int)$manual_member['id'] ?>" data-member-name="<?= htmlspecialchars($manual_member['attendee_name'], ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($manual_member['phone'] ?? '', ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($manual_register_photo, ENT_QUOTES) ?>" onclick="openAttendanceMemberEditor(this)">Edit</button></td>
                                                             </tr>
                                                         <?php endwhile; endif; ?>
                                                     </tbody>
@@ -7581,6 +7585,30 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape')">Print / Save PDF - Landscape</button>
                                             </div>
                                         </form>
+                                        <dialog id="attendance-member-editor-<?= $register_id ?>" style="width:min(92vw,460px);max-width:460px;padding:0;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-card);color:var(--text-main);">
+                                            <form method="POST" action="member_action.php?action=update_organized_attendance_member" enctype="multipart/form-data" style="padding:20px;">
+                                                <input type="hidden" name="register_id" value="<?= $register_id ?>">
+                                                <input type="hidden" name="member_id" value="">
+                                                <input type="hidden" name="manual_attendee_id" value="0">
+                                                <h3 style="margin:0 0 6px;">Edit Register Member</h3>
+                                                <p data-register-member-edit-name style="margin:0 0 14px;color:var(--text-muted);"></p>
+                                                <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                                                    <img data-register-member-edit-photo src="uploads/default_avatar.png" alt="Profile photo preview" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:60px;height:60px;border-radius:50%;object-fit:cover;">
+                                                    <div style="flex:1;min-width:0;">
+                                                        <label for="register-member-photo-<?= $register_id ?>">Profile Photo</label>
+                                                        <input id="register-member-photo-<?= $register_id ?>" type="file" name="profile_photo" accept="image/*" onchange="previewAttendanceMemberPhoto(this)" style="display:block;width:100%;margin-top:5px;">
+                                                    </div>
+                                                </div>
+                                                <div class="form-group" style="margin-bottom:16px;">
+                                                    <label for="register-member-phone-<?= $register_id ?>">Phone Number</label>
+                                                    <input id="register-member-phone-<?= $register_id ?>" type="tel" name="phone" maxlength="40" class="form-control" required>
+                                                </div>
+                                                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                                                    <button type="button" class="btn-sm" onclick="this.closest('dialog').close()">Cancel</button>
+                                                    <button type="submit" class="btn-submit">Save Details</button>
+                                                </div>
+                                            </form>
+                                        </dialog>
                                     </div>
                                 <?php endwhile; ?>
                             <?php else: ?>
@@ -7645,6 +7673,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             alert('Save your attendance changes before printing or downloading.');
                             return;
                         }
+                        var totalMembers = form.querySelectorAll('tbody tr[data-attendee-row]').length;
                         var selected = form ? Array.from(form.querySelectorAll('[data-attendance-checkbox]:checked')) : [];
                         selected.sort(function(a, b) {
                             var timeA = a.closest('[data-attendee-row]').dataset.joinedAt || '';
@@ -7688,8 +7717,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         var generatedAt = new Date().toLocaleString();
                         var printHtml = `<!doctype html><html><head><title>E.A.P.C Munyari Online Attendance Register</title><style>
                             @page{size:A4 ${orientation};margin:12mm 10mm 24mm}*{box-sizing:border-box}
-                            body{font:12px Arial,sans-serif;color:#17202a;margin:0;padding:8px 4px 30px}
-                            .watermark{position:fixed;top:43%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:50px;color:rgba(14,116,144,.055);font-weight:800;white-space:nowrap;z-index:-1}
+                            body{position:relative;font:12px Arial,sans-serif;color:#17202a;margin:0;padding:8px 4px 30px}
+                            .watermark{position:fixed;top:43%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:44px;color:rgba(14,116,144,.18);font-weight:900;white-space:nowrap;z-index:0;pointer-events:none}
+                            .leader,.brand,.report-meta,table,.signature{position:relative;z-index:1}
                             .leader{text-align:center;margin:0 auto 14px}.leader img{width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}
                             .leader-name{font-size:14px;font-weight:800;color:#0e7490;margin-top:4px}
                             .brand{display:grid;grid-template-columns:62px 1fr 62px;align-items:center;gap:12px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 10px;margin-bottom:14px}
@@ -7702,13 +7732,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             .signature-details{display:flex;flex-direction:column;gap:14px}.signature-row{display:grid;grid-template-columns:170px minmax(80px,1fr);gap:12px;align-items:end;min-height:24px}
                             .signature-label{font-weight:700}.signature-line{height:20px;border-bottom:1px solid #333}
                             .stamp{width:82px;height:82px;justify-self:end;border:2px dashed #999;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#777;font-size:10px}
-                            .footer{position:fixed;bottom:-16mm;left:0;right:0;border-top:1px solid #0e7490;padding-top:5px;text-align:center;font-size:9px;color:#53606b}
+                            .footer{position:fixed;bottom:-16mm;left:0;right:0;z-index:2;border-top:1px solid #0e7490;padding-top:5px;text-align:center;font-size:9px;color:#53606b}
                             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
                         </style></head><body>
                             <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
                             <div class="leader"><img src="${escapeHtml(leaderPhoto)}" alt="Organising Secretary"><div class="leader-name">${escapeHtml(leaderName)}</div><div style="font-size:10px;color:#555">Organising Secretary</div></div>
                             <div class="brand"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"><h1>E.A.P.C MUNYARI ${escapeHtml(meetingType)} ATTENDANCE REGISTER</h1><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"></div>
-                            <p class="report-meta">${escapeHtml(department)} Department | Meeting date: ${escapeHtml(meetingDate)}</p>
+                            <p class="report-meta">${escapeHtml(department)} Department | Meeting date: ${escapeHtml(meetingDate)}<br><strong>Total Members: ${totalMembers} | Attended: ${selected.length}</strong></p>
                             <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Member Name</th><th>Gender</th><th>Phone</th><th>Time Joined</th></tr></thead><tbody>${rows}</tbody></table>
                             <div class="signature">
                                 <div class="signature-details">
@@ -7724,6 +7754,24 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         printWindow.document.close();
                         printWindow.focus();
                         setTimeout(function() { printWindow.print(); }, 650);
+                    }
+                    function openAttendanceMemberEditor(button) {
+                        var dialog = document.getElementById('attendance-member-editor-' + button.dataset.registerId);
+                        if (!dialog) return;
+                        var form = dialog.querySelector('form');
+                        var isManual = button.dataset.attendeeType === 'manual';
+                        form.querySelector('[name="member_id"]').value = isManual ? '' : button.dataset.memberId;
+                        form.querySelector('[name="manual_attendee_id"]').value = isManual ? button.dataset.attendeeId : '0';
+                        form.querySelector('[name="phone"]').value = button.dataset.phone || '';
+                        form.querySelector('[data-register-member-edit-name]').textContent = button.dataset.memberName || '';
+                        form.querySelector('[data-register-member-edit-photo]').src = button.dataset.photo || 'uploads/default_avatar.png';
+                        form.querySelector('[name="profile_photo"]').value = '';
+                        dialog.showModal();
+                    }
+                    function previewAttendanceMemberPhoto(input) {
+                        if (input.files && input.files[0]) {
+                            input.closest('form').querySelector('[data-register-member-edit-photo]').src = URL.createObjectURL(input.files[0]);
+                        }
                     }
                     var manualRegisterAttendeeIndex = 0;
                     function markOrganizedAttendanceDirty(form) {
