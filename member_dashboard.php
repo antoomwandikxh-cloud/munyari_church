@@ -7628,6 +7628,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape')">Print Present - Landscape</button>
                                                 <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait', 'absent')">Print Absent - Portrait</button>
                                                 <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape', 'absent')">Print Absent - Landscape</button>
+                                                <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait', 'apology')">Print Apologies - Portrait</button>
+                                                <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape', 'apology')">Print Apologies - Landscape</button>
                                             </div>
                                         </form>
                                         <dialog id="attendance-member-editor-<?= $register_id ?>" class="attendance-member-dialog">
@@ -7731,14 +7733,22 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             return;
                         }
                         var totalMembers = form.querySelectorAll('tbody tr[data-attendee-row]').length;
-                        var isAbsentReport = attendanceStatus === 'absent';
+                        var isApologyReport = attendanceStatus === 'apology';
+                        var isAbsentReport = attendanceStatus === 'absent' || isApologyReport;
                         var allCheckboxes = Array.from(form.querySelectorAll('[data-attendance-checkbox]'));
                         var presentCount = allCheckboxes.filter(function(checkbox) { return checkbox.checked; }).length;
                         var absentCount = totalMembers - presentCount;
-                        var statusLabel = isAbsentReport ? 'Absent' : 'Present';
+                        var statusLabel = isApologyReport ? 'Absent with Apology' : (isAbsentReport ? 'Absent' : 'Present');
                         var absenceHeaders = isAbsentReport ? '<th>Apology received</th><th>Reason for apology</th>' : '';
                         var joinedTimeHeader = isAbsentReport ? '' : '<th>Time Joined</th>';
-                        var selected = allCheckboxes.filter(function(checkbox) { return isAbsentReport ? !checkbox.checked : checkbox.checked; });
+                        var selected = allCheckboxes.filter(function(checkbox) {
+                            if (isApologyReport) {
+                                var row = checkbox.closest('[data-attendee-row]');
+                                var apologyCheckbox = row && row.querySelector('[data-apology-checkbox]');
+                                return !checkbox.checked && apologyCheckbox && apologyCheckbox.checked;
+                            }
+                            return isAbsentReport ? !checkbox.checked : checkbox.checked;
+                        });
                         selected.sort(function(a, b) {
                             var rowA = a.closest('[data-attendee-row]');
                             var rowB = b.closest('[data-attendee-row]');
@@ -7750,7 +7760,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             return timeA.localeCompare(timeB) || rowA.dataset.name.localeCompare(rowB.dataset.name);
                         });
                         if (!selected.length) {
-                            alert(isAbsentReport ? 'There are no absent members to print.' : 'Select at least one attending member before printing.');
+                            alert(isApologyReport ? 'There are no absent members with an apology to print.' : (isAbsentReport ? 'There are no absent members to print.' : 'Select at least one attending member before printing.'));
                             return;
                         }
                         var escapeHtml = function(value) {
