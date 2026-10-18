@@ -7475,6 +7475,25 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
                 <?php if ($is_organizing_secretary): ?>
                     <?php ensure_organized_event_attendance_schema($conn); ?>
+                    <style>
+                        .attendance-member-dialog{width:min(92vw,460px);max-width:460px;max-height:min(88vh,720px);margin:auto;overflow-y:auto;padding:0;border:1px solid var(--border-color);border-radius:14px;background:var(--card-bg);color:var(--text-main);font-family:inherit;font-size:inherit;box-shadow:0 24px 70px rgba(0,0,0,.38)}
+                        .attendance-member-dialog::backdrop{background:rgba(3,8,20,.72);backdrop-filter:blur(3px)}
+                        .attendance-edit-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px 16px;border-bottom:1px solid var(--border-color);background:var(--bg-main)}
+                        .attendance-edit-kicker{margin:0 0 4px;color:var(--primary);font-size:.72rem;font-weight:800;text-transform:uppercase}
+                        .attendance-edit-header h3{margin:0;color:var(--text-main);font-size:1.16rem}
+                        .attendance-edit-header p{margin:4px 0 0;color:var(--text-muted);font-size:.84rem;line-height:1.45}
+                        .attendance-edit-close{width:34px;height:34px;flex:0 0 34px;border:1px solid var(--border-color);border-radius:50%;background:var(--card-bg);color:var(--text-main);font-size:1.25rem;line-height:1;cursor:pointer}
+                        .attendance-edit-form{padding:20px 22px 22px}
+                        .attendance-edit-photo-row{display:flex;align-items:center;gap:14px;margin-bottom:18px;padding:13px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-main)}
+                        .attendance-edit-preview{width:68px;height:68px;flex:0 0 68px;border-radius:50%;object-fit:cover;border:3px solid var(--primary);background:var(--card-bg)}
+                        .attendance-edit-photo-field{min-width:0;flex:1}
+                        .attendance-edit-photo-field label,.attendance-edit-form .form-group label{display:block;margin-bottom:6px;color:var(--text-main);font-size:.88rem;font-weight:700}
+                        .attendance-edit-photo-field input{display:block;width:100%;max-width:100%;color:var(--text-muted);font-size:.8rem}
+                        .attendance-edit-photo-field input::file-selector-button{margin-right:8px;padding:7px 10px;border:1px solid var(--border-color);border-radius:7px;background:var(--card-bg);color:var(--text-main);font:inherit;cursor:pointer}
+                        .attendance-edit-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;padding-top:15px;border-top:1px solid var(--border-color)}
+                        .attendance-edit-actions .btn-submit{width:auto;min-width:124px}
+                        @media(max-width:480px){.attendance-edit-header{padding:17px}.attendance-edit-form{padding:17px}.attendance-edit-photo-row{align-items:flex-start;gap:10px}.attendance-edit-preview{width:56px;height:56px;flex-basis:56px}}
+                    </style>
                 <?php endif; ?>
 
                 <?php if ($is_organizing_secretary): ?>
@@ -7585,25 +7604,32 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape')">Print / Save PDF - Landscape</button>
                                             </div>
                                         </form>
-                                        <dialog id="attendance-member-editor-<?= $register_id ?>" style="width:min(92vw,460px);max-width:460px;padding:0;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-card);color:var(--text-main);">
-                                            <form method="POST" action="member_action.php?action=update_organized_attendance_member" enctype="multipart/form-data" style="padding:20px;">
+                                        <dialog id="attendance-member-editor-<?= $register_id ?>" class="attendance-member-dialog">
+                                            <div class="attendance-edit-header">
+                                                <div>
+                                                    <p class="attendance-edit-kicker">Attendance register</p>
+                                                    <h3>Edit member details</h3>
+                                                    <p>Updates apply to this register and its printout only.</p>
+                                                </div>
+                                                <button type="button" class="attendance-edit-close" aria-label="Close editor" title="Close" onclick="this.closest('dialog').close()">&times;</button>
+                                            </div>
+                                            <form method="POST" action="member_action.php?action=update_organized_attendance_member" enctype="multipart/form-data" class="attendance-edit-form">
                                                 <input type="hidden" name="register_id" value="<?= $register_id ?>">
                                                 <input type="hidden" name="member_id" value="">
                                                 <input type="hidden" name="manual_attendee_id" value="0">
-                                                <h3 style="margin:0 0 6px;">Edit Register Member</h3>
-                                                <p data-register-member-edit-name style="margin:0 0 14px;color:var(--text-muted);"></p>
-                                                <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-                                                    <img data-register-member-edit-photo src="uploads/default_avatar.png" alt="Profile photo preview" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:60px;height:60px;border-radius:50%;object-fit:cover;">
-                                                    <div style="flex:1;min-width:0;">
-                                                        <label for="register-member-photo-<?= $register_id ?>">Profile Photo</label>
-                                                        <input id="register-member-photo-<?= $register_id ?>" type="file" name="profile_photo" accept="image/*" onchange="previewAttendanceMemberPhoto(this)" style="display:block;width:100%;margin-top:5px;">
+                                                <p data-register-member-edit-name style="margin:0 0 14px;color:var(--text-main);font-weight:750;"></p>
+                                                <div class="attendance-edit-photo-row">
+                                                    <img class="attendance-edit-preview" data-register-member-edit-photo src="uploads/default_avatar.png" alt="Profile photo preview" onerror="this.onerror=null;this.src='uploads/default_avatar.png';">
+                                                    <div class="attendance-edit-photo-field">
+                                                        <label for="register-member-photo-<?= $register_id ?>">Profile photo</label>
+                                                        <input id="register-member-photo-<?= $register_id ?>" type="file" name="profile_photo" accept="image/*" onchange="previewAttendanceMemberPhoto(this)">
                                                     </div>
                                                 </div>
                                                 <div class="form-group" style="margin-bottom:16px;">
-                                                    <label for="register-member-phone-<?= $register_id ?>">Phone Number</label>
-                                                    <input id="register-member-phone-<?= $register_id ?>" type="tel" name="phone" maxlength="40" class="form-control" required>
+                                                    <label for="register-member-phone-<?= $register_id ?>">Phone number</label>
+                                                    <input id="register-member-phone-<?= $register_id ?>" type="tel" name="phone" maxlength="40" class="form-control" autocomplete="tel" required>
                                                 </div>
-                                                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                                                <div class="attendance-edit-actions">
                                                     <button type="button" class="btn-sm" onclick="this.closest('dialog').close()">Cancel</button>
                                                     <button type="submit" class="btn-submit">Save Details</button>
                                                 </div>
@@ -7766,7 +7792,14 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         form.querySelector('[data-register-member-edit-name]').textContent = button.dataset.memberName || '';
                         form.querySelector('[data-register-member-edit-photo]').src = button.dataset.photo || 'uploads/default_avatar.png';
                         form.querySelector('[name="profile_photo"]').value = '';
+                        if (!dialog.dataset.backdropHandler) {
+                            dialog.addEventListener('click', function(event) {
+                                if (event.target === dialog) dialog.close();
+                            });
+                            dialog.dataset.backdropHandler = 'ready';
+                        }
                         dialog.showModal();
+                        dialog.querySelector('.attendance-edit-close').focus();
                     }
                     function previewAttendanceMemberPhoto(input) {
                         if (input.files && input.files[0]) {
