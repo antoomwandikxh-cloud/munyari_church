@@ -442,6 +442,15 @@ function render_tab_notification_badge($badges, $tab) {
     return '<span class="tab-notif-badge">' . ($count > 99 ? '99+' : $count) . '</span>';
 }
 
+function render_notification_tab_glow_script($target_tab, $current_tab) {
+    if (!is_string($target_tab) || $target_tab === '' || $target_tab !== $current_tab) {
+        return '';
+    }
+
+    $target_json = json_encode($target_tab, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    return '<script>document.addEventListener("DOMContentLoaded",function(){var targetTab=' . $target_json . ';document.querySelectorAll(".sidebar-link").forEach(function(link){try{if(new URL(link.href,window.location.href).searchParams.get("tab")===targetTab){link.classList.add("notification-tab-glow");}}catch(error){}});},{once:true});</script>';
+}
+
 function notification_target_group($message, $user_type) {
     $msg = strtolower($message);
     if (preg_match('/department leaders chat message in ([a-z_]+)/', $msg, $matches)) {

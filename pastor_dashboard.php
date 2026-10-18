@@ -312,9 +312,8 @@ $pastor_id = $_SESSION['pastor_id'];
 cleanup_expired_church_highlights($conn);
 $pastor_name = $_SESSION['pastor_name'];
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
-$fine_notification_highlight = $_SESSION['fine_notification_highlight'] ?? '';
-unset($_SESSION['fine_notification_highlight']);
-$highlight_fines_tab = $fine_notification_highlight === 'discipline_reports' && $tab === 'discipline_reports';
+$notification_tab_glow = $_SESSION['notification_tab_glow'] ?? '';
+unset($_SESSION['notification_tab_glow'], $_SESSION['fine_notification_highlight']);
 
 // ── Early PRG handler: assign_village_leader ──────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader'])) {
@@ -1416,6 +1415,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
     <meta charset="UTF-8">
     <title>Pastor Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
+    <?= render_notification_tab_glow_script($notification_tab_glow, $tab) ?>
     <script src="script.js?v=20261017b"></script>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
@@ -1493,7 +1493,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     Daily Quote & Highlights
                 </a>
-                <a href="?tab=discipline_reports" class="sidebar-link <?= $tab == 'discipline_reports' ? 'active' : '' ?> <?= $highlight_fines_tab ? 'fine-notification-highlight' : '' ?>">
+                <a href="?tab=discipline_reports" class="sidebar-link <?= $tab == 'discipline_reports' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
                     Discipline & Reports
                     <?= render_tab_notification_badge($tab_badges, 'discipline_reports') ?>

@@ -190,9 +190,8 @@ if (!function_exists('render_dashboard_leader_profiles_overview')) {
 if (!isset($_SESSION['admin_id'])) { header("Location: login.php"); exit(); }
 
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
-$fine_notification_highlight = $_SESSION['fine_notification_highlight'] ?? '';
-unset($_SESSION['fine_notification_highlight']);
-$highlight_fines_tab = $fine_notification_highlight === 'discipline_reports' && $tab === 'discipline_reports';
+$notification_tab_glow = $_SESSION['notification_tab_glow'] ?? '';
+unset($_SESSION['notification_tab_glow'], $_SESSION['fine_notification_highlight']);
 
 // ── Early PRG handler: assign_village_leader ──────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader'])) {
@@ -1011,6 +1010,7 @@ if (!empty($action)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
+    <?= render_notification_tab_glow_script($notification_tab_glow, $tab) ?>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
 .role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}
@@ -1070,7 +1070,7 @@ if (!empty($action)) {
                     General Leadership
                     <?php if (!empty($tab_badges['general_leadership'])): ?><span style="background:var(--danger);color:white;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"><?= $tab_badges['general_leadership'] ?></span><?php endif; ?>
                 </a>
-                <a href="?tab=discipline_reports" class="sidebar-link <?= $tab == 'discipline_reports' ? 'active' : '' ?> <?= $highlight_fines_tab ? 'fine-notification-highlight' : '' ?>">
+                <a href="?tab=discipline_reports" class="sidebar-link <?= $tab == 'discipline_reports' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
                     Discipline & Reports
                     <?= render_tab_notification_badge($tab_badges, 'discipline_reports') ?>
