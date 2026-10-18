@@ -14,6 +14,18 @@ function get_member_roles($church_role_string) {
     return array_filter(array_map('normalize_role_name', explode(',', str_replace('&', ',', $church_role_string ?? ''))));
 }
 
+function member_can_manage_disciplinary_report($member, $department) {
+    if (!department_matches($member['department'] ?? '', $department)) {
+        return false;
+    }
+    foreach (get_member_roles($member['church_role'] ?? '') as $role) {
+        if (preg_match('/\\bchair(?:man|lady|person)\\b/i', $role)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function member_action_insert_notification($conn, $user_id, $user_type, $message) {
     try {
         $statement = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
@@ -1597,20 +1609,42 @@ if (isset($_GET['action'])) {
     elseif ($action === 'report_member' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         if (member_has_role($member_query['church_role'] ?? '', 'discipline master')) {
-            $dept = isset($_POST['active_dept']) ? $conn->real_escape_string(trim($_POST['active_dept'])) : $conn->real_escape_string($member_query['department']);
+            $dept = isset($_POST['active_dept']) ? trim($_POST['active_dept']) : trim($member_query['department']);
             $target_id = (int)$_POST['member_id'];
-            $reason = $conn->real_escape_string($_POST['reason']);
-            
-            $conn->query("INSERT INTO member_reports (reported_member_id, reported_by_id, department, reason) 
-                          VALUES ($target_id, $member_id, '$dept', '$reason')");
-            
-            // Find chairman/chairlady and notify
-            $leaders = $conn->query("SELECT id FROM members WHERE department = '$dept' AND (church_role LIKE '%chairman%' OR church_role LIKE '%chairlady%')");
-            while ($l = $leaders->fetch_assoc()) {
-                $msg = "The Discipline Master has reported a member. Please review in your dashboard.";
-                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$l['id']}, 'member', '$msg')");
+            $reason = trim($_POST['reason'] ?? '');
+            $target_dept_condition = department_match_sql($conn, 'department', $dept);
+            $target = $conn->query("SELECT id, first_name, last_name FROM members WHERE id = $target_id AND is_approved = 1 AND $target_dept_condition LIMIT 1");
+            $target_member = $target ? $target->fetch_assoc() : null;
+
+            if (!$target_member || $reason === '') {
+                header("Location: member_dashboard.php?tab=discipline&error=" . urlencode('Select an approved member in this department and provide a report reason.'));
+                exit();
             }
-            
+
+            $report_insert = $conn->prepare("INSERT INTO member_reports (reported_member_id, reported_by_id, department, reason) VALUES (?, ?, ?, ?)");
+            if (!$report_insert) {
+                header("Location: member_dashboard.php?tab=discipline&error=" . urlencode('The disciplinary report could not be saved.'));
+                exit();
+            }
+            $report_insert->bind_param('iiss', $target_id, $member_id, $dept, $reason);
+            $report_saved = $report_insert->execute();
+            $report_id = (int)$report_insert->insert_id;
+            $report_insert->close();
+            if (!$report_saved || $report_id < 1) {
+                header("Location: member_dashboard.php?tab=discipline&error=" . urlencode('The disciplinary report could not be saved.'));
+                exit();
+            }
+
+            $target_name = trim($target_member['first_name'] . ' ' . $target_member['last_name']);
+            $department_condition = department_match_sql($conn, 'department', $dept);
+            $leaders = $conn->query("SELECT id FROM members WHERE $department_condition AND (LOWER(church_role) LIKE '%chairman%' OR LOWER(church_role) LIKE '%chairlady%' OR LOWER(church_role) LIKE '%chairperson%')");
+            if ($leaders) {
+                while ($leader = $leaders->fetch_assoc()) {
+                    $message = 'Disciplinary report pending chairman review: report #' . $report_id . ' for ' . $target_name . ' in ' . $dept . '. Reason: "' . $reason . '".';
+                    member_action_insert_notification($conn, (int)$leader['id'], 'member', $message);
+                }
+            }
+
             $title = ($dept === 'Womens Ministry') ? 'Chairlady' : 'Chairman';
             header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($dept) . "&success=Member reported to $title");
             exit();
@@ -1620,13 +1654,54 @@ if (isset($_GET['action'])) {
     // Chairman: Forward Report to Pastor
     elseif ($action === 'forward_report' && isset($_GET['id'])) {
         $report_id = (int)$_GET['id'];
-        $conn->query("UPDATE member_reports SET status = 'Forwarded to Pastor' WHERE id = $report_id");
-        
-        $pastors = $conn->query("SELECT id FROM pastors");
-        while ($p = $pastors->fetch_assoc()) {
-            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$p['id']}, 'pastor', 'A chairman has forwarded a disciplinary report to you.')");
+        $chairman = $conn->query("SELECT first_name, last_name, department, church_role FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
+        $report_stmt = $conn->prepare("SELECT mr.id, mr.department, mr.reason, mr.status, m.first_name, m.last_name FROM member_reports mr JOIN members m ON mr.reported_member_id = m.id WHERE mr.id = ? LIMIT 1");
+        $report = null;
+        if ($report_stmt) {
+            $report_stmt->bind_param('i', $report_id);
+            $report_stmt->execute();
+            $found_id = $found_department = $found_reason = $found_status = $reported_first = $reported_last = null;
+            $report_stmt->bind_result($found_id, $found_department, $found_reason, $found_status, $reported_first, $reported_last);
+            if ($report_stmt->fetch()) {
+                $report = [
+                    'id' => $found_id,
+                    'department' => $found_department,
+                    'reason' => $found_reason,
+                    'status' => $found_status,
+                    'first_name' => $reported_first,
+                    'last_name' => $reported_last
+                ];
+            }
+            $report_stmt->close();
         }
-        
+
+        if (!$chairman || !$report || $report['status'] !== 'Pending Chairman' || !member_can_manage_disciplinary_report($chairman, $report['department'])) {
+            header("Location: member_dashboard.php?tab=manage_department&error=" . urlencode('You cannot forward this report or it has already been reviewed.'));
+            exit();
+        }
+
+        $update_report = $conn->prepare("UPDATE member_reports SET status = 'Forwarded to Pastor' WHERE id = ? AND status = 'Pending Chairman'");
+        $forwarded = false;
+        if ($update_report) {
+            $update_report->bind_param('i', $report_id);
+            $forwarded = $update_report->execute() && $update_report->affected_rows === 1;
+            $update_report->close();
+        }
+        if (!$forwarded) {
+            header("Location: member_dashboard.php?tab=manage_department&error=" . urlencode('This report was already forwarded or could not be updated.'));
+            exit();
+        }
+
+        $reported_name = trim($report['first_name'] . ' ' . $report['last_name']);
+        $chairman_name = trim(($chairman['first_name'] ?? '') . ' ' . ($chairman['last_name'] ?? ''));
+        $pastors = $conn->query("SELECT id FROM pastors");
+        if ($pastors) {
+            while ($pastor = $pastors->fetch_assoc()) {
+                $message = 'Disciplinary report forwarded to Pastor: report #' . $report_id . ' for ' . $reported_name . ' in ' . $report['department'] . '. Reason: "' . $report['reason'] . '". Forwarded by ' . $chairman_name . '.';
+                member_action_insert_notification($conn, (int)$pastor['id'], 'pastor', $message);
+            }
+        }
+
         header("Location: member_dashboard.php?tab=manage_department&success=Report forwarded to Pastor");
         exit();
     }
@@ -1635,7 +1710,6 @@ if (isset($_GET['action'])) {
     elseif ($action === 'resolve_report' && isset($_GET['id'])) {
         $report_id = (int)$_GET['id'];
         $conn->query("UPDATE member_reports SET status = 'Resolved locally' WHERE id = $report_id");
-        
         header("Location: member_dashboard.php?tab=manage_department&success=Report marked as resolved");
         exit();
     }

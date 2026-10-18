@@ -4377,7 +4377,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 <thead><tr><th>Date</th><th>Reported Member</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
                                 <tbody>
                                     <?php while($rp = $reports->fetch_assoc()): ?>
-                                        <tr>
+                                        <tr data-notification-row="disciplinary-report-<?= (int)$rp['id'] ?>">
                                             <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y', strtotime($rp['created_at'])) ?></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($rp['first_name'] . ' ' . $rp['last_name']) ?></td>
                                             <td><?= htmlspecialchars($rp['reason']) ?></td>

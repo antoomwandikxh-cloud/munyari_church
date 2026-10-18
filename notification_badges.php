@@ -3,6 +3,14 @@ function notification_badge_tabs($message, $user_type) {
     $msg  = strtolower($message);
     $tabs = [];
 
+    if (strpos($msg, 'disciplinary report pending chairman review') !== false
+        || strpos($msg, 'discipline master has reported a member') !== false) {
+        return $user_type === 'member' ? ['manage_department'] : ['discipline_reports'];
+    }
+    if (strpos($msg, 'disciplinary report forwarded to pastor') !== false) {
+        return ['discipline_reports'];
+    }
+
     if (strpos($msg, 'fine') !== false) {
         if (strpos($msg, 'initiated a fine payment') !== false && strpos($msg, 'financial records') !== false) {
             return ['financials'];
@@ -463,6 +471,17 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     if (!notificationMessage) return;
+    var main = document.querySelector(".main-content");
+    if (!main) return;
+    var reportMatch = notificationMessage.match(/disciplinary report[^#]{0,120}#\s*(\d+)/i);
+    if (reportMatch) {
+        var reportRow = main.querySelector('[data-notification-row="disciplinary-report-' + reportMatch[1] + '"]');
+        if (reportRow) {
+            reportRow.classList.add("notification-row-glow");
+            reportRow.scrollIntoView({ behavior: "smooth", block: "center" });
+            return;
+        }
+    }
     var normalize = function (value) {
         return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
     };

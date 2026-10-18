@@ -6375,10 +6375,10 @@ w.document.write('</div>');
                                 <thead><tr><th>Date</th><th>Department</th><th>Reported Member</th><th>Reported By</th><th>Reason</th></tr></thead>
                                 <tbody>
                                     <?php while($fr = $forwarded->fetch_assoc()): ?>
-                                        <tr>
+                                        <tr data-notification-row="disciplinary-report-<?= (int)$fr['id'] ?>">
                                             <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y', strtotime($fr['created_at'])) ?></td>
                                             <td><span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;"><?= htmlspecialchars($fr['department']) ?></span></td>
-                                            <td style="font-weight: 500;"><?= htmlspecialchars($fr['poster_name'] ?: 'Unknown') ?></td>
+                                            <td style="font-weight: 500;"><?= htmlspecialchars(trim(($fr['first_name'] ?? '') . ' ' . ($fr['last_name'] ?? '')) ?: 'Unknown') ?></td>
                                             <td style="font-size: 0.85em; color: var(--text-muted);"><?= htmlspecialchars($fr['dm_first'] . ' ' . $fr['dm_last']) ?></td>
                                             <td><?= htmlspecialchars($fr['reason']) ?></td>
                                         </tr>
