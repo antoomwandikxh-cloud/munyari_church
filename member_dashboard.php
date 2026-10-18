@@ -1561,15 +1561,34 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
             if ($admins_q) { while ($a = $admins_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$a['id']},'admin','$wl_notif')"); } }
         }
 
-        // Notify Village Leader, Pastor, Admin about new village member
-        $new_mem_name = $conn->real_escape_string($member['first_name'] . ' ' . $member['last_name']);
-        $vn_notif = $conn->real_escape_string("A new member has been added in $cv church village.");
+        // Include the member ID so each recipient can land on this exact village row.
+        $new_mem_name = trim($member['first_name'] . ' ' . $member['last_name']);
+        $vn_notif = "New church village member: $new_mem_name is now in $cv village.";
+        $has_related_member_id = ensure_notification_focus_schema($conn);
+        $send_village_notice = function ($recipient_id, $recipient_type) use ($conn, $has_related_member_id, $member_id, $vn_notif) {
+            if ($has_related_member_id) {
+                $notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message, related_member_id) VALUES (?, ?, ?, ?)");
+                if ($notice) {
+                    $related_id = (int)$member_id;
+                    $notice->bind_param("issi", $recipient_id, $recipient_type, $vn_notif, $related_id);
+                    $notice->execute();
+                    $notice->close();
+                }
+            } else {
+                $notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
+                if ($notice) {
+                    $notice->bind_param("iss", $recipient_id, $recipient_type, $vn_notif);
+                    $notice->execute();
+                    $notice->close();
+                }
+            }
+        };
         $pastors_q = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
-        if ($pastors_q) { while ($p = $pastors_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$p['id']},'pastor','$vn_notif')"); } }
+        if ($pastors_q) { while ($p = $pastors_q->fetch_assoc()) { $send_village_notice((int)$p['id'], 'pastor'); } }
         $admins_q = $conn->query("SELECT id FROM admins");
-        if ($admins_q) { while ($a = $admins_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$a['id']},'admin','$vn_notif')"); } }
-        $vls_q = $conn->query("SELECT id FROM members WHERE is_village_leader = 1 AND church_village = '$cv'");
-        if ($vls_q) { while ($vl = $vls_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$vl['id']},'member','$vn_notif')"); } }
+        if ($admins_q) { while ($a = $admins_q->fetch_assoc()) { $send_village_notice((int)$a['id'], 'admin'); } }
+        $vls_q = $conn->query("SELECT id FROM members WHERE is_village_leader = 1 AND is_approved = 1 AND church_village = '$cv' AND id <> $member_id");
+        if ($vls_q) { while ($vl = $vls_q->fetch_assoc()) { $send_village_notice((int)$vl['id'], 'member'); } }
 
         header("Location: member_dashboard.php?tab=desired_roles&success=Your church village has been saved! All tabs are now unlocked.");
         exit();
@@ -9715,7 +9734,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 $pic = !empty($vm['profile_picture']) ? 'uploads/' . htmlspecialchars($vm['profile_picture']) : 'uploads/default_avatar.png';
                                 $role = $rank == 1 ? 'Village Leader' : (!empty($vm['church_role']) ? htmlspecialchars($vm['church_role']) : htmlspecialchars($vm['department'] ?? 'Member'));
                             ?>
-                            <tr style="<?= $row_bg ?>">
+                            <tr data-notification-row="church-village-member-<?= (int)$vm['id'] ?>" style="<?= $row_bg ?>">
                                 <td><?= $i++ ?></td>
                                 <td><img src="<?= $pic ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #ccc;cursor:zoom-in;" onerror="this.src='uploads/default_avatar.png'"></td>
                                 <td><?= htmlspecialchars(ucfirst($vm['first_name']) . ' ' . ucfirst($vm['last_name'])) ?></td>

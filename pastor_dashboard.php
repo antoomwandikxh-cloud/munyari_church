@@ -3705,7 +3705,7 @@ w.document.write('</div>');
                                     $border_color = "var(--border-color)";
                                 }
                             ?>
-                            <tr <?= $is_leader ? 'id="village_leader_row_' . (int)$row['id'] . '"' : '' ?> style="<?= $bg_style ?><?= $is_leader ? 'scroll-margin-top:100px;' : '' ?>">
+                            <tr <?= !$is_pastor ? 'data-notification-row="church-village-member-' . (int)$row['id'] . '"' : '' ?> <?= $is_leader ? 'id="village_leader_row_' . (int)$row['id'] . '"' : '' ?> style="<?= $bg_style ?><?= $is_leader ? 'scroll-margin-top:100px;' : '' ?>">
                                 <td style="color:var(--text-muted);"><?= $i++ ?><?= $is_leader ? ' 🏆' : '' ?></td>
                                 <td>
                                     <img src="uploads/<?= $pic ?>" alt="Photo"

@@ -63,6 +63,9 @@ function notification_badge_tabs($message, $user_type) {
     if ($user_type === 'member' && strpos($msg, 'your membership has been approved by the pastor') === 0) {
         return ['dashboard'];
     }
+    if (strpos($msg, 'new church village member:') === 0) {
+        return $user_type === 'member' ? ['manage_church_village'] : ['desired_roles'];
+    }
     if ($user_type === 'member' && strpos($msg, 'new member added to your department:') === 0) {
         return ['manage_department'];
     }
@@ -486,6 +489,8 @@ function notification_focus_message_with_member_id($conn, $message, $created_at 
         $focus_type = 'department-member';
     } elseif (preg_match('/^New approved member:/i', $message)) {
         $focus_type = 'approved-member';
+    } elseif (preg_match('/^New church village member:/i', $message)) {
+        $focus_type = 'church-village-member';
     } elseif (preg_match('/^New member registration:/i', $message)) {
         $focus_type = 'member-registration';
     }
@@ -506,6 +511,10 @@ function notification_focus_message_with_member_id($conn, $message, $created_at 
         && preg_match('/^New approved member:\s*(.+?)\s+has joined the\s+(.+?)\s+department\./i', trim($message), $match)) {
         $fallback_name = trim($match[1]);
         $fallback_department = trim($match[2]);
+    } elseif ($focus_type === 'church-village-member'
+        && preg_match('/^New church village member:\s*(.+?)\s+is now in\s+(.+?)\s+village\.?$/i', trim($message), $match)) {
+        $fallback_name = trim($match[1]);
+        $fallback_department = trim($match[2]);
     }
 
     if ($related_member_id < 1 && $fallback_name !== '' && $fallback_department !== '') {
@@ -515,9 +524,12 @@ function notification_focus_message_with_member_id($conn, $message, $created_at 
         $order = $focus_type === 'member-registration'
             ? "ORDER BY CASE WHEN reg_date IS NULL THEN 1 ELSE 0 END, ABS(TIMESTAMPDIFF(SECOND, reg_date, '$created_at')) ASC, id DESC"
             : "ORDER BY id DESC";
+        $focus_where = $focus_type === 'church-village-member'
+            ? "LOWER(TRIM(church_village)) = LOWER('$department')"
+            : "LOWER(TRIM(department)) = LOWER('$department')";
         $result = $conn->query("SELECT id FROM members
             WHERE LOWER(TRIM(CONCAT(first_name, ' ', last_name))) = LOWER('$name')
-              AND LOWER(TRIM(department)) = LOWER('$department')
+              AND $focus_where
             $order
             LIMIT 1");
         $member = $result ? $result->fetch_assoc() : null;
@@ -681,7 +693,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
     notificationMessages.forEach(function (notificationMessage) {
-        var focusMatch = notificationMessage.match(/\[focus-(department-member|approved-member|member-registration)-id:\s*(\d+)\]/i);
+        var focusMatch = notificationMessage.match(/\[focus-(department-member|approved-member|member-registration|church-village-member)-id:\s*(\d+)\]/i);
         var legacyRegistrationMatch = notificationMessage.match(/\[member-registration-id:\s*(\d+)\]/i);
         if (focusMatch || legacyRegistrationMatch) {
             var focusType = focusMatch ? focusMatch[1].toLowerCase() : "member-registration";
