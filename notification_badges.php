@@ -3,6 +3,10 @@ function notification_badge_tabs($message, $user_type) {
     $msg  = strtolower($message);
     $tabs = [];
 
+    if (strpos($msg, 'fine issued:') === 0 || strpos($msg, 'fine issued to ') === 0) {
+        return [$user_type === 'member' ? 'my_fines' : 'discipline_reports'];
+    }
+
     if (strpos($msg, 'department event') !== false && strpos($msg, 'organising secretary') !== false) {
         return ['organized_events'];
     }

@@ -1417,25 +1417,61 @@ if (isset($_GET['action'])) {
     elseif ($action === 'issue_fine' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         if (member_has_role($member_query['church_role'] ?? '', 'discipline master')) {
-            $dept = isset($_POST['active_dept']) ? $conn->real_escape_string(trim($_POST['active_dept'])) : $conn->real_escape_string($member_query['department']);
+            $dept = isset($_POST['active_dept']) ? trim($_POST['active_dept']) : trim($member_query['department']);
             $target_id = (int)$_POST['member_id'];
             $template_id = (int)$_POST['fine_template_id'];
             
             $template = $conn->query("SELECT fine_name, amount FROM fine_templates WHERE id = $template_id")->fetch_assoc();
-            if ($template) {
-                $reason = $conn->real_escape_string($template['fine_name']);
-                $amount = $template['amount'];
-                
-                $conn->query("INSERT INTO member_fines (member_id, discipline_master_id, department, fine_reason, amount) 
-                              VALUES ($target_id, $member_id, '$dept', '$reason', $amount)");
-                
-                // Notify Member
-                $msg = $conn->real_escape_string("You have been fined KSh $amount for '$reason' by the Discipline Master. Please pay by the next meeting.");
-                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($target_id, 'member', '$msg')");
-                
-                header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($dept) . "&success=Fine issued successfully");
-                exit();
+            $target_member_result = $conn->query("SELECT first_name, last_name FROM members WHERE id = $target_id LIMIT 1");
+            $target_member = $target_member_result ? $target_member_result->fetch_assoc() : null;
+            if ($template && $target_member) {
+                $fine_reason = $template['fine_name'];
+                $fine_amount = (float)$template['amount'];
+                $fine_insert = $conn->prepare("INSERT INTO member_fines (member_id, discipline_master_id, department, fine_reason, amount) VALUES (?, ?, ?, ?, ?)");
+                if ($fine_insert) {
+                    $fine_insert->bind_param('iissd', $target_id, $member_id, $dept, $fine_reason, $fine_amount);
+                    $fine_saved = $fine_insert->execute();
+                    $fine_insert->close();
+                } else {
+                    $fine_saved = false;
+                }
+
+                if ($fine_saved) {
+                    $issuer_name = trim(($member_query['first_name'] ?? '') . ' ' . ($member_query['last_name'] ?? ''));
+                    $target_name = trim($target_member['first_name'] . ' ' . $target_member['last_name']);
+                    $amount_display = number_format($fine_amount, 2);
+                    $notification_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
+
+                    if ($notification_stmt) {
+                        $notification_user_id = $target_id;
+                        $notification_user_type = 'member';
+                        $notification_message = "Fine issued: You were fined KSh $amount_display for '$fine_reason' by Discipline Master $issuer_name. View the details under My Fines.";
+                        $notification_stmt->bind_param('iss', $notification_user_id, $notification_user_type, $notification_message);
+                        $notification_stmt->execute();
+
+                        $staff_notification_message = "Fine issued to $target_name: KSh $amount_display for '$fine_reason' by Discipline Master $issuer_name. Review it under Discipline Reports.";
+                        foreach (['pastors' => 'pastor', 'admins' => 'admin'] as $staff_table => $staff_type) {
+                            $staff_result = $conn->query("SELECT id FROM $staff_table");
+                            if (!$staff_result) {
+                                continue;
+                            }
+                            while ($staff = $staff_result->fetch_assoc()) {
+                                $notification_user_id = (int)$staff['id'];
+                                $notification_user_type = $staff_type;
+                                $notification_message = $staff_notification_message;
+                                $notification_stmt->execute();
+                            }
+                        }
+                        $notification_stmt->close();
+                    }
+
+                    header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($dept) . "&success=Fine issued successfully");
+                    exit();
+                }
             }
+
+            header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($dept) . "&error=" . urlencode('Fine could not be issued. Please verify the member and fine rule.'));
+            exit();
         }
     }
     
