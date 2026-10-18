@@ -317,7 +317,7 @@ function printDisciplinaryCases(button, orientation) {
     printWindow.document.write(`<!doctype html>
         <html><head><meta charset="utf-8"><title>${escapeText(reportTitle)}</title>
         <style>
-            @page{size:A4 ${pageOrientation};margin:10mm 8mm 18mm}
+            @page{size:A4 ${pageOrientation};margin:10mm 8mm 14mm}
             *{box-sizing:border-box}
             html,body{height:auto;min-height:0}
             body{margin:0;padding:0;color:#172033;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -332,14 +332,14 @@ function printDisciplinaryCases(button, orientation) {
             .brand h1{margin:0;color:#1e3a8a;font-size:16px;letter-spacing:0}
             .brand h2{margin:3px 0 0;font-size:13px;color:#222}
             .meta{margin:0 0 6px;color:#444;font-size:9px;display:flex;justify-content:space-between;gap:8px}
-            table{width:100%;border-collapse:collapse;font-size:9px;background:transparent;table-layout:auto}
+            table{width:100%;border-collapse:collapse;font-size:8.5px;background:transparent;table-layout:auto}
             thead{display:table-header-group}
             tfoot{display:table-footer-group}
-            tr{page-break-inside:avoid;break-inside:avoid}
-            th,td{border:1px solid #aab3c2;padding:4px 4px;text-align:left;vertical-align:middle;overflow-wrap:anywhere}
+            tr{page-break-inside:auto;break-inside:auto}
+            th,td{border:1px solid #aab3c2;padding:3px;text-align:left;vertical-align:middle;overflow-wrap:anywhere}
             th{background:#e8eef8!important;color:#172033;font-weight:700}
             td img{display:inline-block;width:30px;height:30px;object-fit:cover;border-radius:50%;border:1px solid #8792a5;vertical-align:middle}
-            .footer{position:fixed;z-index:2;left:0;right:0;bottom:-12mm;border-top:1px solid #aab3c2;padding-top:4px;text-align:center;color:#4b5563;font-size:8px;background:#fff;break-inside:avoid}
+            .footer{position:fixed;z-index:2;left:0;right:0;bottom:-9mm;border-top:1px solid #aab3c2;padding-top:3px;text-align:center;color:#4b5563;font-size:8px;background:#fff;break-inside:avoid}
             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
         </style></head><body>
         <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
