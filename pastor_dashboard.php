@@ -512,6 +512,9 @@ $appointments = $conn->query("
 
 // Pastor Content
 $current_daily_message = $conn->query("SELECT * FROM daily_messages WHERE pastor_id = $pastor_id ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
+if ($current_daily_message) {
+    $current_daily_message['quote'] = preg_replace('/\s*\(World English Bible\s*\(WEB\)\)\s*$/i', '', $current_daily_message['quote']);
+}
 $current_daily_message_views = 0;
 $current_daily_message_viewers = [];
 $current_daily_message_expired = false;

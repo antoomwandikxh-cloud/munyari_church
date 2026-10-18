@@ -3388,10 +3388,10 @@ w.document.write('</div>');
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php while($dm = $all_daily_messages->fetch_assoc()): ?>
+                                    <?php while($dm = $all_daily_messages->fetch_assoc()): $daily_quote_display = preg_replace('/\s*\(World English Bible\s*\(WEB\)\)\s*$/i', '', $dm['quote']); ?>
                                     <tr>
                                         <td style="font-weight: 500;"><?= htmlspecialchars($dm['first_name'] . ' ' . $dm['last_name']) ?></td>
-                                        <td><?= nl2br(htmlspecialchars(substr($dm['quote'], 0, 100))) ?><?= strlen($dm['quote']) > 100 ? '...' : '' ?></td>
+                                        <td><?= nl2br(htmlspecialchars(substr($daily_quote_display, 0, 100))) ?><?= strlen($daily_quote_display) > 100 ? '...' : '' ?></td>
                                         <td>
                                             <?php if($dm['video_file']): ?>
                                                 <a href="uploads/<?= htmlspecialchars($dm['video_file']) ?>" target="_blank" style="color: var(--primary);">View Video</a>

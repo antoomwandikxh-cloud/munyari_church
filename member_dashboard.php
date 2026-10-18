@@ -1042,6 +1042,9 @@ $notifications = $conn->query("SELECT * FROM notifications WHERE user_id = $memb
 
 // Member Content
 $daily_message = $conn->query("SELECT dm.*, p.first_name, p.last_name, p.profile_picture FROM daily_messages dm JOIN pastors p ON dm.pastor_id = p.id WHERE dm.expires_at > NOW() OR (dm.expires_at IS NULL AND dm.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)) ORDER BY dm.created_at DESC LIMIT 1")->fetch_assoc();
+if ($daily_message) {
+    $daily_message['quote'] = preg_replace('/\s*\(World English Bible\s*\(WEB\)\)\s*$/i', '', $daily_message['quote']);
+}
 if ($tab === 'inspiration_highlights' && $daily_message) {
     $daily_message_id = (int)$daily_message['id'];
     $daily_view_stmt = $conn->prepare("INSERT IGNORE INTO daily_message_views (daily_message_id, member_id) VALUES (?, ?)");
