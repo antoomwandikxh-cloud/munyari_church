@@ -1023,7 +1023,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['handle_transfer'])) {
 }
 
 // Handle Daily Message
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_daily_message'])) {
+    $remove_daily_message_id = (int)($_POST['daily_message_id'] ?? 0);
+    $latest_daily_message = $conn->query("SELECT id FROM daily_messages WHERE pastor_id = $pastor_id ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
+    if ($latest_daily_message && (int)$latest_daily_message['id'] === $remove_daily_message_id) {
+        $conn->query("DELETE FROM daily_message_views WHERE daily_message_id = $remove_daily_message_id");
+        $conn->query("DELETE FROM daily_messages WHERE id = $remove_daily_message_id AND pastor_id = $pastor_id");
+        header("Location: pastor_dashboard.php?tab=inspiration_highlights&success=" . urlencode('Daily quote removed. You can post a new one now.'));
+        exit();
+    }
+    header("Location: pastor_dashboard.php?tab=inspiration_highlights&error=" . urlencode('The current daily quote could not be removed. Refresh and try again.'));
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_daily_message'])) {
+    $active_daily_message = $conn->query("SELECT id FROM daily_messages WHERE pastor_id = $pastor_id AND (expires_at > NOW() OR (expires_at IS NULL AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR))) ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
+    if ($active_daily_message) {
+        header("Location: pastor_dashboard.php?tab=inspiration_highlights&error=" . urlencode('A daily quote is already active. Remove it before posting another.'));
+        exit();
+    }
+
     $daily_message_mode = ($_POST['daily_message_mode'] ?? 'written') === 'bible' ? 'bible' : 'written';
     if ($daily_message_mode === 'bible') {
         $verse_text = trim($_POST['selected_verse_text'] ?? '');
@@ -6421,6 +6440,7 @@ w.document.write('</div>');
                 </div>
 
                 <?php /* --- Current Daily Quote Display --- */ ?>
+                <?php $daily_quote_is_active = $current_daily_message && !$current_daily_message_expired; ?>
                 <div class="content-card" style="margin-bottom: 30px;">
                     <h2 style="margin-bottom: 15px;"><?= $current_daily_message_expired ? 'Most Recent Daily Quote' : 'Current Daily Quote' ?></h2>
                     <?php if ($current_daily_message): ?>
@@ -6473,6 +6493,13 @@ w.document.write('</div>');
                                     </video>
                                 </div>
                             <?php endif; ?>
+                            <?php if ($daily_quote_is_active): ?>
+                                <form method="POST" action="pastor_dashboard.php?tab=inspiration_highlights" style="margin-top:20px;" onsubmit="return confirm('Remove the current daily quote? Members will no longer see it, and you can post a new one.');">
+                                    <input type="hidden" name="remove_daily_message" value="1">
+                                    <input type="hidden" name="daily_message_id" value="<?= (int)$current_daily_message['id'] ?>">
+                                    <button type="submit" class="btn" style="background:#b42318; color:#fff;">Remove Current Daily Quote</button>
+                                </form>
+                            <?php endif; ?>
                         </div>
                     <?php else: ?>
                         <p style="color: var(--text-muted);">No daily quote posted yet.</p>
@@ -6483,6 +6510,11 @@ w.document.write('</div>');
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;">
                     <div class="content-card">
                         <h2>Post Daily Quote</h2>
+                        <?php if ($daily_quote_is_active): ?>
+                            <p role="status" style="margin:0 0 14px; padding:10px 12px; border-left:3px solid var(--primary); background:rgba(127,127,127,.08); color:var(--text-main);">
+                                A quote is currently active. Remove it above before posting another.
+                            </p>
+                        <?php endif; ?>
                         <form id="dailyQuoteForm" method="POST" action="pastor_dashboard.php?tab=inspiration_highlights" enctype="multipart/form-data">
                             <input type="hidden" name="post_daily_message" value="1">
                             <input type="hidden" name="daily_message_mode" id="dailyMessageMode" value="written">
@@ -6532,7 +6564,7 @@ w.document.write('</div>');
                                 <label>Optional Short Video (max 10MB)</label>
                                 <input type="file" name="video_file" class="form-control" accept="video/mp4,video/webm,video/ogg">
                             </div>
-                            <button type="submit" class="btn" style="background: var(--primary); margin-top: 10px;">Post to Entire Church</button>
+                            <button type="submit" class="btn" style="background: var(--primary); margin-top: 10px;<?= $daily_quote_is_active ? ' opacity:.55; cursor:not-allowed;' : '' ?>" <?= $daily_quote_is_active ? 'disabled aria-disabled="true"' : '' ?>>Post to Entire Church</button>
                         </form>
                         <script>
                         (() => {
