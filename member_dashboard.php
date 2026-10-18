@@ -4377,7 +4377,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <p style="color: var(--text-muted); margin-bottom: 15px;">Reports filed by the Discipline Master.</p>
 
                     <?php
-                    $reports = $conn->query("SELECT mr.*, m.first_name, m.last_name, dm.first_name as dm_first, dm.last_name as dm_last
+                    $reports = $conn->query("SELECT mr.*, m.first_name, m.last_name, m.profile_picture, dm.first_name as dm_first, dm.last_name as dm_last
                                             FROM member_reports mr
                                             JOIN members m ON mr.reported_member_id = m.id
                                             JOIN members dm ON mr.reported_by_id = dm.id
@@ -4386,11 +4386,11 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Date</th><th>Reported Member</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Reported Member</th><th>Reason</th><th>Status</th><th>Action</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($rp = $reports->fetch_assoc()): ?>
                                         <tr data-notification-row="disciplinary-report-<?= (int)$rp['id'] ?>">
-                                            <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y', strtotime($rp['created_at'])) ?></td>
+                                            <td><img src="uploads/<?= htmlspecialchars(basename($rp['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($rp['first_name'] . ' ' . $rp['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View reported member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($rp['first_name'] . ' ' . $rp['last_name']) ?></td>
                                             <td><?= htmlspecialchars($rp['reason']) ?></td>
                                             <td>
@@ -4412,6 +4412,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                                     <span style="color: var(--text-muted); font-size: 0.85em;">Forwarded to Pastor</span>
                                                 <?php endif; ?>
                                             </td>
+                                            <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y', strtotime($rp['created_at'])) ?></td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
@@ -8371,7 +8372,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     FROM member_reports WHERE reported_by_id = $member_id");
                 $dm_report_stats = $dm_report_stats_result ? $dm_report_stats_result->fetch_assoc() : [];
                 $dm_report_history = $conn->query("SELECT mr.id, mr.department, mr.reason, mr.status, mr.created_at,
-                    m.first_name, m.last_name
+                    m.first_name, m.last_name, m.profile_picture
                     FROM member_reports mr
                     JOIN members m ON mr.reported_member_id = m.id
                     WHERE mr.reported_by_id = $member_id
@@ -8389,13 +8390,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php if ($dm_report_history && $dm_report_history->num_rows > 0): ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Date</th><th>Department</th><th>Member</th><th>Reason</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Member</th><th>Department</th><th>Reason</th><th>Status</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while ($dm_report = $dm_report_history->fetch_assoc()): ?>
                                         <tr data-notification-row="disciplinary-report-<?= (int)$dm_report['id'] ?>">
-                                            <td style="white-space:nowrap;"><?= date('M j, Y g:i A', strtotime($dm_report['created_at'])) ?></td>
-                                            <td><?= htmlspecialchars($dm_report['department']) ?></td>
+                                            <td><img src="uploads/<?= htmlspecialchars(basename($dm_report['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($dm_report['first_name'] . ' ' . $dm_report['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View reported member photo"></td>
                                             <td><?= htmlspecialchars($dm_report['first_name'] . ' ' . $dm_report['last_name']) ?></td>
+                                            <td><?= htmlspecialchars($dm_report['department']) ?></td>
                                             <td><?= htmlspecialchars($dm_report['reason']) ?></td>
                                             <td>
                                                 <?php if ($dm_report['status'] === 'Pending Chairman'): ?>
@@ -8408,6 +8409,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                     <span class="badge"><?= htmlspecialchars($dm_report['status']) ?></span>
                                                 <?php endif; ?>
                                             </td>
+                                            <td style="white-space:nowrap;"><?= date('M j, Y g:i A', strtotime($dm_report['created_at'])) ?></td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>

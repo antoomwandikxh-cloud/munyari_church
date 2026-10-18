@@ -3765,20 +3765,21 @@ w.document.write('</div>');
                     <h2 style="color: var(--danger);">Forwarded Disciplinary Reports</h2>
                     <p style="color: var(--text-muted); margin-bottom: 15px;">Reports escalated by department Chairmen.</p>
                     <?php
-                    $forwarded = $conn->query("SELECT mr.*, m.first_name, m.last_name, dm.first_name as dm_first, dm.last_name as dm_last FROM member_reports mr JOIN members m ON mr.reported_member_id = m.id JOIN members dm ON mr.reported_by_id = dm.id WHERE mr.status = 'Forwarded to Pastor' ORDER BY mr.created_at DESC");
+                    $forwarded = $conn->query("SELECT mr.*, m.first_name, m.last_name, m.profile_picture, dm.first_name as dm_first, dm.last_name as dm_last FROM member_reports mr JOIN members m ON mr.reported_member_id = m.id JOIN members dm ON mr.reported_by_id = dm.id WHERE mr.status = 'Forwarded to Pastor' ORDER BY mr.created_at DESC");
                     if ($forwarded && $forwarded->num_rows > 0):
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Date</th><th>Department</th><th>Reported Member</th><th>Reported By</th><th>Reason</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Reported Member</th><th>Department</th><th>Reported By</th><th>Reason</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($fr = $forwarded->fetch_assoc()): ?>
                                         <tr data-notification-row="disciplinary-report-<?= (int)$fr['id'] ?>">
-                                            <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y', strtotime($fr['created_at'])) ?></td>
-                                            <td><span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;"><?= htmlspecialchars($fr['department']) ?></span></td>
+                                            <td><img src="uploads/<?= htmlspecialchars(basename($fr['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars(trim(($fr['first_name'] ?? '') . ' ' . ($fr['last_name'] ?? ''))) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View reported member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars(trim(($fr['first_name'] ?? '') . ' ' . ($fr['last_name'] ?? '')) ?: 'Unknown') ?></td>
+                                            <td><span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;"><?= htmlspecialchars($fr['department']) ?></span></td>
                                             <td style="font-size: 0.85em; color: var(--text-muted);"><?= htmlspecialchars($fr['dm_first'] . ' ' . $fr['dm_last']) ?></td>
                                             <td><?= htmlspecialchars($fr['reason']) ?></td>
+                                            <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y', strtotime($fr['created_at'])) ?></td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
