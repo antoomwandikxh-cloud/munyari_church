@@ -66,6 +66,9 @@ function notification_badge_tabs($message, $user_type) {
     if (strpos($msg, 'new church village member:') === 0) {
         return $user_type === 'member' ? ['manage_church_village'] : ['desired_roles'];
     }
+    if (preg_match('/^a new member has been added in .+ church village\.?$/i', trim($message))) {
+        return $user_type === 'member' ? ['manage_church_village'] : ['desired_roles'];
+    }
     if ($user_type === 'member' && strpos($msg, 'new member added to your department:') === 0) {
         return ['manage_department'];
     }
@@ -491,6 +494,8 @@ function notification_focus_message_with_member_id($conn, $message, $created_at 
         $focus_type = 'approved-member';
     } elseif (preg_match('/^New church village member:/i', $message)) {
         $focus_type = 'church-village-member';
+    } elseif (preg_match('/^A new member has been added in .+ church village\.?$/i', trim($message))) {
+        $focus_type = 'church-village-member';
     } elseif (preg_match('/^New member registration:/i', $message)) {
         $focus_type = 'member-registration';
     }
@@ -499,6 +504,7 @@ function notification_focus_message_with_member_id($conn, $message, $created_at 
     $related_member_id = (int)$related_member_id;
     $fallback_name = '';
     $fallback_department = '';
+    $legacy_village = '';
     if ($focus_type === 'member-registration'
         && preg_match('/^New member registration:\s*(.+?)\s+in\s+(.+?)\s+department\s+is\s+pending approval\.?$/i', trim($message), $match)) {
         $fallback_name = trim($match[1]);
@@ -515,6 +521,22 @@ function notification_focus_message_with_member_id($conn, $message, $created_at 
         && preg_match('/^New church village member:\s*(.+?)\s+is now in\s+(.+?)\s+village\.?$/i', trim($message), $match)) {
         $fallback_name = trim($match[1]);
         $fallback_department = trim($match[2]);
+    } elseif ($focus_type === 'church-village-member'
+        && preg_match('/^A new member has been added in\s+(.+?)\s+church village\.?$/i', trim($message), $match)) {
+        $legacy_village = trim($match[1]);
+    }
+
+    if ($related_member_id < 1 && $focus_type === 'church-village-member' && $legacy_village !== '') {
+        $village = $conn->real_escape_string($legacy_village);
+        $created_at = $conn->real_escape_string($created_at);
+        $result = $conn->query("SELECT id FROM members
+            WHERE LOWER(TRIM(church_village)) = LOWER('$village')
+              AND reg_date IS NOT NULL
+              AND ABS(TIMESTAMPDIFF(SECOND, reg_date, '$created_at')) <= 2592000
+            ORDER BY ABS(TIMESTAMPDIFF(SECOND, reg_date, '$created_at')) ASC, id DESC
+            LIMIT 1");
+        $member = $result ? $result->fetch_assoc() : null;
+        $related_member_id = (int)($member['id'] ?? 0);
     }
 
     if ($related_member_id < 1 && $fallback_name !== '' && $fallback_department !== '') {
