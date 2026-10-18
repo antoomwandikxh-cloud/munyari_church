@@ -5547,12 +5547,12 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     ?>
                         <?php if(count($videos) > 0): ?>
                             <h3 style="margin-top: 10px; color: var(--primary);">Video Highlights</h3>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 15px; margin-bottom: 30px;">
+                            <div style="display:flex;gap:20px;overflow-x:auto;padding:2px 2px 12px;margin-top:15px;margin-bottom:30px;scroll-snap-type:x proximity;">
                                 <?php foreach($videos as $h):
                                     $ext = strtolower(pathinfo($h['image_file'], PATHINFO_EXTENSION));
                                     $highlight_filename = basename($h['image_file']);
                                 ?>
-                                    <div style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: var(--bg-card); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                                    <div style="flex:0 0 280px;max-width:82vw;scroll-snap-align:start;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-card);">
                                         <video controls style="width: 100%; height: 200px; object-fit: cover; background: #000;">
                                             <source src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" type="video/<?= htmlspecialchars($ext === 'ogg' ? 'ogg' : $ext, ENT_QUOTES) ?>">
                                         </video>
@@ -5575,9 +5575,9 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
 
                         <?php if(count($photos) > 0): ?>
                             <h3 style="margin-top: 10px; color: var(--primary);">Photo Highlights</h3>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 15px;">
+                            <div style="display:flex;gap:20px;overflow-x:auto;padding:2px 2px 12px;margin-top:15px;scroll-snap-type:x proximity;">
                                 <?php foreach($photos as $h): $highlight_filename = basename($h['image_file']); ?>
-                                    <div style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: var(--bg-card); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                                    <div style="flex:0 0 280px;max-width:82vw;scroll-snap-align:start;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-card);">
                                         <img src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" alt="Highlight" style="width: 100%; height: 200px; object-fit: cover;">
                                         <div style="padding: 15px;">
                                             <?php if($h['caption']): ?>
