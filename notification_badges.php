@@ -94,8 +94,8 @@ function notification_badge_tabs($message, $user_type) {
         }
     }
 
-    if (strpos($msg, 'new member registration pending approval') !== false) {
-        $tabs[] = 'manage_members';
+    if (strpos($msg, 'new member registration:') === 0 && strpos($msg, 'pending approval') !== false) {
+        return [$user_type === 'admin' ? 'members' : 'manage_members'];
     }
     // Role removals are shown on the member dashboard, where current role/status is visible.
     if ($user_type === 'member'
@@ -412,7 +412,7 @@ function notification_badge_tabs($message, $user_type) {
 function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab, &$current_tab_messages = null) {
     $user_id      = (int)$user_id;
     $user_type_sql = $conn->real_escape_string($user_type);
-    $result = $conn->query("SELECT id, message FROM notifications WHERE user_id = $user_id AND user_type = '$user_type_sql' AND is_read = 0");
+    $result = $conn->query("SELECT id, message, created_at FROM notifications WHERE user_id = $user_id AND user_type = '$user_type_sql' AND is_read = 0");
     $badges   = [];
     $read_ids = [];
     $current_tab_messages = [];
@@ -427,7 +427,11 @@ function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab
                 $badges[$target_tab]++;
                 if ($current_tab === $target_tab) {
                     $read_ids[] = (int)$notification['id'];
-                    $current_tab_messages[] = (string)$notification['message'];
+                    $current_tab_messages[] = notification_focus_message_with_member_id(
+                        $conn,
+                        (string)$notification['message'],
+                        (string)($notification['created_at'] ?? '')
+                    );
                 }
             }
         }
@@ -442,6 +446,25 @@ function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab
     }
 
     return $badges;
+}
+
+function notification_focus_message_with_member_id($conn, $message, $created_at = '') {
+    if (!preg_match('/^New member registration:\s*(.+?)\s+in\s+(.+?)\s+department\s+is\s+pending approval\.?$/i', trim($message), $match)) {
+        return $message;
+    }
+
+    $name = $conn->real_escape_string(trim($match[1]));
+    $department = $conn->real_escape_string(trim($match[2]));
+    $created_at = $conn->real_escape_string($created_at);
+    $result = $conn->query("SELECT id FROM members
+        WHERE LOWER(TRIM(CONCAT(first_name, ' ', last_name))) = LOWER('$name')
+          AND LOWER(TRIM(department)) = LOWER('$department')
+        ORDER BY CASE WHEN reg_date IS NULL THEN 1 ELSE 0 END,
+                 ABS(TIMESTAMPDIFF(SECOND, reg_date, '$created_at')) ASC,
+                 id DESC
+        LIMIT 1");
+    $member = $result ? $result->fetch_assoc() : null;
+    return $member ? $message . ' [member-registration-id:' . (int)$member['id'] . ']' : $message;
 }
 
 function notification_target_tab($message, $user_type, $fallback_tab = 'dashboard') {
@@ -596,6 +619,14 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
     notificationMessages.forEach(function (notificationMessage) {
+        var registrationMatch = notificationMessage.match(/\[member-registration-id:\s*(\d+)\]/i);
+        if (registrationMatch) {
+            var registrationRow = main.querySelector('[data-notification-row="member-registration-' + registrationMatch[1] + '"]');
+            if (registrationRow) {
+                addHighlightedRow(registrationRow);
+                return;
+            }
+        }
         var dailyQuoteMatch = notificationMessage.match(/\bdaily quote\s*#\s*(\d+)/i);
         if (dailyQuoteMatch) {
             var dailyQuoteRow = main.querySelector('[data-notification-row="daily-quote-' + dailyQuoteMatch[1] + '"]');

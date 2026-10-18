@@ -1909,7 +1909,7 @@ function printMemberDirectory(orientation) {
             }
         }
                              ?>
-                            <tr>
+                            <tr<?php if (empty($m['is_pastor']) && (int)$m['is_approved'] === 0): ?> data-notification-row="member-registration-<?= (int)$m['id'] ?>"<?php endif; ?>>
                                 <td><img src="uploads/<?= htmlspecialchars($m['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); cursor: zoom-in;" onclick="viewProfileImage(this.src);"></td>
                                 <td style="font-weight: 500;"><?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name']) ?></td>
                                 <td><?= htmlspecialchars($m['username'] ?? '-') ?></td>

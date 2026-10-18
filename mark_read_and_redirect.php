@@ -45,6 +45,7 @@ unset($_SESSION['notification_tab_glow'], $_SESSION['notification_row_focus'], $
 if ($notification_found) {
     $redirect_tab = notification_target_tab($notification_message, $user_type, 'dashboard');
     $notification_focus_message = notification_focus_message_with_media_id($conn, $notification_message, $notification_created_at);
+    $notification_focus_message = notification_focus_message_with_member_id($conn, $notification_focus_message, $notification_created_at);
     $_SESSION['notification_tab_glow'] = $redirect_tab;
     $_SESSION['notification_row_focus'] = [
         'tab' => $redirect_tab,

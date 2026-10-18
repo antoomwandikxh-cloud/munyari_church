@@ -218,23 +218,28 @@ session_start();
         seqUnlock(input.id, nextId);
     }
 
+    function getRegistrationErrorMessage(input) {
+        let errorMsg = input.parentNode.querySelector('.err-msg');
+        if (!errorMsg) {
+            errorMsg = document.createElement('span');
+            errorMsg.className = 'err-msg';
+            errorMsg.style.color = '#ef4444';
+            errorMsg.style.fontSize = '0.8rem';
+            errorMsg.style.display = 'block';
+            errorMsg.style.marginTop = '4px';
+            errorMsg.style.fontWeight = '600';
+            input.parentNode.appendChild(errorMsg);
+        }
+        return errorMsg;
+    }
+
     async function checkPhoneAsync(input, nextId) {
         if(input.value.length === 10) {
             try {
                 let res = await fetch('check_phone.php?phone=' + input.value);
                 let data = await res.json();
                 if(data.exists) {
-                    let errorMsg = input.nextElementSibling;
-                    if (!errorMsg || !errorMsg.classList.contains('err-msg')) {
-                        errorMsg = document.createElement('span');
-                        errorMsg.className = 'err-msg';
-                        errorMsg.style.color = '#ef4444';
-                        errorMsg.style.fontSize = '0.85rem';
-                        errorMsg.style.display = 'block';
-                        errorMsg.style.marginTop = '4px';
-                        errorMsg.style.fontWeight = 'bold';
-                        input.parentNode.appendChild(errorMsg);
-                    }
+                    let errorMsg = getRegistrationErrorMessage(input);
                     errorMsg.innerText = 'This number is already registered!';
                     input.setCustomValidity('Invalid');
                     input.value = '';
@@ -292,16 +297,7 @@ session_start();
     });
 
     function validateInput(input, type) {
-        let errorMsg = input.nextElementSibling;
-        if (!errorMsg || !errorMsg.classList.contains('err-msg')) {
-            errorMsg = document.createElement('span');
-            errorMsg.className = 'err-msg';
-            errorMsg.style.color = '#ef4444';
-            errorMsg.style.fontSize = '0.8rem';
-            errorMsg.style.display = 'block';
-            errorMsg.style.marginTop = '4px';
-            input.parentNode.appendChild(errorMsg);
-        }
+        let errorMsg = getRegistrationErrorMessage(input);
         
         if (type === 'name') {
             if (/[^A-Za-z\s]/.test(input.value)) {
