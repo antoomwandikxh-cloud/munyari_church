@@ -7858,22 +7858,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         ['title' => 'Unpaid Fines', 'rows' => $organizer_unpaid_fines],
                         ['title' => 'Fines History', 'rows' => $organizer_fines]
                     ];
-                    $organizer_print_name = strtoupper(trim($member['first_name'] . ' ' . $member['last_name']));
-                    $organizer_print_photo = 'uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png');
                     ?>
                     <?php foreach ($organizer_fine_reports as $fine_report): ?>
-                        <div class="content-card fine-print-card" style="margin:24px 0;"
-                             data-print-title="<?= htmlspecialchars($fine_report['title'], ENT_QUOTES) ?>"
-                             data-print-department="<?= htmlspecialchars($active_org_dept, ENT_QUOTES) ?>"
-                             data-print-leader="<?= htmlspecialchars($organizer_print_name, ENT_QUOTES) ?>"
-                             data-print-leader-photo="<?= htmlspecialchars($organizer_print_photo, ENT_QUOTES) ?>"
-                             data-print-leader-role="Organising Secretary">
+                        <div class="content-card" style="margin:24px 0;">
                             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                                 <h2 style="margin:0;"><?= htmlspecialchars($fine_report['title']) ?> - <?= htmlspecialchars($active_org_dept) ?></h2>
-                                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                    <button type="button" class="btn-sm" <?= empty($fine_report['rows']) ? 'disabled' : '' ?> onclick="printFineReport(this, 'portrait')">Print <?= htmlspecialchars($fine_report['title']) ?> - Portrait</button>
-                                    <button type="button" class="btn-sm" <?= empty($fine_report['rows']) ? 'disabled' : '' ?> onclick="printFineReport(this, 'landscape')">Print <?= htmlspecialchars($fine_report['title']) ?> - Landscape</button>
-                                </div>
                             </div>
                             <p style="color:var(--text-muted);margin:10px 0 16px;">
                                 <?= $fine_report['title'] === 'Unpaid Fines' ? 'Outstanding fines awaiting payment or verification.' : 'Complete fine history for the selected department.' ?>
@@ -8366,10 +8355,23 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <?php endif; ?>
 
                 <!-- All Fines History -->
-                <div class="content-card" style="margin-top: 30px;">
-                    <h2>Fines History</h2>
+                <?php
+                $all_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department = '$dm_dept' ORDER BY mf.issued_at DESC");
+                $history_print_name = strtoupper(trim($member['first_name'] . ' ' . $member['last_name']));
+                $history_print_photo = 'uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png');
+                ?>
+                <div class="content-card fine-print-card" style="margin-top: 30px;"
+                     data-print-title="Fines History" data-print-department="<?= htmlspecialchars($dm_dept, ENT_QUOTES) ?>"
+                     data-print-leader="<?= htmlspecialchars($history_print_name, ENT_QUOTES) ?>"
+                     data-print-leader-photo="<?= htmlspecialchars($history_print_photo, ENT_QUOTES) ?>" data-print-leader-role="Discipline Master">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:15px;">
+                        <h2 style="margin:0;">Fines History</h2>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button type="button" class="btn-sm" <?= (!$all_fines || $all_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'portrait')">Print Fines History - Portrait</button>
+                            <button type="button" class="btn-sm" <?= (!$all_fines || $all_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'landscape')">Print Fines History - Landscape</button>
+                        </div>
+                    </div>
                     <?php
-                    $all_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department = '$dm_dept' ORDER BY mf.issued_at DESC LIMIT 50");
                     if ($all_fines && $all_fines->num_rows > 0):
                     ?>
                         <div class="table-responsive">
