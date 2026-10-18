@@ -930,35 +930,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'activate_member' && isset($_GE
     };
 
     if ($approved_member && $is_first_approval) {
-        $full_name = trim($approved_member['first_name'] . ' ' . $approved_member['last_name']);
-        $department = trim((string)$approved_member['department']);
         $send_approval_notice($act_id, 'member', 'Your membership has been approved by the pastor. Welcome to Munyari Church!');
-
-        $chair_roles_by_department = [
-            'youths' => ['youth chairperson', 'youth chairman', 'youth chairlady'],
-            'womens ministry' => ['women chairlady', 'women chairperson', 'women chairman'],
-            'women ministry' => ['women chairlady', 'women chairperson', 'women chairman'],
-            'elders' => ['elder chairman', 'elder chairperson', 'elder chairlady'],
-            'sunday school' => ['sunday school patron', 'sunday school chairperson', 'sunday school chairman', 'sunday school chairlady'],
-            'building & construction' => ['building chairperson', 'building chairman', 'building chairlady']
-        ];
-        $dept_key = strtolower($department);
-        $dept_sql = $conn->real_escape_string($department);
-        $chair_roles = $chair_roles_by_department[$dept_key] ?? [];
-        if ($chair_roles) {
-            $chair_candidates = $conn->query("SELECT id, church_role FROM members WHERE is_approved = 1 AND LOWER(TRIM(department)) = LOWER('$dept_sql')");
-            if ($chair_candidates) {
-                while ($chair = $chair_candidates->fetch_assoc()) {
-                    $role_parts = array_map('normalize_role_name', explode(',', (string)$chair['church_role']));
-                    if (array_intersect($chair_roles, $role_parts)) {
-                        $chair_id = (int)$chair['id'];
-                        $chair_notice = "New member added to your department: $full_name ($department).";
-                        $send_approval_notice($chair_id, 'member', $chair_notice, $act_id);
-                    }
-                }
-            }
-        }
-
         notify_staff_of_department_member_approval($conn, $act_id);
     } else {
         $send_approval_notice($act_id, 'member', 'Your account has been approved by the pastor. Welcome to Munyari Church!');

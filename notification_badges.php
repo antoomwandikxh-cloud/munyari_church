@@ -507,21 +507,69 @@ function notify_staff_of_department_member_approval($conn, $member_id) {
         while ($pastor = $pastors->fetch_assoc()) $recipients[] = [(int)$pastor['id'], 'pastor'];
     }
 
+    $chair_roles_by_department = [
+        'youths' => ['youth chairperson', 'youth chairman', 'youth chairlady'],
+        'womens ministry' => ['women chairlady', 'women chairperson', 'women chairman'],
+        'women ministry' => ['women chairlady', 'women chairperson', 'women chairman'],
+        'elders' => ['elder chairman', 'elder chairperson', 'elder chairlady'],
+        'sunday school' => ['sunday school patron', 'sunday school chairperson', 'sunday school chairman', 'sunday school chairlady'],
+        'building & construction' => ['building chairperson', 'building chairman', 'building chairlady'],
+    ];
+    $chair_roles = $chair_roles_by_department[strtolower($department)] ?? [];
+    $chair_ids = [];
+    if ($chair_roles) {
+        $department_sql = $conn->real_escape_string($department);
+        $chairs = $conn->query("SELECT id, church_role FROM members
+            WHERE is_approved = 1 AND id <> $member_id
+              AND LOWER(TRIM(department)) = LOWER('$department_sql')");
+        if ($chairs) {
+            while ($chair = $chairs->fetch_assoc()) {
+                $assigned_roles = preg_split('/[,;|]+/', (string)($chair['church_role'] ?? ''));
+                $assigned_roles = array_map(static function ($role) {
+                    $role = strtolower(trim(preg_replace('/\s+/', ' ', preg_replace('/\(.*?\)/', '', $role))));
+                    return trim($role);
+                }, $assigned_roles);
+                if (array_intersect($chair_roles, $assigned_roles)) {
+                    $chair_ids[] = (int)$chair['id'];
+                }
+            }
+        }
+    }
+
     $statement = $has_related_member_id
         ? $conn->prepare("INSERT INTO notifications (user_id, user_type, message, related_member_id) VALUES (?, ?, ?, ?)")
         : $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
-    if (!$statement) return 0;
-
     $sent = 0;
-    foreach ($recipients as [$recipient_id, $recipient_type]) {
-        if ($has_related_member_id) {
-            $statement->bind_param('issi', $recipient_id, $recipient_type, $message, $member_id);
-        } else {
-            $statement->bind_param('iss', $recipient_id, $recipient_type, $message);
+    if ($statement) {
+        foreach ($recipients as [$recipient_id, $recipient_type]) {
+            if ($has_related_member_id) {
+                $statement->bind_param('issi', $recipient_id, $recipient_type, $message, $member_id);
+            } else {
+                $statement->bind_param('iss', $recipient_id, $recipient_type, $message);
+            }
+            if ($statement->execute()) $sent++;
         }
-        if ($statement->execute()) $sent++;
+        $statement->close();
     }
-    $statement->close();
+
+    if ($chair_ids) {
+        $chair_message = "New member added to your department: $full_name ($department).";
+        $chair_statement = $has_related_member_id
+            ? $conn->prepare("INSERT INTO notifications (user_id, user_type, message, related_member_id) VALUES (?, 'member', ?, ?)")
+            : $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, 'member', ?)");
+        if ($chair_statement) {
+            foreach (array_unique($chair_ids) as $chair_id) {
+                if ($has_related_member_id) {
+                    $chair_statement->bind_param('isi', $chair_id, $chair_message, $member_id);
+                } else {
+                    $chair_statement->bind_param('is', $chair_id, $chair_message);
+                }
+                if ($chair_statement->execute()) $sent++;
+            }
+            $chair_statement->close();
+        }
+    }
+
     return $sent;
 }
 

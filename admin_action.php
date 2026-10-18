@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'db_connect.php';
+require_once 'notification_badges.php';
 
 // Only admins can perform these actions
 if (!isset($_SESSION['admin_id'])) {
@@ -17,9 +18,16 @@ if (isset($_GET['id']) && isset($_GET['type']) && isset($_GET['action'])) {
     $table = ($type === 'pastor') ? 'pastors' : 'members';
     
     if ($action === 'approve') {
+        $was_pending = false;
+        if ($type === 'member') {
+            $member_result = $conn->query("SELECT is_approved FROM members WHERE id = $id LIMIT 1");
+            $member_before_approval = $member_result ? $member_result->fetch_assoc() : null;
+            $was_pending = $member_before_approval && (int)$member_before_approval['is_approved'] === 0;
+        }
         $conn->query("UPDATE $table SET is_approved = 1 WHERE id = $id");
         if ($type === 'member') {
             $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($id, 'member', 'Your account has been approved by Admin. Welcome to Munyari Church!')");
+            if ($was_pending) notify_staff_of_department_member_approval($conn, $id);
         } elseif ($type === 'pastor') {
             $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($id, 'pastor', 'Your pastor account has been approved by Admin.')");
         }
