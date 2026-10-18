@@ -7490,6 +7490,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         .attendance-edit-photo-field label,.attendance-edit-form .form-group label{display:block;margin-bottom:6px;color:var(--text-main);font-size:.88rem;font-weight:700}
                         .attendance-edit-photo-field input{display:block;width:100%;max-width:100%;color:var(--text-muted);font-size:.8rem}
                         .attendance-edit-photo-field input::file-selector-button{margin-right:8px;padding:7px 10px;border:1px solid var(--border-color);border-radius:7px;background:var(--card-bg);color:var(--text-main);font:inherit;cursor:pointer}
+                        .attendance-phone-feedback{margin-top:7px;padding:8px 10px;border-left:3px solid var(--warning);border-radius:5px;background:rgba(245,158,11,.12);color:var(--text-main);font-size:.8rem;line-height:1.4}
+                        .attendance-phone-feedback.is-valid{border-left-color:var(--success);background:rgba(16,185,129,.12)}
                         .attendance-edit-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;padding-top:15px;border-top:1px solid var(--border-color)}
                         .attendance-edit-actions .btn-submit{width:auto;min-width:124px}
                         @media(max-width:480px){.attendance-edit-header{padding:17px}.attendance-edit-form{padding:17px}.attendance-edit-photo-row{align-items:flex-start;gap:10px}.attendance-edit-preview{width:56px;height:56px;flex-basis:56px}}
@@ -7627,8 +7629,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 </div>
                                                 <div class="form-group" style="margin-bottom:16px;">
                                                     <label for="register-member-phone-<?= $register_id ?>">Phone number</label>
-                                                    <input id="register-member-phone-<?= $register_id ?>" type="tel" name="phone" inputmode="numeric" pattern="[0-9]{10}" minlength="10" maxlength="10" title="Enter exactly 10 digits" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)" class="form-control" autocomplete="tel" required>
-                                                    <small style="display:block;margin-top:5px;color:var(--text-muted);">Use exactly 10 digits.</small>
+                                                    <input id="register-member-phone-<?= $register_id ?>" type="tel" name="phone" inputmode="numeric" pattern="[0-9]{10}" minlength="10" maxlength="10" title="Enter exactly 10 digits" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10);updateAttendancePhoneValidation(this)" class="form-control" autocomplete="tel" required>
+                                                    <div class="attendance-phone-feedback" data-register-phone-feedback role="status" aria-live="polite">Phone number must be exactly 10 digits. Numbers only.</div>
                                                 </div>
                                                 <div class="attendance-edit-actions">
                                                     <button type="button" class="btn-sm" onclick="this.closest('dialog').close()">Cancel</button>
@@ -7793,6 +7795,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         form.querySelector('[data-register-member-edit-name]').textContent = button.dataset.memberName || '';
                         form.querySelector('[data-register-member-edit-photo]').src = button.dataset.photo || 'uploads/default_avatar.png';
                         form.querySelector('[name="profile_photo"]').value = '';
+                        updateAttendancePhoneValidation(form.querySelector('[name="phone"]'), true);
                         if (!dialog.dataset.backdropHandler) {
                             dialog.addEventListener('click', function(event) {
                                 if (event.target === dialog) dialog.close();
@@ -7801,6 +7804,21 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         }
                         dialog.showModal();
                         dialog.querySelector('.attendance-edit-close').focus();
+                    }
+                    function updateAttendancePhoneValidation(input, showRule) {
+                        if (!input) return;
+                        var feedback = input.form.querySelector('[data-register-phone-feedback]');
+                        var valid = /^[0-9]{10}$/.test(input.value);
+                        input.setCustomValidity(valid ? '' : 'Enter exactly 10 digits.');
+                        if (!feedback) return;
+                        feedback.classList.toggle('is-valid', valid && !showRule);
+                        if (showRule) {
+                            feedback.textContent = 'Phone number must be exactly 10 digits. Numbers only.';
+                        } else if (valid) {
+                            feedback.textContent = 'Phone number is valid.';
+                        } else {
+                            feedback.textContent = 'Enter exactly 10 digits. ' + Math.max(0, 10 - input.value.length) + ' remaining.';
+                        }
                     }
                     function previewAttendanceMemberPhoto(input) {
                         if (input.files && input.files[0]) {
