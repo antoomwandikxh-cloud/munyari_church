@@ -1021,7 +1021,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['handle_transfer'])) {
 
 // Handle Daily Message
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_daily_message'])) {
-    $quote = $conn->real_escape_string($_POST['quote']);
+    $daily_message_mode = ($_POST['daily_message_mode'] ?? 'written') === 'bible' ? 'bible' : 'written';
+    if ($daily_message_mode === 'bible') {
+        $verse_text = trim($_POST['selected_verse_text'] ?? '');
+        $verse_reference = trim($_POST['selected_verse_reference'] ?? '');
+        $translation_names = ['web' => 'World English Bible (WEB)'];
+        $translation_id = $_POST['bible_translation'] ?? 'web';
+        if (!isset($translation_names[$translation_id])) {
+            $translation_id = 'web';
+        }
+        if ($verse_text === '' || $verse_reference === '') {
+            header("Location: pastor_dashboard.php?tab=inspiration_highlights&error=" . urlencode('Choose a Bible verse before posting.'));
+            exit();
+        }
+        $quote_text = $verse_text . "\n\n— " . $verse_reference . ' (' . $translation_names[$translation_id] . ')';
+    } else {
+        $quote_text = trim($_POST['quote'] ?? '');
+        if ($quote_text === '') {
+            header("Location: pastor_dashboard.php?tab=inspiration_highlights&error=" . urlencode('Enter a daily quote or choose a Bible verse.'));
+            exit();
+        }
+    }
+    $quote = $conn->real_escape_string($quote_text);
     $video_name = null;
     if (isset($_FILES['video_file']) && $_FILES['video_file']['error'] == 0) {
         $ext = strtolower(pathinfo($_FILES['video_file']['name'], PATHINFO_EXTENSION));
@@ -6459,11 +6480,54 @@ w.document.write('</div>');
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;">
                     <div class="content-card">
                         <h2>Post Daily Quote</h2>
-                        <form method="POST" action="pastor_dashboard.php?tab=inspiration_highlights" enctype="multipart/form-data">
+                        <form id="dailyQuoteForm" method="POST" action="pastor_dashboard.php?tab=inspiration_highlights" enctype="multipart/form-data">
                             <input type="hidden" name="post_daily_message" value="1">
+                            <input type="hidden" name="daily_message_mode" id="dailyMessageMode" value="written">
                             <div class="form-group">
-                                <label>Inspirational Quote / Message</label>
-                                <textarea name="quote" class="form-control" rows="4" required placeholder="Write a message of encouragement or scripture..."></textarea>
+                                <label>Message type</label>
+                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    <button type="button" class="btn" data-daily-mode="written" aria-pressed="true" style="background:var(--primary); color:#fff;">Write a message</button>
+                                    <button type="button" class="btn" data-daily-mode="bible" aria-pressed="false" style="background:transparent; color:var(--text-main); border:1px solid var(--border-color);">Choose Bible verse</button>
+                                </div>
+                            </div>
+                            <div id="writtenQuotePanel" class="form-group">
+                                <label for="dailyQuoteText">Inspirational Quote / Message</label>
+                                <textarea id="dailyQuoteText" name="quote" class="form-control" rows="4" required placeholder="Write a message of encouragement or scripture..."></textarea>
+                            </div>
+                            <div id="bibleVersePanel" style="display:none;">
+                                <fieldset id="bibleVerseControls" disabled style="border:0; padding:0; margin:0; min-width:0;">
+                                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px;">
+                                        <div class="form-group">
+                                            <label>Translation</label>
+                                            <div style="padding:10px 12px; min-height:42px; border:1px solid var(--border-color); border-radius:8px; color:var(--text-main);">World English Bible (WEB)</div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="bibleBook">Book</label>
+                                            <select id="bibleBook" class="form-control" disabled>
+                                                <option value="">Select book</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="bibleChapter">Chapter</label>
+                                            <select id="bibleChapter" class="form-control" disabled>
+                                                <option value="">Select chapter</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="bibleVerse">Verse</label>
+                                            <select id="bibleVerse" class="form-control" disabled>
+                                                <option value="">Select verse</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </fieldset>
+                                <input type="hidden" name="selected_verse_text" id="selectedVerseText">
+                                <input type="hidden" name="selected_verse_reference" id="selectedVerseReference">
+                                <div id="bibleLookupStatus" role="status" aria-live="polite" style="color:var(--text-muted); font-size:.9rem; margin:4px 0 14px;">Choose a book, chapter, and verse.</div>
+                                <div id="bibleVersePreview" hidden style="padding:14px 16px; border-left:3px solid var(--primary); border-radius:4px; background:rgba(127,127,127,.08); margin-bottom:16px;">
+                                    <strong id="bibleVerseReference" style="display:block; margin-bottom:6px; color:var(--text-main);"></strong>
+                                    <div id="bibleVerseText" style="color:var(--text-main); line-height:1.6; white-space:pre-line;"></div>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label>Optional Short Video (max 10MB)</label>
@@ -6471,6 +6535,170 @@ w.document.write('</div>');
                             </div>
                             <button type="submit" class="btn" style="background: var(--primary); margin-top: 10px;">Post to Entire Church</button>
                         </form>
+                        <script>
+                        (() => {
+                            const form = document.getElementById('dailyQuoteForm');
+                            if (!form) return;
+                            const apiBase = 'https://bible-api.com/data/web';
+                            const modeInput = document.getElementById('dailyMessageMode');
+                            const quotePanel = document.getElementById('writtenQuotePanel');
+                            const versePanel = document.getElementById('bibleVersePanel');
+                            const quoteInput = document.getElementById('dailyQuoteText');
+                            const controls = document.getElementById('bibleVerseControls');
+                            const bookSelect = document.getElementById('bibleBook');
+                            const chapterSelect = document.getElementById('bibleChapter');
+                            const verseSelect = document.getElementById('bibleVerse');
+                            const verseTextInput = document.getElementById('selectedVerseText');
+                            const verseReferenceInput = document.getElementById('selectedVerseReference');
+                            const status = document.getElementById('bibleLookupStatus');
+                            const preview = document.getElementById('bibleVersePreview');
+                            const previewReference = document.getElementById('bibleVerseReference');
+                            const previewText = document.getElementById('bibleVerseText');
+                            let booksLoaded = false;
+                            let chapterVerses = [];
+                            const chapterCache = new Map();
+                            const verseCache = new Map();
+
+                            const resetSelect = (select, placeholder) => {
+                                select.replaceChildren(new Option(placeholder, ''));
+                                select.value = '';
+                            };
+                            const clearVerse = () => {
+                                verseTextInput.value = '';
+                                verseReferenceInput.value = '';
+                                preview.hidden = true;
+                                previewReference.textContent = '';
+                                previewText.textContent = '';
+                            };
+                            const getJson = async (url) => {
+                                const response = await fetch(url, { headers: { Accept: 'application/json' } });
+                                if (!response.ok) throw new Error('Bible lookup failed');
+                                return response.json();
+                            };
+
+                            async function loadBooks() {
+                                if (booksLoaded) return;
+                                status.textContent = 'Loading Bible books…';
+                                bookSelect.disabled = true;
+                                try {
+                                    const data = await getJson(apiBase);
+                                    resetSelect(bookSelect, 'Select book');
+                                    data.books.forEach((book) => bookSelect.add(new Option(book.name, book.id)));
+                                    bookSelect.disabled = false;
+                                    booksLoaded = true;
+                                    status.textContent = 'Choose a book, chapter, and verse.';
+                                } catch (error) {
+                                    status.textContent = 'Bible lookup is unavailable right now. You can still write a message instead.';
+                                }
+                            }
+
+                            async function loadChapters() {
+                                resetSelect(chapterSelect, 'Select chapter');
+                                resetSelect(verseSelect, 'Select verse');
+                                chapterSelect.disabled = true;
+                                verseSelect.disabled = true;
+                                chapterVerses = [];
+                                clearVerse();
+                                if (!bookSelect.value) return;
+                                const bookId = bookSelect.value;
+                                bookSelect.disabled = true;
+                                status.textContent = 'Loading chapters…';
+                                try {
+                                    let data = chapterCache.get(bookId);
+                                    if (!data) {
+                                        data = await getJson(`${apiBase}/${encodeURIComponent(bookId)}`);
+                                        chapterCache.set(bookId, data);
+                                    }
+                                    data.chapters.forEach((chapter) => chapterSelect.add(new Option(`Chapter ${chapter.chapter}`, chapter.chapter)));
+                                    bookSelect.disabled = false;
+                                    chapterSelect.disabled = false;
+                                    status.textContent = 'Choose a chapter.';
+                                } catch (error) {
+                                    bookSelect.disabled = false;
+                                    status.textContent = 'Could not load chapters. Please choose the book again.';
+                                }
+                            }
+
+                            async function loadVerses() {
+                                resetSelect(verseSelect, 'Select verse');
+                                verseSelect.disabled = true;
+                                chapterVerses = [];
+                                clearVerse();
+                                if (!bookSelect.value || !chapterSelect.value) return;
+                                const bookId = bookSelect.value;
+                                const chapter = chapterSelect.value;
+                                bookSelect.disabled = true;
+                                chapterSelect.disabled = true;
+                                status.textContent = 'Loading verses…';
+                                try {
+                                    const cacheKey = `${bookId}/${chapter}`;
+                                    let data = verseCache.get(cacheKey);
+                                    if (!data) {
+                                        data = await getJson(`${apiBase}/${encodeURIComponent(bookId)}/${encodeURIComponent(chapter)}`);
+                                        verseCache.set(cacheKey, data);
+                                    }
+                                    chapterVerses = data.verses || [];
+                                    chapterVerses.forEach((verse) => verseSelect.add(new Option(`Verse ${verse.verse}`, verse.verse)));
+                                    bookSelect.disabled = false;
+                                    chapterSelect.disabled = false;
+                                    verseSelect.disabled = false;
+                                    status.textContent = 'Choose a verse to preview it.';
+                                } catch (error) {
+                                    bookSelect.disabled = false;
+                                    chapterSelect.disabled = false;
+                                    status.textContent = 'Could not load verses. Please choose the chapter again.';
+                                }
+                            }
+
+                            function previewSelectedVerse() {
+                                const verse = chapterVerses.find((item) => String(item.verse) === verseSelect.value);
+                                if (!verse) {
+                                    clearVerse();
+                                    return;
+                                }
+                                const bookName = bookSelect.options[bookSelect.selectedIndex].text;
+                                const reference = `${bookName} ${chapterSelect.value}:${verse.verse}`;
+                                verseTextInput.value = verse.text.trim();
+                                verseReferenceInput.value = reference;
+                                previewReference.textContent = `${reference} · World English Bible (WEB)`;
+                                previewText.textContent = verse.text.trim();
+                                preview.hidden = false;
+                                status.textContent = 'Verse selected. It will be posted with its Bible reference.';
+                            }
+
+                            form.querySelectorAll('[data-daily-mode]').forEach((button) => {
+                                button.addEventListener('click', async () => {
+                                    const mode = button.dataset.dailyMode;
+                                    const useBible = mode === 'bible';
+                                    modeInput.value = mode;
+                                    quotePanel.hidden = useBible;
+                                    quotePanel.style.display = useBible ? 'none' : '';
+                                    quoteInput.required = !useBible;
+                                    quoteInput.disabled = useBible;
+                                    versePanel.style.display = useBible ? 'block' : 'none';
+                                    controls.disabled = !useBible;
+                                    form.querySelectorAll('[data-daily-mode]').forEach((item) => {
+                                        const active = item === button;
+                                        item.setAttribute('aria-pressed', active ? 'true' : 'false');
+                                        item.style.background = active ? 'var(--primary)' : 'transparent';
+                                        item.style.color = active ? '#fff' : 'var(--text-main)';
+                                        item.style.border = active ? '1px solid var(--primary)' : '1px solid var(--border-color)';
+                                    });
+                                    if (useBible) await loadBooks();
+                                });
+                            });
+                            bookSelect.addEventListener('change', loadChapters);
+                            chapterSelect.addEventListener('change', loadVerses);
+                            verseSelect.addEventListener('change', previewSelectedVerse);
+                            form.addEventListener('submit', (event) => {
+                                if (modeInput.value === 'bible' && (!verseTextInput.value || !verseReferenceInput.value)) {
+                                    event.preventDefault();
+                                    status.textContent = 'Select a Bible verse before posting.';
+                                    verseSelect.focus();
+                                }
+                            });
+                        })();
+                        </script>
                     </div>
                     <div class="content-card">
                         <h2>Upload Church Highlight</h2>
