@@ -14,6 +14,27 @@ function get_member_roles($church_role_string) {
     return array_filter(array_map('normalize_role_name', explode(',', str_replace('&', ',', $church_role_string ?? ''))));
 }
 
+function member_action_insert_notification($conn, $user_id, $user_type, $message) {
+    try {
+        $statement = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
+        if (!$statement) {
+            error_log('Notification prepare failed: ' . $conn->error);
+            return false;
+        }
+
+        $statement->bind_param('iss', $user_id, $user_type, $message);
+        $sent = $statement->execute();
+        if (!$sent) {
+            error_log('Notification insert failed for ' . $user_type . ' recipient: ' . $statement->error);
+        }
+        $statement->close();
+        return $sent;
+    } catch (Throwable $error) {
+        error_log('Notification delivery failed for ' . $user_type . ' recipient: ' . $error->getMessage());
+        return false;
+    }
+}
+
 function member_organizing_secretary_departments($member) {
     $departments = [];
     foreach (preg_split('/\s*,\s*/', str_replace('&', ',', $member['church_role'] ?? '')) as $assigned_role) {
@@ -1440,32 +1461,46 @@ if (isset($_GET['action'])) {
                     $issuer_name = trim(($member_query['first_name'] ?? '') . ' ' . ($member_query['last_name'] ?? ''));
                     $target_name = trim($target_member['first_name'] . ' ' . $target_member['last_name']);
                     $amount_display = number_format($fine_amount, 2);
-                    $notification_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
-
-                    if ($notification_stmt) {
-                        $notification_user_id = $target_id;
-                        $notification_user_type = 'member';
-                        $notification_message = "Fine issued: You were fined KSh $amount_display for '$fine_reason' by Discipline Master $issuer_name. View the details under My Fines.";
-                        $notification_stmt->bind_param('iss', $notification_user_id, $notification_user_type, $notification_message);
-                        $notification_stmt->execute();
-
-                        $staff_notification_message = "Fine issued to $target_name: KSh $amount_display for '$fine_reason' by Discipline Master $issuer_name. Review it under Discipline Reports.";
-                        foreach (['pastors' => 'pastor', 'admins' => 'admin'] as $staff_table => $staff_type) {
-                            $staff_result = $conn->query("SELECT id FROM $staff_table");
-                            if (!$staff_result) {
-                                continue;
-                            }
-                            while ($staff = $staff_result->fetch_assoc()) {
-                                $notification_user_id = (int)$staff['id'];
-                                $notification_user_type = $staff_type;
-                                $notification_message = $staff_notification_message;
-                                $notification_stmt->execute();
-                            }
-                        }
-                        $notification_stmt->close();
+                    $all_notifications_sent = true;
+                    $member_notification_message = "Fine issued: You were fined KSh $amount_display for '$fine_reason' by Discipline Master $issuer_name. View the details under My Fines.";
+                    if (!member_action_insert_notification($conn, $target_id, 'member', $member_notification_message)) {
+                        $all_notifications_sent = false;
                     }
 
-                    header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($dept) . "&success=Fine issued successfully");
+                    $staff_notification_message = "Fine issued to $target_name: KSh $amount_display for '$fine_reason' by Discipline Master $issuer_name. Review it under Discipline Reports.";
+                    foreach (['pastors' => 'pastor', 'admins' => 'admin'] as $staff_table => $staff_type) {
+                        try {
+                            $staff_result = $conn->query("SELECT id FROM `$staff_table`");
+                        } catch (Throwable $error) {
+                            error_log('Could not load ' . $staff_type . ' notification recipients: ' . $error->getMessage());
+                            $staff_result = false;
+                        }
+
+                        if (!$staff_result) {
+                            if ($conn->error !== '') {
+                                error_log('Could not load ' . $staff_type . ' notification recipients: ' . $conn->error);
+                            }
+                            $all_notifications_sent = false;
+                            continue;
+                        }
+
+                        if ($staff_result->num_rows === 0) {
+                            error_log('Fine notification not sent: no ' . $staff_type . ' accounts were found.');
+                            $all_notifications_sent = false;
+                            continue;
+                        }
+
+                        while ($staff = $staff_result->fetch_assoc()) {
+                            if (!member_action_insert_notification($conn, (int)$staff['id'], $staff_type, $staff_notification_message)) {
+                                $all_notifications_sent = false;
+                            }
+                        }
+                    }
+
+                    $success_message = $all_notifications_sent
+                        ? 'Fine issued successfully'
+                        : 'Fine issued, but one or more notifications could not be delivered. Please inform the pastor or admin.';
+                    header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($dept) . "&success=" . urlencode($success_message));
                     exit();
                 }
             }

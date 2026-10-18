@@ -3,7 +3,10 @@ function notification_badge_tabs($message, $user_type) {
     $msg  = strtolower($message);
     $tabs = [];
 
-    if (strpos($msg, 'fine issued:') === 0 || strpos($msg, 'fine issued to ') === 0) {
+    if (strpos($msg, 'fine') !== false) {
+        if (strpos($msg, 'initiated a fine payment') !== false && strpos($msg, 'financial records') !== false) {
+            return ['financials'];
+        }
         return [$user_type === 'member' ? 'my_fines' : 'discipline_reports'];
     }
 
