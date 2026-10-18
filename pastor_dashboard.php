@@ -511,12 +511,20 @@ $appointments = $conn->query("
 ");
 
 // Pastor Content
-$current_daily_message = $conn->query("SELECT * FROM daily_messages WHERE pastor_id = $pastor_id AND (expires_at > NOW() OR (expires_at IS NULL AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR))) ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
+$current_daily_message = $conn->query("SELECT * FROM daily_messages WHERE pastor_id = $pastor_id ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
 $current_daily_message_views = 0;
+$current_daily_message_viewers = [];
+$current_daily_message_expired = false;
 if ($current_daily_message) {
-    $daily_views_result = $conn->query("SELECT COUNT(DISTINCT member_id) AS view_count FROM daily_message_views WHERE daily_message_id = " . (int)$current_daily_message['id']);
-    if ($daily_views_result) {
-        $current_daily_message_views = (int)$daily_views_result->fetch_assoc()['view_count'];
+    $daily_message_id = (int)$current_daily_message['id'];
+    $daily_expiry_timestamp = !empty($current_daily_message['expires_at']) ? strtotime($current_daily_message['expires_at']) : strtotime($current_daily_message['created_at']) + 86400;
+    $current_daily_message_expired = $daily_expiry_timestamp <= time();
+    $daily_viewers_result = $conn->query("SELECT m.first_name, m.last_name, m.department, daily_message_views.viewed_at FROM daily_message_views JOIN members m ON m.id = daily_message_views.member_id WHERE daily_message_views.daily_message_id = $daily_message_id ORDER BY daily_message_views.viewed_at ASC");
+    if ($daily_viewers_result) {
+        while ($daily_viewer = $daily_viewers_result->fetch_assoc()) {
+            $current_daily_message_viewers[] = $daily_viewer;
+        }
+        $current_daily_message_views = count($current_daily_message_viewers);
     }
 }
 $highlights = $conn->query("SELECT * FROM church_highlights WHERE pastor_id = $pastor_id ORDER BY created_at DESC");
@@ -6395,17 +6403,39 @@ w.document.write('</div>');
 
                 <?php /* --- Current Daily Quote Display --- */ ?>
                 <div class="content-card" style="margin-bottom: 30px;">
-                    <h2 style="margin-bottom: 15px;">Current Daily Quote</h2>
+                    <h2 style="margin-bottom: 15px;"><?= $current_daily_message_expired ? 'Most Recent Daily Quote' : 'Current Daily Quote' ?></h2>
                     <?php if ($current_daily_message): ?>
                         <div style="text-align: center; max-width: 700px; margin: 0 auto; padding: 20px 0;">
                             <blockquote style="font-size: 1.4rem; font-style: italic; color: var(--text-main); line-height: 1.6; border-left: 4px solid var(--primary); padding-left: 20px; text-align: left; margin-bottom: 15px;">
                                 &ldquo;<?= nl2br(htmlspecialchars($current_daily_message['quote'])) ?>&rdquo;
                             </blockquote>
                             <p style="color: var(--text-muted); font-size: 0.85rem;">Posted <?= date('M j, Y \a\t g:i A', strtotime($current_daily_message['created_at'])) ?></p>
-                            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px;">
-                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="vertical-align: -3px; margin-right: 5px;"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                Seen by <strong><?= $current_daily_message_views ?></strong> <?= $current_daily_message_views === 1 ? 'member' : 'members' ?>
-                            </p>
+                            <?php if ($current_daily_message_expired): ?>
+                                <p style="color: var(--text-muted); font-size: 0.85rem;">Expired — no longer visible to members.</p>
+                            <?php endif; ?>
+                            <details style="margin: 12px auto 0; max-width: 560px; text-align: left;">
+                                <summary style="cursor: pointer; color: var(--text-main); font-size: 0.95rem; padding: 10px 12px; border: 1px solid rgba(127,127,127,.28); border-radius: 8px;">
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="vertical-align: -3px; margin-right: 5px;"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    Seen by <strong><?= $current_daily_message_views ?></strong> <?= $current_daily_message_views === 1 ? 'member' : 'members' ?> · Click to view
+                                </summary>
+                                <div style="margin-top: 8px; border: 1px solid rgba(127,127,127,.22); border-radius: 8px; padding: 4px 14px; background: rgba(127,127,127,.06);">
+                                    <?php if ($current_daily_message_viewers): ?>
+                                        <?php foreach ($current_daily_message_viewers as $daily_viewer): ?>
+                                            <div style="padding: 10px 0; border-bottom: 1px solid rgba(127,127,127,.18);">
+                                                <strong style="color: var(--text-main);">
+                                                    <?= htmlspecialchars($daily_viewer['first_name'] . ' ' . $daily_viewer['last_name']) ?>
+                                                </strong>
+                                                <div style="color: var(--text-muted); font-size: .82rem; margin-top: 3px;">
+                                                    <?= htmlspecialchars($daily_viewer['department'] ?? 'Church member') ?>
+                                                    · Viewed <?= date('M j, Y g:i:s A', strtotime($daily_viewer['viewed_at'])) ?>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <p style="color: var(--text-muted); margin: 10px 0;">No members have viewed this quote yet.</p>
+                                    <?php endif; ?>
+                                </div>
+                            </details>
                             <?php if ($current_daily_message['video_file']): ?>
                                 <div style="margin-top: 15px; border-radius: 12px; overflow: hidden;">
                                     <video controls style="width: 100%; max-height: 350px; background: #000;">

@@ -5504,10 +5504,17 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             window.location.reload();
                             return;
                         }
-                        const remainingMinutes = Math.ceil(remainingMs / 60000);
-                        countdown.textContent = `${remainingMinutes.toLocaleString()} ${remainingMinutes === 1 ? 'minute' : 'minutes'} remaining`;
+                        const remainingSeconds = Math.ceil(remainingMs / 1000);
+                        const hours = Math.floor(remainingSeconds / 3600);
+                        const minutes = Math.floor((remainingSeconds % 3600) / 60);
+                        const seconds = remainingSeconds % 60;
+                        const timeParts = [];
+                        if (hours > 0) timeParts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`);
+                        if (minutes > 0 || hours > 0) timeParts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
+                        timeParts.push(`${seconds} ${seconds === 1 ? 'second' : 'seconds'}`);
+                        countdown.textContent = `${timeParts.join(', ')} remaining`;
                     };
-                    const timer = window.setInterval(updateCountdown, 15000);
+                    const timer = window.setInterval(updateCountdown, 1000);
                     updateCountdown();
                 })();
                 </script>
