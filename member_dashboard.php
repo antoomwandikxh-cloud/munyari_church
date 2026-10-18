@@ -7826,48 +7826,78 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <?php if ($is_organizing_secretary): ?>
                     <?php
                     $organizer_fine_department_filter = department_match_sql($conn, 'mf.department', $active_org_dept);
-                    $organizer_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture, dm.first_name AS dm_first, dm.last_name AS dm_last
+                    $organizer_fines_result = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture, dm.first_name AS dm_first, dm.last_name AS dm_last
                         FROM member_fines mf
                         JOIN members m ON mf.member_id = m.id
                         LEFT JOIN members dm ON mf.discipline_master_id = dm.id
                         WHERE ($organizer_fine_department_filter)
-                        ORDER BY mf.issued_at DESC
-                        LIMIT 50");
+                        ORDER BY mf.issued_at DESC");
+                    $organizer_fines = [];
+                    if ($organizer_fines_result) {
+                        while ($organizer_fine = $organizer_fines_result->fetch_assoc()) {
+                            $organizer_fines[] = $organizer_fine;
+                        }
+                    }
+                    $organizer_unpaid_fines = array_values(array_filter($organizer_fines, function ($fine) {
+                        return strtolower(trim((string)($fine['status'] ?? ''))) !== 'paid';
+                    }));
+                    $organizer_fine_reports = [
+                        ['title' => 'Unpaid Fines', 'rows' => $organizer_unpaid_fines],
+                        ['title' => 'Fines History', 'rows' => $organizer_fines]
+                    ];
+                    $organizer_print_name = strtoupper(trim($member['first_name'] . ' ' . $member['last_name']));
+                    $organizer_print_photo = 'uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png');
                     ?>
-                    <div class="content-card" style="margin: 24px 0;">
-                        <h2><?= htmlspecialchars($active_org_dept) ?> Fine Records</h2>
-                        <p style="color:var(--text-muted);margin:0 0 16px;">Recent fines recorded for this department.</p>
-                        <?php if ($organizer_fines && $organizer_fines->num_rows > 0): ?>
-                            <div class="table-responsive">
-                                <table>
-                                    <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Issued By</th><th>Status</th><th>Date</th></tr></thead>
-                                    <tbody>
-                                        <?php while ($fine = $organizer_fines->fetch_assoc()): ?>
-                                            <tr>
-                                                <td>
-                                                    <img src="uploads/<?= htmlspecialchars(basename($fine['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>"
-                                                         alt="<?= htmlspecialchars($fine['first_name'] . ' ' . $fine['last_name']) ?> profile photo"
-                                                         onerror="this.onerror=null;this.src='uploads/default_avatar.png';"
-                                                         style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"
-                                                         onclick="viewProfileImage(this.src);" title="View member photo">
-                                                </td>
-                                                <td style="font-weight:500;"><?= htmlspecialchars($fine['first_name'] . ' ' . $fine['last_name']) ?></td>
-                                                <td><?= htmlspecialchars($fine['fine_reason']) ?></td>
-                                                <td style="font-weight:600;">KSh <?= number_format((float)$fine['amount'], 2) ?></td>
-                                                <td><?= htmlspecialchars(trim(($fine['dm_first'] ?? '') . ' ' . ($fine['dm_last'] ?? '')) ?: 'Discipline Master') ?></td>
-                                                <td><?= htmlspecialchars($fine['status']) ?></td>
-                                                <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);">
-                                                    <?= !empty($fine['issued_at']) ? date('M j, Y g:i A', strtotime($fine['issued_at'])) : '-' ?>
-                                                </td>
-                                            </tr>
-                                        <?php endwhile; ?>
-                                    </tbody>
-                                </table>
+                    <?php foreach ($organizer_fine_reports as $fine_report): ?>
+                        <div class="content-card organizer-fine-print-card" style="margin:24px 0;"
+                             data-print-title="<?= htmlspecialchars($fine_report['title'], ENT_QUOTES) ?>"
+                             data-print-department="<?= htmlspecialchars($active_org_dept, ENT_QUOTES) ?>"
+                             data-print-leader="<?= htmlspecialchars($organizer_print_name, ENT_QUOTES) ?>"
+                             data-print-leader-photo="<?= htmlspecialchars($organizer_print_photo, ENT_QUOTES) ?>">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                                <h2 style="margin:0;"><?= htmlspecialchars($fine_report['title']) ?> - <?= htmlspecialchars($active_org_dept) ?></h2>
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                    <button type="button" class="btn-sm" <?= empty($fine_report['rows']) ? 'disabled' : '' ?> onclick="printOrganizerFineReport(this, 'portrait')">Print / Save PDF - Portrait</button>
+                                    <button type="button" class="btn-sm" <?= empty($fine_report['rows']) ? 'disabled' : '' ?> onclick="printOrganizerFineReport(this, 'landscape')">Print / Save PDF - Landscape</button>
+                                </div>
                             </div>
-                        <?php else: ?>
-                            <p style="color:var(--text-muted);margin:0;">No fines have been recorded for this department.</p>
-                        <?php endif; ?>
-                    </div>
+                            <p style="color:var(--text-muted);margin:10px 0 16px;">
+                                <?= $fine_report['title'] === 'Unpaid Fines' ? 'Outstanding fines awaiting payment or verification.' : 'Complete fine history for the selected department.' ?>
+                            </p>
+                            <?php if (!empty($fine_report['rows'])): ?>
+                                <div class="table-responsive">
+                                    <table>
+                                        <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Issued By</th><th>Status</th><th>Date</th></tr></thead>
+                                        <tbody>
+                                            <?php foreach ($fine_report['rows'] as $fine): ?>
+                                                <tr>
+                                                    <td>
+                                                        <img src="uploads/<?= htmlspecialchars(basename($fine['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>"
+                                                             alt="<?= htmlspecialchars($fine['first_name'] . ' ' . $fine['last_name']) ?> profile photo"
+                                                             onerror="this.onerror=null;this.src='uploads/default_avatar.png';"
+                                                             style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"
+                                                             onclick="viewProfileImage(this.src);" title="View member photo">
+                                                    </td>
+                                                    <td style="font-weight:500;"><?= htmlspecialchars($fine['first_name'] . ' ' . $fine['last_name']) ?></td>
+                                                    <td><?= htmlspecialchars($fine['fine_reason']) ?></td>
+                                                    <td style="font-weight:600;">KSh <?= number_format((float)$fine['amount'], 2) ?></td>
+                                                    <td><?= htmlspecialchars(trim(($fine['dm_first'] ?? '') . ' ' . ($fine['dm_last'] ?? '')) ?: 'Discipline Master') ?></td>
+                                                    <td><?= htmlspecialchars($fine['status']) ?></td>
+                                                    <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);">
+                                                        <?= !empty($fine['issued_at']) ? date('M j, Y g:i A', strtotime($fine['issued_at'])) : '-' ?>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php else: ?>
+                                <p style="color:var(--text-muted);margin:0;">
+                                    <?= $fine_report['title'] === 'Unpaid Fines' ? 'There are no unpaid fines for this department.' : 'No fines have been recorded for this department.' ?>
+                                </p>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
                     <script>
                     function printOrganizedAttendance(registerId, orientation, attendanceStatus) {
                         var card = document.getElementById('attendance-register-' + registerId);
@@ -9902,7 +9932,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
-    <script src="script.js?v=20261018-print"></script>
+    <script src="script.js?v=20261018-fines-print"></script>
 <!-- Image Viewer Modal -->
 <div id="imageViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; flex-direction:column;">
     <span onclick="document.getElementById('imageViewerModal').style.display='none'" style="position:absolute; top:20px; right:30px; font-size:40px; color:white; cursor:pointer; font-weight:bold; transition:color 0.2s;" onmouseover="this.style.color='#ff4444'" onmouseout="this.style.color='white'">&times;</span>

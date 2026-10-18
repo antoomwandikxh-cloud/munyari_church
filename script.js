@@ -351,3 +351,86 @@ function printDisciplinaryCases(button, orientation) {
     });
 }
 
+function printOrganizerFineReport(button, orientation) {
+    const card = button?.closest('.organizer-fine-print-card');
+    const sourceTable = card?.querySelector('.table-responsive table');
+    if (!card || !sourceTable) return;
+
+    const printWindow = window.open('', '_blank', 'width=1100,height=800');
+    if (!printWindow) {
+        window.alert('Allow pop-ups for this site to print or save the report as PDF.');
+        return;
+    }
+
+    const table = sourceTable.cloneNode(true);
+    table.querySelectorAll('img').forEach(image => {
+        image.src = image.src || new URL('uploads/default_avatar.png', window.location.href).href;
+        image.removeAttribute('onclick');
+        image.removeAttribute('title');
+        image.setAttribute('onerror', `this.onerror=null;this.src='${new URL('uploads/default_avatar.png', window.location.href).href}'`);
+    });
+
+    const reportType = card.dataset.printTitle || 'Fine Records';
+    const department = card.dataset.printDepartment || '';
+    const heading = `${department} Department - ${reportType}`;
+    const leaderName = card.dataset.printLeader || 'Organising Secretary';
+    const leaderPhoto = new URL(card.dataset.printLeaderPhoto || 'uploads/default_avatar.png', window.location.href).href;
+    const logoUrl = new URL('church_logo.jpg', window.location.href).href;
+    const printedAt = new Date().toLocaleString();
+    const pageOrientation = orientation === 'landscape' ? 'landscape' : 'portrait';
+    const caseCount = table.querySelectorAll('tbody tr').length;
+    const escapeText = value => String(value).replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[character]);
+
+    printWindow.document.open();
+    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeText(heading)}</title><style>
+        @page{size:A4 ${pageOrientation};margin:12mm 10mm 25mm}*{box-sizing:border-box}
+        body{position:relative;font:12px Arial,Helvetica,sans-serif;color:#17202a;margin:0;padding:8px 4px 30px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+        .watermark{position:fixed;top:43%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:44px;color:rgba(14,116,144,.16);font-weight:900;white-space:nowrap;z-index:0;pointer-events:none}
+        .leader,.brand,.report-heading,.report-meta,table,.signature{position:relative;z-index:1}
+        .leader{text-align:center;margin:0 auto 14px}.leader img{width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}
+        .leader-name{font-size:14px;font-weight:800;color:#2563eb;margin-top:4px;text-transform:uppercase}
+        .brand{display:grid;grid-template-columns:62px 1fr 62px;align-items:center;gap:12px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 10px;margin-bottom:14px}
+        .brand-logo{width:62px;height:62px;object-fit:contain}.brand h1{font-size:18px;line-height:1.3;color:#0e7490;text-transform:uppercase;margin:4px 0}
+        .brand p{font-size:11px;color:#555;margin:4px 0}.report-heading{text-align:center;font-size:16px;font-weight:800;color:#17202a;text-transform:uppercase;margin:0 0 8px}
+        .report-meta{text-align:center;margin:0 0 14px;color:#444}
+        table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{page-break-inside:avoid;break-inside:avoid}
+        th,td{border:1px solid #888;padding:6px;text-align:left;vertical-align:middle;overflow-wrap:anywhere}th{background:#0e7490!important;color:#fff;font-size:10px;text-transform:uppercase}
+        td img{display:block;width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid #aaa}
+        .signature{display:grid;grid-template-columns:minmax(0,1fr) 100px;align-items:center;gap:28px;width:min(100%,560px);margin:28px auto 0;page-break-inside:avoid}
+        .signature-details{display:flex;flex-direction:column;gap:14px}.signature-row{display:grid;grid-template-columns:190px minmax(80px,1fr);gap:12px;align-items:end;min-height:24px}
+        .signature-label{font-weight:700}.signature-line{height:20px;border-bottom:1px solid #333}
+        .stamp{width:82px;height:82px;justify-self:end;border:2px dashed #999;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#777;font-size:10px}
+        .footer{position:fixed;bottom:-17mm;left:0;right:0;z-index:2;border-top:1px solid #0e7490;padding-top:5px;text-align:center;font-size:9px;color:#53606b}
+        @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+    </style></head><body>
+        <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
+        <div class="leader"><img src="${escapeText(leaderPhoto)}" alt="Organising Secretary"><div class="leader-name">${escapeText(leaderName)}</div><div style="font-size:10px;color:#555">Organising Secretary - ${escapeText(department)} Department</div></div>
+        <div class="brand"><img class="brand-logo" src="${escapeText(logoUrl)}" alt="E.A.P.C Munyari logo"><h1>E.A.P.C MUNYARI CHURCH<br>${escapeText(heading)}</h1><img class="brand-logo" src="${escapeText(logoUrl)}" alt="E.A.P.C Munyari logo"></div>
+        <div class="report-heading">${escapeText(reportType)}</div>
+        <p class="report-meta">${escapeText(department)} Department | Total records: ${caseCount}<br>Generated: ${escapeText(printedAt)}</p>
+        ${table.outerHTML}
+        <div class="signature"><div class="signature-details">
+            <div class="signature-row"><span class="signature-label">Organising Secretary Signature</span><span class="signature-line"></span></div>
+            <div class="signature-row"><span class="signature-label">Name: ${escapeText(leaderName)}</span><span></span></div>
+            <div class="signature-row"><span class="signature-label">Date</span><span class="signature-line"></span></div>
+        </div><div class="stamp">OFFICIAL<br>STAMP</div></div>
+        <div class="footer">E.A.P.C Munyari Fine Records | ${escapeText(department)} Department | ${escapeText(reportType)} | Printed: ${escapeText(printedAt)}</div>
+    </body></html>`);
+    printWindow.document.close();
+
+    const images = Array.from(printWindow.document.images);
+    Promise.all(images.map(image => image.complete ? Promise.resolve() : new Promise(resolve => {
+        image.onload = resolve;
+        image.onerror = resolve;
+    }))).then(() => {
+        printWindow.focus();
+        window.setTimeout(() => printWindow.print(), 300);
+    });
+}
+
