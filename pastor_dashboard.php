@@ -959,21 +959,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'activate_member' && isset($_GE
             }
         }
 
-        $count_result = $conn->query("SELECT COUNT(*) AS total FROM members WHERE is_approved = 1 AND LOWER(TRIM(department)) = LOWER('$dept_sql')");
-        $department_total = $count_result ? (int)($count_result->fetch_assoc()['total'] ?? 0) : 0;
-        $staff_notice = "New approved member: $full_name has joined the $department department. Current total: $department_total.";
-        $admins = $conn->query("SELECT id FROM admins");
-        if ($admins) {
-            while ($admin = $admins->fetch_assoc()) {
-                $send_approval_notice((int)$admin['id'], 'admin', $staff_notice, $act_id);
-            }
-        }
-        $pastors = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
-        if ($pastors) {
-            while ($pastor = $pastors->fetch_assoc()) {
-                $send_approval_notice((int)$pastor['id'], 'pastor', $staff_notice, $act_id);
-            }
-        }
+        notify_staff_of_department_member_approval($conn, $act_id);
     } else {
         $send_approval_notice($act_id, 'member', 'Your account has been approved by the pastor. Welcome to Munyari Church!');
     }

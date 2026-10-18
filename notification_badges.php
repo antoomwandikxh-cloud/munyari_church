@@ -480,6 +480,51 @@ function notify_church_village_leaders_of_member($conn, $member_id, $village) {
     return $sent;
 }
 
+function notify_staff_of_department_member_approval($conn, $member_id) {
+    $member_id = (int)$member_id;
+    if ($member_id < 1) return 0;
+
+    $member_result = $conn->query("SELECT first_name, last_name, department FROM members WHERE id = $member_id AND is_approved = 1 LIMIT 1");
+    $member = $member_result ? $member_result->fetch_assoc() : null;
+    if (!$member) return 0;
+
+    $department = trim((string)($member['department'] ?? ''));
+    if ($department === '') return 0;
+    $department_sql = $conn->real_escape_string($department);
+    $count_result = $conn->query("SELECT COUNT(*) AS total FROM members WHERE is_approved = 1 AND LOWER(TRIM(department)) = LOWER('$department_sql')");
+    $department_total = $count_result ? (int)($count_result->fetch_assoc()['total'] ?? 0) : 0;
+    $full_name = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
+    $message = "New approved member: $full_name has joined the $department department. Current total: $department_total.";
+    $has_related_member_id = ensure_notification_focus_schema($conn);
+    $recipients = [];
+
+    $admins = $conn->query("SELECT id FROM admins");
+    if ($admins) {
+        while ($admin = $admins->fetch_assoc()) $recipients[] = [(int)$admin['id'], 'admin'];
+    }
+    $pastors = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
+    if ($pastors) {
+        while ($pastor = $pastors->fetch_assoc()) $recipients[] = [(int)$pastor['id'], 'pastor'];
+    }
+
+    $statement = $has_related_member_id
+        ? $conn->prepare("INSERT INTO notifications (user_id, user_type, message, related_member_id) VALUES (?, ?, ?, ?)")
+        : $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
+    if (!$statement) return 0;
+
+    $sent = 0;
+    foreach ($recipients as [$recipient_id, $recipient_type]) {
+        if ($has_related_member_id) {
+            $statement->bind_param('issi', $recipient_id, $recipient_type, $message, $member_id);
+        } else {
+            $statement->bind_param('iss', $recipient_id, $recipient_type, $message);
+        }
+        if ($statement->execute()) $sent++;
+    }
+    $statement->close();
+    return $sent;
+}
+
 function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab, &$current_tab_messages = null) {
     $user_id      = (int)$user_id;
     $user_type_sql = $conn->real_escape_string($user_type);

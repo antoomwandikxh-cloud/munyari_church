@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'db_connect.php';
+require_once 'notification_badges.php';
 require_once 'role_departments.php';
 
 if (!isset($_SESSION['pastor_id'])) {
@@ -16,8 +17,12 @@ if (isset($_GET['action'])) {
     // Manage Members Actions
     if ($action === 'approve' && isset($_GET['id'])) {
         $id = (int)$_GET['id'];
+        $member_result = $conn->query("SELECT is_approved FROM members WHERE id = $id LIMIT 1");
+        $member_before_approval = $member_result ? $member_result->fetch_assoc() : null;
+        $was_pending = $member_before_approval && (int)$member_before_approval['is_approved'] === 0;
         $conn->query("UPDATE members SET is_approved = 1 WHERE id = $id");
         $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($id, 'member', 'Your account has been approved by the pastor!')");
+        if ($was_pending) notify_staff_of_department_member_approval($conn, $id);
         header("Location: pastor_dashboard.php?tab=manage_members&success=Member approved");
         exit();
     }
