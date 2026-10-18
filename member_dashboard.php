@@ -1561,34 +1561,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
             if ($admins_q) { while ($a = $admins_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$a['id']},'admin','$wl_notif')"); } }
         }
 
-        // Include the member ID so each recipient can land on this exact village row.
-        $new_mem_name = trim($member['first_name'] . ' ' . $member['last_name']);
-        $vn_notif = "New church village member: $new_mem_name is now in $cv village.";
+        // Keep the exact member ID on the alert so the village leader can jump to the right row.
+        notify_church_village_leaders_of_member($conn, $member_id, $cv);
+        $vn_message = "New church village member: " . trim($member['first_name'] . ' ' . $member['last_name']) . " is now in $cv village.";
         $has_related_member_id = ensure_notification_focus_schema($conn);
-        $send_village_notice = function ($recipient_id, $recipient_type) use ($conn, $has_related_member_id, $member_id, $vn_notif) {
-            if ($has_related_member_id) {
-                $notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message, related_member_id) VALUES (?, ?, ?, ?)");
-                if ($notice) {
-                    $related_id = (int)$member_id;
-                    $notice->bind_param("issi", $recipient_id, $recipient_type, $vn_notif, $related_id);
-                    $notice->execute();
-                    $notice->close();
-                }
-            } else {
-                $notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
-                if ($notice) {
-                    $notice->bind_param("iss", $recipient_id, $recipient_type, $vn_notif);
-                    $notice->execute();
-                    $notice->close();
-                }
-            }
-        };
         $pastors_q = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
-        if ($pastors_q) { while ($p = $pastors_q->fetch_assoc()) { $send_village_notice((int)$p['id'], 'pastor'); } }
+        if ($pastors_q) {
+            $notice = $has_related_member_id
+                ? $conn->prepare("INSERT INTO notifications (user_id, user_type, message, related_member_id) VALUES (?, 'pastor', ?, ?)")
+                : $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, 'pastor', ?)");
+            if ($notice) {
+                while ($p = $pastors_q->fetch_assoc()) {
+                    $recipient_id = (int)$p['id'];
+                    if ($has_related_member_id) $notice->bind_param('isi', $recipient_id, $vn_message, $member_id);
+                    else $notice->bind_param('is', $recipient_id, $vn_message);
+                    $notice->execute();
+                }
+                $notice->close();
+            }
+        }
         $admins_q = $conn->query("SELECT id FROM admins");
-        if ($admins_q) { while ($a = $admins_q->fetch_assoc()) { $send_village_notice((int)$a['id'], 'admin'); } }
-        $vls_q = $conn->query("SELECT id FROM members WHERE is_village_leader = 1 AND is_approved = 1 AND church_village = '$cv' AND id <> $member_id");
-        if ($vls_q) { while ($vl = $vls_q->fetch_assoc()) { $send_village_notice((int)$vl['id'], 'member'); } }
+        if ($admins_q) {
+            $notice = $has_related_member_id
+                ? $conn->prepare("INSERT INTO notifications (user_id, user_type, message, related_member_id) VALUES (?, 'admin', ?, ?)")
+                : $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, 'admin', ?)");
+            if ($notice) {
+                while ($a = $admins_q->fetch_assoc()) {
+                    $recipient_id = (int)$a['id'];
+                    if ($has_related_member_id) $notice->bind_param('isi', $recipient_id, $vn_message, $member_id);
+                    else $notice->bind_param('is', $recipient_id, $vn_message);
+                    $notice->execute();
+                }
+                $notice->close();
+            }
+        }
 
         header("Location: member_dashboard.php?tab=desired_roles&success=Your church village has been saved! All tabs are now unlocked.");
         exit();

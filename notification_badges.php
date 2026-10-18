@@ -443,6 +443,43 @@ function ensure_notification_focus_schema($conn) {
     return $available;
 }
 
+function notify_church_village_leaders_of_member($conn, $member_id, $village) {
+    $member_id = (int)$member_id;
+    $village = trim((string)$village);
+    if ($member_id < 1 || $village === '') return 0;
+
+    $member_result = $conn->query("SELECT first_name, last_name FROM members WHERE id = $member_id LIMIT 1");
+    $member = $member_result ? $member_result->fetch_assoc() : null;
+    if (!$member) return 0;
+
+    $member_name = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
+    $message = "New church village member: $member_name is now in $village village.";
+    $has_related_member_id = ensure_notification_focus_schema($conn);
+    $village_sql = $conn->real_escape_string($village);
+    $leaders = $conn->query("SELECT id FROM members
+        WHERE is_village_leader = 1 AND is_approved = 1 AND id <> $member_id
+          AND LOWER(TRIM(church_village)) = LOWER('$village_sql')");
+    if (!$leaders) return 0;
+
+    $sent = 0;
+    $statement = $has_related_member_id
+        ? $conn->prepare("INSERT INTO notifications (user_id, user_type, message, related_member_id) VALUES (?, 'member', ?, ?)")
+        : $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, 'member', ?)");
+    if (!$statement) return 0;
+
+    while ($leader = $leaders->fetch_assoc()) {
+        $leader_id = (int)$leader['id'];
+        if ($has_related_member_id) {
+            $statement->bind_param('isi', $leader_id, $message, $member_id);
+        } else {
+            $statement->bind_param('is', $leader_id, $message);
+        }
+        if ($statement->execute()) $sent++;
+    }
+    $statement->close();
+    return $sent;
+}
+
 function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab, &$current_tab_messages = null) {
     $user_id      = (int)$user_id;
     $user_type_sql = $conn->real_escape_string($user_type);

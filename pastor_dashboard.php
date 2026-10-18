@@ -3378,13 +3378,17 @@ w.document.write('</div>');
                 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['handle_village_update'])) {
                     $update_id = (int)$_POST['member_id'];
                     $action = $_POST['action'];
-                    $mem = $conn->query("SELECT first_name, last_name, pending_church_village, pending_desired_role_pref FROM members WHERE id = $update_id")->fetch_assoc();
+                    $mem = $conn->query("SELECT first_name, last_name, church_village, pending_church_village, pending_desired_role_pref FROM members WHERE id = $update_id")->fetch_assoc();
                     if ($mem && $mem['pending_church_village']) {
                         if ($action === 'approve') {
-                            $new_v = $conn->real_escape_string($mem['pending_church_village']);
+                            $new_v_raw = trim((string)$mem['pending_church_village']);
+                            $new_v = $conn->real_escape_string($new_v_raw);
                             $new_drp_val = $mem['pending_desired_role_pref'];
                             $new_drp = $new_drp_val ? "'" . $conn->real_escape_string($new_drp_val) . "'" : "NULL";
-                            $conn->query("UPDATE members SET church_village = '$new_v', desired_role_pref = $new_drp, pending_church_village = NULL, pending_desired_role_pref = NULL WHERE id = $update_id");
+                            $village_update_ok = $conn->query("UPDATE members SET church_village = '$new_v', desired_role_pref = $new_drp, pending_church_village = NULL, pending_desired_role_pref = NULL WHERE id = $update_id");
+                            if ($village_update_ok && strcasecmp(trim((string)($mem['church_village'] ?? '')), $new_v_raw) !== 0) {
+                                notify_church_village_leaders_of_member($conn, $update_id, $new_v_raw);
+                            }
                             
                             $msg = $conn->real_escape_string("Your request to update your church village to $new_v has been approved.");
                             $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($update_id, 'member', '$msg')");
