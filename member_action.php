@@ -1464,9 +1464,11 @@ if (isset($_GET['action'])) {
                 if ($fine_insert) {
                     $fine_insert->bind_param('iissd', $target_id, $member_id, $dept, $fine_reason, $fine_amount);
                     $fine_saved = $fine_insert->execute();
+                    $fine_id = $fine_saved ? (int)$fine_insert->insert_id : 0;
                     $fine_insert->close();
                 } else {
                     $fine_saved = false;
+                    $fine_id = 0;
                 }
 
                 if ($fine_saved) {
@@ -1474,7 +1476,7 @@ if (isset($_GET['action'])) {
                     $target_name = trim($target_member['first_name'] . ' ' . $target_member['last_name']);
                     $amount_display = number_format($fine_amount, 2);
                     $all_notifications_sent = true;
-                    $member_notification_message = "Fine issued: You were fined KSh $amount_display for '$fine_reason' by Discipline Master $issuer_name. View the details under My Fines.";
+                    $member_notification_message = "Fine issued: You were fined KSh $amount_display for '$fine_reason' by Discipline Master $issuer_name. Fine record #$fine_id. View the details under My Fines.";
                     if (!member_action_insert_notification($conn, $target_id, 'member', $member_notification_message)) {
                         $all_notifications_sent = false;
                     }

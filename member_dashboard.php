@@ -8352,7 +8352,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <thead><tr><th>Date</th><th>Offense</th><th>Amount</th><th>Status</th></tr></thead>
                                 <tbody>
                                     <?php while($mf = $my_fines->fetch_assoc()): ?>
-                                        <tr>
+                                        <tr data-notification-row="member-fine-<?= (int)$mf['id'] ?>">
                                             <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($mf['issued_at'])) ?></td>
                                             <td><?= htmlspecialchars($mf['fine_reason']) ?></td>
                                             <td style="font-weight: 600;">KSh <?= number_format($mf['amount'], 2) ?></td>

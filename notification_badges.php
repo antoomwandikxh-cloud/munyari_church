@@ -473,6 +473,15 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!notificationMessage) return;
     var main = document.querySelector(".main-content");
     if (!main) return;
+    var fineMatch = notificationMessage.match(/\bfine record\s*#\s*(\d+)/i);
+    if (fineMatch) {
+        var fineRow = main.querySelector('[data-notification-row="member-fine-' + fineMatch[1] + '"]');
+        if (fineRow) {
+            fineRow.classList.add("notification-row-glow");
+            fineRow.scrollIntoView({ behavior: "smooth", block: "center" });
+            return;
+        }
+    }
     var reportMatch = notificationMessage.match(/disciplinary report[^#]{0,120}#\s*(\d+)/i);
     if (reportMatch) {
         var reportRow = main.querySelector('[data-notification-row="disciplinary-report-' + reportMatch[1] + '"]');
