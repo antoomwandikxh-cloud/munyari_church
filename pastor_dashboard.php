@@ -1429,7 +1429,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
     <title>Pastor Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
     <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_messages) ?>
-    <script src="script.js?v=20261018-disciplinary-print-4"></script>
+    <script src="script.js?v=20261018-fine-print-5"></script>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
 .role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}

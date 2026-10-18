@@ -402,25 +402,25 @@ function printFineReport(button, orientation) {
 
     printWindow.document.open();
     printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeText(heading)}</title><style>
-        @page{size:A4 ${pageOrientation};margin:12mm 10mm 25mm}*{box-sizing:border-box}
-        body{position:relative;font:12px Arial,Helvetica,sans-serif;color:#17202a;margin:0;padding:8px 4px 30px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-        .watermark{position:fixed;top:43%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:44px;color:rgba(14,116,144,.16);font-weight:900;white-space:nowrap;z-index:0;pointer-events:none}
+        @page{size:A4 ${pageOrientation};margin:12mm 10mm 24mm}*{box-sizing:border-box}
+        body{position:relative;font:10px Arial,Helvetica,sans-serif;color:#17202a;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+        .watermark{position:fixed;top:43%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:40px;color:rgba(14,116,144,.16);font-weight:900;white-space:nowrap;z-index:0;pointer-events:none}
         .leader,.brand,.report-heading,.report-meta,table,.signature{position:relative;z-index:1}
-        .leader{text-align:center;margin:0 auto 14px}.leader img{width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}
-        .leader-name{font-size:14px;font-weight:800;color:#2563eb;margin-top:4px;text-transform:uppercase}
-        .brand{display:grid;grid-template-columns:62px 1fr 62px;align-items:center;gap:12px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 10px;margin-bottom:14px}
-        .brand-logo{width:62px;height:62px;object-fit:contain}.brand h1{font-size:18px;line-height:1.3;color:#0e7490;text-transform:uppercase;margin:4px 0}
-        .brand p{font-size:11px;color:#555;margin:4px 0}.report-heading{text-align:center;font-size:16px;font-weight:800;color:#17202a;text-transform:uppercase;margin:0 0 8px}
-        .report-meta{text-align:center;margin:0 0 14px;color:#444}
-        table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{page-break-inside:avoid;break-inside:avoid}
-        th,td{border:1px solid #888;padding:6px;text-align:left;vertical-align:middle;overflow-wrap:anywhere}th{background:#0e7490!important;color:#fff;font-size:10px;text-transform:uppercase}
-        td img{display:block;width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid #aaa}
-        .signature{display:grid;grid-template-columns:minmax(0,1fr) 100px;align-items:center;gap:28px;width:min(100%,560px);margin:28px auto 0;page-break-inside:avoid}
-        .signature-details{display:flex;flex-direction:column;gap:14px}.signature-row{display:grid;grid-template-columns:190px minmax(80px,1fr);gap:12px;align-items:end;min-height:24px}
-        .signature-label{font-weight:700}.signature-line{height:20px;border-bottom:1px solid #333}
-        .stamp{width:82px;height:82px;justify-self:end;border:2px dashed #999;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#777;font-size:10px}
-        .footer{position:fixed;bottom:-17mm;left:0;right:0;z-index:2;border-top:1px solid #0e7490;padding-top:5px;text-align:center;font-size:9px;color:#53606b}
-        @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+        .leader{text-align:center;margin:0 auto 7px}.leader img{width:58px;height:58px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}
+        .leader-name{font-size:12px;font-weight:800;color:#2563eb;margin-top:3px;text-transform:uppercase}
+        .brand{display:grid;grid-template-columns:46px 1fr 46px;align-items:center;gap:8px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 5px;margin-bottom:7px}
+        .brand-logo{width:42px;height:42px;object-fit:contain}.brand h1{font-size:15px;line-height:1.2;color:#0e7490;text-transform:uppercase;margin:2px 0}
+        .brand p{font-size:9px;color:#555;margin:2px 0}.report-heading{text-align:center;font-size:13px;font-weight:800;color:#17202a;text-transform:uppercase;margin:0 0 4px}
+        .report-meta{text-align:center;margin:0 0 7px;color:#444;font-size:9px}
+        table{width:100%;border-collapse:collapse;page-break-inside:auto}thead{display:table-header-group}tr,td,th{page-break-inside:avoid;break-inside:avoid}
+        th,td{border:1px solid #888;padding:4px;text-align:left;vertical-align:middle;overflow-wrap:anywhere}th{background:#0e7490!important;color:#fff;font-size:9px;text-transform:uppercase}
+        td img{display:block;width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid #aaa}
+        .signature{display:grid;grid-template-columns:minmax(0,1fr) 66px;align-items:center;gap:16px;width:min(100%,520px);margin:12px auto 0}
+        .signature-details{display:flex;flex-direction:column;gap:5px}.signature-row{display:grid;grid-template-columns:165px minmax(70px,1fr);gap:8px;align-items:end;min-height:17px}
+        .signature-label{font-weight:700}.signature-line{height:14px;border-bottom:1px solid #333}
+        .stamp{width:64px;height:64px;justify-self:end;border:2px dashed #999;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#777;font-size:9px}
+        .footer{position:fixed;bottom:0;left:0;right:0;z-index:2;border-top:1px solid #0e7490;padding:4px 0;text-align:center;font-size:8px;color:#53606b;background:rgba(255,255,255,.95)}
+        @media print{body{margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}thead{display:table-header-group}tfoot{display:table-footer-group}}
     </style></head><body>
         <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
         <div class="leader"><img src="${escapeText(leaderPhoto)}" alt="${escapeText(leaderRole)}"><div class="leader-name">${escapeText(leaderName)}</div><div style="font-size:10px;color:#555">${escapeText(leaderRole)} - ${escapeText(department)} Department</div></div>
