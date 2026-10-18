@@ -117,7 +117,13 @@ if ($tab === 'worship_control_panel') { $tab = 'my_worship_tasks'; }
 $notification_tab_glow = $_SESSION['notification_tab_glow'] ?? '';
 $notification_row_focus = $_SESSION['notification_row_focus'] ?? [];
 unset($_SESSION['notification_tab_glow'], $_SESSION['notification_row_focus'], $_SESSION['fine_notification_highlight']);
-$notification_focus_message = ($notification_row_focus['tab'] ?? '') === $tab ? (string)($notification_row_focus['message'] ?? '') : '';
+$notification_focus_messages = [];
+if (($notification_row_focus['tab'] ?? '') === $tab) {
+    $notification_focus_messages = is_array($notification_row_focus['messages'] ?? null) ? $notification_row_focus['messages'] : [];
+    if (!empty($notification_row_focus['message'])) {
+        $notification_focus_messages[] = (string)$notification_row_focus['message'];
+    }
+}
 
 $member = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
 // Only auto-sync department for roles that truly OWN a department (Youth*, Women*, Elder*).
@@ -785,7 +791,12 @@ $is_youth_advisor_scope = $is_youth_advisor; // Use the properly calculated flag
 $youth_advisor_scopes = $is_youth_advisor_scope
     ? ['Youths' => 'Youth Department', $member_home_department => $member_home_department . ' Department']
     : [$member_home_department => $member_home_department . ' Department'];
-$tab_badges = build_tab_notification_badges($conn, $member_id, 'member', $tab);
+$direct_tab_notification_messages = [];
+$tab_badges = build_tab_notification_badges($conn, $member_id, 'member', $tab, $direct_tab_notification_messages);
+if (!empty($direct_tab_notification_messages)) {
+    $notification_tab_glow = $tab;
+    $notification_focus_messages = array_values(array_unique(array_merge($notification_focus_messages, $direct_tab_notification_messages)));
+}
 $ss_teacher_classes = [];
 $ss_teacher_q = $conn->query("SELECT class_name FROM sunday_school_class_leaders WHERE leader_id = $member_id AND status = 'Active' ORDER BY FIELD(class_name, 'Little Angels', 'Champions', 'Battalion', 'Conquerors')");
 if ($ss_teacher_q) {
@@ -2770,7 +2781,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Member Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
-    <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_message) ?>
+    <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_messages) ?>
     <?php
     $phones_result = $conn->query("SELECT phone FROM members WHERE phone IS NOT NULL AND phone != ''");
     $phones = [];

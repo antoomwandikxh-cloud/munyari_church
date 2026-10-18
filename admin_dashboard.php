@@ -193,7 +193,13 @@ $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
 $notification_tab_glow = $_SESSION['notification_tab_glow'] ?? '';
 $notification_row_focus = $_SESSION['notification_row_focus'] ?? [];
 unset($_SESSION['notification_tab_glow'], $_SESSION['notification_row_focus'], $_SESSION['fine_notification_highlight']);
-$notification_focus_message = ($notification_row_focus['tab'] ?? '') === $tab ? (string)($notification_row_focus['message'] ?? '') : '';
+$notification_focus_messages = [];
+if (($notification_row_focus['tab'] ?? '') === $tab) {
+    $notification_focus_messages = is_array($notification_row_focus['messages'] ?? null) ? $notification_row_focus['messages'] : [];
+    if (!empty($notification_row_focus['message'])) {
+        $notification_focus_messages[] = (string)$notification_row_focus['message'];
+    }
+}
 
 // ── Early PRG handler: assign_village_leader ──────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader'])) {
@@ -232,7 +238,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader
 
 $admin_id = $_SESSION['admin_id'];
 cleanup_expired_church_highlights($conn);
-$tab_badges = build_tab_notification_badges($conn, $admin_id, 'admin', $tab);
+$direct_tab_notification_messages = [];
+$tab_badges = build_tab_notification_badges($conn, $admin_id, 'admin', $tab, $direct_tab_notification_messages);
+if (!empty($direct_tab_notification_messages)) {
+    $notification_tab_glow = $tab;
+    $notification_focus_messages = array_values(array_unique(array_merge($notification_focus_messages, $direct_tab_notification_messages)));
+}
 $admin_profile_col = $conn->query("SHOW COLUMNS FROM admins LIKE 'profile_picture'");
 if ($admin_profile_col && $admin_profile_col->num_rows == 0) {
     $conn->query("ALTER TABLE admins ADD COLUMN profile_picture VARCHAR(255) NOT NULL DEFAULT 'default_avatar.png'");
@@ -1012,7 +1023,7 @@ if (!empty($action)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
-    <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_message) ?>
+    <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_messages) ?>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
 .role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}

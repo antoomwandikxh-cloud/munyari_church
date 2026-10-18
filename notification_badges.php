@@ -406,12 +406,13 @@ function notification_badge_tabs($message, $user_type) {
     return array_values(array_unique($tabs));
 }
 
-function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab) {
+function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab, &$current_tab_messages = null) {
     $user_id      = (int)$user_id;
     $user_type_sql = $conn->real_escape_string($user_type);
     $result = $conn->query("SELECT id, message FROM notifications WHERE user_id = $user_id AND user_type = '$user_type_sql' AND is_read = 0");
     $badges   = [];
     $read_ids = [];
+    $current_tab_messages = [];
 
     if ($result) {
         while ($notification = $result->fetch_assoc()) {
@@ -423,10 +424,13 @@ function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab
                 $badges[$target_tab]++;
                 if ($current_tab === $target_tab) {
                     $read_ids[] = (int)$notification['id'];
+                    $current_tab_messages[] = (string)$notification['message'];
                 }
             }
         }
     }
+
+    $current_tab_messages = array_values(array_unique($current_tab_messages));
 
     if (!empty($read_ids)) {
         $ids = implode(',', array_unique($read_ids));
@@ -450,18 +454,22 @@ function render_tab_notification_badge($badges, $tab) {
     return '<span class="tab-notif-badge">' . ($count > 99 ? '99+' : $count) . '</span>';
 }
 
-function render_notification_tab_glow_script($target_tab, $current_tab, $notification_message = '') {
+function render_notification_tab_glow_script($target_tab, $current_tab, $notification_messages = '') {
     if (!is_string($target_tab) || $target_tab === '' || $target_tab !== $current_tab) {
         return '';
     }
 
     $target_json = json_encode($target_tab, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-    $message_json = json_encode((string)$notification_message, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    $notification_messages = is_array($notification_messages) ? $notification_messages : [$notification_messages];
+    $notification_messages = array_values(array_filter(array_map('strval', $notification_messages), function ($message) {
+        return trim($message) !== '';
+    }));
+    $messages_json = json_encode($notification_messages, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     $script = <<<'HTML'
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     var targetTab = __TARGET_TAB__;
-    var notificationMessage = __NOTIFICATION_MESSAGE__;
+    var notificationMessages = __NOTIFICATION_MESSAGES__;
     var targetLinks = [];
     document.querySelectorAll(".sidebar-link").forEach(function (link) {
         try {
@@ -486,98 +494,110 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    if (!notificationMessage) return;
+    if (!notificationMessages.length) return;
     var main = document.querySelector(".main-content");
     if (!main) return;
-    var fineMatch = notificationMessage.match(/\bfine record\s*#\s*(\d+)/i);
-    if (fineMatch) {
-        var fineRow = main.querySelector('[data-notification-row="member-fine-' + fineMatch[1] + '"]');
-        if (fineRow) {
-            fineRow.classList.add("notification-row-glow");
-            fineRow.scrollIntoView({ behavior: "smooth", block: "center" });
-            return;
-        }
-    }
-    var reportMatch = notificationMessage.match(/disciplinary report[^#]{0,120}#\s*(\d+)/i);
-    if (reportMatch) {
-        var reportRow = main.querySelector('[data-notification-row="disciplinary-report-' + reportMatch[1] + '"]');
-        if (reportRow) {
-            reportRow.classList.add("notification-row-glow");
-            reportRow.scrollIntoView({ behavior: "smooth", block: "center" });
-            return;
-        }
-    }
     var normalize = function (value) {
         return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
     };
-    var exact = [];
-    var patterns = [
-        /new member registration:\s*(.+?)\s+in\s+.+?\s+department\b/i,
-        /^(.+?)\s+has been registered as a new sunday school member\b/i,
-        /new pastor registration:\s*(.+?)\s+is pending\b/i,
-        /fine issued to\s+(.+?):\s*ksh\b/i,
-        /new appointment booking:\s*(.+?)\s+booked an appointment\b/i,
-        /^(.+?)\s+has been appointed as\b/i,
-        /^(.+?)\s+has been assigned the role\b/i
-    ];
-    for (var i = 0; i < patterns.length; i++) {
-        var match = notificationMessage.match(patterns[i]);
-        if (match && match[1]) {
-            exact.push(normalize(match[1]));
-            break;
-        }
-    }
-    var quoted = notificationMessage.match(/["']([^"']{4,})["']/g) || [];
-    quoted.forEach(function (value) {
-        var needle = normalize(value.slice(1, -1));
-        if (needle.length >= 4) exact.push(needle);
-    });
-
     var selectors = ".main-content tr, .main-content [data-notification-row], .main-content article, .main-content .notification-item, .main-content .member-card, .main-content .event-card, .main-content .announcement-card, .main-content .fine-card, .main-content .content-card";
     var candidates = Array.from(document.querySelectorAll(selectors)).filter(function (node) {
         return node.textContent.trim().length > 0;
     });
-
     var stop = new Set(["this", "that", "with", "from", "your", "have", "has", "been", "will", "when", "where", "under", "into", "only", "tab", "notification", "new", "member", "department", "church", "the", "and", "for", "his", "her", "they", "them", "you", "are", "was", "were", "sent", "received", "message", "please", "review", "view", "click", "open", "record", "alert", "ksh", "role", "to", "in", "on", "of", "by", "as", "is", "a", "an"]);
-    var message = normalize(notificationMessage);
-    var tokens = message.split(" ").filter(function (word, index, all) {
-        return word.length >= 4 && !stop.has(word) && all.indexOf(word) === index;
-    });
-    var best = null;
-    var bestScore = 0;
-    var bestLength = Infinity;
-    var tied = false;
-    candidates.forEach(function (node) {
-        var text = normalize(node.textContent);
-        var score = 0;
-        if (exact.length) {
-            exact.forEach(function (needle) {
-                if (needle && text.indexOf(needle) !== -1) score += 100 + needle.length;
-            });
-        } else {
-            tokens.forEach(function (token) {
-                if (text.indexOf(token) !== -1) score++;
-            });
+    var highlightedRows = new Set();
+    function addHighlightedRow(row) {
+        if (row && !highlightedRows.has(row)) {
+            row.classList.add("notification-row-glow");
+            highlightedRows.add(row);
         }
-        if (score > bestScore || (score === bestScore && score > 0 && text.length < bestLength)) {
-            best = node;
-            bestScore = score;
-            bestLength = text.length;
-            tied = false;
-        } else if (score && score === bestScore && text.length === bestLength && node !== best) {
-            tied = true;
+    }
+    notificationMessages.forEach(function (notificationMessage) {
+        var fineMatch = notificationMessage.match(/\bfine record\s*#\s*(\d+)/i);
+        if (fineMatch) {
+            var fineRow = main.querySelector('[data-notification-row="member-fine-' + fineMatch[1] + '"]');
+            if (fineRow) {
+                addHighlightedRow(fineRow);
+                return;
+            }
+        }
+        var reportMatch = notificationMessage.match(/disciplinary report[^#]{0,120}#\s*(\d+)/i);
+        if (reportMatch) {
+            var reportRow = main.querySelector('[data-notification-row="disciplinary-report-' + reportMatch[1] + '"]');
+            if (reportRow) {
+                addHighlightedRow(reportRow);
+                return;
+            }
+        }
+
+        var exact = [];
+        var patterns = [
+            /new member registration:\s*(.+?)\s+in\s+.+?\s+department\b/i,
+            /^(.+?)\s+has been registered as a new sunday school member\b/i,
+            /new pastor registration:\s*(.+?)\s+is pending\b/i,
+            /fine issued to\s+(.+?):\s*ksh\b/i,
+            /new appointment booking:\s*(.+?)\s+booked an appointment\b/i,
+            /^(.+?)\s+has been appointed as\b/i,
+            /^(.+?)\s+has been assigned the role\b/i
+        ];
+        for (var i = 0; i < patterns.length; i++) {
+            var match = notificationMessage.match(patterns[i]);
+            if (match && match[1]) {
+                exact.push(normalize(match[1]));
+                break;
+            }
+        }
+        var quoted = notificationMessage.match(/["']([^"']{4,})["']/g) || [];
+        quoted.forEach(function (value) {
+            var needle = normalize(value.slice(1, -1));
+            if (needle.length >= 4) exact.push(needle);
+        });
+
+        var message = normalize(notificationMessage);
+        var tokens = message.split(" ").filter(function (word, index, all) {
+            return word.length >= 4 && !stop.has(word) && all.indexOf(word) === index;
+        });
+        var best = null;
+        var bestScore = 0;
+        var bestLength = Infinity;
+        var tied = false;
+        candidates.forEach(function (node) {
+            var text = normalize(node.textContent);
+            var score = 0;
+            if (exact.length) {
+                exact.forEach(function (needle) {
+                    if (needle && text.indexOf(needle) !== -1) score += 100 + needle.length;
+                });
+            } else {
+                tokens.forEach(function (token) {
+                    if (text.indexOf(token) !== -1) score++;
+                });
+            }
+            if (score > bestScore || (score === bestScore && score > 0 && text.length < bestLength)) {
+                best = node;
+                bestScore = score;
+                bestLength = text.length;
+                tied = false;
+            } else if (score && score === bestScore && text.length === bestLength && node !== best) {
+                tied = true;
+            }
+        });
+        if (best && !tied && (exact.length ? bestScore >= 100 : bestScore >= 2)) {
+            addHighlightedRow(best);
         }
     });
-    if (!best || tied || (exact.length ? bestScore < 100 : bestScore < 2)) return;
-    best.classList.add("notification-row-glow");
-    best.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    var firstHighlightedRow = highlightedRows.values().next().value;
+    if (firstHighlightedRow) {
+        firstHighlightedRow.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
 }, { once: true });
 </script>
 HTML;
 
     return str_replace(
-        ['__TARGET_TAB__', '__NOTIFICATION_MESSAGE__'],
-        [$target_json, $message_json],
+        ['__TARGET_TAB__', '__NOTIFICATION_MESSAGES__'],
+        [$target_json, $messages_json],
         $script
     );
 }

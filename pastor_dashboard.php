@@ -315,7 +315,13 @@ $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
 $notification_tab_glow = $_SESSION['notification_tab_glow'] ?? '';
 $notification_row_focus = $_SESSION['notification_row_focus'] ?? [];
 unset($_SESSION['notification_tab_glow'], $_SESSION['notification_row_focus'], $_SESSION['fine_notification_highlight']);
-$notification_focus_message = ($notification_row_focus['tab'] ?? '') === $tab ? (string)($notification_row_focus['message'] ?? '') : '';
+$notification_focus_messages = [];
+if (($notification_row_focus['tab'] ?? '') === $tab) {
+    $notification_focus_messages = is_array($notification_row_focus['messages'] ?? null) ? $notification_row_focus['messages'] : [];
+    if (!empty($notification_row_focus['message'])) {
+        $notification_focus_messages[] = (string)$notification_row_focus['message'];
+    }
+}
 
 // ── Early PRG handler: assign_village_leader ──────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader'])) {
@@ -501,7 +507,12 @@ if (!function_exists('ss_can_teach_class')) {
 // Notifications
 $unread_notifs = $conn->query("SELECT COUNT(*) as count FROM notifications WHERE user_id = $pastor_id AND user_type = 'pastor' AND is_read = 0")->fetch_assoc()['count'];
 $notifications = $conn->query("SELECT * FROM notifications WHERE user_id = $pastor_id AND user_type = 'pastor' ORDER BY created_at DESC LIMIT 20");
-$tab_badges = build_tab_notification_badges($conn, $pastor_id, 'pastor', $tab);
+$direct_tab_notification_messages = [];
+$tab_badges = build_tab_notification_badges($conn, $pastor_id, 'pastor', $tab, $direct_tab_notification_messages);
+if (!empty($direct_tab_notification_messages)) {
+    $notification_tab_glow = $tab;
+    $notification_focus_messages = array_values(array_unique(array_merge($notification_focus_messages, $direct_tab_notification_messages)));
+}
 
 // Members Data
 $members = $conn->query("SELECT * FROM members WHERE is_approved != -2 ORDER BY is_approved ASC, first_name ASC");
@@ -1417,7 +1428,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
     <meta charset="UTF-8">
     <title>Pastor Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
-    <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_message) ?>
+    <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_messages) ?>
     <script src="script.js?v=20261017b"></script>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
