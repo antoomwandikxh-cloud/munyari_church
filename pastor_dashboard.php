@@ -519,7 +519,7 @@ if ($current_daily_message) {
     $daily_message_id = (int)$current_daily_message['id'];
     $daily_expiry_timestamp = !empty($current_daily_message['expires_at']) ? strtotime($current_daily_message['expires_at']) : strtotime($current_daily_message['created_at']) + 86400;
     $current_daily_message_expired = $daily_expiry_timestamp <= time();
-    $daily_viewers_result = $conn->query("SELECT m.first_name, m.last_name, m.department, daily_message_views.viewed_at FROM daily_message_views JOIN members m ON m.id = daily_message_views.member_id WHERE daily_message_views.daily_message_id = $daily_message_id ORDER BY daily_message_views.viewed_at ASC");
+    $daily_viewers_result = $conn->query("SELECT m.first_name, m.last_name, m.department, m.profile_picture, daily_message_views.viewed_at FROM daily_message_views JOIN members m ON m.id = daily_message_views.member_id WHERE daily_message_views.daily_message_id = $daily_message_id ORDER BY daily_message_views.viewed_at ASC");
     if ($daily_viewers_result) {
         while ($daily_viewer = $daily_viewers_result->fetch_assoc()) {
             $current_daily_message_viewers[] = $daily_viewer;
@@ -6421,13 +6421,19 @@ w.document.write('</div>');
                                 <div style="margin-top: 8px; border: 1px solid rgba(127,127,127,.22); border-radius: 8px; padding: 4px 14px; background: rgba(127,127,127,.06);">
                                     <?php if ($current_daily_message_viewers): ?>
                                         <?php foreach ($current_daily_message_viewers as $daily_viewer): ?>
-                                            <div style="padding: 10px 0; border-bottom: 1px solid rgba(127,127,127,.18);">
-                                                <strong style="color: var(--text-main);">
-                                                    <?= htmlspecialchars($daily_viewer['first_name'] . ' ' . $daily_viewer['last_name']) ?>
-                                                </strong>
-                                                <div style="color: var(--text-muted); font-size: .82rem; margin-top: 3px;">
-                                                    <?= htmlspecialchars($daily_viewer['department'] ?? 'Church member') ?>
-                                                    · Viewed <?= date('M j, Y g:i:s A', strtotime($daily_viewer['viewed_at'])) ?>
+                                            <?php $daily_viewer_photo = !empty($daily_viewer['profile_picture']) ? basename($daily_viewer['profile_picture']) : 'default_avatar.png'; ?>
+                                            <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid rgba(127,127,127,.18);">
+                                                <button type="button" aria-label="View <?= htmlspecialchars($daily_viewer['first_name'] . ' ' . $daily_viewer['last_name'], ENT_QUOTES) ?> profile photo" title="View member profile photo" onclick="viewProfileImage(this.querySelector('img').src)" style="display:inline-flex; flex:0 0 44px; width:44px; height:44px; padding:0; border:0; border-radius:50%; background:transparent; cursor:zoom-in;">
+                                                    <img src="uploads/<?= htmlspecialchars($daily_viewer_photo, ENT_QUOTES) ?>" alt="<?= htmlspecialchars($daily_viewer['first_name'] . ' ' . $daily_viewer['last_name'], ENT_QUOTES) ?>" style="display:block; width:44px; height:44px; object-fit:cover; border-radius:50%; border:2px solid var(--primary);">
+                                                </button>
+                                                <div style="min-width:0;">
+                                                    <strong style="color:var(--text-main);">
+                                                        <?= htmlspecialchars($daily_viewer['first_name'] . ' ' . $daily_viewer['last_name']) ?>
+                                                    </strong>
+                                                    <div style="color:var(--text-muted); font-size:.82rem; margin-top:3px;">
+                                                        <?= htmlspecialchars($daily_viewer['department'] ?? 'Church member') ?>
+                                                        · Viewed <?= date('M j, Y g:i:s A', strtotime($daily_viewer['viewed_at'])) ?>
+                                                    </div>
                                                 </div>
                                             </div>
                                         <?php endforeach; ?>
