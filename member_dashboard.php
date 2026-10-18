@@ -7324,11 +7324,24 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 </div>
 
                 <!-- Unpaid Fines Tracker -->
-                <div class="content-card" style="margin-top: 30px; border-left: 4px solid var(--danger);">
-                    <h2 style="color: var(--danger); margin-bottom: 15px;">Unpaid Fines & Reminders</h2>
+                <?php
+                $unpaid_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department='$esc_dept' AND mf.status = 'Unpaid' ORDER BY mf.issued_at ASC");
+                $treasurer_print_name = strtoupper(trim($member['first_name'] . ' ' . $member['last_name']));
+                $treasurer_print_photo = 'uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png');
+                ?>
+                <div class="content-card fine-print-card" style="margin-top: 30px; border-left: 4px solid var(--danger);"
+                     data-print-title="Unpaid Fines" data-print-department="<?= htmlspecialchars($active_treasurer_dept, ENT_QUOTES) ?>"
+                     data-print-leader="<?= htmlspecialchars($treasurer_print_name, ENT_QUOTES) ?>"
+                     data-print-leader-photo="<?= htmlspecialchars($treasurer_print_photo, ENT_QUOTES) ?>" data-print-leader-role="Treasurer">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:15px;">
+                        <h2 style="color: var(--danger);margin:0;">Unpaid Fines &amp; Reminders</h2>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button type="button" class="btn-sm" <?= (!$unpaid_fines || $unpaid_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'portrait')">Print Unpaid Fines - Portrait</button>
+                            <button type="button" class="btn-sm" <?= (!$unpaid_fines || $unpaid_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'landscape')">Print Unpaid Fines - Landscape</button>
+                        </div>
+                    </div>
                     <p style="color: var(--text-muted); margin-bottom: 15px;">Members who have not yet paid their fines. If a member fails to pay, you can request them to pay at the next meeting.</p>
                     <?php
-                    $unpaid_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department='$esc_dept' AND mf.status = 'Unpaid' ORDER BY mf.issued_at ASC");
                     if ($unpaid_fines && $unpaid_fines->num_rows > 0):
                     ?>
                         <div class="table-responsive">
@@ -7849,16 +7862,17 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     $organizer_print_photo = 'uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png');
                     ?>
                     <?php foreach ($organizer_fine_reports as $fine_report): ?>
-                        <div class="content-card organizer-fine-print-card" style="margin:24px 0;"
+                        <div class="content-card fine-print-card" style="margin:24px 0;"
                              data-print-title="<?= htmlspecialchars($fine_report['title'], ENT_QUOTES) ?>"
                              data-print-department="<?= htmlspecialchars($active_org_dept, ENT_QUOTES) ?>"
                              data-print-leader="<?= htmlspecialchars($organizer_print_name, ENT_QUOTES) ?>"
-                             data-print-leader-photo="<?= htmlspecialchars($organizer_print_photo, ENT_QUOTES) ?>">
+                             data-print-leader-photo="<?= htmlspecialchars($organizer_print_photo, ENT_QUOTES) ?>"
+                             data-print-leader-role="Organising Secretary">
                             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                                 <h2 style="margin:0;"><?= htmlspecialchars($fine_report['title']) ?> - <?= htmlspecialchars($active_org_dept) ?></h2>
                                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                    <button type="button" class="btn-sm" <?= empty($fine_report['rows']) ? 'disabled' : '' ?> onclick="printOrganizerFineReport(this, 'portrait')">Print / Save PDF - Portrait</button>
-                                    <button type="button" class="btn-sm" <?= empty($fine_report['rows']) ? 'disabled' : '' ?> onclick="printOrganizerFineReport(this, 'landscape')">Print / Save PDF - Landscape</button>
+                                    <button type="button" class="btn-sm" <?= empty($fine_report['rows']) ? 'disabled' : '' ?> onclick="printFineReport(this, 'portrait')">Print <?= htmlspecialchars($fine_report['title']) ?> - Portrait</button>
+                                    <button type="button" class="btn-sm" <?= empty($fine_report['rows']) ? 'disabled' : '' ?> onclick="printFineReport(this, 'landscape')">Print <?= htmlspecialchars($fine_report['title']) ?> - Landscape</button>
                                 </div>
                             </div>
                             <p style="color:var(--text-muted);margin:10px 0 16px;">
@@ -8304,11 +8318,23 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
                 <?php if ($active_treasurer_dept !== 'General Church' && $active_treasurer_dept !== 'Building & Construction'): ?>
                 <!-- Unpaid Fines -->
-                <div class="content-card" style="margin-top: 30px;">
-                    <h2>Unpaid Fines</h2>
-                    <?php
-                    $unpaid = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department = '$dm_dept' AND mf.status IN ('Unpaid', 'Pending Verification') ORDER BY mf.issued_at DESC");
-                    if ($unpaid && $unpaid->num_rows > 0):
+                <?php
+                $unpaid = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department = '$dm_dept' AND mf.status IN ('Unpaid', 'Pending Verification') ORDER BY mf.issued_at DESC");
+                $discipline_print_name = strtoupper(trim($member['first_name'] . ' ' . $member['last_name']));
+                $discipline_print_photo = 'uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png');
+                ?>
+                <div class="content-card fine-print-card" style="margin-top: 30px;"
+                     data-print-title="Unpaid Fines" data-print-department="<?= htmlspecialchars($dm_dept, ENT_QUOTES) ?>"
+                     data-print-leader="<?= htmlspecialchars($discipline_print_name, ENT_QUOTES) ?>"
+                     data-print-leader-photo="<?= htmlspecialchars($discipline_print_photo, ENT_QUOTES) ?>" data-print-leader-role="Discipline Master">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:15px;">
+                        <h2 style="margin:0;">Unpaid Fines</h2>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button type="button" class="btn-sm" <?= (!$unpaid || $unpaid->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'portrait')">Print Unpaid Fines - Portrait</button>
+                            <button type="button" class="btn-sm" <?= (!$unpaid || $unpaid->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'landscape')">Print Unpaid Fines - Landscape</button>
+                        </div>
+                    </div>
+                    <?php if ($unpaid && $unpaid->num_rows > 0): ?>
                     ?>
                         <div class="table-responsive">
                             <table>

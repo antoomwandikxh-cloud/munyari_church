@@ -351,8 +351,8 @@ function printDisciplinaryCases(button, orientation) {
     });
 }
 
-function printOrganizerFineReport(button, orientation) {
-    const card = button?.closest('.organizer-fine-print-card');
+function printFineReport(button, orientation) {
+    const card = button?.closest('.fine-print-card');
     const sourceTable = card?.querySelector('.table-responsive table');
     if (!card || !sourceTable) return;
 
@@ -374,6 +374,7 @@ function printOrganizerFineReport(button, orientation) {
     const department = card.dataset.printDepartment || '';
     const heading = `${department} Department - ${reportType}`;
     const leaderName = card.dataset.printLeader || 'Organising Secretary';
+    const leaderRole = card.dataset.printLeaderRole || 'Organising Secretary';
     const leaderPhoto = new URL(card.dataset.printLeaderPhoto || 'uploads/default_avatar.png', window.location.href).href;
     const logoUrl = new URL('church_logo.jpg', window.location.href).href;
     const printedAt = new Date().toLocaleString();
@@ -410,13 +411,13 @@ function printOrganizerFineReport(button, orientation) {
         @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
     </style></head><body>
         <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
-        <div class="leader"><img src="${escapeText(leaderPhoto)}" alt="Organising Secretary"><div class="leader-name">${escapeText(leaderName)}</div><div style="font-size:10px;color:#555">Organising Secretary - ${escapeText(department)} Department</div></div>
+        <div class="leader"><img src="${escapeText(leaderPhoto)}" alt="${escapeText(leaderRole)}"><div class="leader-name">${escapeText(leaderName)}</div><div style="font-size:10px;color:#555">${escapeText(leaderRole)} - ${escapeText(department)} Department</div></div>
         <div class="brand"><img class="brand-logo" src="${escapeText(logoUrl)}" alt="E.A.P.C Munyari logo"><h1>E.A.P.C MUNYARI CHURCH<br>${escapeText(heading)}</h1><img class="brand-logo" src="${escapeText(logoUrl)}" alt="E.A.P.C Munyari logo"></div>
         <div class="report-heading">${escapeText(reportType)}</div>
         <p class="report-meta">${escapeText(department)} Department | Total records: ${caseCount}<br>Generated: ${escapeText(printedAt)}</p>
         ${table.outerHTML}
         <div class="signature"><div class="signature-details">
-            <div class="signature-row"><span class="signature-label">Organising Secretary Signature</span><span class="signature-line"></span></div>
+            <div class="signature-row"><span class="signature-label">${escapeText(leaderRole)} Signature</span><span class="signature-line"></span></div>
             <div class="signature-row"><span class="signature-label">Name: ${escapeText(leaderName)}</span><span></span></div>
             <div class="signature-row"><span class="signature-label">Date</span><span class="signature-line"></span></div>
         </div><div class="stamp">OFFICIAL<br>STAMP</div></div>
