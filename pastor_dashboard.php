@@ -6346,14 +6346,13 @@ w.document.write('</div>');
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Date & Time</th><th>Department</th><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Issued By</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Member</th><th>Department</th><th>Offense</th><th>Amount</th><th>Issued By</th><th>Status</th><th>Date & Time</th></tr></thead>
                                 <tbody>
                                     <?php while($af = $all_fines_pastor->fetch_assoc()): ?>
                                         <tr>
-                                            <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($af['issued_at'])) ?></td>
-                                            <td><span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;"><?= htmlspecialchars($af['department']) ?></span></td>
                                             <td><img src="uploads/<?= htmlspecialchars(basename($af['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?></td>
+                                            <td><span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;"><?= htmlspecialchars($af['department']) ?></span></td>
                                             <td><?= htmlspecialchars($af['fine_reason']) ?></td>
                                             <td style="font-weight: 600;">KSh <?= number_format($af['amount'], 2) ?></td>
                                             <td style="font-size: 0.85em; color: var(--text-muted);"><?= htmlspecialchars($af['dm_first'] . ' ' . $af['dm_last']) ?></td>
@@ -6364,6 +6363,7 @@ w.document.write('</div>');
                                                     <span class="badge" style="background: rgba(239,68,68,0.1); color: #ef4444;">Unpaid</span>
                                                 <?php endif; ?>
                                             </td>
+                                            <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($af['issued_at'])) ?></td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>

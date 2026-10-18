@@ -7294,7 +7294,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Action</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Action</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($pf = $pending_fines->fetch_assoc()): ?>
                                         <tr>
@@ -7305,6 +7305,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             <td>
                                                 <a href="member_action.php?action=mark_fine_paid&id=<?= $pf['id'] ?>" class="btn-submit" style="background: #10b981; padding: 6px 12px; font-size: 0.85em; text-decoration: none;" onclick="return confirm('Verify payment and clear this fine?');">Verify Payment</a>
                                             </td>
+                                            <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($pf['issued_at'])) ?></td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
@@ -7325,7 +7326,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Action</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($uf = $unpaid_fines->fetch_assoc()): ?>
                                         <tr>
@@ -7347,6 +7348,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                     <span style="font-size: 0.85em; color: var(--text-muted);">Reminder Sent</span>
                                                 <?php endif; ?>
                                             </td>
+                                            <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($uf['issued_at'])) ?></td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
@@ -7831,13 +7833,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <?php if ($organizer_fines && $organizer_fines->num_rows > 0): ?>
                             <div class="table-responsive">
                                 <table>
-                                    <thead><tr><th>Date</th><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Issued By</th><th>Status</th></tr></thead>
+                                    <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Issued By</th><th>Status</th><th>Date</th></tr></thead>
                                     <tbody>
                                         <?php while ($fine = $organizer_fines->fetch_assoc()): ?>
                                             <tr>
-                                                <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);">
-                                                    <?= !empty($fine['issued_at']) ? date('M j, Y g:i A', strtotime($fine['issued_at'])) : '-' ?>
-                                                </td>
                                                 <td>
                                                     <img src="uploads/<?= htmlspecialchars(basename($fine['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>"
                                                          alt="<?= htmlspecialchars($fine['first_name'] . ' ' . $fine['last_name']) ?> profile photo"
@@ -7850,6 +7849,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 <td style="font-weight:600;">KSh <?= number_format((float)$fine['amount'], 2) ?></td>
                                                 <td><?= htmlspecialchars(trim(($fine['dm_first'] ?? '') . ' ' . ($fine['dm_last'] ?? '')) ?: 'Discipline Master') ?></td>
                                                 <td><?= htmlspecialchars($fine['status']) ?></td>
+                                                <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);">
+                                                    <?= !empty($fine['issued_at']) ? date('M j, Y g:i A', strtotime($fine['issued_at'])) : '-' ?>
+                                                </td>
                                             </tr>
                                         <?php endwhile; ?>
                                     </tbody>
@@ -8273,11 +8275,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Date</th><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($uf = $unpaid->fetch_assoc()): ?>
                                         <tr>
-                                            <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($uf['issued_at'])) ?></td>
                                             <td><img src="uploads/<?= htmlspecialchars(basename($uf['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?></td>
                                             <td><?= htmlspecialchars($uf['fine_reason']) ?></td>
@@ -8289,6 +8290,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                     <span class="badge" style="background: rgba(239,68,68,0.1); color: #ef4444;">Unpaid</span>
                                                 <?php endif; ?>
                                             </td>
+                                            <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($uf['issued_at'])) ?></td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
@@ -8309,11 +8311,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Date</th><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($af = $all_fines->fetch_assoc()): ?>
                                         <tr>
-                                            <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y', strtotime($af['issued_at'])) ?></td>
                                             <td><img src="uploads/<?= htmlspecialchars(basename($af['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?></td>
                                             <td><?= htmlspecialchars($af['fine_reason']) ?></td>
@@ -8327,6 +8328,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                     <span class="badge" style="background: rgba(239,68,68,0.1); color: #ef4444;">Unpaid</span>
                                                 <?php endif; ?>
                                             </td>
+                                            <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y', strtotime($af['issued_at'])) ?></td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
