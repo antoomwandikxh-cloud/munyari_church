@@ -1086,13 +1086,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_daily_message']))
         }
     }
     $conn->query("DELETE FROM daily_messages WHERE pastor_id = $pastor_id");
-    $conn->query("INSERT INTO daily_messages (pastor_id, quote, video_file, expires_at) VALUES ($pastor_id, '$quote', " . ($video_name ? "'$video_name'" : "NULL") . ", DATE_ADD(NOW(), INTERVAL 24 HOUR))");
+    $daily_message_inserted = $conn->query("INSERT INTO daily_messages (pastor_id, quote, video_file, expires_at) VALUES ($pastor_id, '$quote', " . ($video_name ? "'$video_name'" : "NULL") . ", DATE_ADD(NOW(), INTERVAL 24 HOUR))");
+    $daily_message_id = $daily_message_inserted ? (int)$conn->insert_id : 0;
     
     // Notify all members
-    $members_result = $conn->query("SELECT id FROM members");
-    while($mem = $members_result->fetch_assoc()) {
-        $m_id = $mem['id'];
-        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($m_id, 'member', 'Pastor $pastor_name has posted a new Daily Quote!')");
+    if ($daily_message_id > 0) {
+        $members_result = $conn->query("SELECT id FROM members");
+        $daily_notice = "Pastor $pastor_name has posted a new Daily Quote #$daily_message_id!";
+        $daily_notification_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, 'member', ?)");
+        while($mem = $members_result->fetch_assoc()) {
+            $m_id = (int)$mem['id'];
+            if ($daily_notification_stmt) {
+                $daily_notification_stmt->bind_param('is', $m_id, $daily_notice);
+                $daily_notification_stmt->execute();
+            }
+        }
+        if ($daily_notification_stmt) $daily_notification_stmt->close();
     }
 
     header("Location: pastor_dashboard.php?tab=inspiration_highlights&success=Daily Quote Posted");
@@ -1112,19 +1121,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['upload_highlight'])) {
                 if ($insert_highlight) {
                     $insert_highlight->bind_param('iss', $pastor_id, $img_name, $caption);
                     $saved_highlight = $insert_highlight->execute();
+                    $highlight_id = $saved_highlight ? (int)$conn->insert_id : 0;
                     $insert_highlight->close();
                 } else {
                     $saved_highlight = false;
+                    $highlight_id = 0;
                 }
 
                 if ($saved_highlight) {
                     // Notify all members
                     $members_result = $conn->query("SELECT id FROM members");
+                    $highlight_notice = "Pastor $pastor_name has uploaded a new Church Highlight #$highlight_id!";
+                    $highlight_notification_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, 'member', ?)");
                     while ($mem = $members_result->fetch_assoc()) {
                         $m_id = (int)$mem['id'];
-                        $highlight_notice = $conn->real_escape_string("Pastor $pastor_name has uploaded a new Church Highlight!");
-                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($m_id, 'member', '$highlight_notice')");
+                        if ($highlight_notification_stmt) {
+                            $highlight_notification_stmt->bind_param('is', $m_id, $highlight_notice);
+                            $highlight_notification_stmt->execute();
+                        }
                     }
+                    if ($highlight_notification_stmt) $highlight_notification_stmt->close();
 
                     header("Location: pastor_dashboard.php?tab=inspiration_highlights&success=Highlight Uploaded");
                     exit();

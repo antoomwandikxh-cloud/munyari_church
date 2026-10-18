@@ -5494,7 +5494,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         $daily_quote_expiry = !empty($daily_message['expires_at']) ? strtotime($daily_message['expires_at']) : strtotime($daily_message['created_at']) + 86400;
                         $daily_pastor_photo = !empty($daily_message['profile_picture']) ? basename($daily_message['profile_picture']) : 'default_avatar.png';
                         ?>
-                        <div style="text-align: center; max-width: 700px; margin: 0 auto;">
+                        <div data-notification-row="daily-quote-<?= (int)$daily_message['id'] ?>" style="text-align: center; max-width: 700px; margin: 0 auto;">
                             <button type="button" aria-label="View Pastor <?= htmlspecialchars($daily_message['first_name'] . ' ' . $daily_message['last_name'], ENT_QUOTES) ?> profile photo" title="View pastor profile photo" onclick="viewProfileImage(this.querySelector('img').src)" style="display:inline-flex; padding:0; border:0; background:transparent; border-radius:50%; cursor:zoom-in; margin:8px auto 16px;">
                                 <img src="uploads/<?= htmlspecialchars($daily_pastor_photo, ENT_QUOTES) ?>" alt="Pastor <?= htmlspecialchars($daily_message['first_name'] . ' ' . $daily_message['last_name'], ENT_QUOTES) ?>" style="display:block; width:76px; height:76px; object-fit:cover; border-radius:50%; border:3px solid var(--primary); box-shadow:0 2px 10px rgba(0,0,0,.18);">
                             </button>
@@ -5584,7 +5584,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                     $highlight_filename = basename($h['image_file']);
                                     $highlight_video_mime = ['mp4' => 'video/mp4', 'webm' => 'video/webm', 'ogg' => 'video/ogg'][$ext] ?? 'video/mp4';
                                 ?>
-                                    <div data-highlight-video-card style="flex:0 0 280px;max-width:82vw;scroll-snap-align:start;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-card);">
+                                    <div data-notification-row="church-highlight-<?= (int)$h['id'] ?>" data-highlight-video-card style="flex:0 0 280px;max-width:82vw;scroll-snap-align:start;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-card);">
                                         <video controls playsinline preload="metadata" aria-label="Play video highlight<?= $h['caption'] ? ': ' . htmlspecialchars($h['caption'], ENT_QUOTES) : '' ?>" style="width: 100%; height: 200px; object-fit: cover; background: #000;">
                                             <source src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" type="<?= htmlspecialchars($highlight_video_mime, ENT_QUOTES) ?>">
                                         </video>
@@ -5617,7 +5617,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                     $highlight_filename = basename($h['image_file']);
                                     $highlight_alt = trim((string)($h['caption'] ?? '')) ?: 'Church photo highlight';
                                 ?>
-                                    <div style="flex:0 0 280px;max-width:82vw;scroll-snap-align:start;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-card);">
+                                    <div data-notification-row="church-highlight-<?= (int)$h['id'] ?>" style="flex:0 0 280px;max-width:82vw;scroll-snap-align:start;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-card);">
                                         <button type="button" aria-label="View photo highlight: <?= htmlspecialchars($highlight_alt, ENT_QUOTES) ?>" title="View full photo" onclick="viewProfileImage(this.querySelector('img').src)" style="display:block;width:100%;padding:0;border:0;background:transparent;cursor:zoom-in;">
                                             <img src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" alt="<?= htmlspecialchars($highlight_alt, ENT_QUOTES) ?>" style="display:block;width:100%;height:200px;object-fit:cover;">
                                         </button>

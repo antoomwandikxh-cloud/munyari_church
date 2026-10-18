@@ -516,6 +516,22 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
     notificationMessages.forEach(function (notificationMessage) {
+        var dailyQuoteMatch = notificationMessage.match(/\bdaily quote\s*#\s*(\d+)/i);
+        if (dailyQuoteMatch) {
+            var dailyQuoteRow = main.querySelector('[data-notification-row="daily-quote-' + dailyQuoteMatch[1] + '"]');
+            if (dailyQuoteRow) {
+                addHighlightedRow(dailyQuoteRow);
+                return;
+            }
+        }
+        var highlightMatch = notificationMessage.match(/\bchurch highlight\s*#\s*(\d+)/i);
+        if (highlightMatch) {
+            var highlightRow = main.querySelector('[data-notification-row="church-highlight-' + highlightMatch[1] + '"]');
+            if (highlightRow) {
+                addHighlightedRow(highlightRow);
+                return;
+            }
+        }
         var fineMatch = notificationMessage.match(/\bfine record\s*#\s*(\d+)/i);
         if (fineMatch) {
             var fineRow = main.querySelector('[data-notification-row="member-fine-' + fineMatch[1] + '"]');
