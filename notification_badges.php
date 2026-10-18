@@ -3,6 +3,9 @@ function notification_badge_tabs($message, $user_type) {
     $msg  = strtolower($message);
     $tabs = [];
 
+    if (strpos($msg, 'disciplinary report outcome:') !== false) {
+        return $user_type === 'member' ? ['discipline'] : ['discipline_reports'];
+    }
     if (strpos($msg, 'disciplinary report pending chairman review') !== false
         || strpos($msg, 'discipline master has reported a member') !== false) {
         return $user_type === 'member' ? ['manage_department'] : ['discipline_reports'];

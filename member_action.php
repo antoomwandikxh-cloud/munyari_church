@@ -1657,16 +1657,17 @@ if (isset($_GET['action'])) {
     elseif ($action === 'forward_report' && isset($_GET['id'])) {
         $report_id = (int)$_GET['id'];
         $chairman = $conn->query("SELECT first_name, last_name, department, church_role FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
-        $report_stmt = $conn->prepare("SELECT mr.id, mr.department, mr.reason, mr.status, m.first_name, m.last_name FROM member_reports mr JOIN members m ON mr.reported_member_id = m.id WHERE mr.id = ? LIMIT 1");
+        $report_stmt = $conn->prepare("SELECT mr.id, mr.reported_by_id, mr.department, mr.reason, mr.status, m.first_name, m.last_name FROM member_reports mr JOIN members m ON mr.reported_member_id = m.id WHERE mr.id = ? LIMIT 1");
         $report = null;
         if ($report_stmt) {
             $report_stmt->bind_param('i', $report_id);
             $report_stmt->execute();
-            $found_id = $found_department = $found_reason = $found_status = $reported_first = $reported_last = null;
-            $report_stmt->bind_result($found_id, $found_department, $found_reason, $found_status, $reported_first, $reported_last);
+            $found_id = $reported_by_id = $found_department = $found_reason = $found_status = $reported_first = $reported_last = null;
+            $report_stmt->bind_result($found_id, $reported_by_id, $found_department, $found_reason, $found_status, $reported_first, $reported_last);
             if ($report_stmt->fetch()) {
                 $report = [
                     'id' => $found_id,
+                    'reported_by_id' => $reported_by_id,
                     'department' => $found_department,
                     'reason' => $found_reason,
                     'status' => $found_status,
@@ -1696,6 +1697,8 @@ if (isset($_GET['action'])) {
 
         $reported_name = trim($report['first_name'] . ' ' . $report['last_name']);
         $chairman_name = trim(($chairman['first_name'] ?? '') . ' ' . ($chairman['last_name'] ?? ''));
+        $discipline_master_message = 'Disciplinary report outcome: report #' . $report_id . ' for ' . $reported_name . ' in ' . $report['department'] . ' was forwarded to the Pastor by ' . $chairman_name . '.';
+        member_action_insert_notification($conn, (int)$report['reported_by_id'], 'member', $discipline_master_message);
         $pastors = $conn->query("SELECT id FROM pastors");
         if ($pastors) {
             while ($pastor = $pastors->fetch_assoc()) {
@@ -1711,7 +1714,48 @@ if (isset($_GET['action'])) {
     // Chairman: Resolve Report Locally
     elseif ($action === 'resolve_report' && isset($_GET['id'])) {
         $report_id = (int)$_GET['id'];
-        $conn->query("UPDATE member_reports SET status = 'Resolved locally' WHERE id = $report_id");
+        $chairman = $conn->query("SELECT first_name, last_name, department, church_role FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
+        $resolve_stmt = $conn->prepare("SELECT mr.id, mr.reported_by_id, mr.department, mr.status, m.first_name, m.last_name FROM member_reports mr JOIN members m ON mr.reported_member_id = m.id WHERE mr.id = ? LIMIT 1");
+        $report = null;
+        if ($resolve_stmt) {
+            $resolve_stmt->bind_param('i', $report_id);
+            $resolve_stmt->execute();
+            $found_id = $reported_by_id = $found_department = $found_status = $reported_first = $reported_last = null;
+            $resolve_stmt->bind_result($found_id, $reported_by_id, $found_department, $found_status, $reported_first, $reported_last);
+            if ($resolve_stmt->fetch()) {
+                $report = [
+                    'id' => $found_id,
+                    'reported_by_id' => $reported_by_id,
+                    'department' => $found_department,
+                    'status' => $found_status,
+                    'first_name' => $reported_first,
+                    'last_name' => $reported_last
+                ];
+            }
+            $resolve_stmt->close();
+        }
+
+        if (!$chairman || !$report || $report['status'] !== 'Pending Chairman' || !member_can_manage_disciplinary_report($chairman, $report['department'])) {
+            header("Location: member_dashboard.php?tab=manage_department&error=" . urlencode('You cannot resolve this report or it has already been reviewed.'));
+            exit();
+        }
+
+        $update_report = $conn->prepare("UPDATE member_reports SET status = 'Resolved' WHERE id = ? AND status = 'Pending Chairman'");
+        $resolved = false;
+        if ($update_report) {
+            $update_report->bind_param('i', $report_id);
+            $resolved = $update_report->execute() && $update_report->affected_rows === 1;
+            $update_report->close();
+        }
+        if (!$resolved) {
+            header("Location: member_dashboard.php?tab=manage_department&error=" . urlencode('This report was already reviewed or could not be updated.'));
+            exit();
+        }
+
+        $reported_name = trim($report['first_name'] . ' ' . $report['last_name']);
+        $chairman_name = trim(($chairman['first_name'] ?? '') . ' ' . ($chairman['last_name'] ?? ''));
+        $discipline_master_message = 'Disciplinary report outcome: report #' . $report_id . ' for ' . $reported_name . ' in ' . $report['department'] . ' was resolved with the member by ' . $chairman_name . '.';
+        member_action_insert_notification($conn, (int)$report['reported_by_id'], 'member', $discipline_master_message);
         header("Location: member_dashboard.php?tab=manage_department&success=Report marked as resolved");
         exit();
     }

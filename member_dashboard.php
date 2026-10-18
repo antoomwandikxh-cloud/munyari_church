@@ -2997,6 +2997,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <a href="?tab=discipline" class="sidebar-link <?= $tab == 'discipline' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
                         Discipline & Fines
+                        <?= render_tab_notification_badge($tab_badges, 'discipline') ?>
                     </a>
                     <?php if (!$ctx_is_leader && !$ctx_is_secretary): ?>
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
@@ -4405,7 +4406,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                                         <a href="member_action.php?action=resolve_report&id=<?= $rp['id'] ?>" class="btn-action" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid #10b981; padding: 6px 12px; font-size: 0.85em;" onclick="return confirm('Mark this issue as resolved locally?');">Resolved</a>
                                                         <a href="member_action.php?action=forward_report&id=<?= $rp['id'] ?>" class="btn-action btn-approve" style="background: var(--danger); color: white; padding: 6px 12px; font-size: 0.85em;" onclick="return confirm('Forward to Pastor?');">Forward</a>
                                                     </div>
-                                                <?php elseif ($rp['status'] == 'Resolved locally'): ?>
+                                                <?php elseif (in_array($rp['status'], ['Resolved locally', 'Resolved'], true)): ?>
                                                     <span style="color: #10b981; font-size: 0.85em; font-weight: 500;"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Resolved</span>
                                                 <?php else: ?>
                                                     <span style="color: var(--text-muted); font-size: 0.85em;">Forwarded to Pastor</span>
@@ -8310,6 +8311,61 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </div>
                         <button type="submit" class="btn-submit" style="background: var(--danger);">Submit Report</button>
                     </form>
+                </div>
+
+                <?php
+                $dm_report_stats_result = $conn->query("SELECT COUNT(*) AS total_sent,
+                    SUM(status = 'Pending Chairman') AS awaiting_chairman,
+                    SUM(status = 'Forwarded to Pastor') AS forwarded_to_pastor,
+                    SUM(status IN ('Resolved locally', 'Resolved')) AS resolved_with_member
+                    FROM member_reports WHERE reported_by_id = $member_id");
+                $dm_report_stats = $dm_report_stats_result ? $dm_report_stats_result->fetch_assoc() : [];
+                $dm_report_history = $conn->query("SELECT mr.id, mr.department, mr.reason, mr.status, mr.created_at,
+                    m.first_name, m.last_name
+                    FROM member_reports mr
+                    JOIN members m ON mr.reported_member_id = m.id
+                    WHERE mr.reported_by_id = $member_id
+                    ORDER BY mr.created_at DESC, mr.id DESC");
+                ?>
+                <div class="content-card" style="margin-top: 30px; border-top: 4px solid var(--primary);">
+                    <h2>Reports Sent to Chairperson</h2>
+                    <p style="color: var(--text-muted); margin: 0 0 18px;">Your submitted cases remain here with their latest review status.</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                        <div style="padding: 14px; border: 1px solid var(--border-color); border-radius: 8px;"><span style="display:block;color:var(--text-muted);font-size:.82rem;">Total sent</span><strong><?= (int)($dm_report_stats['total_sent'] ?? 0) ?></strong></div>
+                        <div style="padding: 14px; border: 1px solid var(--border-color); border-radius: 8px;"><span style="display:block;color:var(--text-muted);font-size:.82rem;">With chairperson</span><strong><?= (int)($dm_report_stats['awaiting_chairman'] ?? 0) ?></strong></div>
+                        <div style="padding: 14px; border: 1px solid var(--border-color); border-radius: 8px;"><span style="display:block;color:var(--text-muted);font-size:.82rem;">Sent to Pastor</span><strong><?= (int)($dm_report_stats['forwarded_to_pastor'] ?? 0) ?></strong></div>
+                        <div style="padding: 14px; border: 1px solid var(--border-color); border-radius: 8px;"><span style="display:block;color:var(--text-muted);font-size:.82rem;">Resolved</span><strong><?= (int)($dm_report_stats['resolved_with_member'] ?? 0) ?></strong></div>
+                    </div>
+                    <?php if ($dm_report_history && $dm_report_history->num_rows > 0): ?>
+                        <div class="table-responsive">
+                            <table>
+                                <thead><tr><th>Date</th><th>Department</th><th>Member</th><th>Reason</th><th>Status</th></tr></thead>
+                                <tbody>
+                                    <?php while ($dm_report = $dm_report_history->fetch_assoc()): ?>
+                                        <tr data-notification-row="disciplinary-report-<?= (int)$dm_report['id'] ?>">
+                                            <td style="white-space:nowrap;"><?= date('M j, Y g:i A', strtotime($dm_report['created_at'])) ?></td>
+                                            <td><?= htmlspecialchars($dm_report['department']) ?></td>
+                                            <td><?= htmlspecialchars($dm_report['first_name'] . ' ' . $dm_report['last_name']) ?></td>
+                                            <td><?= htmlspecialchars($dm_report['reason']) ?></td>
+                                            <td>
+                                                <?php if ($dm_report['status'] === 'Pending Chairman'): ?>
+                                                    <span class="badge" style="background:rgba(245,158,11,.12);color:#f59e0b;">Sent to Chairperson</span>
+                                                <?php elseif ($dm_report['status'] === 'Forwarded to Pastor'): ?>
+                                                    <span class="badge" style="background:rgba(37,99,235,.12);color:var(--primary);">Forwarded to Pastor</span>
+                                                <?php elseif (in_array($dm_report['status'], ['Resolved locally', 'Resolved'], true)): ?>
+                                                    <span class="badge" style="background:rgba(16,185,129,.12);color:#10b981;">Resolved with member</span>
+                                                <?php else: ?>
+                                                    <span class="badge"><?= htmlspecialchars($dm_report['status']) ?></span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <p style="color:var(--text-muted);margin:0;">You have not sent any disciplinary reports yet.</p>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
 
