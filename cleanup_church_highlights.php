@@ -8,5 +8,5 @@ if (PHP_SAPI !== 'cli') {
 require_once __DIR__ . '/db_connect.php';
 require_once __DIR__ . '/highlight_retention.php';
 
-$deleted_count = cleanup_expired_church_highlight_videos($conn);
-echo "Deleted $deleted_count expired church highlight video(s)." . PHP_EOL;
+$deleted_count = cleanup_expired_church_highlights($conn);
+echo "Deleted $deleted_count expired church highlight file(s)." . PHP_EOL;

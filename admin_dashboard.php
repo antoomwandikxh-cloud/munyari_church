@@ -227,7 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader
 // ──────────────────────────────────────────────────────────────────────────
 
 $admin_id = $_SESSION['admin_id'];
-cleanup_expired_church_highlight_videos($conn);
+cleanup_expired_church_highlights($conn);
 $tab_badges = build_tab_notification_badges($conn, $admin_id, 'admin', $tab);
 $admin_profile_col = $conn->query("SHOW COLUMNS FROM admins LIKE 'profile_picture'");
 if ($admin_profile_col && $admin_profile_col->num_rows == 0) {

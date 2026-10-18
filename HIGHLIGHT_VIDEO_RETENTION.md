@@ -1,6 +1,6 @@
-# Church highlight video retention
+# Church highlight retention
 
-Highlight videos are removed from both `uploads/` and `church_highlights` one year after upload. Photos do not expire. Dashboard visits also run cleanup, and the CLI job can be scheduled daily so cleanup does not depend on someone visiting the site.
+All church highlight photos and videos are removed from both `uploads/` and `church_highlights` one year after upload. Existing highlights use their original upload date. Dashboard visits also run cleanup, and the CLI job can be scheduled daily so cleanup does not depend on someone visiting the site.
 
 On the hosted server, add a daily cron job (for example, 3:00 AM) that runs:
 

@@ -9,7 +9,7 @@ require_once 'organized_event_helper.php';
 if (!isset($_SESSION['member_id'])) { header("Location: login.php"); exit(); }
 
 $member_id = $_SESSION['member_id'];
-cleanup_expired_church_highlight_videos($conn);
+cleanup_expired_church_highlights($conn);
 $conn->query("
     CREATE TABLE IF NOT EXISTS sunday_school_class_requests (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -5526,7 +5526,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
 
                 <div class="content-card">
                     <h2 style="font-size: 1.25rem; margin-top: 0; margin-bottom: 20px; color: var(--text-main);">Church Highlights</h2>
-                    <p style="margin:-8px 0 18px;color:var(--text-muted);font-size:.9rem;">Download photos and videos to your device. Highlight videos are kept for one year; photos remain until removed.</p>
+                    <p style="margin:-8px 0 18px;color:var(--text-muted);font-size:.9rem;">Download photos and videos to your device. All church highlights are kept for one year.</p>
                     <?php
                     if ($highlights->num_rows > 0):
                         $all_highlights = [];

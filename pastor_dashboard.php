@@ -309,7 +309,7 @@ require_once 'notification_badges.php';
 if (!isset($_SESSION['pastor_id'])) { header("Location: login.php"); exit(); }
 
 $pastor_id = $_SESSION['pastor_id'];
-cleanup_expired_church_highlight_videos($conn);
+cleanup_expired_church_highlights($conn);
 $pastor_name = $_SESSION['pastor_name'];
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
 
@@ -1090,13 +1090,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['upload_highlight'])) {
     if (isset($_FILES['highlight_image']) && $_FILES['highlight_image']['error'] == 0) {
         $ext = strtolower(pathinfo($_FILES['highlight_image']['name'], PATHINFO_EXTENSION));
         if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'webm', 'ogg'])) {
-            $is_video = in_array($ext, ['mp4', 'webm', 'ogg'], true);
             $img_name = 'highlight_' . date('YmdHis') . '_' . bin2hex(random_bytes(5)) . '.' . $ext;
             $upload_path = __DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . $img_name;
             if (move_uploaded_file($_FILES['highlight_image']['tmp_name'], $upload_path)) {
-                $insert_highlight = $conn->prepare("INSERT INTO church_highlights (pastor_id, image_file, caption, expires_at) VALUES (?, ?, ?, CASE WHEN ? = 1 THEN DATE_ADD(NOW(), INTERVAL 1 YEAR) ELSE NULL END)");
+                $insert_highlight = $conn->prepare("INSERT INTO church_highlights (pastor_id, image_file, caption, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR))");
                 if ($insert_highlight) {
-                    $insert_highlight->bind_param('issi', $pastor_id, $img_name, $caption, $is_video);
+                    $insert_highlight->bind_param('iss', $pastor_id, $img_name, $caption);
                     $saved_highlight = $insert_highlight->execute();
                     $insert_highlight->close();
                 } else {
@@ -6754,7 +6753,7 @@ w.document.write('</div>');
                             <div class="form-group">
                                 <label>Select Image / Video</label>
                                 <input type="file" name="highlight_image" class="form-control" accept="image/*,video/mp4,video/webm,video/ogg" required>
-                                <small style="display:block;margin-top:6px;color:var(--text-muted);">Uploaded files are stored on the church server. Videos are deleted after one year; photos stay until removed.</small>
+                                <small style="display:block;margin-top:6px;color:var(--text-muted);">Uploaded files are stored on the church server. Photos and videos are deleted after one year.</small>
                             </div>
                             <div class="form-group">
                                 <label>Caption</label>
