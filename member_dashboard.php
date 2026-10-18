@@ -7528,6 +7528,15 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         WHERE $register_member_filter AND m.is_approved = 1
                                         ORDER BY (ram.marked_at IS NULL), (ram.joined_at IS NULL), ram.joined_at, m.first_name, m.last_name");
                                     $register_manual_members = $conn->query("SELECT id, attendee_name, gender, phone, profile_picture, is_present, joined_at FROM organized_attendance_register_manual_members WHERE register_id = $register_id ORDER BY is_present DESC, (joined_at IS NULL), joined_at, attendee_name");
+                                    $register_absence_result = $conn->query("SELECT member_id, manual_attendee_id, apology_reason FROM organized_attendance_register_absences WHERE register_id = $register_id");
+                                    $register_member_apologies = [];
+                                    $register_manual_apologies = [];
+                                    if ($register_absence_result) {
+                                        while ($absence_row = $register_absence_result->fetch_assoc()) {
+                                            if ($absence_row['member_id'] !== null) $register_member_apologies[(int)$absence_row['member_id']] = $absence_row['apology_reason'];
+                                            if ($absence_row['manual_attendee_id'] !== null) $register_manual_apologies[(int)$absence_row['manual_attendee_id']] = $absence_row['apology_reason'];
+                                        }
+                                    }
                                     ?>
                                     <div id="attendance-register-<?= $register_id ?>" data-department="<?= htmlspecialchars($attendance_register['department'], ENT_QUOTES) ?>" style="padding:16px 0;border-top:1px solid var(--border-color);">
                                         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
@@ -7542,7 +7551,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         </div>
                                         <form method="POST" data-organized-attendance-form action="member_action.php?action=save_organized_attendance_register" enctype="multipart/form-data" style="margin-top:10px;">
                                             <input type="hidden" name="register_id" value="<?= $register_id ?>">
-                                            <p style="color:var(--text-muted);font-size:.86rem;margin:0 0 12px;">Select approved members of <?= htmlspecialchars($attendance_register['department']) ?>. Join times are optional.</p>
+                                            <p style="color:var(--text-muted);font-size:.86rem;margin:0 0 12px;">Mark attendees present, or check Absent with Apology and enter the reason. Join times are optional.</p>
                                             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;max-width:620px;margin-bottom:14px;">
                                                 <div class="form-group" style="margin-bottom:0;">
                                                     <label for="register-date-<?= $register_id ?>">Meeting Date</label>
@@ -7554,9 +7563,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 </div>
                                             </div>
                                             <div style="overflow-x:auto;border:1px solid var(--border-color);border-radius:8px;">
-                                                <table style="width:100%;border-collapse:collapse;min-width:900px;">
+                                                <table style="width:100%;border-collapse:collapse;min-width:1280px;">
                                                     <thead><tr style="background:var(--bg-main);text-align:left;">
-                                                        <th style="padding:9px;">Present</th><th style="padding:9px;">Profile</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Time Joined (Optional)</th><th style="padding:9px;">Details</th>
+                                                        <th style="padding:9px;">Present</th><th style="padding:9px;">Profile</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Time Joined (Optional)</th><th style="padding:9px;">Absent with Apology</th><th style="padding:9px;">Reason for Apology</th><th style="padding:9px;">Details</th>
                                                     </tr></thead>
                                                     <tbody>
                                                         <?php if ($register_members && $register_members->num_rows > 0): while ($register_member = $register_members->fetch_assoc()): if (!empty($register_member['marked_at'])) $register_present_count++; ?>
@@ -7566,31 +7575,41 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                             $register_joined_time = !empty($register_member['joined_at']) ? substr($register_member['joined_at'], 0, 5) : '';
                                                             $register_member_name = trim($register_member['name_override'] ?? '');
                                                             if ($register_member_name === '') $register_member_name = trim($register_member['first_name'] . ' ' . $register_member['last_name']);
+                                                            $register_member_present = !empty($register_member['marked_at']);
+                                                            $register_member_apology_reason = $register_member_apologies[(int)$register_member['id']] ?? '';
+                                                            $register_member_has_apology = !$register_member_present && $register_member_apology_reason !== '';
                                                             ?>
                                                             <tr data-attendee-row="1" data-name="<?= htmlspecialchars($register_member_name, ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($register_member['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($register_phone, ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($register_photo, ENT_QUOTES) ?>" data-joined-at="<?= htmlspecialchars($register_joined_time, ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
-                                                                <td style="padding:9px;"><input type="checkbox" name="register_attendee_ids[]" data-attendance-checkbox value="<?= (int)$register_member['id'] ?>" <?= !empty($register_member['marked_at']) ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($register_member_name) ?> present"></td>
+                                                                <td style="padding:9px;"><input type="checkbox" name="register_attendee_ids[]" data-attendance-checkbox value="<?= (int)$register_member['id'] ?>" <?= $register_member_present ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($register_member_name) ?> present"></td>
                                                                 <td style="padding:7px;"><img src="<?= htmlspecialchars($register_photo) ?>" alt="Profile photo" title="Click to view full photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:zoom-in;"></td>
                                                                 <td style="padding:9px;"><?= htmlspecialchars($register_member_name) ?></td>
                                                                 <td style="padding:9px;"><?= htmlspecialchars($register_member['gender'] ?? '') ?></td>
                                                                 <td style="padding:9px;"><?= htmlspecialchars($register_phone) ?></td>
                                                                 <td style="padding:7px;"><input type="time" name="register_attendance_times[<?= (int)$register_member['id'] ?>]" value="<?= htmlspecialchars($register_joined_time) ?>" aria-label="Time <?= htmlspecialchars($register_member_name) ?> joined" style="min-width:112px;"></td>
+                                                                <td style="padding:7px;text-align:center;"><input type="checkbox" name="apology_member_ids[]" value="<?= (int)$register_member['id'] ?>" data-apology-checkbox <?= $register_member_has_apology ? 'checked' : '' ?> <?= $register_member_present ? 'disabled' : '' ?> aria-label="Record apology for <?= htmlspecialchars($register_member_name) ?>"></td>
+                                                                <td style="padding:7px;"><input type="text" class="form-control" name="apology_member_reasons[<?= (int)$register_member['id'] ?>]" value="<?= htmlspecialchars($register_member_apology_reason, ENT_QUOTES) ?>" data-apology-reason maxlength="500" placeholder="Reason for apology" <?= $register_member_has_apology ? 'required' : 'disabled' ?>></td>
                                                                 <td style="padding:7px;"><button type="button" class="btn-sm" data-attendee-type="member" data-register-id="<?= $register_id ?>" data-member-id="<?= (int)$register_member['id'] ?>" data-member-name="<?= htmlspecialchars($register_member_name, ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($register_phone, ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($register_photo, ENT_QUOTES) ?>" onclick="openAttendanceMemberEditor(this)">Edit</button></td>
                                                             </tr>
                                                         <?php endwhile; else: ?>
-                                                            <tr><td colspan="7" style="padding:12px;color:var(--text-muted);">No approved members are registered in this department.</td></tr>
+                                                            <tr><td colspan="9" style="padding:12px;color:var(--text-muted);">No approved members are registered in this department.</td></tr>
                                                         <?php endif; ?>
                                                         <?php if ($register_manual_members): while ($manual_member = $register_manual_members->fetch_assoc()): if ((int)$manual_member['is_present'] === 1) $register_present_count++; ?>
                                                             <?php
                                                             $manual_register_photo = !empty($manual_member['profile_picture']) ? 'uploads/' . ltrim($manual_member['profile_picture'], '/') : 'uploads/default_avatar.png';
                                                             $manual_register_time = !empty($manual_member['joined_at']) ? substr($manual_member['joined_at'], 0, 5) : '';
+                                                            $manual_member_present = (int)$manual_member['is_present'] === 1;
+                                                            $manual_member_apology_reason = $register_manual_apologies[(int)$manual_member['id']] ?? '';
+                                                            $manual_member_has_apology = !$manual_member_present && $manual_member_apology_reason !== '';
                                                             ?>
                                                             <tr data-attendee-row="1" data-name="<?= htmlspecialchars($manual_member['attendee_name'], ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($manual_member['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($manual_member['phone'] ?? '', ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($manual_register_photo, ENT_QUOTES) ?>" data-joined-at="<?= htmlspecialchars($manual_register_time, ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
-                                                                <td style="padding:9px;"><input type="checkbox" name="manual_register_attendee_ids[]" data-attendance-checkbox value="<?= (int)$manual_member['id'] ?>" <?= (int)$manual_member['is_present'] === 1 ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($manual_member['attendee_name']) ?> present"></td>
+                                                                <td style="padding:9px;"><input type="checkbox" name="manual_register_attendee_ids[]" data-attendance-checkbox value="<?= (int)$manual_member['id'] ?>" <?= $manual_member_present ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($manual_member['attendee_name']) ?> present"></td>
                                                                 <td style="padding:7px;"><img src="<?= htmlspecialchars($manual_register_photo) ?>" alt="Profile photo" title="Click to view full photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:zoom-in;"></td>
                                                                 <td style="padding:9px;"><?= htmlspecialchars($manual_member['attendee_name']) ?> <small style="color:var(--text-muted);">(Manual)</small></td>
                                                                 <td style="padding:9px;"><?= htmlspecialchars($manual_member['gender'] ?? '') ?></td>
                                                                 <td style="padding:9px;"><?= htmlspecialchars($manual_member['phone'] ?? '') ?></td>
                                                                 <td style="padding:7px;"><input type="time" name="manual_register_attendance_times[<?= (int)$manual_member['id'] ?>]" value="<?= htmlspecialchars($manual_register_time) ?>" aria-label="Time <?= htmlspecialchars($manual_member['attendee_name']) ?> joined" style="min-width:112px;"></td>
+                                                                <td style="padding:7px;text-align:center;"><input type="checkbox" name="apology_manual_ids[]" value="<?= (int)$manual_member['id'] ?>" data-apology-checkbox <?= $manual_member_has_apology ? 'checked' : '' ?> <?= $manual_member_present ? 'disabled' : '' ?> aria-label="Record apology for <?= htmlspecialchars($manual_member['attendee_name']) ?>"></td>
+                                                                <td style="padding:7px;"><input type="text" class="form-control" name="apology_manual_reasons[<?= (int)$manual_member['id'] ?>]" value="<?= htmlspecialchars($manual_member_apology_reason, ENT_QUOTES) ?>" data-apology-reason maxlength="500" placeholder="Reason for apology" <?= $manual_member_has_apology ? 'required' : 'disabled' ?>></td>
                                                                 <td style="padding:7px;"><button type="button" class="btn-sm" data-attendee-type="manual" data-register-id="<?= $register_id ?>" data-attendee-id="<?= (int)$manual_member['id'] ?>" data-member-name="<?= htmlspecialchars($manual_member['attendee_name'], ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($manual_member['phone'] ?? '', ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($manual_register_photo, ENT_QUOTES) ?>" onclick="openAttendanceMemberEditor(this)">Edit</button></td>
                                                             </tr>
                                                         <?php endwhile; endif; ?>
@@ -7717,6 +7736,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         var presentCount = allCheckboxes.filter(function(checkbox) { return checkbox.checked; }).length;
                         var absentCount = totalMembers - presentCount;
                         var statusLabel = isAbsentReport ? 'Absent' : 'Present';
+                        var absenceHeaders = isAbsentReport ? '<th>Apology received</th><th>Reason for apology</th>' : '';
                         var joinedTimeHeader = isAbsentReport ? '' : '<th>Time Joined</th>';
                         var selected = allCheckboxes.filter(function(checkbox) { return isAbsentReport ? !checkbox.checked : checkbox.checked; });
                         selected.sort(function(a, b) {
@@ -7748,8 +7768,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 var hour = parseInt(timeParts[0], 10);
                                 displayTime = (hour % 12 || 12) + ':' + timeParts[1] + ' ' + (hour >= 12 ? 'PM' : 'AM');
                             }
+                            var apologyCheckbox = row.querySelector('[data-apology-checkbox]');
+                            var apologyReason = row.querySelector('[data-apology-reason]');
+                            var apologyCells = isAbsentReport
+                                ? '<td>' + (apologyCheckbox && apologyCheckbox.checked ? 'Yes' : 'No') + '</td><td style="max-width:220px;white-space:normal;overflow-wrap:anywhere">' + escapeHtml(apologyCheckbox && apologyCheckbox.checked && apologyReason ? apologyReason.value.trim() : 'Not recorded') + '</td>'
+                                : '';
                             var joinedTimeCell = isAbsentReport ? '' : '<td>' + escapeHtml(displayTime) + '</td>';
-                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td>' + joinedTimeCell + '<td>' + statusLabel + '</td></tr>';
+                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td>' + apologyCells + joinedTimeCell + '<td>' + statusLabel + '</td></tr>';
                         }).join('');
                         var department = card.dataset.department || <?= json_encode($active_org_dept) ?>;
                         var meetingDate = form.querySelector('[name="meeting_date"]').value;
@@ -7787,7 +7812,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <div class="leader"><img src="${escapeHtml(leaderPhoto)}" alt="Organising Secretary"><div class="leader-name">${escapeHtml(leaderName)}</div><div style="font-size:10px;color:#555">Organising Secretary</div></div>
                             <div class="brand"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"><h1>E.A.P.C MUNYARI ${escapeHtml(meetingType)} ATTENDANCE REGISTER</h1><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"></div>
                             <p class="report-meta">${escapeHtml(department)} Department | Meeting date: ${escapeHtml(meetingDate)}<br>Total Members: ${totalMembers} | Present: ${presentCount} | Absent: ${absentCount}<br><strong>Printed list: ${statusLabel} (${selected.length})</strong></p>
-                            <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Member Name</th><th>Gender</th><th>Phone</th>${joinedTimeHeader}<th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+                            <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Member Name</th><th>Gender</th><th>Phone</th>${absenceHeaders}${joinedTimeHeader}<th>Status</th></tr></thead><tbody>${rows}</tbody></table>
                             <div class="signature">
                                 <div class="signature-details">
                                     <div class="signature-row"><span class="signature-label">Organising Secretary Signature</span><span class="signature-line"></span></div>
@@ -7925,7 +7950,30 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         });
                         form.addEventListener('change', function(event) {
                             if (event.target.matches('[data-attendance-checkbox]')) {
+                                var attendeeRow = event.target.closest('tr[data-attendee-row]');
+                                var apologyCheckbox = attendeeRow && attendeeRow.querySelector('[data-apology-checkbox]');
+                                var apologyReason = attendeeRow && attendeeRow.querySelector('[data-apology-reason]');
+                                if (apologyCheckbox && apologyReason) {
+                                    if (event.target.checked) {
+                                        apologyCheckbox.checked = false;
+                                        apologyReason.value = '';
+                                    }
+                                    apologyCheckbox.disabled = event.target.checked;
+                                    apologyReason.disabled = event.target.checked || !apologyCheckbox.checked;
+                                    apologyReason.required = !apologyReason.disabled;
+                                }
                                 sortOrganizedAttendanceRows(form);
+                                markOrganizedAttendanceDirty(form);
+                            } else if (event.target.matches('[data-apology-checkbox]')) {
+                                var apologyRow = event.target.closest('tr[data-attendee-row]');
+                                var presenceCheckbox = apologyRow && apologyRow.querySelector('[data-attendance-checkbox]');
+                                var reasonInput = apologyRow && apologyRow.querySelector('[data-apology-reason]');
+                                if (presenceCheckbox && reasonInput) {
+                                    var reasonEnabled = event.target.checked && !presenceCheckbox.checked;
+                                    reasonInput.disabled = !reasonEnabled;
+                                    reasonInput.required = reasonEnabled;
+                                    if (!reasonEnabled) reasonInput.value = '';
+                                }
                                 markOrganizedAttendanceDirty(form);
                             } else if (event.target.matches('input[type="time"]')) {
                                 var row = event.target.closest('tr[data-attendee-row]');

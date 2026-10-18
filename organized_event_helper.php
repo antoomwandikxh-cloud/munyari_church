@@ -87,6 +87,21 @@ function ensure_organized_event_attendance_schema($conn) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
     if (!$manual_members_created) return false;
 
+    $absences_created = $conn->query("CREATE TABLE IF NOT EXISTS organized_attendance_register_absences (
+        id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+        register_id INT(10) UNSIGNED NOT NULL,
+        member_id INT(6) UNSIGNED NULL,
+        manual_attendee_id INT(10) UNSIGNED NULL,
+        apology_reason VARCHAR(500) NOT NULL,
+        marked_by INT(6) UNSIGNED NOT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_register_absence_member (register_id, member_id),
+        UNIQUE KEY uq_register_absence_manual (register_id, manual_attendee_id),
+        KEY idx_register_absence_register (register_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+    if (!$absences_created) return false;
+
     $overrides_created = $conn->query("CREATE TABLE IF NOT EXISTS organized_attendance_register_member_overrides (
         register_id INT(10) UNSIGNED NOT NULL,
         member_id INT(6) UNSIGNED NOT NULL,

@@ -838,6 +838,61 @@ if (isset($_GET['action'])) {
             while ($row = $eligible->fetch_assoc()) $allowed_ids[] = (int)$row['id'];
         }
 
+        $manual_ids = isset($_POST['manual_register_attendee_ids']) && is_array($_POST['manual_register_attendee_ids'])
+            ? array_values(array_unique(array_filter(array_map('intval', $_POST['manual_register_attendee_ids']), function ($id) { return $id > 0; })))
+            : [];
+        $manual_times = isset($_POST['manual_register_attendance_times']) && is_array($_POST['manual_register_attendance_times']) ? $_POST['manual_register_attendance_times'] : [];
+        $member_apology_reasons = isset($_POST['apology_member_reasons']) && is_array($_POST['apology_member_reasons']) ? $_POST['apology_member_reasons'] : [];
+        $manual_apology_reasons = isset($_POST['apology_manual_reasons']) && is_array($_POST['apology_manual_reasons']) ? $_POST['apology_manual_reasons'] : [];
+        $apology_member_ids = isset($_POST['apology_member_ids']) && is_array($_POST['apology_member_ids'])
+            ? array_values(array_unique(array_filter(array_map('intval', $_POST['apology_member_ids']), function ($id) { return $id > 0; })))
+            : [];
+        $apology_member_ids = array_values(array_diff($apology_member_ids, $allowed_ids));
+        $apology_manual_ids = isset($_POST['apology_manual_ids']) && is_array($_POST['apology_manual_ids'])
+            ? array_values(array_unique(array_filter(array_map('intval', $_POST['apology_manual_ids']), function ($id) { return $id > 0; })))
+            : [];
+        $apology_manual_ids = array_values(array_diff($apology_manual_ids, $manual_ids));
+        $absence_records = ['members' => [], 'manual' => []];
+        if ($apology_member_ids) {
+            $apology_member_list = implode(',', $apology_member_ids);
+            $department_filter = department_match_sql($conn, 'm.department', $register['department']);
+            $eligible_apologies = $conn->query("SELECT m.id FROM members m WHERE m.id IN ($apology_member_list) AND $department_filter AND m.is_approved = 1");
+            $eligible_apology_ids = [];
+            if ($eligible_apologies) while ($row = $eligible_apologies->fetch_assoc()) $eligible_apology_ids[] = (int)$row['id'];
+            if (!$eligible_apologies || count($eligible_apology_ids) !== count($apology_member_ids)) {
+                header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=" . urlencode('Apology selections must be approved members of this department') . "#attendance-register-" . $register_id);
+                exit();
+            }
+            foreach ($eligible_apology_ids as $apology_id) {
+                $reason = trim($member_apology_reasons[$apology_id] ?? '');
+                $reason_length = function_exists('mb_strlen') ? mb_strlen($reason, 'UTF-8') : strlen($reason);
+                if ($reason === '' || $reason_length > 500) {
+                    header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=" . urlencode('Enter a reason for every absent member marked with an apology (maximum 500 characters)') . "#attendance-register-" . $register_id);
+                    exit();
+                }
+                $absence_records['members'][] = ['id' => $apology_id, 'reason' => $reason];
+            }
+        }
+        if ($apology_manual_ids) {
+            $apology_manual_list = implode(',', $apology_manual_ids);
+            $eligible_manual_apologies = $conn->query("SELECT id FROM organized_attendance_register_manual_members WHERE id IN ($apology_manual_list) AND register_id = $register_id");
+            $eligible_apology_ids = [];
+            if ($eligible_manual_apologies) while ($row = $eligible_manual_apologies->fetch_assoc()) $eligible_apology_ids[] = (int)$row['id'];
+            if (!$eligible_manual_apologies || count($eligible_apology_ids) !== count($apology_manual_ids)) {
+                header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=" . urlencode('Apology selections must belong to this attendance register') . "#attendance-register-" . $register_id);
+                exit();
+            }
+            foreach ($eligible_apology_ids as $apology_id) {
+                $reason = trim($manual_apology_reasons[$apology_id] ?? '');
+                $reason_length = function_exists('mb_strlen') ? mb_strlen($reason, 'UTF-8') : strlen($reason);
+                if ($reason === '' || $reason_length > 500) {
+                    header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=" . urlencode('Enter a reason for every absent member marked with an apology (maximum 500 characters)') . "#attendance-register-" . $register_id);
+                    exit();
+                }
+                $absence_records['manual'][] = ['id' => $apology_id, 'reason' => $reason];
+            }
+        }
+
         $member_times = isset($_POST['register_attendance_times']) && is_array($_POST['register_attendance_times']) ? $_POST['register_attendance_times'] : [];
         $manual_fields = isset($_POST['manual_register_attendees']) && is_array($_POST['manual_register_attendees']) ? $_POST['manual_register_attendees'] : [];
         $manual_uploads = $_FILES['manual_register_photos'] ?? [];
@@ -895,15 +950,12 @@ if (isset($_GET['action'])) {
             ];
         }
 
-        $manual_ids = isset($_POST['manual_register_attendee_ids']) && is_array($_POST['manual_register_attendee_ids'])
-            ? array_values(array_unique(array_filter(array_map('intval', $_POST['manual_register_attendee_ids']), function ($id) { return $id > 0; })))
-            : [];
-        $manual_times = isset($_POST['manual_register_attendance_times']) && is_array($_POST['manual_register_attendance_times']) ? $_POST['manual_register_attendance_times'] : [];
         $safe_meeting_date = $conn->real_escape_string($meeting_date);
         $safe_meeting_type = $conn->real_escape_string($meeting_type);
         $conn->begin_transaction();
         $saved = $conn->query("UPDATE organized_attendance_registers SET meeting_date = '$safe_meeting_date', meeting_type = '$safe_meeting_type' WHERE id = $register_id");
         if ($saved) $saved = $conn->query("DELETE FROM organized_attendance_register_members WHERE register_id = $register_id");
+        if ($saved) $saved = $conn->query("DELETE FROM organized_attendance_register_absences WHERE register_id = $register_id");
         if ($saved && $allowed_ids) {
             $insert = $conn->prepare("INSERT INTO organized_attendance_register_members (register_id, member_id, marked_by, joined_at) VALUES (?, ?, ?, ?)");
             if ($insert) {
@@ -940,6 +992,36 @@ if (isset($_GET['action'])) {
                     }
                 }
                 $update_manual->close();
+            } else {
+                $saved = false;
+            }
+        }
+        if ($saved && $absence_records['members']) {
+            $insert_member_absence = $conn->prepare("INSERT INTO organized_attendance_register_absences (register_id, member_id, apology_reason, marked_by) VALUES (?, ?, ?, ?)");
+            if ($insert_member_absence) {
+                foreach ($absence_records['members'] as $absence) {
+                    $insert_member_absence->bind_param('iisi', $register_id, $absence['id'], $absence['reason'], $member_id);
+                    if (!$insert_member_absence->execute()) {
+                        $saved = false;
+                        break;
+                    }
+                }
+                $insert_member_absence->close();
+            } else {
+                $saved = false;
+            }
+        }
+        if ($saved && $absence_records['manual']) {
+            $insert_manual_absence = $conn->prepare("INSERT INTO organized_attendance_register_absences (register_id, manual_attendee_id, apology_reason, marked_by) VALUES (?, ?, ?, ?)");
+            if ($insert_manual_absence) {
+                foreach ($absence_records['manual'] as $absence) {
+                    $insert_manual_absence->bind_param('iisi', $register_id, $absence['id'], $absence['reason'], $member_id);
+                    if (!$insert_manual_absence->execute()) {
+                        $saved = false;
+                        break;
+                    }
+                }
+                $insert_manual_absence->close();
             } else {
                 $saved = false;
             }
@@ -1121,6 +1203,7 @@ if (isset($_GET['action'])) {
         if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_register_manual_members WHERE register_id = $register_id");
         if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_register_member_overrides WHERE register_id = $register_id");
         if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_register_members WHERE register_id = $register_id");
+        if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_register_absences WHERE register_id = $register_id");
         if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_registers WHERE id = $register_id");
         if ($deleted) {
             $conn->commit();
