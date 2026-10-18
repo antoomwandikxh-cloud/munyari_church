@@ -266,3 +266,88 @@ function validateInput(input, type) {
     }
 }
 
+function printDisciplinaryCases(button, orientation) {
+    const card = button?.closest('.content-card');
+    const sourceTable = card?.querySelector('.table-responsive table');
+    if (!sourceTable) return;
+
+    const printWindow = window.open('', '_blank', 'width=1100,height=800');
+    if (!printWindow) {
+        window.alert('Allow pop-ups for this site to print or save the report as PDF.');
+        return;
+    }
+
+    const table = sourceTable.cloneNode(true);
+    const header = table.querySelector('thead tr');
+    if (header) {
+        const actionIndex = Array.from(header.cells).findIndex(cell => cell.textContent.trim().toLowerCase() === 'action');
+        if (actionIndex >= 0) {
+            header.deleteCell(actionIndex);
+            table.querySelectorAll('tbody tr').forEach(row => row.deleteCell(actionIndex));
+        }
+    }
+
+    const fallbackPhoto = new URL('uploads/default_avatar.png', window.location.href).href;
+    table.querySelectorAll('img').forEach(image => {
+        image.src = image.src || fallbackPhoto;
+        image.removeAttribute('onclick');
+        image.removeAttribute('title');
+        image.setAttribute('onerror', `this.onerror=null;this.src='${fallbackPhoto}'`);
+    });
+
+    const reportTitle = card.querySelector('h2')?.textContent.trim() || 'Disciplinary Case Report';
+    const caseCount = table.querySelectorAll('tbody tr').length;
+    const printedAt = new Date().toLocaleString();
+    const logoUrl = new URL('church_logo.jpg', window.location.href).href;
+    const pageOrientation = orientation === 'landscape' ? 'landscape' : 'portrait';
+    const escapeText = value => String(value).replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[character]);
+
+    printWindow.document.open();
+    printWindow.document.write(`<!doctype html>
+        <html><head><meta charset="utf-8"><title>${escapeText(reportTitle)}</title>
+        <style>
+            @page{size:A4 ${pageOrientation};margin:14mm 10mm 23mm}
+            *{box-sizing:border-box}
+            body{margin:0;color:#172033;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+            .watermark{position:fixed;z-index:0;top:48%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);color:rgba(30,58,138,.12);font-size:42px;font-weight:900;letter-spacing:3px;white-space:nowrap;pointer-events:none}
+            .report{position:relative;z-index:1}
+            .brand{display:grid;grid-template-columns:64px 1fr 64px;align-items:center;gap:12px;text-align:center;border-bottom:2px solid #1e3a8a;padding:0 0 12px;margin-bottom:15px}
+            .brand img{width:60px;height:60px;object-fit:contain}
+            .brand h1{margin:0;color:#1e3a8a;font-size:20px;letter-spacing:1px}
+            .brand h2{margin:5px 0 0;font-size:16px;color:#222}
+            .meta{margin:0 0 12px;color:#444;font-size:12px;display:flex;justify-content:space-between;gap:12px}
+            table{width:100%;border-collapse:collapse;font-size:11px;background:transparent}
+            thead{display:table-header-group}
+            tr{page-break-inside:avoid;break-inside:avoid}
+            th,td{border:1px solid #aab3c2;padding:7px 6px;text-align:left;vertical-align:middle;overflow-wrap:anywhere}
+            th{background:#e8eef8!important;color:#172033;font-weight:700}
+            td img{display:block;width:38px;height:38px;object-fit:cover;border-radius:50%;border:1px solid #8792a5}
+            .footer{position:fixed;z-index:2;left:0;right:0;bottom:-16mm;border-top:1px solid #aab3c2;padding-top:5px;text-align:center;color:#4b5563;font-size:9px;background:#fff}
+            @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+        </style></head><body>
+        <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
+        <main class="report">
+            <header class="brand"><img src="${escapeText(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><h2>${escapeText(reportTitle)}</h2></div><img src="${escapeText(logoUrl)}" alt="Church logo"></header>
+            <p class="meta"><span>Total cases: ${caseCount}</span><span>Generated: ${escapeText(printedAt)}</span></p>
+            ${table.outerHTML}
+        </main>
+        <footer class="footer">E.A.P.C Munyari Portal | ${escapeText(reportTitle)} | Printed on ${escapeText(printedAt)}</footer>
+        </body></html>`);
+    printWindow.document.close();
+
+    const images = Array.from(printWindow.document.images);
+    Promise.all(images.map(image => image.complete ? Promise.resolve() : new Promise(resolve => {
+        image.onload = resolve;
+        image.onerror = resolve;
+    }))).then(() => {
+        printWindow.focus();
+        window.setTimeout(() => printWindow.print(), 250);
+    });
+}
+

@@ -3762,7 +3762,13 @@ w.document.write('</div>');
 
                 <!-- Forwarded Reports -->
                 <div class="content-card" style="border-top: 4px solid var(--danger);">
-                    <h2 style="color: var(--danger);">Forwarded Disciplinary Reports</h2>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                        <h2 style="color: var(--danger);margin:0;">Forwarded Disciplinary Reports</h2>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button type="button" class="btn-sm" onclick="printDisciplinaryCases(this, 'portrait')">Print / Save PDF - Portrait</button>
+                            <button type="button" class="btn-sm" onclick="printDisciplinaryCases(this, 'landscape')">Print / Save PDF - Landscape</button>
+                        </div>
+                    </div>
                     <p style="color: var(--text-muted); margin-bottom: 15px;">Reports escalated by department Chairmen.</p>
                     <?php
                     $forwarded = $conn->query("SELECT mr.*, m.first_name, m.last_name, m.profile_picture, dm.first_name as dm_first, dm.last_name as dm_last FROM member_reports mr JOIN members m ON mr.reported_member_id = m.id JOIN members dm ON mr.reported_by_id = dm.id WHERE mr.status = 'Forwarded to Pastor' ORDER BY mr.created_at DESC");
@@ -5789,7 +5795,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
-    <script src="script.js?v=20261017b"></script>
+    <script src="script.js?v=20261018-print"></script>
     <script>
     function validateInput(input, type) {
         let errorMsg = input.nextElementSibling;

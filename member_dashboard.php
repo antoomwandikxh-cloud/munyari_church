@@ -4373,7 +4373,13 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
 
                 <!-- Member Reports -->
                 <div class="content-card" style="margin-top: 30px; border-top: 4px solid var(--danger);">
-                    <h2 style="color: var(--danger);">Disciplinary Reports</h2>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                        <h2 style="color: var(--danger);margin:0;">Disciplinary Reports</h2>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button type="button" class="btn-sm" onclick="printDisciplinaryCases(this, 'portrait')">Print / Save PDF - Portrait</button>
+                            <button type="button" class="btn-sm" onclick="printDisciplinaryCases(this, 'landscape')">Print / Save PDF - Landscape</button>
+                        </div>
+                    </div>
                     <p style="color: var(--text-muted); margin-bottom: 15px;">Reports filed by the Discipline Master.</p>
 
                     <?php
@@ -8379,7 +8385,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     ORDER BY mr.created_at DESC, mr.id DESC");
                 ?>
                 <div class="content-card" style="margin-top: 30px; border-top: 4px solid var(--primary);">
-                    <h2>Reports Sent to Chairperson</h2>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                        <h2 style="margin:0;">Reports Sent to Chairperson</h2>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button type="button" class="btn-sm" onclick="printDisciplinaryCases(this, 'portrait')">Print / Save PDF - Portrait</button>
+                            <button type="button" class="btn-sm" onclick="printDisciplinaryCases(this, 'landscape')">Print / Save PDF - Landscape</button>
+                        </div>
+                    </div>
                     <p style="color: var(--text-muted); margin: 0 0 18px;">Your submitted cases remain here with their latest review status.</p>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px;">
                         <div style="padding: 14px; border: 1px solid var(--border-color); border-radius: 8px;"><span style="display:block;color:var(--text-muted);font-size:.82rem;">Total sent</span><strong><?= (int)($dm_report_stats['total_sent'] ?? 0) ?></strong></div>
@@ -9890,7 +9902,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
-    <script src="script.js"></script>
+    <script src="script.js?v=20261018-print"></script>
 <!-- Image Viewer Modal -->
 <div id="imageViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; flex-direction:column;">
     <span onclick="document.getElementById('imageViewerModal').style.display='none'" style="position:absolute; top:20px; right:30px; font-size:40px; color:white; cursor:pointer; font-weight:bold; transition:color 0.2s;" onmouseover="this.style.color='#ff4444'" onmouseout="this.style.color='white'">&times;</span>
