@@ -7605,8 +7605,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             </div>
                                             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
                                                 <button type="submit" class="btn-submit">Save Attendance</button>
-                                                <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait')">Print / Save PDF - Portrait</button>
-                                                <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape')">Print / Save PDF - Landscape</button>
+                                                <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait')">Print Present - Portrait</button>
+                                                <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape')">Print Present - Landscape</button>
+                                                <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait', 'absent')">Print Absent - Portrait</button>
+                                                <button type="button" class="btn-sm" data-print-attendance onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape', 'absent')">Print Absent - Landscape</button>
                                             </div>
                                         </form>
                                         <dialog id="attendance-member-editor-<?= $register_id ?>" class="attendance-member-dialog">
@@ -7701,7 +7703,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <?php endforeach; ?>
                 <?php if ($is_organizing_secretary): ?>
                     <script>
-                    function printOrganizedAttendance(registerId, orientation) {
+                    function printOrganizedAttendance(registerId, orientation, attendanceStatus) {
                         var card = document.getElementById('attendance-register-' + registerId);
                         if (!card) return;
                         var form = card.querySelector('form[data-organized-attendance-form]');
@@ -7710,16 +7712,24 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             return;
                         }
                         var totalMembers = form.querySelectorAll('tbody tr[data-attendee-row]').length;
-                        var selected = form ? Array.from(form.querySelectorAll('[data-attendance-checkbox]:checked')) : [];
+                        var isAbsentReport = attendanceStatus === 'absent';
+                        var allCheckboxes = Array.from(form.querySelectorAll('[data-attendance-checkbox]'));
+                        var presentCount = allCheckboxes.filter(function(checkbox) { return checkbox.checked; }).length;
+                        var absentCount = totalMembers - presentCount;
+                        var statusLabel = isAbsentReport ? 'Absent' : 'Present';
+                        var selected = allCheckboxes.filter(function(checkbox) { return isAbsentReport ? !checkbox.checked : checkbox.checked; });
                         selected.sort(function(a, b) {
-                            var timeA = a.closest('[data-attendee-row]').dataset.joinedAt || '';
-                            var timeB = b.closest('[data-attendee-row]').dataset.joinedAt || '';
+                            var rowA = a.closest('[data-attendee-row]');
+                            var rowB = b.closest('[data-attendee-row]');
+                            if (isAbsentReport) return rowA.dataset.name.localeCompare(rowB.dataset.name);
+                            var timeA = rowA.dataset.joinedAt || '';
+                            var timeB = rowB.dataset.joinedAt || '';
                             if (!timeA && timeB) return 1;
                             if (timeA && !timeB) return -1;
-                            return timeA.localeCompare(timeB) || a.closest('[data-attendee-row]').dataset.name.localeCompare(b.closest('[data-attendee-row]').dataset.name);
+                            return timeA.localeCompare(timeB) || rowA.dataset.name.localeCompare(rowB.dataset.name);
                         });
                         if (!selected.length) {
-                            alert('Select at least one attending member before printing.');
+                            alert(isAbsentReport ? 'There are no absent members to print.' : 'Select at least one attending member before printing.');
                             return;
                         }
                         var escapeHtml = function(value) {
@@ -7737,7 +7747,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 var hour = parseInt(timeParts[0], 10);
                                 displayTime = (hour % 12 || 12) + ':' + timeParts[1] + ' ' + (hour >= 12 ? 'PM' : 'AM');
                             }
-                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td><td>' + escapeHtml(displayTime) + '</td></tr>';
+                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td><td>' + escapeHtml(displayTime) + '</td><td>' + statusLabel + '</td></tr>';
                         }).join('');
                         var department = card.dataset.department || <?= json_encode($active_org_dept) ?>;
                         var meetingDate = form.querySelector('[name="meeting_date"]').value;
@@ -7774,8 +7784,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
                             <div class="leader"><img src="${escapeHtml(leaderPhoto)}" alt="Organising Secretary"><div class="leader-name">${escapeHtml(leaderName)}</div><div style="font-size:10px;color:#555">Organising Secretary</div></div>
                             <div class="brand"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"><h1>E.A.P.C MUNYARI ${escapeHtml(meetingType)} ATTENDANCE REGISTER</h1><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"></div>
-                            <p class="report-meta">${escapeHtml(department)} Department | Meeting date: ${escapeHtml(meetingDate)}<br><strong>Total Members: ${totalMembers} | Attended: ${selected.length}</strong></p>
-                            <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Member Name</th><th>Gender</th><th>Phone</th><th>Time Joined</th></tr></thead><tbody>${rows}</tbody></table>
+                            <p class="report-meta">${escapeHtml(department)} Department | Meeting date: ${escapeHtml(meetingDate)}<br>Total Members: ${totalMembers} | Present: ${presentCount} | Absent: ${absentCount}<br><strong>Printed list: ${statusLabel} (${selected.length})</strong></p>
+                            <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Member Name</th><th>Gender</th><th>Phone</th><th>Time Joined</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
                             <div class="signature">
                                 <div class="signature-details">
                                     <div class="signature-row"><span class="signature-label">Organising Secretary Signature</span><span class="signature-line"></span></div>
@@ -7784,7 +7794,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 </div>
                                 <div class="stamp">OFFICIAL<br>STAMP</div>
                             </div>
-                            <div class="footer">E.A.P.C Munyari Online Attendance Register | ${escapeHtml(department)} Department | Present: ${selected.length} | Generated: ${escapeHtml(generatedAt)}</div>
+                            <div class="footer">E.A.P.C Munyari Online Attendance Register | ${escapeHtml(department)} Department | Present: ${presentCount} | Absent: ${absentCount} | Generated: ${escapeHtml(generatedAt)}</div>
                         </body></html>`;
                         printWindow.document.write(printHtml);
                         printWindow.document.close();
