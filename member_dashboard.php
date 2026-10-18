@@ -7568,10 +7568,18 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     </form>
                                 <?php endif; ?>
                                 <?php if ($is_organizing_secretary && count(array_filter($organizing_secretary_depts, function ($assigned_department) use ($ev) { return department_matches($ev['department'], $assigned_department); })) > 0): ?>
-                                    <form method="POST" action="member_action.php?action=delete_organized_event" onsubmit="return confirm('Delete this event and its recording?');" style="margin-top:14px;text-align:right;">
-                                        <input type="hidden" name="event_id" value="<?= (int)$ev['id'] ?>">
-                                        <button type="submit" class="btn-sm" style="background:var(--danger);color:#fff;border:0;">Delete Event</button>
-                                    </form>
+                                    <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px;">
+                                        <?php if (!empty($ev['audio_path'])): ?>
+                                            <form method="POST" action="member_action.php?action=delete_organized_event_recording" onsubmit="return confirm('Delete only this voice recording? The event and attendance register will remain.');">
+                                                <input type="hidden" name="event_id" value="<?= (int)$ev['id'] ?>">
+                                                <button type="submit" class="btn-sm" style="background:var(--bg-card);color:var(--danger);border:1px solid var(--danger);">Delete Recording</button>
+                                            </form>
+                                        <?php endif; ?>
+                                        <form method="POST" action="member_action.php?action=delete_organized_event" onsubmit="return confirm('Delete this event, its recording, and its attendance register? This cannot be undone.');">
+                                            <input type="hidden" name="event_id" value="<?= (int)$ev['id'] ?>">
+                                            <button type="submit" class="btn-sm" style="background:var(--danger);color:#fff;border:0;">Delete Event</button>
+                                        </form>
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         <?php endwhile; else: ?>

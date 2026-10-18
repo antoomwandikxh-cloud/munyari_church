@@ -725,6 +725,36 @@ if (isset($_GET['action'])) {
         exit();
     }
 
+    elseif ($action === 'delete_organized_event_recording' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
+        $event_id = (int)($_POST['event_id'] ?? 0);
+        $event_result = $conn->query("SELECT id, department, audio_path FROM organized_events WHERE id = $event_id LIMIT 1");
+        $event = $event_result ? $event_result->fetch_assoc() : null;
+        $authorized = false;
+        if ($event && member_has_role($member_query['church_role'] ?? '', 'organizing secretary')) {
+            foreach (member_organizing_secretary_departments($member_query) as $allowed_department) {
+                if (department_matches($event['department'], $allowed_department)) {
+                    $authorized = true;
+                    break;
+                }
+            }
+        }
+
+        if (!$authorized) {
+            header("Location: member_dashboard.php?tab=organized_events&error=You are not assigned to manage this department event");
+            exit();
+        }
+
+        $event_department = $conn->real_escape_string($event['department']);
+        if ($conn->query("UPDATE organized_events SET audio_path = NULL WHERE id = $event_id AND department = '$event_department'")) {
+            delete_organized_event_file($event['audio_path'], 'uploads/voice_notes');
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($event['department']) . "&success=Recording deleted and attendance register kept");
+        } else {
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($event['department']) . "&error=Could not delete recording");
+        }
+        exit();
+    }
+
     elseif ($action === 'save_organized_event_attendance' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1")->fetch_assoc();
         $event_id = (int)($_POST['event_id'] ?? 0);
