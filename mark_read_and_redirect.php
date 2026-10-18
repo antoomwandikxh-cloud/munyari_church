@@ -27,6 +27,22 @@ if (isset($_SESSION['member_id'])) {
     exit();
 }
 
+$notification_message = '';
+$lookup_stmt = $conn->prepare("SELECT message FROM notifications WHERE id = ? AND user_id = ? AND user_type = ? LIMIT 1");
+if ($lookup_stmt) {
+    $lookup_stmt->bind_param("iis", $notif_id, $user_id, $user_type);
+    $lookup_stmt->execute();
+    $lookup_stmt->bind_result($notification_message);
+    $lookup_stmt->fetch();
+    $lookup_stmt->close();
+}
+
+$expected_fine_tab = $user_type === 'member' ? 'my_fines' : 'discipline_reports';
+$is_fine_notice = preg_match('/\b(?:fine|fines|fined)\b/i', $notification_message) === 1;
+if ($is_fine_notice && $redirect_tab === $expected_fine_tab) {
+    $_SESSION['fine_notification_highlight'] = $expected_fine_tab;
+}
+
 $stmt = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ? AND user_type = ?");
 if ($stmt) {
     $stmt->bind_param("iis", $notif_id, $user_id, $user_type);
