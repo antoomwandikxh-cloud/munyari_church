@@ -462,13 +462,29 @@ function render_notification_tab_glow_script($target_tab, $current_tab, $notific
 document.addEventListener("DOMContentLoaded", function () {
     var targetTab = __TARGET_TAB__;
     var notificationMessage = __NOTIFICATION_MESSAGE__;
+    var targetLinks = [];
     document.querySelectorAll(".sidebar-link").forEach(function (link) {
         try {
             if (new URL(link.href, window.location.href).searchParams.get("tab") === targetTab) {
-                link.classList.add("notification-tab-glow");
+                targetLinks.push(link);
             }
         } catch (error) {}
     });
+    var targetLink = targetLinks.find(function (link) {
+        return link.classList.contains("active");
+    }) || targetLinks[0];
+    if (targetLink) {
+        targetLink.classList.add("notification-tab-glow");
+        var sidebar = targetLink.closest(".sidebar");
+        if (sidebar && window.matchMedia("(max-width: 980px) and (orientation: portrait)").matches) {
+            sidebar.classList.add("open");
+        }
+        window.requestAnimationFrame(function () {
+            window.requestAnimationFrame(function () {
+                targetLink.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+            });
+        });
+    }
 
     if (!notificationMessage) return;
     var main = document.querySelector(".main-content");
