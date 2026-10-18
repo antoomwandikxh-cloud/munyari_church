@@ -60,6 +60,16 @@ function notification_badge_tabs($message, $user_type) {
         return ['contact_pastor'];
     }
 
+    if ($user_type === 'member' && strpos($msg, 'your membership has been approved by the pastor') === 0) {
+        return ['dashboard'];
+    }
+    if ($user_type === 'member' && strpos($msg, 'new member added to your department:') === 0) {
+        return ['manage_department'];
+    }
+    if (($user_type === 'pastor' || $user_type === 'admin') && strpos($msg, 'new approved member:') === 0) {
+        return ['departments'];
+    }
+
     // ─── APPOINTMENTS & CONTACT PASTOR & DIRECT MESSAGES ─────────────────────
     if (strpos($msg, 'reply from member') !== false
         || strpos($msg, 'member reply') !== false
@@ -409,10 +419,30 @@ function notification_badge_tabs($message, $user_type) {
     return array_values(array_unique($tabs));
 }
 
+function ensure_notification_focus_schema($conn) {
+    static $available = null;
+    if ($available !== null) return $available;
+
+    try {
+        $column = $conn->query("SHOW COLUMNS FROM notifications LIKE 'related_member_id'");
+        if ($column && $column->num_rows === 0) {
+            $conn->query("ALTER TABLE notifications ADD COLUMN related_member_id INT(6) UNSIGNED NULL AFTER message");
+            $column = $conn->query("SHOW COLUMNS FROM notifications LIKE 'related_member_id'");
+        }
+        $available = $column && $column->num_rows > 0;
+    } catch (Throwable $error) {
+        // Older hosted databases may not grant ALTER to the application account.
+        $available = false;
+    }
+    return $available;
+}
+
 function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab, &$current_tab_messages = null) {
     $user_id      = (int)$user_id;
     $user_type_sql = $conn->real_escape_string($user_type);
-    $result = $conn->query("SELECT id, message, created_at FROM notifications WHERE user_id = $user_id AND user_type = '$user_type_sql' AND is_read = 0");
+    $has_related_member_id = ensure_notification_focus_schema($conn);
+    $related_member_column = $has_related_member_id ? 'related_member_id' : 'NULL AS related_member_id';
+    $result = $conn->query("SELECT id, message, created_at, $related_member_column FROM notifications WHERE user_id = $user_id AND user_type = '$user_type_sql' AND is_read = 0");
     $badges   = [];
     $read_ids = [];
     $current_tab_messages = [];
@@ -430,7 +460,8 @@ function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab
                     $current_tab_messages[] = notification_focus_message_with_member_id(
                         $conn,
                         (string)$notification['message'],
-                        (string)($notification['created_at'] ?? '')
+                        (string)($notification['created_at'] ?? ''),
+                        (int)($notification['related_member_id'] ?? 0)
                     );
                 }
             }
@@ -448,23 +479,54 @@ function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab
     return $badges;
 }
 
-function notification_focus_message_with_member_id($conn, $message, $created_at = '') {
-    if (!preg_match('/^New member registration:\s*(.+?)\s+in\s+(.+?)\s+department\s+is\s+pending approval\.?$/i', trim($message), $match)) {
-        return $message;
+function notification_focus_message_with_member_id($conn, $message, $created_at = '', $related_member_id = 0) {
+    $message = (string)$message;
+    $focus_type = '';
+    if (preg_match('/^New member added to your department:/i', $message)) {
+        $focus_type = 'department-member';
+    } elseif (preg_match('/^New approved member:/i', $message)) {
+        $focus_type = 'approved-member';
+    } elseif (preg_match('/^New member registration:/i', $message)) {
+        $focus_type = 'member-registration';
+    }
+    if ($focus_type === '') return $message;
+
+    $related_member_id = (int)$related_member_id;
+    $fallback_name = '';
+    $fallback_department = '';
+    if ($focus_type === 'member-registration'
+        && preg_match('/^New member registration:\s*(.+?)\s+in\s+(.+?)\s+department\s+is\s+pending approval\.?$/i', trim($message), $match)) {
+        $fallback_name = trim($match[1]);
+        $fallback_department = trim($match[2]);
+    } elseif ($focus_type === 'department-member'
+        && preg_match('/^New member added to your department:\s*(.+?)\s*\((.+?)\)\.?$/i', trim($message), $match)) {
+        $fallback_name = trim($match[1]);
+        $fallback_department = trim($match[2]);
+    } elseif ($focus_type === 'approved-member'
+        && preg_match('/^New approved member:\s*(.+?)\s+has joined the\s+(.+?)\s+department\./i', trim($message), $match)) {
+        $fallback_name = trim($match[1]);
+        $fallback_department = trim($match[2]);
     }
 
-    $name = $conn->real_escape_string(trim($match[1]));
-    $department = $conn->real_escape_string(trim($match[2]));
-    $created_at = $conn->real_escape_string($created_at);
-    $result = $conn->query("SELECT id FROM members
-        WHERE LOWER(TRIM(CONCAT(first_name, ' ', last_name))) = LOWER('$name')
-          AND LOWER(TRIM(department)) = LOWER('$department')
-        ORDER BY CASE WHEN reg_date IS NULL THEN 1 ELSE 0 END,
-                 ABS(TIMESTAMPDIFF(SECOND, reg_date, '$created_at')) ASC,
-                 id DESC
-        LIMIT 1");
-    $member = $result ? $result->fetch_assoc() : null;
-    return $member ? $message . ' [member-registration-id:' . (int)$member['id'] . ']' : $message;
+    if ($related_member_id < 1 && $fallback_name !== '' && $fallback_department !== '') {
+        $name = $conn->real_escape_string($fallback_name);
+        $department = $conn->real_escape_string($fallback_department);
+        $created_at = $conn->real_escape_string($created_at);
+        $order = $focus_type === 'member-registration'
+            ? "ORDER BY CASE WHEN reg_date IS NULL THEN 1 ELSE 0 END, ABS(TIMESTAMPDIFF(SECOND, reg_date, '$created_at')) ASC, id DESC"
+            : "ORDER BY id DESC";
+        $result = $conn->query("SELECT id FROM members
+            WHERE LOWER(TRIM(CONCAT(first_name, ' ', last_name))) = LOWER('$name')
+              AND LOWER(TRIM(department)) = LOWER('$department')
+            $order
+            LIMIT 1");
+        $member = $result ? $result->fetch_assoc() : null;
+        $related_member_id = (int)($member['id'] ?? 0);
+    }
+
+    return $related_member_id > 0
+        ? $message . ' [focus-' . $focus_type . '-id:' . $related_member_id . ']'
+        : $message;
 }
 
 function notification_target_tab($message, $user_type, $fallback_tab = 'dashboard') {
@@ -619,11 +681,14 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
     notificationMessages.forEach(function (notificationMessage) {
-        var registrationMatch = notificationMessage.match(/\[member-registration-id:\s*(\d+)\]/i);
-        if (registrationMatch) {
-            var registrationRow = main.querySelector('[data-notification-row="member-registration-' + registrationMatch[1] + '"]');
-            if (registrationRow) {
-                addHighlightedRow(registrationRow);
+        var focusMatch = notificationMessage.match(/\[focus-(department-member|approved-member|member-registration)-id:\s*(\d+)\]/i);
+        var legacyRegistrationMatch = notificationMessage.match(/\[member-registration-id:\s*(\d+)\]/i);
+        if (focusMatch || legacyRegistrationMatch) {
+            var focusType = focusMatch ? focusMatch[1].toLowerCase() : "member-registration";
+            var focusId = focusMatch ? focusMatch[2] : legacyRegistrationMatch[1];
+            var focusRow = main.querySelector('[data-notification-row="' + focusType + '-' + focusId + '"]');
+            if (focusRow) {
+                addHighlightedRow(focusRow);
                 return;
             }
         }
@@ -645,6 +710,14 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         if (/\byour roles?\b[\s\S]*\bremoved\b/i.test(notificationMessage)) {
             main.classList.add("notification-dashboard-glow");
+            return;
+        }
+        if (/^your membership has been approved by the pastor\b/i.test(notificationMessage)) {
+            var approvedGreeting = main.querySelector("[data-welcome-greeting]");
+            if (approvedGreeting) {
+                approvedGreeting.classList.add("notification-role-glow");
+                addHighlightedRow(approvedGreeting);
+            }
             return;
         }
 
@@ -763,6 +836,18 @@ HTML;
 
 function notification_target_group($message, $user_type) {
     $msg = strtolower($message);
+    if ($user_type === 'member'
+        && preg_match('/^new member added to your department:.*\(([^)]+)\)/i', $message, $department_match)) {
+        $department_groups = [
+            'youths' => 'youths',
+            'women ministry' => 'womens_ministry',
+            'womens ministry' => 'womens_ministry',
+            'elders' => 'elders',
+            'sunday school' => 'sunday_school',
+            'building & construction' => 'building_construction'
+        ];
+        return $department_groups[strtolower(trim($department_match[1]))] ?? '';
+    }
     if (preg_match('/department leaders chat message in ([a-z_]+)/', $msg, $matches)) {
         return $matches[1];
     }

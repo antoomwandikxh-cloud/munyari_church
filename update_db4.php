@@ -26,6 +26,7 @@ $sql_notif = "CREATE TABLE IF NOT EXISTS notifications (
     user_id INT(6) UNSIGNED,
     user_type ENUM('member', 'pastor', 'admin'),
     message TEXT,
+    related_member_id INT(6) UNSIGNED NULL,
     is_read TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";

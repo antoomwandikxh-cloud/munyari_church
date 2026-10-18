@@ -1060,6 +1060,7 @@ if (!empty($action)) {
                 <a href="?tab=departments" class="sidebar-link <?= $tab == 'departments' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                     Departments
+                    <?= render_tab_notification_badge($tab_badges, 'departments') ?>
                 </a>
                 <a href="?tab=pastors" class="sidebar-link <?= $tab == 'pastors' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
@@ -2321,7 +2322,7 @@ w.document.write('</div>');
                                                     : ($role_r <= 3 ? 'background:rgba(16,185,129,0.05);'
                                                     : '')));
                                         ?>
-                                            <tr style="<?= $row_bg ?>">
+                                            <tr style="<?= $row_bg ?>"<?php if (empty($dm['is_pastor'])): ?> data-notification-row="approved-member-<?= (int)$dm['id'] ?>"<?php endif; ?>>
                                                 <td><?= $dpi++ ?></td>
                                                 <td><img src="uploads/<?= htmlspecialchars($dm['profile_picture'] ?? 'default_avatar.png') ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #ccc;cursor:zoom-in;" onclick="viewProfileImage(this.src);"></td>
                                                 <td>

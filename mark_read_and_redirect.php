@@ -30,13 +30,16 @@ if (isset($_SESSION['member_id'])) {
 
 $notification_message = '';
 $notification_created_at = '';
+$notification_related_member_id = 0;
 $notification_focus_message = '';
 $notification_found = false;
-$lookup_stmt = $conn->prepare("SELECT message, created_at FROM notifications WHERE id = ? AND user_id = ? AND user_type = ? LIMIT 1");
+$has_related_member_id = ensure_notification_focus_schema($conn);
+$related_member_column = $has_related_member_id ? 'related_member_id' : 'NULL';
+$lookup_stmt = $conn->prepare("SELECT message, created_at, $related_member_column FROM notifications WHERE id = ? AND user_id = ? AND user_type = ? LIMIT 1");
 if ($lookup_stmt) {
     $lookup_stmt->bind_param("iis", $notif_id, $user_id, $user_type);
     $lookup_stmt->execute();
-    $lookup_stmt->bind_result($notification_message, $notification_created_at);
+    $lookup_stmt->bind_result($notification_message, $notification_created_at, $notification_related_member_id);
     $notification_found = $lookup_stmt->fetch();
     $lookup_stmt->close();
 }
@@ -45,7 +48,7 @@ unset($_SESSION['notification_tab_glow'], $_SESSION['notification_row_focus'], $
 if ($notification_found) {
     $redirect_tab = notification_target_tab($notification_message, $user_type, 'dashboard');
     $notification_focus_message = notification_focus_message_with_media_id($conn, $notification_message, $notification_created_at);
-    $notification_focus_message = notification_focus_message_with_member_id($conn, $notification_focus_message, $notification_created_at);
+    $notification_focus_message = notification_focus_message_with_member_id($conn, $notification_focus_message, $notification_created_at, $notification_related_member_id);
     $_SESSION['notification_tab_glow'] = $redirect_tab;
     $_SESSION['notification_row_focus'] = [
         'tab' => $redirect_tab,
@@ -62,12 +65,13 @@ if ($stmt) {
 
 if ($user_type === 'member') {
     $destination = 'member_dashboard.php?tab=' . urlencode($redirect_tab);
-    if ($redirect_tab === 'leader_chat') {
+    if ($redirect_tab === 'leader_chat' || $redirect_tab === 'manage_department') {
         $department_by_group = [
             'youths' => 'Youths',
             'womens_ministry' => 'Womens Ministry',
             'elders' => 'Elders',
-            'sunday_school' => 'Sunday School'
+            'sunday_school' => 'Sunday School',
+            'building_construction' => 'Building & Construction'
         ];
         if (isset($department_by_group[$redirect_group])) {
             $_SESSION['dashboard_dept'] = $department_by_group[$redirect_group];

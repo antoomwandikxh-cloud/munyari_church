@@ -4341,7 +4341,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 <thead><tr><th>Profile</th><th>Name</th><th>Role</th><th>Phone</th><th>Area</th><th>Member Since</th></tr></thead>
                                 <tbody>
                                     <?php while($dm = $dept_members->fetch_assoc()): ?>
-                                        <tr>
+                                        <tr data-notification-row="department-member-<?= (int)$dm['id'] ?>">
                                             <td><img src="uploads/<?= htmlspecialchars($dm['profile_picture'] ?? 'default_avatar.png') ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); cursor: zoom-in;" onclick="viewProfileImage(this.src);"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($dm['first_name'] . ' ' . $dm['last_name']) ?></td>
                                             <td>

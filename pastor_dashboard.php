@@ -904,8 +904,79 @@ if (isset($_GET['action']) && $_GET['action'] == 'deactivate_member' && isset($_
 // Handle Activate Member
 if (isset($_GET['action']) && $_GET['action'] == 'activate_member' && isset($_GET['id'])) {
     $act_id = (int)$_GET['id'];
+    $member_result = $conn->query("SELECT first_name, last_name, department, is_approved FROM members WHERE id = $act_id LIMIT 1");
+    $approved_member = $member_result ? $member_result->fetch_assoc() : null;
+    $is_first_approval = $approved_member && (int)$approved_member['is_approved'] === 0;
     $conn->query("UPDATE members SET is_approved = 1, decline_reason = NULL WHERE id = $act_id");
-    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($act_id, 'member', 'Your account has been approved by the pastor. Welcome to Munyari Church!')");
+    require_once 'notification_badges.php';
+    $has_related_member_id = ensure_notification_focus_schema($conn);
+    $send_approval_notice = function ($recipient_id, $recipient_type, $message, $related_id = null) use ($conn, $has_related_member_id) {
+        if ($has_related_member_id) {
+            $notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message, related_member_id) VALUES (?, ?, ?, ?)");
+            if ($notice) {
+                $related_id = (int)$related_id;
+                $notice->bind_param("issi", $recipient_id, $recipient_type, $message, $related_id);
+                $notice->execute();
+                $notice->close();
+            }
+        } else {
+            $notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
+            if ($notice) {
+                $notice->bind_param("iss", $recipient_id, $recipient_type, $message);
+                $notice->execute();
+                $notice->close();
+            }
+        }
+    };
+
+    if ($approved_member && $is_first_approval) {
+        $full_name = trim($approved_member['first_name'] . ' ' . $approved_member['last_name']);
+        $department = trim((string)$approved_member['department']);
+        $send_approval_notice($act_id, 'member', 'Your membership has been approved by the pastor. Welcome to Munyari Church!');
+
+        $chair_roles_by_department = [
+            'youths' => ['youth chairperson', 'youth chairman', 'youth chairlady'],
+            'womens ministry' => ['women chairlady', 'women chairperson', 'women chairman'],
+            'women ministry' => ['women chairlady', 'women chairperson', 'women chairman'],
+            'elders' => ['elder chairman', 'elder chairperson', 'elder chairlady'],
+            'sunday school' => ['sunday school patron', 'sunday school chairperson', 'sunday school chairman', 'sunday school chairlady'],
+            'building & construction' => ['building chairperson', 'building chairman', 'building chairlady']
+        ];
+        $dept_key = strtolower($department);
+        $dept_sql = $conn->real_escape_string($department);
+        $chair_roles = $chair_roles_by_department[$dept_key] ?? [];
+        if ($chair_roles) {
+            $chair_candidates = $conn->query("SELECT id, church_role FROM members WHERE is_approved = 1 AND LOWER(TRIM(department)) = LOWER('$dept_sql')");
+            if ($chair_candidates) {
+                while ($chair = $chair_candidates->fetch_assoc()) {
+                    $role_parts = array_map('normalize_role_name', explode(',', (string)$chair['church_role']));
+                    if (array_intersect($chair_roles, $role_parts)) {
+                        $chair_id = (int)$chair['id'];
+                        $chair_notice = "New member added to your department: $full_name ($department).";
+                        $send_approval_notice($chair_id, 'member', $chair_notice, $act_id);
+                    }
+                }
+            }
+        }
+
+        $count_result = $conn->query("SELECT COUNT(*) AS total FROM members WHERE is_approved = 1 AND LOWER(TRIM(department)) = LOWER('$dept_sql')");
+        $department_total = $count_result ? (int)($count_result->fetch_assoc()['total'] ?? 0) : 0;
+        $staff_notice = "New approved member: $full_name has joined the $department department. Current total: $department_total.";
+        $admins = $conn->query("SELECT id FROM admins");
+        if ($admins) {
+            while ($admin = $admins->fetch_assoc()) {
+                $send_approval_notice((int)$admin['id'], 'admin', $staff_notice, $act_id);
+            }
+        }
+        $pastors = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
+        if ($pastors) {
+            while ($pastor = $pastors->fetch_assoc()) {
+                $send_approval_notice((int)$pastor['id'], 'pastor', $staff_notice, $act_id);
+            }
+        }
+    } else {
+        $send_approval_notice($act_id, 'member', 'Your account has been approved by the pastor. Welcome to Munyari Church!');
+    }
     header("Location: pastor_dashboard.php?tab=manage_members&success=Member activated");
     exit();
 }
@@ -1479,6 +1550,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                 <a href="?tab=departments" class="sidebar-link <?= $tab == 'departments' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                     Departments
+                    <?= render_tab_notification_badge($tab_badges, 'departments') ?>
                 </a>
                 <a href="?tab=assign_roles" class="sidebar-link <?= $tab == 'assign_roles' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
@@ -3189,7 +3261,7 @@ w.document.write('</div>');
                                                     : ($role_r <= 3 ? 'background:rgba(16,185,129,0.05);'
                                                     : '')));
                                         ?>
-                                            <tr style="<?= $row_bg ?>">
+                                            <tr style="<?= $row_bg ?>"<?php if (empty($dm['is_pastor'])): ?> data-notification-row="approved-member-<?= (int)$dm['id'] ?>"<?php endif; ?>>
                                                 <td><?= $dpi++ ?></td>
                                                 <td><img src="uploads/<?= htmlspecialchars($dm['profile_picture'] ?? 'default_avatar.png') ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #ccc;cursor:zoom-in;" onclick="viewProfileImage(this.src);"></td>
                                                 <td>
