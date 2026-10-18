@@ -299,6 +299,11 @@ function printDisciplinaryCases(button, orientation) {
     const caseCount = table.querySelectorAll('tbody tr').length;
     const printedAt = new Date().toLocaleString();
     const logoUrl = new URL('church_logo.jpg', window.location.href).href;
+    const leaderName = card.dataset.printLeader || '';
+    const leaderPhoto = card.dataset.printLeaderPhoto
+        ? new URL(card.dataset.printLeaderPhoto, window.location.href).href
+        : '';
+    const leaderRole = card.dataset.printLeaderRole || 'Discipline Master';
     const pageOrientation = orientation === 'landscape' ? 'landscape' : 'portrait';
     const escapeText = value => String(value).replace(/[&<>"']/g, character => ({
         '&': '&amp;',
@@ -312,27 +317,34 @@ function printDisciplinaryCases(button, orientation) {
     printWindow.document.write(`<!doctype html>
         <html><head><meta charset="utf-8"><title>${escapeText(reportTitle)}</title>
         <style>
-            @page{size:A4 ${pageOrientation};margin:14mm 10mm 23mm}
+            @page{size:A4 ${pageOrientation};margin:12mm 10mm 24mm}
             *{box-sizing:border-box}
-            body{margin:0;color:#172033;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+            html,body{height:auto;min-height:0}
+            body{margin:0;padding:0;color:#172033;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
             .watermark{position:fixed;z-index:0;top:48%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);color:rgba(30,58,138,.12);font-size:42px;font-weight:900;letter-spacing:3px;white-space:nowrap;pointer-events:none}
-            .report{position:relative;z-index:1}
-            .brand{display:grid;grid-template-columns:64px 1fr 64px;align-items:center;gap:12px;text-align:center;border-bottom:2px solid #1e3a8a;padding:0 0 12px;margin-bottom:15px}
-            .brand img{width:60px;height:60px;object-fit:contain}
-            .brand h1{margin:0;color:#1e3a8a;font-size:20px;letter-spacing:1px}
-            .brand h2{margin:5px 0 0;font-size:16px;color:#222}
-            .meta{margin:0 0 12px;color:#444;font-size:12px;display:flex;justify-content:space-between;gap:12px}
-            table{width:100%;border-collapse:collapse;font-size:11px;background:transparent}
+            .report{position:relative;z-index:1;break-after:auto;page-break-after:auto}
+            .leader{display:flex;align-items:center;justify-content:center;gap:9px;margin:0 0 7px;break-inside:avoid}
+            .leader img{width:42px;height:42px;object-fit:cover;border-radius:50%;border:2px solid #1e3a8a}
+            .leader-name{font-size:12px;font-weight:700;color:#1e3a8a;text-transform:uppercase}
+            .leader-role{font-size:10px;color:#4b5563;margin-top:2px}
+            .brand{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;gap:8px;text-align:center;border-bottom:2px solid #1e3a8a;padding:0 0 7px;margin-bottom:8px;break-inside:avoid}
+            .brand img{width:44px;height:44px;object-fit:contain}
+            .brand h1{margin:0;color:#1e3a8a;font-size:17px;letter-spacing:0}
+            .brand h2{margin:4px 0 0;font-size:14px;color:#222}
+            .meta{margin:0 0 8px;color:#444;font-size:10px;display:flex;justify-content:space-between;gap:10px}
+            table{width:100%;border-collapse:collapse;font-size:9px;background:transparent;table-layout:auto}
             thead{display:table-header-group}
+            tfoot{display:table-footer-group}
             tr{page-break-inside:avoid;break-inside:avoid}
-            th,td{border:1px solid #aab3c2;padding:7px 6px;text-align:left;vertical-align:middle;overflow-wrap:anywhere}
+            th,td{border:1px solid #aab3c2;padding:4px 4px;text-align:left;vertical-align:middle;overflow-wrap:anywhere}
             th{background:#e8eef8!important;color:#172033;font-weight:700}
-            td img{display:block;width:38px;height:38px;object-fit:cover;border-radius:50%;border:1px solid #8792a5}
-            .footer{position:fixed;z-index:2;left:0;right:0;bottom:-16mm;border-top:1px solid #aab3c2;padding-top:5px;text-align:center;color:#4b5563;font-size:9px;background:#fff}
+            td img{display:inline-block;width:30px;height:30px;object-fit:cover;border-radius:50%;border:1px solid #8792a5;vertical-align:middle}
+            .footer{position:fixed;z-index:2;left:0;right:0;bottom:-17mm;border-top:1px solid #aab3c2;padding-top:4px;text-align:center;color:#4b5563;font-size:8px;background:#fff}
             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
         </style></head><body>
         <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
         <main class="report">
+            ${leaderName || leaderPhoto ? `<section class="leader"><img src="${escapeText(leaderPhoto || new URL('uploads/default_avatar.png', window.location.href).href)}" alt="${escapeText(leaderRole)} profile"><div><div class="leader-name">${escapeText(leaderName || leaderRole)}</div><div class="leader-role">${escapeText(leaderRole)}</div></div></section>` : ''}
             <header class="brand"><img src="${escapeText(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><h2>${escapeText(reportTitle)}</h2></div><img src="${escapeText(logoUrl)}" alt="Church logo"></header>
             <p class="meta"><span>Total cases: ${caseCount}</span><span>Generated: ${escapeText(printedAt)}</span></p>
             ${table.outerHTML}

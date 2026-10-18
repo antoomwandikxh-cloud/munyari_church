@@ -4383,7 +4383,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <p style="color: var(--text-muted); margin-bottom: 15px;">Reports filed by the Discipline Master.</p>
 
                     <?php
-                    $reports = $conn->query("SELECT mr.*, m.first_name, m.last_name, m.profile_picture, dm.first_name as dm_first, dm.last_name as dm_last
+                    $reports = $conn->query("SELECT mr.*, m.first_name, m.last_name, m.profile_picture, dm.first_name as dm_first, dm.last_name as dm_last, dm.profile_picture as discipline_master_picture
                                             FROM member_reports mr
                                             JOIN members m ON mr.reported_member_id = m.id
                                             JOIN members dm ON mr.reported_by_id = dm.id
@@ -4392,12 +4392,13 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Profile</th><th>Reported Member</th><th>Reason</th><th>Status</th><th>Action</th><th>Date</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Reported Member</th><th>Discipline Master</th><th>Reason</th><th>Status</th><th>Action</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($rp = $reports->fetch_assoc()): ?>
                                         <tr data-notification-row="disciplinary-report-<?= (int)$rp['id'] ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($rp['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($rp['first_name'] . ' ' . $rp['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View reported member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($rp['first_name'] . ' ' . $rp['last_name']) ?></td>
+                                            <td style="white-space:nowrap;"><img src="uploads/<?= htmlspecialchars(basename($rp['discipline_master_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="Discipline Master profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);vertical-align:middle;margin-right:7px;"><?= htmlspecialchars(trim(($rp['dm_first'] ?? '') . ' ' . ($rp['dm_last'] ?? '')) ?: 'Discipline Master') ?></td>
                                             <td><?= htmlspecialchars($rp['reason']) ?></td>
                                             <td>
                                                 <?php if ($rp['status'] == 'Pending Chairman'): ?>
@@ -8442,7 +8443,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     WHERE mr.reported_by_id = $member_id
                     ORDER BY mr.created_at DESC, mr.id DESC");
                 ?>
-                <div class="content-card" style="margin-top: 30px; border-top: 4px solid var(--primary);">
+                <div class="content-card" style="margin-top: 30px; border-top: 4px solid var(--primary);"
+                     data-print-leader="<?= htmlspecialchars(strtoupper(trim($member['first_name'] . ' ' . $member['last_name'])), ENT_QUOTES) ?>"
+                     data-print-leader-photo="<?= htmlspecialchars('uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png'), ENT_QUOTES) ?>"
+                     data-print-leader-role="Discipline Master">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                         <h2 style="margin:0;">Reports Sent to Chairperson</h2>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
