@@ -39,10 +39,14 @@ if ($lookup_stmt) {
     $lookup_stmt->close();
 }
 
-unset($_SESSION['notification_tab_glow'], $_SESSION['fine_notification_highlight']);
+unset($_SESSION['notification_tab_glow'], $_SESSION['notification_row_focus'], $_SESSION['fine_notification_highlight']);
 if ($notification_found) {
     $redirect_tab = notification_target_tab($notification_message, $user_type, 'dashboard');
     $_SESSION['notification_tab_glow'] = $redirect_tab;
+    $_SESSION['notification_row_focus'] = [
+        'tab' => $redirect_tab,
+        'message' => (string)$notification_message
+    ];
 }
 
 $stmt = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ? AND user_type = ?");

@@ -442,13 +442,100 @@ function render_tab_notification_badge($badges, $tab) {
     return '<span class="tab-notif-badge">' . ($count > 99 ? '99+' : $count) . '</span>';
 }
 
-function render_notification_tab_glow_script($target_tab, $current_tab) {
+function render_notification_tab_glow_script($target_tab, $current_tab, $notification_message = '') {
     if (!is_string($target_tab) || $target_tab === '' || $target_tab !== $current_tab) {
         return '';
     }
 
     $target_json = json_encode($target_tab, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-    return '<script>document.addEventListener("DOMContentLoaded",function(){var targetTab=' . $target_json . ';document.querySelectorAll(".sidebar-link").forEach(function(link){try{if(new URL(link.href,window.location.href).searchParams.get("tab")===targetTab){link.classList.add("notification-tab-glow");}}catch(error){}});},{once:true});</script>';
+    $message_json = json_encode((string)$notification_message, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    $script = <<<'HTML'
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var targetTab = __TARGET_TAB__;
+    var notificationMessage = __NOTIFICATION_MESSAGE__;
+    document.querySelectorAll(".sidebar-link").forEach(function (link) {
+        try {
+            if (new URL(link.href, window.location.href).searchParams.get("tab") === targetTab) {
+                link.classList.add("notification-tab-glow");
+            }
+        } catch (error) {}
+    });
+
+    if (!notificationMessage) return;
+    var normalize = function (value) {
+        return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+    };
+    var exact = [];
+    var patterns = [
+        /new member registration:\s*(.+?)\s+in\s+.+?\s+department\b/i,
+        /^(.+?)\s+has been registered as a new sunday school member\b/i,
+        /new pastor registration:\s*(.+?)\s+is pending\b/i,
+        /fine issued to\s+(.+?):\s*ksh\b/i,
+        /new appointment booking:\s*(.+?)\s+booked an appointment\b/i,
+        /^(.+?)\s+has been appointed as\b/i,
+        /^(.+?)\s+has been assigned the role\b/i
+    ];
+    for (var i = 0; i < patterns.length; i++) {
+        var match = notificationMessage.match(patterns[i]);
+        if (match && match[1]) {
+            exact.push(normalize(match[1]));
+            break;
+        }
+    }
+    var quoted = notificationMessage.match(/["']([^"']{4,})["']/g) || [];
+    quoted.forEach(function (value) {
+        var needle = normalize(value.slice(1, -1));
+        if (needle.length >= 4) exact.push(needle);
+    });
+
+    var selectors = ".main-content tr, .main-content [data-notification-row], .main-content article, .main-content .notification-item, .main-content .member-card, .main-content .event-card, .main-content .announcement-card, .main-content .fine-card, .main-content .content-card";
+    var candidates = Array.from(document.querySelectorAll(selectors)).filter(function (node) {
+        return node.textContent.trim().length > 0;
+    });
+
+    var stop = new Set(["this", "that", "with", "from", "your", "have", "has", "been", "will", "when", "where", "under", "into", "only", "tab", "notification", "new", "member", "department", "church", "the", "and", "for", "his", "her", "they", "them", "you", "are", "was", "were", "sent", "received", "message", "please", "review", "view", "click", "open", "record", "alert", "ksh", "role", "to", "in", "on", "of", "by", "as", "is", "a", "an"]);
+    var message = normalize(notificationMessage);
+    var tokens = message.split(" ").filter(function (word, index, all) {
+        return word.length >= 4 && !stop.has(word) && all.indexOf(word) === index;
+    });
+    var best = null;
+    var bestScore = 0;
+    var bestLength = Infinity;
+    var tied = false;
+    candidates.forEach(function (node) {
+        var text = normalize(node.textContent);
+        var score = 0;
+        if (exact.length) {
+            exact.forEach(function (needle) {
+                if (needle && text.indexOf(needle) !== -1) score += 100 + needle.length;
+            });
+        } else {
+            tokens.forEach(function (token) {
+                if (text.indexOf(token) !== -1) score++;
+            });
+        }
+        if (score > bestScore || (score === bestScore && score > 0 && text.length < bestLength)) {
+            best = node;
+            bestScore = score;
+            bestLength = text.length;
+            tied = false;
+        } else if (score && score === bestScore && text.length === bestLength && node !== best) {
+            tied = true;
+        }
+    });
+    if (!best || tied || (exact.length ? bestScore < 100 : bestScore < 2)) return;
+    best.classList.add("notification-row-glow");
+    best.scrollIntoView({ behavior: "smooth", block: "center" });
+}, { once: true });
+</script>
+HTML;
+
+    return str_replace(
+        ['__TARGET_TAB__', '__NOTIFICATION_MESSAGE__'],
+        [$target_json, $message_json],
+        $script
+    );
 }
 
 function notification_target_group($message, $user_type) {

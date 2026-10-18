@@ -115,7 +115,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register_ss_member']))
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
 if ($tab === 'worship_control_panel') { $tab = 'my_worship_tasks'; }
 $notification_tab_glow = $_SESSION['notification_tab_glow'] ?? '';
-unset($_SESSION['notification_tab_glow'], $_SESSION['fine_notification_highlight']);
+$notification_row_focus = $_SESSION['notification_row_focus'] ?? [];
+unset($_SESSION['notification_tab_glow'], $_SESSION['notification_row_focus'], $_SESSION['fine_notification_highlight']);
+$notification_focus_message = ($notification_row_focus['tab'] ?? '') === $tab ? (string)($notification_row_focus['message'] ?? '') : '';
 
 $member = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
 // Only auto-sync department for roles that truly OWN a department (Youth*, Women*, Elder*).
@@ -2768,7 +2770,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Member Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
-    <?= render_notification_tab_glow_script($notification_tab_glow, $tab) ?>
+    <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_message) ?>
     <?php
     $phones_result = $conn->query("SELECT phone FROM members WHERE phone IS NOT NULL AND phone != ''");
     $phones = [];

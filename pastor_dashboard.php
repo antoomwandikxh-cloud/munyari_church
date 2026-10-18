@@ -313,7 +313,9 @@ cleanup_expired_church_highlights($conn);
 $pastor_name = $_SESSION['pastor_name'];
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
 $notification_tab_glow = $_SESSION['notification_tab_glow'] ?? '';
-unset($_SESSION['notification_tab_glow'], $_SESSION['fine_notification_highlight']);
+$notification_row_focus = $_SESSION['notification_row_focus'] ?? [];
+unset($_SESSION['notification_tab_glow'], $_SESSION['notification_row_focus'], $_SESSION['fine_notification_highlight']);
+$notification_focus_message = ($notification_row_focus['tab'] ?? '') === $tab ? (string)($notification_row_focus['message'] ?? '') : '';
 
 // ── Early PRG handler: assign_village_leader ──────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader'])) {
@@ -1415,7 +1417,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
     <meta charset="UTF-8">
     <title>Pastor Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
-    <?= render_notification_tab_glow_script($notification_tab_glow, $tab) ?>
+    <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_message) ?>
     <script src="script.js?v=20261017b"></script>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}

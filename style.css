@@ -664,6 +664,16 @@ body {
     animation: notificationIconGoldGlow 10s ease-in-out 1;
 }
 
+.notification-row-glow {
+    scroll-margin-block: 90px;
+    animation: notificationRowGoldGlow 10s ease-in-out 1;
+}
+
+tr.notification-row-glow > td,
+tr.notification-row-glow > th {
+    animation: notificationRowCellGoldGlow 10s ease-in-out 1;
+}
+
 @keyframes notificationTabGoldGlow {
     0%, 100% {
         box-shadow: inset 0 0 0 0 rgba(250, 204, 21, 0), 0 0 0 rgba(245, 158, 11, 0);
@@ -686,11 +696,33 @@ body {
     }
 }
 
+@keyframes notificationRowGoldGlow {
+    0%, 100% {
+        box-shadow: inset 0 0 0 0 rgba(250, 204, 21, 0), 0 0 0 rgba(245, 158, 11, 0);
+    }
+    5%, 95% {
+        box-shadow: inset 0 0 0 2px rgba(250, 204, 21, 0.9), 0 0 18px rgba(245, 158, 11, 0.48);
+    }
+}
+
+@keyframes notificationRowCellGoldGlow {
+    0%, 100% { background-color: transparent; }
+    5%, 95% { background-color: rgba(245, 158, 11, 0.2); }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .sidebar-link.notification-tab-glow,
     .sidebar-link.notification-tab-glow svg {
         animation: none;
         color: #fcd34d;
+        box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0.9), 0 0 12px rgba(245, 158, 11, 0.4);
+    }
+
+    .notification-row-glow,
+    tr.notification-row-glow > td,
+    tr.notification-row-glow > th {
+        animation: none;
+        background-color: rgba(245, 158, 11, 0.2);
         box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0.9), 0 0 12px rgba(245, 158, 11, 0.4);
     }
 }
