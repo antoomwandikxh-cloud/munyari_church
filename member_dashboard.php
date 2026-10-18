@@ -7289,15 +7289,16 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <h2 style="color: #f59e0b; margin-bottom: 15px;">Pending Fine Payments</h2>
                     <p style="color: var(--text-muted); margin-bottom: 15px;">Members have marked these fines as paid. Please verify you have received the funds before clearing.</p>
                     <?php
-                    $pending_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department='$esc_dept' AND mf.status = 'Pending Verification' ORDER BY mf.issued_at ASC");
+                    $pending_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department='$esc_dept' AND mf.status = 'Pending Verification' ORDER BY mf.issued_at ASC");
                     if ($pending_fines && $pending_fines->num_rows > 0):
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Member</th><th>Offense</th><th>Amount</th><th>Action</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Action</th></tr></thead>
                                 <tbody>
                                     <?php while($pf = $pending_fines->fetch_assoc()): ?>
                                         <tr>
+                                            <td><img src="uploads/<?= htmlspecialchars(basename($pf['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($pf['first_name'] . ' ' . $pf['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($pf['first_name'] . ' ' . $pf['last_name']) ?></td>
                                             <td><?= htmlspecialchars($pf['fine_reason']) ?></td>
                                             <td style="font-weight: 600; color: #10b981;">KSh <?= number_format($pf['amount'], 2) ?></td>
@@ -7319,15 +7320,16 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <h2 style="color: var(--danger); margin-bottom: 15px;">Unpaid Fines & Reminders</h2>
                     <p style="color: var(--text-muted); margin-bottom: 15px;">Members who have not yet paid their fines. If a member fails to pay, you can request them to pay at the next meeting.</p>
                     <?php
-                    $unpaid_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department='$esc_dept' AND mf.status = 'Unpaid' ORDER BY mf.issued_at ASC");
+                    $unpaid_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department='$esc_dept' AND mf.status = 'Unpaid' ORDER BY mf.issued_at ASC");
                     if ($unpaid_fines && $unpaid_fines->num_rows > 0):
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
                                 <tbody>
                                     <?php while($uf = $unpaid_fines->fetch_assoc()): ?>
                                         <tr>
+                                            <td><img src="uploads/<?= htmlspecialchars(basename($uf['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?></td>
                                             <td><?= htmlspecialchars($uf['fine_reason']) ?></td>
                                             <td style="font-weight: 600; color: var(--danger);">KSh <?= number_format($uf['amount'], 2) ?></td>
@@ -7813,6 +7815,50 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </div>
                 <?php endforeach; ?>
                 <?php if ($is_organizing_secretary): ?>
+                    <?php
+                    $organizer_fine_department_filter = department_match_sql($conn, 'mf.department', $active_org_dept);
+                    $organizer_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture, dm.first_name AS dm_first, dm.last_name AS dm_last
+                        FROM member_fines mf
+                        JOIN members m ON mf.member_id = m.id
+                        LEFT JOIN members dm ON mf.discipline_master_id = dm.id
+                        WHERE ($organizer_fine_department_filter)
+                        ORDER BY mf.issued_at DESC
+                        LIMIT 50");
+                    ?>
+                    <div class="content-card" style="margin: 24px 0;">
+                        <h2><?= htmlspecialchars($active_org_dept) ?> Fine Records</h2>
+                        <p style="color:var(--text-muted);margin:0 0 16px;">Recent fines recorded for this department.</p>
+                        <?php if ($organizer_fines && $organizer_fines->num_rows > 0): ?>
+                            <div class="table-responsive">
+                                <table>
+                                    <thead><tr><th>Date</th><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Issued By</th><th>Status</th></tr></thead>
+                                    <tbody>
+                                        <?php while ($fine = $organizer_fines->fetch_assoc()): ?>
+                                            <tr>
+                                                <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);">
+                                                    <?= !empty($fine['issued_at']) ? date('M j, Y g:i A', strtotime($fine['issued_at'])) : '-' ?>
+                                                </td>
+                                                <td>
+                                                    <img src="uploads/<?= htmlspecialchars(basename($fine['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>"
+                                                         alt="<?= htmlspecialchars($fine['first_name'] . ' ' . $fine['last_name']) ?> profile photo"
+                                                         onerror="this.onerror=null;this.src='uploads/default_avatar.png';"
+                                                         style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"
+                                                         onclick="viewProfileImage(this.src);" title="View member photo">
+                                                </td>
+                                                <td style="font-weight:500;"><?= htmlspecialchars($fine['first_name'] . ' ' . $fine['last_name']) ?></td>
+                                                <td><?= htmlspecialchars($fine['fine_reason']) ?></td>
+                                                <td style="font-weight:600;">KSh <?= number_format((float)$fine['amount'], 2) ?></td>
+                                                <td><?= htmlspecialchars(trim(($fine['dm_first'] ?? '') . ' ' . ($fine['dm_last'] ?? '')) ?: 'Discipline Master') ?></td>
+                                                <td><?= htmlspecialchars($fine['status']) ?></td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php else: ?>
+                            <p style="color:var(--text-muted);margin:0;">No fines have been recorded for this department.</p>
+                        <?php endif; ?>
+                    </div>
                     <script>
                     function printOrganizedAttendance(registerId, orientation, attendanceStatus) {
                         var card = document.getElementById('attendance-register-' + registerId);
@@ -8222,16 +8268,17 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <div class="content-card" style="margin-top: 30px;">
                     <h2>Unpaid Fines</h2>
                     <?php
-                    $unpaid = $conn->query("SELECT mf.*, m.first_name, m.last_name FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department = '$dm_dept' AND mf.status IN ('Unpaid', 'Pending Verification') ORDER BY mf.issued_at DESC");
+                    $unpaid = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department = '$dm_dept' AND mf.status IN ('Unpaid', 'Pending Verification') ORDER BY mf.issued_at DESC");
                     if ($unpaid && $unpaid->num_rows > 0):
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Date</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Date</th><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th></tr></thead>
                                 <tbody>
                                     <?php while($uf = $unpaid->fetch_assoc()): ?>
                                         <tr>
                                             <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($uf['issued_at'])) ?></td>
+                                            <td><img src="uploads/<?= htmlspecialchars(basename($uf['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?></td>
                                             <td><?= htmlspecialchars($uf['fine_reason']) ?></td>
                                             <td style="font-weight: 600; color: var(--danger);">KSh <?= number_format($uf['amount'], 2) ?></td>
@@ -8257,16 +8304,17 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <div class="content-card" style="margin-top: 30px;">
                     <h2>Fines History</h2>
                     <?php
-                    $all_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department = '$dm_dept' ORDER BY mf.issued_at DESC LIMIT 50");
+                    $all_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department = '$dm_dept' ORDER BY mf.issued_at DESC LIMIT 50");
                     if ($all_fines && $all_fines->num_rows > 0):
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Date</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Date</th><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th></tr></thead>
                                 <tbody>
                                     <?php while($af = $all_fines->fetch_assoc()): ?>
                                         <tr>
                                             <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y', strtotime($af['issued_at'])) ?></td>
+                                            <td><img src="uploads/<?= htmlspecialchars(basename($af['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?></td>
                                             <td><?= htmlspecialchars($af['fine_reason']) ?></td>
                                             <td style="font-weight: 600;">KSh <?= number_format($af['amount'], 2) ?></td>

@@ -6341,17 +6341,18 @@ w.document.write('</div>');
                 <div class="content-card" style="margin-bottom: 30px;">
                     <h2>All Fines Issued</h2>
                     <?php
-                    $all_fines_pastor = $conn->query("SELECT mf.*, m.first_name, m.last_name, dm.first_name as dm_first, dm.last_name as dm_last FROM member_fines mf JOIN members m ON mf.member_id = m.id JOIN members dm ON mf.discipline_master_id = dm.id ORDER BY mf.issued_at DESC LIMIT 50");
+                    $all_fines_pastor = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture, dm.first_name as dm_first, dm.last_name as dm_last FROM member_fines mf JOIN members m ON mf.member_id = m.id JOIN members dm ON mf.discipline_master_id = dm.id ORDER BY mf.issued_at DESC LIMIT 50");
                     if ($all_fines_pastor && $all_fines_pastor->num_rows > 0):
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Date & Time</th><th>Department</th><th>Member</th><th>Offense</th><th>Amount</th><th>Issued By</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Date & Time</th><th>Department</th><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Issued By</th><th>Status</th></tr></thead>
                                 <tbody>
                                     <?php while($af = $all_fines_pastor->fetch_assoc()): ?>
                                         <tr>
                                             <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($af['issued_at'])) ?></td>
                                             <td><span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;"><?= htmlspecialchars($af['department']) ?></span></td>
+                                            <td><img src="uploads/<?= htmlspecialchars(basename($af['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?></td>
                                             <td><?= htmlspecialchars($af['fine_reason']) ?></td>
                                             <td style="font-weight: 600;">KSh <?= number_format($af['amount'], 2) ?></td>
