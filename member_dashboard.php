@@ -7492,6 +7492,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         .attendance-edit-photo-field input::file-selector-button{margin-right:8px;padding:7px 10px;border:1px solid var(--border-color);border-radius:7px;background:var(--card-bg);color:var(--text-main);font:inherit;cursor:pointer}
                         .attendance-phone-feedback{margin-top:7px;padding:8px 10px;border-left:3px solid var(--warning);border-radius:5px;background:rgba(245,158,11,.12);color:var(--text-main);font-size:.8rem;line-height:1.4}
                         .attendance-phone-feedback.is-valid{border-left-color:var(--success);background:rgba(16,185,129,.12)}
+                        .attendance-name-feedback{margin-top:7px;padding:8px 10px;border-left:3px solid var(--warning);border-radius:5px;background:rgba(245,158,11,.12);color:var(--text-main);font-size:.8rem;line-height:1.4}
+                        .attendance-name-feedback.is-valid{border-left-color:var(--success);background:rgba(16,185,129,.12)}
                         .attendance-edit-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;padding-top:15px;border-top:1px solid var(--border-color)}
                         .attendance-edit-actions .btn-submit{width:auto;min-width:124px}
                         @media(max-width:480px){.attendance-edit-header{padding:17px}.attendance-edit-form{padding:17px}.attendance-edit-photo-row{align-items:flex-start;gap:10px}.attendance-edit-preview{width:56px;height:56px;flex-basis:56px}}
@@ -7519,7 +7521,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     $register_id = (int)$attendance_register['id'];
                                     $register_present_count = 0;
                                     $register_member_filter = department_match_sql($conn, 'm.department', $attendance_register['department']);
-                                    $register_members = $conn->query("SELECT m.id, m.first_name, m.last_name, m.gender, m.phone, m.profile_picture, ram.marked_at, ram.joined_at, rmo.phone_override, rmo.profile_picture_override
+                                    $register_members = $conn->query("SELECT m.id, m.first_name, m.last_name, m.gender, m.phone, m.profile_picture, ram.marked_at, ram.joined_at, rmo.name_override, rmo.phone_override, rmo.profile_picture_override
                                         FROM members m
                                         LEFT JOIN organized_attendance_register_members ram ON ram.member_id = m.id AND ram.register_id = $register_id
                                         LEFT JOIN organized_attendance_register_member_overrides rmo ON rmo.member_id = m.id AND rmo.register_id = $register_id
@@ -7562,7 +7564,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                             $register_photo = !empty($register_member['profile_picture_override']) ? 'uploads/' . ltrim($register_member['profile_picture_override'], '/') : 'uploads/' . basename($register_member['profile_picture'] ?: 'default_avatar.png');
                                                             $register_phone = $register_member['phone_override'] !== null ? $register_member['phone_override'] : ($register_member['phone'] ?? '');
                                                             $register_joined_time = !empty($register_member['joined_at']) ? substr($register_member['joined_at'], 0, 5) : '';
-                                                            $register_member_name = trim($register_member['first_name'] . ' ' . $register_member['last_name']);
+                                                            $register_member_name = trim($register_member['name_override'] ?? '');
+                                                            if ($register_member_name === '') $register_member_name = trim($register_member['first_name'] . ' ' . $register_member['last_name']);
                                                             ?>
                                                             <tr data-attendee-row="1" data-name="<?= htmlspecialchars($register_member_name, ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($register_member['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($register_phone, ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($register_photo, ENT_QUOTES) ?>" data-joined-at="<?= htmlspecialchars($register_joined_time, ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
                                                                 <td style="padding:9px;"><input type="checkbox" name="register_attendee_ids[]" data-attendance-checkbox value="<?= (int)$register_member['id'] ?>" <?= !empty($register_member['marked_at']) ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($register_member_name) ?> present"></td>
@@ -7619,7 +7622,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 <input type="hidden" name="register_id" value="<?= $register_id ?>">
                                                 <input type="hidden" name="member_id" value="">
                                                 <input type="hidden" name="manual_attendee_id" value="0">
-                                                <p data-register-member-edit-name style="margin:0 0 14px;color:var(--text-main);font-weight:750;"></p>
+                                                <div class="form-group" style="margin-bottom:16px;">
+                                                    <label for="register-member-name-<?= $register_id ?>">Full name</label>
+                                                    <input id="register-member-name-<?= $register_id ?>" type="text" name="name" maxlength="255" title="Use letters and spaces only" data-register-member-edit-name oninput="var raw=this.value;this.value=this.value.replace(/[^A-Za-z ]/g,'');updateAttendanceNameValidation(this,raw!==this.value)" class="form-control" autocomplete="name" required>
+                                                    <div class="attendance-name-feedback" data-register-name-feedback role="status" aria-live="polite">Use letters and spaces only.</div>
+                                                </div>
                                                 <div class="attendance-edit-photo-row">
                                                     <img class="attendance-edit-preview" data-register-member-edit-photo src="uploads/default_avatar.png" alt="Profile photo preview" onerror="this.onerror=null;this.src='uploads/default_avatar.png';">
                                                     <div class="attendance-edit-photo-field">
@@ -7792,9 +7799,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         form.querySelector('[name="member_id"]').value = isManual ? '' : button.dataset.memberId;
                         form.querySelector('[name="manual_attendee_id"]').value = isManual ? button.dataset.attendeeId : '0';
                         form.querySelector('[name="phone"]').value = button.dataset.phone || '';
-                        form.querySelector('[data-register-member-edit-name]').textContent = button.dataset.memberName || '';
+                        form.querySelector('[data-register-member-edit-name]').value = button.dataset.memberName || '';
                         form.querySelector('[data-register-member-edit-photo]').src = button.dataset.photo || 'uploads/default_avatar.png';
                         form.querySelector('[name="profile_photo"]').value = '';
+                        updateAttendanceNameValidation(form.querySelector('[name="name"]'), false, true);
                         updateAttendancePhoneValidation(form.querySelector('[name="phone"]'), true);
                         if (!dialog.dataset.backdropHandler) {
                             dialog.addEventListener('click', function(event) {
@@ -7804,6 +7812,15 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         }
                         dialog.showModal();
                         dialog.querySelector('.attendance-edit-close').focus();
+                    }
+                    function updateAttendanceNameValidation(input, showRule, preserveExisting) {
+                        if (!input) return;
+                        var feedback = input.form.querySelector('[data-register-name-feedback]');
+                        var valid = /^[A-Za-z ]+$/.test(input.value.trim());
+                        input.setCustomValidity(valid || (preserveExisting && !showRule) ? '' : 'Use letters and spaces only.');
+                        if (!feedback) return;
+                        feedback.classList.toggle('is-valid', valid && !showRule);
+                        feedback.textContent = showRule ? 'Use letters and spaces only.' : (valid ? 'Name is valid.' : 'Use letters and spaces only.');
                     }
                     function updateAttendancePhoneValidation(input, showRule) {
                         if (!input) return;

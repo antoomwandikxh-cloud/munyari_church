@@ -978,6 +978,7 @@ if (isset($_GET['action'])) {
         $register_id = (int)($_POST['register_id'] ?? 0);
         $target_member_id = (int)($_POST['member_id'] ?? 0);
         $manual_attendee_id = (int)($_POST['manual_attendee_id'] ?? 0);
+        $name = trim($_POST['name'] ?? '');
         $phone = trim($_POST['phone'] ?? '');
         if (!ensure_organized_event_attendance_schema($conn)) {
             header("Location: member_dashboard.php?tab=organized_events&error=Attendance register storage is unavailable");
@@ -999,27 +1000,42 @@ if (isset($_GET['action'])) {
             header("Location: member_dashboard.php?tab=organized_events&error=You are not assigned to edit this register member");
             exit();
         }
+        if ($name === '' || strlen($name) > 255) {
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Enter a valid member name#attendance-register-" . $register_id);
+            exit();
+        }
         if (!preg_match('/^[0-9]{10}$/', $phone)) {
             header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Phone number must contain exactly 10 digits#attendance-register-" . $register_id);
             exit();
         }
 
         $old_profile_path = null;
+        $original_name = '';
         if ($manual_attendee_id > 0) {
-            $manual_result = $conn->query("SELECT id, profile_picture FROM organized_attendance_register_manual_members WHERE id = $manual_attendee_id AND register_id = $register_id LIMIT 1");
+            $manual_result = $conn->query("SELECT id, attendee_name, profile_picture FROM organized_attendance_register_manual_members WHERE id = $manual_attendee_id AND register_id = $register_id LIMIT 1");
             $manual_attendee = $manual_result ? $manual_result->fetch_assoc() : null;
             if (!$manual_attendee) {
                 header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Manual attendee was not found in this register#attendance-register-" . $register_id);
                 exit();
             }
+            $original_name = trim($manual_attendee['attendee_name'] ?? '');
             $old_profile_path = $manual_attendee['profile_picture'] ?? null;
         } else {
-            $member_filter = department_match_sql($conn, 'department', $register['department']);
-            $eligible = $conn->query("SELECT id FROM members WHERE id = $target_member_id AND $member_filter AND is_approved = 1 LIMIT 1");
-            if (!$eligible || !$eligible->fetch_assoc()) {
+            $member_filter = department_match_sql($conn, 'm.department', $register['department']);
+            $eligible = $conn->query("SELECT m.id, m.first_name, m.last_name, rmo.name_override FROM members m
+                LEFT JOIN organized_attendance_register_member_overrides rmo ON rmo.member_id = m.id AND rmo.register_id = $register_id
+                WHERE m.id = $target_member_id AND $member_filter AND m.is_approved = 1 LIMIT 1");
+            $eligible_member = $eligible ? $eligible->fetch_assoc() : null;
+            if (!$eligible_member) {
                 header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=That member is not an approved member of this department#attendance-register-" . $register_id);
                 exit();
             }
+            $original_name = trim($eligible_member['name_override'] ?? '');
+            if ($original_name === '') $original_name = trim($eligible_member['first_name'] . ' ' . $eligible_member['last_name']);
+        }
+        if (!preg_match('/^[A-Za-z ]+$/', $name) && $name !== $original_name) {
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Name can contain letters and spaces only#attendance-register-" . $register_id);
+            exit();
         }
 
         $photo_upload = $_FILES['profile_photo'] ?? null;
@@ -1030,9 +1046,9 @@ if (isset($_GET['action'])) {
         }
 
         if ($manual_attendee_id > 0) {
-            $save_details = $conn->prepare("UPDATE organized_attendance_register_manual_members SET phone = ?, profile_picture = COALESCE(?, profile_picture) WHERE id = ? AND register_id = ?");
+            $save_details = $conn->prepare("UPDATE organized_attendance_register_manual_members SET attendee_name = ?, phone = ?, profile_picture = COALESCE(?, profile_picture) WHERE id = ? AND register_id = ?");
             if ($save_details) {
-                $save_details->bind_param('ssii', $phone, $new_photo_path, $manual_attendee_id, $register_id);
+                $save_details->bind_param('sssii', $name, $phone, $new_photo_path, $manual_attendee_id, $register_id);
                 $saved_override = $save_details->execute();
                 $save_details->close();
             } else {
@@ -1042,9 +1058,9 @@ if (isset($_GET['action'])) {
             $old_override_result = $conn->query("SELECT profile_picture_override FROM organized_attendance_register_member_overrides WHERE register_id = $register_id AND member_id = $target_member_id LIMIT 1");
             $old_override = $old_override_result ? $old_override_result->fetch_assoc() : null;
             $old_profile_path = $old_override['profile_picture_override'] ?? null;
-            $save_override = $conn->prepare("INSERT INTO organized_attendance_register_member_overrides (register_id, member_id, phone_override, profile_picture_override, updated_by) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE phone_override = VALUES(phone_override), profile_picture_override = COALESCE(VALUES(profile_picture_override), profile_picture_override), updated_by = VALUES(updated_by), updated_at = CURRENT_TIMESTAMP");
+            $save_override = $conn->prepare("INSERT INTO organized_attendance_register_member_overrides (register_id, member_id, name_override, phone_override, profile_picture_override, updated_by) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name_override = VALUES(name_override), phone_override = VALUES(phone_override), profile_picture_override = COALESCE(VALUES(profile_picture_override), profile_picture_override), updated_by = VALUES(updated_by), updated_at = CURRENT_TIMESTAMP");
             if ($save_override) {
-                $save_override->bind_param('iissi', $register_id, $target_member_id, $phone, $new_photo_path, $member_id);
+                $save_override->bind_param('iisssi', $register_id, $target_member_id, $name, $phone, $new_photo_path, $member_id);
                 $saved_override = $save_override->execute();
                 $save_override->close();
             } else {
