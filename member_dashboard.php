@@ -7837,7 +7837,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         var index = manualRegisterAttendeeIndex++;
                         var row = document.createElement('div');
                         row.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;padding:10px 0;border-bottom:1px solid var(--border-color);align-items:end;';
-                        row.innerHTML = '<div><label>Full Name</label><input class="form-control" name="manual_register_attendees[' + index + '][name]" maxlength="255" required></div><div><label>Gender</label><select class="form-control" name="manual_register_attendees[' + index + '][gender]"><option value="">Select</option><option>Female</option><option>Male</option></select></div><div><label>Phone</label><input class="form-control" name="manual_register_attendees[' + index + '][phone]" inputmode="tel" maxlength="40"></div><div><label>Time Joined (Optional)</label><input class="form-control" type="time" name="manual_register_attendees[' + index + '][joined_at]"></div><div><label>Profile Photo</label><input type="file" name="manual_register_photos[' + index + ']" accept="image/*" required></div><button type="button" class="btn-sm" style="background:var(--danger);color:white;" onclick="this.closest(\'div[style]\').remove();markOrganizedAttendanceDirty(this.closest(\'form\'))">Remove</button>';
+                        row.innerHTML = '<div><label>Full Name</label><input class="form-control" name="manual_register_attendees[' + index + '][name]" maxlength="255" pattern="[A-Za-z ]+" title="Use letters and spaces only" data-manual-attendee-name required><small data-manual-name-feedback style="display:none;color:var(--danger);font-size:.78rem;">Use letters and spaces only.</small></div><div><label>Gender</label><select class="form-control" name="manual_register_attendees[' + index + '][gender]"><option value="">Select</option><option>Female</option><option>Male</option></select></div><div><label>Phone</label><input class="form-control" name="manual_register_attendees[' + index + '][phone]" inputmode="numeric" maxlength="10" pattern="[0-9]{10}" title="Enter exactly 10 digits" data-manual-attendee-phone required><small data-manual-phone-feedback style="display:none;color:var(--danger);font-size:.78rem;">Enter exactly 10 digits.</small></div><div><label>Time Joined (Optional)</label><input class="form-control" type="time" name="manual_register_attendees[' + index + '][joined_at]"></div><div><label>Profile Photo</label><input type="file" name="manual_register_photos[' + index + ']" accept="image/*" required></div><button type="button" class="btn-sm" style="background:var(--danger);color:white;" onclick="this.closest(\'div[style]\').remove();markOrganizedAttendanceDirty(this.closest(\'form\'))">Remove</button>';
                         list.appendChild(row);
                         markOrganizedAttendanceDirty(form);
                     }
@@ -7857,7 +7857,21 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     }
                     document.querySelectorAll('form[data-organized-attendance-form]').forEach(function(form) {
                         sortOrganizedAttendanceRows(form);
-                        form.addEventListener('input', function() { markOrganizedAttendanceDirty(form); });
+                        form.addEventListener('input', function(event) {
+                            if (event.target.matches('[data-manual-attendee-name]')) {
+                                var name = event.target;
+                                var cleanedName = name.value.replace(/[^A-Za-z ]/g, '');
+                                var nameFeedback = name.parentNode.querySelector('[data-manual-name-feedback]');
+                                if (nameFeedback) nameFeedback.style.display = cleanedName !== name.value ? 'block' : 'none';
+                                name.value = cleanedName;
+                            } else if (event.target.matches('[data-manual-attendee-phone]')) {
+                                var phone = event.target;
+                                phone.value = phone.value.replace(/[^0-9]/g, '').slice(0, 10);
+                                var phoneFeedback = phone.parentNode.querySelector('[data-manual-phone-feedback]');
+                                if (phoneFeedback) phoneFeedback.style.display = phone.value.length > 0 && phone.value.length !== 10 ? 'block' : 'none';
+                            }
+                            markOrganizedAttendanceDirty(form);
+                        });
                         form.addEventListener('change', function(event) {
                             if (event.target.matches('[data-attendance-checkbox]')) {
                                 sortOrganizedAttendanceRows(form);

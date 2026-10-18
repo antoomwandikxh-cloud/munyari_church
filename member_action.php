@@ -855,6 +855,20 @@ if (isset($_GET['action'])) {
                 header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Check the manual attendee name, gender, and phone lengths");
                 exit();
             }
+            if (!preg_match('/^[A-Za-z ]+$/', $name)) {
+                foreach ($new_manual_attendees as $saved_manual) {
+                    delete_organized_event_file($saved_manual['photo'], 'uploads/organized_event_attendees');
+                }
+                header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Name can contain letters and spaces only");
+                exit();
+            }
+            if (!preg_match('/^[0-9]{10}$/', $phone)) {
+                foreach ($new_manual_attendees as $saved_manual) {
+                    delete_organized_event_file($saved_manual['photo'], 'uploads/organized_event_attendees');
+                }
+                header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Phone number must contain exactly 10 digits");
+                exit();
+            }
 
             $photo_upload = null;
             if (isset($manual_uploads['name'][$index])) {
