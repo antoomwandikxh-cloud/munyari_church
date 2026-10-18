@@ -1025,16 +1025,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_daily_message']))
     if ($daily_message_mode === 'bible') {
         $verse_text = trim($_POST['selected_verse_text'] ?? '');
         $verse_reference = trim($_POST['selected_verse_reference'] ?? '');
-        $translation_names = ['web' => 'World English Bible (WEB)'];
-        $translation_id = $_POST['bible_translation'] ?? 'web';
-        if (!isset($translation_names[$translation_id])) {
-            $translation_id = 'web';
-        }
         if ($verse_text === '' || $verse_reference === '') {
             header("Location: pastor_dashboard.php?tab=inspiration_highlights&error=" . urlencode('Choose a Bible verse before posting.'));
             exit();
         }
-        $quote_text = $verse_text . "\n\n— " . $verse_reference . ' (' . $translation_names[$translation_id] . ')';
+        $quote_text = $verse_text . "\n\n— " . $verse_reference;
     } else {
         $quote_text = trim($_POST['quote'] ?? '');
         if ($quote_text === '') {
@@ -6503,10 +6498,6 @@ w.document.write('</div>');
                                 <fieldset id="bibleVerseControls" disabled style="border:0; padding:0; margin:0; min-width:0;">
                                     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px;">
                                         <div class="form-group">
-                                            <label>Translation</label>
-                                            <div style="padding:10px 12px; min-height:42px; border:1px solid var(--border-color); border-radius:8px; color:var(--text-main);">World English Bible (WEB)</div>
-                                        </div>
-                                        <div class="form-group">
                                             <label for="bibleBook">Book</label>
                                             <select id="bibleBook" class="form-control" disabled>
                                                 <option value="">Select book</option>
@@ -6665,7 +6656,7 @@ w.document.write('</div>');
                                 const reference = `${bookName} ${chapterSelect.value}:${verse.verse}`;
                                 verseTextInput.value = verse.text.trim();
                                 verseReferenceInput.value = reference;
-                                previewReference.textContent = `${reference} · World English Bible (WEB)`;
+                                previewReference.textContent = reference;
                                 previewText.textContent = verse.text.trim();
                                 preview.hidden = false;
                                 status.textContent = 'Verse selected. It will be posted with its Bible reference.';
