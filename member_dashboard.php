@@ -5509,9 +5509,14 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             <p id="dailyQuoteCountdown" data-expires-at="<?= (int)$daily_quote_expiry * 1000 ?>" role="status" aria-live="polite" style="color:var(--text-muted); font-size:.9rem; margin:0 0 22px;"></p>
 
                             <?php if ($daily_message['video_file']): ?>
+                                <?php
+                                $daily_video_filename = basename((string)$daily_message['video_file']);
+                                $daily_video_ext = strtolower(pathinfo($daily_video_filename, PATHINFO_EXTENSION));
+                                $daily_video_mime = ['mp4' => 'video/mp4', 'webm' => 'video/webm', 'ogg' => 'video/ogg'][$daily_video_ext] ?? 'video/mp4';
+                                ?>
                                 <div style="border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-                                    <video controls style="width: 100%; max-height: 400px; display: block; background: #000;">
-                                        <source src="uploads/<?= htmlspecialchars($daily_message['video_file']) ?>" type="video/mp4">
+                                    <video controls playsinline preload="metadata" style="width: 100%; max-height: 400px; display: block; background: #000;">
+                                        <source src="uploads/<?= htmlspecialchars($daily_video_filename, ENT_QUOTES) ?>" type="<?= htmlspecialchars($daily_video_mime, ENT_QUOTES) ?>">
                                         Your browser does not support the video tag.
                                     </video>
                                 </div>
@@ -5577,10 +5582,11 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 <?php foreach($videos as $h):
                                     $ext = strtolower(pathinfo($h['image_file'], PATHINFO_EXTENSION));
                                     $highlight_filename = basename($h['image_file']);
+                                    $highlight_video_mime = ['mp4' => 'video/mp4', 'webm' => 'video/webm', 'ogg' => 'video/ogg'][$ext] ?? 'video/mp4';
                                 ?>
                                     <div style="flex:0 0 280px;max-width:82vw;scroll-snap-align:start;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-card);">
-                                        <video controls style="width: 100%; height: 200px; object-fit: cover; background: #000;">
-                                            <source src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" type="video/<?= htmlspecialchars($ext === 'ogg' ? 'ogg' : $ext, ENT_QUOTES) ?>">
+                                        <video controls playsinline preload="metadata" aria-label="Play video highlight<?= $h['caption'] ? ': ' . htmlspecialchars($h['caption'], ENT_QUOTES) : '' ?>" style="width: 100%; height: 200px; object-fit: cover; background: #000;">
+                                            <source src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" type="<?= htmlspecialchars($highlight_video_mime, ENT_QUOTES) ?>">
                                         </video>
                                         <div style="padding: 15px;">
                                             <?php if($h['caption']): ?>
@@ -5602,9 +5608,14 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         <?php if(count($photos) > 0): ?>
                             <h3 style="margin-top: 10px; color: var(--primary);">Photo Highlights</h3>
                             <div style="display:flex;gap:20px;overflow-x:auto;padding:2px 2px 12px;margin-top:15px;scroll-snap-type:x proximity;">
-                                <?php foreach($photos as $h): $highlight_filename = basename($h['image_file']); ?>
+                                <?php foreach($photos as $h):
+                                    $highlight_filename = basename($h['image_file']);
+                                    $highlight_alt = trim((string)($h['caption'] ?? '')) ?: 'Church photo highlight';
+                                ?>
                                     <div style="flex:0 0 280px;max-width:82vw;scroll-snap-align:start;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:var(--bg-card);">
-                                        <img src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" alt="Highlight" style="width: 100%; height: 200px; object-fit: cover;">
+                                        <button type="button" aria-label="View photo highlight: <?= htmlspecialchars($highlight_alt, ENT_QUOTES) ?>" title="View full photo" onclick="viewProfileImage(this.querySelector('img').src)" style="display:block;width:100%;padding:0;border:0;background:transparent;cursor:zoom-in;">
+                                            <img src="uploads/<?= htmlspecialchars($highlight_filename, ENT_QUOTES) ?>" alt="<?= htmlspecialchars($highlight_alt, ENT_QUOTES) ?>" style="display:block;width:100%;height:200px;object-fit:cover;">
+                                        </button>
                                         <div style="padding: 15px;">
                                             <?php if($h['caption']): ?>
                                                 <p style="font-size: 1rem; color: var(--text-main); margin-bottom: 8px;"><?= htmlspecialchars($h['caption']) ?></p>
