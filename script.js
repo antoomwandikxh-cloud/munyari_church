@@ -317,21 +317,21 @@ function printDisciplinaryCases(button, orientation) {
     printWindow.document.write(`<!doctype html>
         <html><head><meta charset="utf-8"><title>${escapeText(reportTitle)}</title>
         <style>
-            @page{size:A4 ${pageOrientation};margin:12mm 10mm 24mm}
+            @page{size:A4 ${pageOrientation};margin:10mm 8mm 18mm}
             *{box-sizing:border-box}
             html,body{height:auto;min-height:0}
             body{margin:0;padding:0;color:#172033;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
             .watermark{position:fixed;z-index:0;top:48%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);color:rgba(30,58,138,.12);font-size:42px;font-weight:900;letter-spacing:3px;white-space:nowrap;pointer-events:none}
             .report{position:relative;z-index:1;break-after:auto;page-break-after:auto}
             .leader{display:flex;align-items:center;justify-content:center;gap:9px;margin:0 0 7px;break-inside:avoid}
-            .leader img{width:42px;height:42px;object-fit:cover;border-radius:50%;border:2px solid #1e3a8a}
+            .leader img{width:56px;height:56px;object-fit:cover;border-radius:50%;border:2px solid #1e3a8a}
             .leader-name{font-size:12px;font-weight:700;color:#1e3a8a;text-transform:uppercase}
             .leader-role{font-size:10px;color:#4b5563;margin-top:2px}
-            .brand{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;gap:8px;text-align:center;border-bottom:2px solid #1e3a8a;padding:0 0 7px;margin-bottom:8px;break-inside:avoid}
-            .brand img{width:44px;height:44px;object-fit:contain}
-            .brand h1{margin:0;color:#1e3a8a;font-size:17px;letter-spacing:0}
-            .brand h2{margin:4px 0 0;font-size:14px;color:#222}
-            .meta{margin:0 0 8px;color:#444;font-size:10px;display:flex;justify-content:space-between;gap:10px}
+            .brand{display:grid;grid-template-columns:42px 1fr 42px;align-items:center;gap:7px;text-align:center;border-bottom:2px solid #1e3a8a;padding:0 0 5px;margin-bottom:6px;break-inside:avoid}
+            .brand img{width:38px;height:38px;object-fit:contain}
+            .brand h1{margin:0;color:#1e3a8a;font-size:16px;letter-spacing:0}
+            .brand h2{margin:3px 0 0;font-size:13px;color:#222}
+            .meta{margin:0 0 6px;color:#444;font-size:9px;display:flex;justify-content:space-between;gap:8px}
             table{width:100%;border-collapse:collapse;font-size:9px;background:transparent;table-layout:auto}
             thead{display:table-header-group}
             tfoot{display:table-footer-group}
@@ -339,7 +339,7 @@ function printDisciplinaryCases(button, orientation) {
             th,td{border:1px solid #aab3c2;padding:4px 4px;text-align:left;vertical-align:middle;overflow-wrap:anywhere}
             th{background:#e8eef8!important;color:#172033;font-weight:700}
             td img{display:inline-block;width:30px;height:30px;object-fit:cover;border-radius:50%;border:1px solid #8792a5;vertical-align:middle}
-            .footer{position:fixed;z-index:2;left:0;right:0;bottom:-17mm;border-top:1px solid #aab3c2;padding-top:4px;text-align:center;color:#4b5563;font-size:8px;background:#fff}
+            .footer{position:fixed;z-index:2;left:0;right:0;bottom:-12mm;border-top:1px solid #aab3c2;padding-top:4px;text-align:center;color:#4b5563;font-size:8px;background:#fff;break-inside:avoid}
             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
         </style></head><body>
         <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
