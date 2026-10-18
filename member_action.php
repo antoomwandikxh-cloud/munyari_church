@@ -839,6 +839,52 @@ if (isset($_GET['action'])) {
         }
 
         $member_times = isset($_POST['register_attendance_times']) && is_array($_POST['register_attendance_times']) ? $_POST['register_attendance_times'] : [];
+        $manual_fields = isset($_POST['manual_register_attendees']) && is_array($_POST['manual_register_attendees']) ? $_POST['manual_register_attendees'] : [];
+        $manual_uploads = $_FILES['manual_register_photos'] ?? [];
+        $new_manual_attendees = [];
+        foreach ($manual_fields as $index => $manual) {
+            if (!is_array($manual)) continue;
+            $name = trim($manual['name'] ?? '');
+            if ($name === '') continue;
+            $gender = trim($manual['gender'] ?? '');
+            $phone = trim($manual['phone'] ?? '');
+            if (strlen($name) > 255 || strlen($gender) > 40 || strlen($phone) > 40) {
+                foreach ($new_manual_attendees as $saved_manual) {
+                    delete_organized_event_file($saved_manual['photo'], 'uploads/organized_event_attendees');
+                }
+                header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Check the manual attendee name, gender, and phone lengths");
+                exit();
+            }
+
+            $photo_upload = null;
+            if (isset($manual_uploads['name'][$index])) {
+                foreach (['name', 'type', 'tmp_name', 'error', 'size'] as $file_key) {
+                    $photo_upload[$file_key] = $manual_uploads[$file_key][$index] ?? null;
+                }
+            }
+            $photo_path = save_organized_event_attendee_photo($photo_upload);
+            if ($photo_path === false || $photo_path === null) {
+                foreach ($new_manual_attendees as $saved_manual) {
+                    delete_organized_event_file($saved_manual['photo'], 'uploads/organized_event_attendees');
+                }
+                header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Add a valid profile photo under 5 MB for each manual attendee");
+                exit();
+            }
+            $time = trim($manual['joined_at'] ?? '');
+            if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time)) $time = '';
+            $new_manual_attendees[] = [
+                'name' => $name,
+                'gender' => $gender,
+                'phone' => $phone,
+                'photo' => $photo_path,
+                'joined_at' => $time === '' ? null : $time . ':00'
+            ];
+        }
+
+        $manual_ids = isset($_POST['manual_register_attendee_ids']) && is_array($_POST['manual_register_attendee_ids'])
+            ? array_values(array_unique(array_filter(array_map('intval', $_POST['manual_register_attendee_ids']), function ($id) { return $id > 0; })))
+            : [];
+        $manual_times = isset($_POST['manual_register_attendance_times']) && is_array($_POST['manual_register_attendance_times']) ? $_POST['manual_register_attendance_times'] : [];
         $safe_meeting_date = $conn->real_escape_string($meeting_date);
         $safe_meeting_type = $conn->real_escape_string($meeting_type);
         $conn->begin_transaction();
@@ -864,10 +910,50 @@ if (isset($_GET['action'])) {
         }
 
         if ($saved) {
+            $saved = (bool)$conn->query("UPDATE organized_attendance_register_manual_members SET is_present = 0, joined_at = NULL WHERE register_id = $register_id");
+        }
+        if ($saved && $manual_ids) {
+            $update_manual = $conn->prepare("UPDATE organized_attendance_register_manual_members SET is_present = 1, joined_at = ?, marked_by = ?, marked_at = CURRENT_TIMESTAMP WHERE id = ? AND register_id = ?");
+            if ($update_manual) {
+                foreach ($manual_ids as $manual_id) {
+                    $joined_at = trim($manual_times[$manual_id] ?? '');
+                    if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $joined_at)) $joined_at = null;
+                    else $joined_at .= ':00';
+                    $update_manual->bind_param('siii', $joined_at, $member_id, $manual_id, $register_id);
+                    if (!$update_manual->execute()) {
+                        $saved = false;
+                        break;
+                    }
+                }
+                $update_manual->close();
+            } else {
+                $saved = false;
+            }
+        }
+        if ($saved && $new_manual_attendees) {
+            $insert_manual = $conn->prepare("INSERT INTO organized_attendance_register_manual_members (register_id, attendee_name, gender, phone, profile_picture, is_present, joined_at, marked_by) VALUES (?, ?, ?, ?, ?, 1, ?, ?)");
+            if ($insert_manual) {
+                foreach ($new_manual_attendees as $manual) {
+                    $insert_manual->bind_param('isssssi', $register_id, $manual['name'], $manual['gender'], $manual['phone'], $manual['photo'], $manual['joined_at'], $member_id);
+                    if (!$insert_manual->execute()) {
+                        $saved = false;
+                        break;
+                    }
+                }
+                $insert_manual->close();
+            } else {
+                $saved = false;
+            }
+        }
+
+        if ($saved) {
             $conn->commit();
             header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&success=Attendance register saved#attendance-register-" . $register_id);
         } else {
             $conn->rollback();
+            foreach ($new_manual_attendees as $manual) {
+                delete_organized_event_file($manual['photo'], 'uploads/organized_event_attendees');
+            }
             header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Could not save attendance register");
         }
         exit();
@@ -897,10 +983,22 @@ if (isset($_GET['action'])) {
         }
 
         $conn->begin_transaction();
-        $deleted = $conn->query("DELETE FROM organized_attendance_register_members WHERE register_id = $register_id");
+        $manual_photo_paths = [];
+        $manual_photo_rows = $conn->query("SELECT profile_picture FROM organized_attendance_register_manual_members WHERE register_id = $register_id");
+        if ($manual_photo_rows) {
+            while ($manual_photo = $manual_photo_rows->fetch_assoc()) {
+                if (!empty($manual_photo['profile_picture'])) $manual_photo_paths[] = $manual_photo['profile_picture'];
+            }
+        }
+        $deleted = (bool)$manual_photo_rows;
+        if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_register_manual_members WHERE register_id = $register_id");
+        if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_register_members WHERE register_id = $register_id");
         if ($deleted) $deleted = $conn->query("DELETE FROM organized_attendance_registers WHERE id = $register_id");
         if ($deleted) {
             $conn->commit();
+            foreach ($manual_photo_paths as $photo_path) {
+                delete_organized_event_file($photo_path, 'uploads/organized_event_attendees');
+            }
             header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&success=Attendance register deleted");
         } else {
             $conn->rollback();

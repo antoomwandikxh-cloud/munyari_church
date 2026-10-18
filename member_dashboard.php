@@ -7503,8 +7503,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         LEFT JOIN organized_attendance_register_members ram ON ram.member_id = m.id AND ram.register_id = $register_id
                                         WHERE $register_member_filter AND m.is_approved = 1
                                         ORDER BY (ram.marked_at IS NULL), (ram.joined_at IS NULL), ram.joined_at, m.first_name, m.last_name");
+                                    $register_manual_members = $conn->query("SELECT id, attendee_name, gender, phone, profile_picture, is_present, joined_at FROM organized_attendance_register_manual_members WHERE register_id = $register_id ORDER BY is_present DESC, (joined_at IS NULL), joined_at, attendee_name");
                                     ?>
-                                    <div id="attendance-register-<?= $register_id ?>" style="padding:16px 0;border-top:1px solid var(--border-color);">
+                                    <div id="attendance-register-<?= $register_id ?>" data-department="<?= htmlspecialchars($attendance_register['department'], ENT_QUOTES) ?>" style="padding:16px 0;border-top:1px solid var(--border-color);">
                                         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
                                             <div>
                                                 <h3 style="margin:0;color:var(--primary);">Register #<?= $register_id ?></h3>
@@ -7515,7 +7516,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 <button type="submit" class="btn-sm" style="background:var(--bg-card);color:var(--danger);border:1px solid var(--danger);">Delete Register</button>
                                             </form>
                                         </div>
-                                        <form method="POST" data-organized-attendance-form action="member_action.php?action=save_organized_attendance_register" style="margin-top:10px;">
+                                        <form method="POST" data-organized-attendance-form action="member_action.php?action=save_organized_attendance_register" enctype="multipart/form-data" style="margin-top:10px;">
                                             <input type="hidden" name="register_id" value="<?= $register_id ?>">
                                             <p style="color:var(--text-muted);font-size:.86rem;margin:0 0 12px;">Select approved members of <?= htmlspecialchars($attendance_register['department']) ?>. Join times are optional.</p>
                                             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;max-width:620px;margin-bottom:14px;">
@@ -7551,13 +7552,33 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                         <?php endwhile; else: ?>
                                                             <tr><td colspan="6" style="padding:12px;color:var(--text-muted);">No approved members are registered in this department.</td></tr>
                                                         <?php endif; ?>
+                                                        <?php if ($register_manual_members): while ($manual_member = $register_manual_members->fetch_assoc()): if ((int)$manual_member['is_present'] === 1) $register_present_count++; ?>
+                                                            <?php
+                                                            $manual_register_photo = !empty($manual_member['profile_picture']) ? 'uploads/' . ltrim($manual_member['profile_picture'], '/') : 'uploads/default_avatar.png';
+                                                            $manual_register_time = !empty($manual_member['joined_at']) ? substr($manual_member['joined_at'], 0, 5) : '';
+                                                            ?>
+                                                            <tr data-attendee-row="1" data-name="<?= htmlspecialchars($manual_member['attendee_name'], ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($manual_member['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($manual_member['phone'] ?? '', ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($manual_register_photo, ENT_QUOTES) ?>" data-joined-at="<?= htmlspecialchars($manual_register_time, ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
+                                                                <td style="padding:9px;"><input type="checkbox" name="manual_register_attendee_ids[]" data-attendance-checkbox value="<?= (int)$manual_member['id'] ?>" <?= (int)$manual_member['is_present'] === 1 ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($manual_member['attendee_name']) ?> present"></td>
+                                                                <td style="padding:7px;"><img src="<?= htmlspecialchars($manual_register_photo) ?>" alt="Profile photo" title="Click to view full photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:zoom-in;"></td>
+                                                                <td style="padding:9px;"><?= htmlspecialchars($manual_member['attendee_name']) ?> <small style="color:var(--text-muted);">(Manual)</small></td>
+                                                                <td style="padding:9px;"><?= htmlspecialchars($manual_member['gender'] ?? '') ?></td>
+                                                                <td style="padding:9px;"><?= htmlspecialchars($manual_member['phone'] ?? '') ?></td>
+                                                                <td style="padding:7px;"><input type="time" name="manual_register_attendance_times[<?= (int)$manual_member['id'] ?>]" value="<?= htmlspecialchars($manual_register_time) ?>" aria-label="Time <?= htmlspecialchars($manual_member['attendee_name']) ?> joined" style="min-width:112px;"></td>
+                                                            </tr>
+                                                        <?php endwhile; endif; ?>
                                                     </tbody>
                                                 </table>
                                             </div>
+                                            <div style="margin-top:16px;padding:14px;border:1px solid var(--border-color);border-radius:8px;">
+                                                <strong>Add Member Manually</strong>
+                                                <p style="margin:4px 0 10px;color:var(--text-muted);font-size:.84rem;">Add a visitor or attendee who is not in the approved <?= htmlspecialchars($attendance_register['department']) ?> member list. Add a profile photo from your device.</p>
+                                                <div data-manual-register-attendee-list></div>
+                                                <button type="button" class="btn-sm" onclick="addManualRegisterAttendee(this)">Add Manual Attendee</button>
+                                            </div>
                                             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
                                                 <button type="submit" class="btn-submit">Save Attendance</button>
-                                                <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait', true)">Print / Save PDF - Portrait</button>
-                                                <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape', true)">Print / Save PDF - Landscape</button>
+                                                <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'portrait')">Print / Save PDF - Portrait</button>
+                                                <button type="button" class="btn-sm" data-print-attendance <?= $register_present_count ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $register_id ?>, 'landscape')">Print / Save PDF - Landscape</button>
                                             </div>
                                         </form>
                                     </div>
@@ -7579,7 +7600,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         if ($events && $events->num_rows > 0):
                             while($ev = $events->fetch_assoc()):
                         ?>
-                            <div id="event-attendance-<?= (int)$ev['id'] ?>" style="padding: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 20px; background: rgba(255,255,255,0.02);">
+                            <div id="organized-event-<?= (int)$ev['id'] ?>" style="padding: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 20px; background: rgba(255,255,255,0.02);">
                                 <h3 style="margin-top: 0; color: var(--primary);"><?= htmlspecialchars($ev['title']) ?></h3>
                                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;color:var(--text-muted);font-size:0.85rem;">
                                     <img src="uploads/<?= htmlspecialchars(basename($ev['profile_picture'] ?: 'default_avatar.png')) ?>" alt="<?= htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);cursor:zoom-in;" onclick="viewProfileImage(this.src);">
@@ -7594,81 +7615,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     <?php if (!empty($ev['whatsapp_link'])): ?><a href="<?= htmlspecialchars($ev['whatsapp_link']) ?>" target="_blank" class="badge" style="background: rgba(37, 99, 235, 0.15); color: var(--primary); text-decoration: none; padding: 8px 12px;">Join WhatsApp Group</a><?php endif; ?>
                                     <?php if (!empty($ev['attendance_file'])): ?><a href="uploads/<?= htmlspecialchars($ev['attendance_file']) ?>" target="_blank" class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; text-decoration: none; padding: 8px 12px;">View Attendance/Document</a><?php endif; ?>
                                 </div>
-                                <?php if ($is_organizing_secretary && department_matches($ev['department'], $scope_dept)): ?>
-                                    <?php
-                                    $event_id = (int)$ev['id'];
-                                    $saved_present_count = 0;
-                                    $attendee_filter = department_match_sql($conn, 'm.department', $ev['department']);
-                                    $attendance_members = $conn->query("SELECT m.id, m.first_name, m.last_name, m.gender, m.phone, m.profile_picture, ea.marked_at, ea.joined_at
-                                        FROM members m
-                                        LEFT JOIN organized_event_attendance ea ON ea.member_id = m.id AND ea.event_id = $event_id
-                                        WHERE $attendee_filter AND m.is_approved = 1
-                                        ORDER BY (ea.marked_at IS NULL), (ea.joined_at IS NULL), ea.joined_at, m.first_name, m.last_name");
-                                    $manual_attendees = $conn->query("SELECT id, attendee_name, gender, phone, profile_picture, is_present, joined_at FROM organized_event_manual_attendance WHERE event_id = $event_id ORDER BY is_present DESC, (joined_at IS NULL), joined_at, attendee_name");
-                                    ?>
-                                    <form method="POST" data-organized-attendance-form action="member_action.php?action=save_organized_event_attendance" enctype="multipart/form-data" style="margin-top:20px;">
-                                        <input type="hidden" name="event_id" value="<?= $event_id ?>">
-                                        <h4 style="margin:0 0 6px;">Meeting Attendance</h4>
-                                        <p style="color:var(--text-muted);font-size:.86rem;margin:0 0 12px;">Set the date and editable meeting heading. Join times are optional; attendees with times will be arranged from earliest to latest.</p>
-                                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;max-width:620px;margin-bottom:14px;">
-                                            <div class="form-group" style="margin-bottom:0;">
-                                                <label for="meeting-date-<?= $event_id ?>">Scheduled Meeting Date</label>
-                                                <input id="meeting-date-<?= $event_id ?>" type="date" name="meeting_date" class="form-control" value="<?= htmlspecialchars($ev['meeting_date'] ?? date('Y-m-d')) ?>" required>
-                                            </div>
-                                            <div class="form-group" style="margin-bottom:0;">
-                                                <label for="meeting-type-<?= $event_id ?>">Meeting Heading</label>
-                                                <input id="meeting-type-<?= $event_id ?>" type="text" name="meeting_type" class="form-control" value="<?= htmlspecialchars($ev['meeting_type'] ?? 'Online') ?>" maxlength="100" placeholder="Online, Physical, or another heading" required>
-                                            </div>
-                                        </div>
-                                        <div style="overflow-x:auto;border:1px solid var(--border-color);border-radius:8px;">
-                                            <table style="width:100%;border-collapse:collapse;min-width:760px;">
-                                                <thead><tr style="background:var(--bg-main);text-align:left;">
-                                                    <th style="padding:9px;">Present</th><th style="padding:9px;">Profile</th><th style="padding:9px;">Member</th><th style="padding:9px;">Gender</th><th style="padding:9px;">Phone</th><th style="padding:9px;">Time Joined (Optional)</th>
-                                                </tr></thead>
-                                                <tbody>
-                                                <?php if ($attendance_members && $attendance_members->num_rows > 0): while ($attendee = $attendance_members->fetch_assoc()): if (!empty($attendee['marked_at'])) $saved_present_count++; ?>
-                                                    <?php
-                                                    $attendee_photo = 'uploads/' . basename($attendee['profile_picture'] ?: 'default_avatar.png');
-                                                    $attendee_joined_time = !empty($attendee['joined_at']) ? substr($attendee['joined_at'], 0, 5) : '';
-                                                    ?>
-                                                    <tr data-attendee-row="1" data-name="<?= htmlspecialchars(trim($attendee['first_name'] . ' ' . $attendee['last_name']), ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($attendee['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($attendee['phone'] ?? '', ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($attendee_photo, ENT_QUOTES) ?>" data-joined-at="<?= htmlspecialchars($attendee_joined_time, ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
-                                                        <td style="padding:9px;"><input type="checkbox" name="attendee_ids[]" data-attendance-checkbox value="<?= (int)$attendee['id'] ?>" <?= $attendee['marked_at'] ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($attendee['first_name'] . ' ' . $attendee['last_name']) ?> present"></td>
-                                                        <td style="padding:7px;"><img src="<?= htmlspecialchars($attendee_photo) ?>" alt="Profile photo" title="Click to view full photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:zoom-in;"></td>
-                                                        <td style="padding:9px;"><?= htmlspecialchars($attendee['first_name'] . ' ' . $attendee['last_name']) ?></td>
-                                                        <td style="padding:9px;"><?= htmlspecialchars($attendee['gender'] ?? '') ?></td>
-                                                        <td style="padding:9px;"><?= htmlspecialchars($attendee['phone'] ?? '') ?></td>
-                                                        <td style="padding:7px;"><input type="time" name="attendance_times[<?= (int)$attendee['id'] ?>]" value="<?= htmlspecialchars($attendee_joined_time) ?>" aria-label="Time <?= htmlspecialchars($attendee['first_name'] . ' ' . $attendee['last_name']) ?> joined" style="min-width:112px;"></td>
-                                                    </tr>
-                                                <?php endwhile; else: ?>
-                                                    <tr><td colspan="6" style="padding:12px;color:var(--text-muted);">No approved members are registered in this department.</td></tr>
-                                                <?php endif; ?>
-                                                <?php if ($manual_attendees): while ($manual = $manual_attendees->fetch_assoc()): if ((int)$manual['is_present'] === 1) $saved_present_count++; ?>
-                                                    <?php $manual_photo = !empty($manual['profile_picture']) ? 'uploads/' . ltrim($manual['profile_picture'], '/') : 'uploads/default_avatar.png'; ?>
-                                                    <tr data-attendee-row="1" data-name="<?= htmlspecialchars($manual['attendee_name'], ENT_QUOTES) ?>" data-gender="<?= htmlspecialchars($manual['gender'] ?? '', ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($manual['phone'] ?? '', ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($manual_photo, ENT_QUOTES) ?>" data-joined-at="<?= htmlspecialchars(substr($manual['joined_at'] ?? '', 0, 5), ENT_QUOTES) ?>" style="border-top:1px solid var(--border-color);">
-                                                        <td style="padding:9px;"><input type="checkbox" name="manual_attendee_ids[]" data-attendance-checkbox value="<?= (int)$manual['id'] ?>" <?= (int)$manual['is_present'] === 1 ? 'checked' : '' ?> aria-label="Mark <?= htmlspecialchars($manual['attendee_name']) ?> present"></td>
-                                                        <td style="padding:7px;"><img src="<?= htmlspecialchars($manual_photo) ?>" alt="Profile photo" title="Click to view full photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:zoom-in;"></td>
-                                                        <td style="padding:9px;"><?= htmlspecialchars($manual['attendee_name']) ?> <small style="color:var(--text-muted);">(Manual)</small></td>
-                                                        <td style="padding:9px;"><?= htmlspecialchars($manual['gender'] ?? '') ?></td>
-                                                        <td style="padding:9px;"><?= htmlspecialchars($manual['phone'] ?? '') ?></td>
-                                                        <td style="padding:7px;"><input type="time" name="manual_attendance_times[<?= (int)$manual['id'] ?>]" value="<?= htmlspecialchars(substr($manual['joined_at'] ?? '', 0, 5)) ?>" aria-label="Time <?= htmlspecialchars($manual['attendee_name']) ?> joined" style="min-width:112px;"></td>
-                                                    </tr>
-                                                <?php endwhile; endif; ?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div style="margin-top:16px;padding:14px;border:1px solid var(--border-color);border-radius:8px;">
-                                            <strong>Add Member Manually</strong>
-                                            <p style="margin:4px 0 10px;color:var(--text-muted);font-size:.84rem;">For a visitor or attendee who is not in the registered department list. Choose a profile photo from your device gallery.</p>
-                                            <div data-manual-attendee-list></div>
-                                            <button type="button" class="btn-sm" onclick="addManualEventAttendee(this)">Add Manual Attendee</button>
-                                        </div>
-                                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
-                                            <button type="submit" class="btn-submit">Save Attendance</button>
-                                            <button type="button" class="btn-sm" data-print-attendance <?= ($saved_present_count && !empty($ev['meeting_date'])) ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $event_id ?>, 'portrait')">Print / Save PDF - Portrait</button>
-                                            <button type="button" class="btn-sm" data-print-attendance <?= ($saved_present_count && !empty($ev['meeting_date'])) ? '' : 'disabled' ?> onclick="printOrganizedAttendance(<?= $event_id ?>, 'landscape')">Print / Save PDF - Landscape</button>
-                                        </div>
-                                    </form>
-                                <?php endif; ?>
                                 <?php if ($is_organizing_secretary && count(array_filter($organizing_secretary_depts, function ($assigned_department) use ($ev) { return department_matches($ev['department'], $assigned_department); })) > 0): ?>
                                     <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px;">
                                         <?php if (!empty($ev['audio_path'])): ?>
@@ -7677,7 +7623,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 <button type="submit" class="btn-sm" style="background:var(--bg-card);color:var(--danger);border:1px solid var(--danger);">Delete Recording</button>
                                             </form>
                                         <?php endif; ?>
-                                        <form method="POST" action="member_action.php?action=delete_organized_event" onsubmit="return confirm('Delete this event, its recording, and its attendance register? This cannot be undone.');">
+                                        <form method="POST" action="member_action.php?action=delete_organized_event" onsubmit="return confirm('Delete this event and its attached files? Separate attendance registers will remain. This cannot be undone.');">
                                             <input type="hidden" name="event_id" value="<?= (int)$ev['id'] ?>">
                                             <button type="submit" class="btn-sm" style="background:var(--danger);color:#fff;border:0;">Delete Event</button>
                                         </form>
@@ -7691,9 +7637,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <?php endforeach; ?>
                 <?php if ($is_organizing_secretary): ?>
                     <script>
-                    function printOrganizedAttendance(eventId, orientation, standaloneRegister) {
-                        var cardId = (standaloneRegister ? 'attendance-register-' : 'event-attendance-') + eventId;
-                        var card = document.getElementById(cardId);
+                    function printOrganizedAttendance(registerId, orientation) {
+                        var card = document.getElementById('attendance-register-' + registerId);
                         if (!card) return;
                         var form = card.querySelector('form[data-organized-attendance-form]');
                         if (!form || form.dataset.attendanceDirty === 'true') {
@@ -7729,7 +7674,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             }
                             return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td><td>' + escapeHtml(displayTime) + '</td></tr>';
                         }).join('');
-                        var department = <?= json_encode($active_org_dept) ?>;
+                        var department = card.dataset.department || <?= json_encode($active_org_dept) ?>;
                         var meetingDate = form.querySelector('[name="meeting_date"]').value;
                         var meetingType = form.querySelector('[name="meeting_type"]').value.trim() || 'Online';
                         var leaderName = <?= json_encode(strtoupper($member['first_name'] . ' ' . $member['last_name'])) ?>;
@@ -7780,19 +7725,19 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         printWindow.focus();
                         setTimeout(function() { printWindow.print(); }, 650);
                     }
-                    var manualEventAttendeeIndex = 0;
+                    var manualRegisterAttendeeIndex = 0;
                     function markOrganizedAttendanceDirty(form) {
                         if (!form) return;
                         form.dataset.attendanceDirty = 'true';
                         form.querySelectorAll('[data-print-attendance]').forEach(function(button) { button.disabled = true; });
                     }
-                    function addManualEventAttendee(button) {
+                    function addManualRegisterAttendee(button) {
                         var form = button.closest('form');
-                        var list = form.querySelector('[data-manual-attendee-list]');
-                        var index = manualEventAttendeeIndex++;
+                        var list = form.querySelector('[data-manual-register-attendee-list]');
+                        var index = manualRegisterAttendeeIndex++;
                         var row = document.createElement('div');
                         row.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;padding:10px 0;border-bottom:1px solid var(--border-color);align-items:end;';
-                        row.innerHTML = '<div><label>Full Name</label><input class="form-control" name="manual_attendees[' + index + '][name]" required></div><div><label>Gender</label><select class="form-control" name="manual_attendees[' + index + '][gender]"><option value="">Select</option><option>Female</option><option>Male</option></select></div><div><label>Phone</label><input class="form-control" name="manual_attendees[' + index + '][phone]" inputmode="tel"></div><div><label>Time Joined (Optional)</label><input class="form-control" type="time" name="manual_attendees[' + index + '][joined_at]"></div><div><label>Profile Photo</label><input type="file" name="manual_photos[' + index + ']" accept="image/*" required></div><button type="button" class="btn-sm" style="background:var(--danger);color:white;" onclick="this.closest(\'div[style]\').remove();markOrganizedAttendanceDirty(this.closest(\'form\'))">Remove</button>';
+                        row.innerHTML = '<div><label>Full Name</label><input class="form-control" name="manual_register_attendees[' + index + '][name]" maxlength="255" required></div><div><label>Gender</label><select class="form-control" name="manual_register_attendees[' + index + '][gender]"><option value="">Select</option><option>Female</option><option>Male</option></select></div><div><label>Phone</label><input class="form-control" name="manual_register_attendees[' + index + '][phone]" inputmode="tel" maxlength="40"></div><div><label>Time Joined (Optional)</label><input class="form-control" type="time" name="manual_register_attendees[' + index + '][joined_at]"></div><div><label>Profile Photo</label><input type="file" name="manual_register_photos[' + index + ']" accept="image/*" required></div><button type="button" class="btn-sm" style="background:var(--danger);color:white;" onclick="this.closest(\'div[style]\').remove();markOrganizedAttendanceDirty(this.closest(\'form\'))">Remove</button>';
                         list.appendChild(row);
                         markOrganizedAttendanceDirty(form);
                     }

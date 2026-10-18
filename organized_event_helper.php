@@ -60,7 +60,7 @@ function ensure_organized_event_attendance_schema($conn) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
     if (!$registers_created) return false;
 
-    return (bool)$conn->query("CREATE TABLE IF NOT EXISTS organized_attendance_register_members (
+    $register_members_created = $conn->query("CREATE TABLE IF NOT EXISTS organized_attendance_register_members (
         register_id INT(10) UNSIGNED NOT NULL,
         member_id INT(6) UNSIGNED NOT NULL,
         marked_by INT(6) UNSIGNED NOT NULL,
@@ -68,6 +68,22 @@ function ensure_organized_event_attendance_schema($conn) {
         joined_at TIME NULL,
         PRIMARY KEY (register_id, member_id),
         KEY idx_register_member (member_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+    if (!$register_members_created) return false;
+
+    return (bool)$conn->query("CREATE TABLE IF NOT EXISTS organized_attendance_register_manual_members (
+        id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+        register_id INT(10) UNSIGNED NOT NULL,
+        attendee_name VARCHAR(255) NOT NULL,
+        gender VARCHAR(40) NULL,
+        phone VARCHAR(40) NULL,
+        profile_picture VARCHAR(255) NULL,
+        is_present TINYINT(1) NOT NULL DEFAULT 1,
+        joined_at TIME NULL,
+        marked_by INT(6) UNSIGNED NOT NULL,
+        marked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_register_manual_member (register_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 }
 
