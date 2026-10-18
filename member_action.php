@@ -985,8 +985,8 @@ if (isset($_GET['action'])) {
             header("Location: member_dashboard.php?tab=organized_events&error=You are not assigned to edit this register member");
             exit();
         }
-        if (strlen($phone) > 40) {
-            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Phone number must be 40 characters or fewer#attendance-register-" . $register_id);
+        if (!preg_match('/^[0-9]{10}$/', $phone)) {
+            header("Location: member_dashboard.php?tab=organized_events&org_dept=" . urlencode($register['department']) . "&error=Phone number must contain exactly 10 digits#attendance-register-" . $register_id);
             exit();
         }
 

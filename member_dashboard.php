@@ -7627,7 +7627,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 </div>
                                                 <div class="form-group" style="margin-bottom:16px;">
                                                     <label for="register-member-phone-<?= $register_id ?>">Phone number</label>
-                                                    <input id="register-member-phone-<?= $register_id ?>" type="tel" name="phone" maxlength="40" class="form-control" autocomplete="tel" required>
+                                                    <input id="register-member-phone-<?= $register_id ?>" type="tel" name="phone" inputmode="numeric" pattern="[0-9]{10}" minlength="10" maxlength="10" title="Enter exactly 10 digits" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)" class="form-control" autocomplete="tel" required>
+                                                    <small style="display:block;margin-top:5px;color:var(--text-muted);">Use exactly 10 digits.</small>
                                                 </div>
                                                 <div class="attendance-edit-actions">
                                                     <button type="button" class="btn-sm" onclick="this.closest('dialog').close()">Cancel</button>
