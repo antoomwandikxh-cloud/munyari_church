@@ -892,6 +892,17 @@ $daily_expiry_col = $conn->query("SHOW COLUMNS FROM daily_messages LIKE 'expires
 if ($daily_expiry_col && $daily_expiry_col->num_rows == 0) {
     $conn->query("ALTER TABLE daily_messages ADD COLUMN expires_at DATETIME NULL AFTER video_file");
 }
+$conn->query("UPDATE daily_messages SET expires_at = DATE_ADD(created_at, INTERVAL 24 HOUR) WHERE expires_at IS NULL");
+$conn->query("
+    CREATE TABLE IF NOT EXISTS daily_message_views (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        daily_message_id INT NOT NULL,
+        member_id INT(6) UNSIGNED NOT NULL,
+        viewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_daily_message_member_view (daily_message_id, member_id),
+        INDEX idx_daily_message_views_message (daily_message_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+");
 $highlight_expiry_col = $conn->query("SHOW COLUMNS FROM church_highlights LIKE 'expires_at'");
 if ($highlight_expiry_col && $highlight_expiry_col->num_rows == 0) {
     $conn->query("ALTER TABLE church_highlights ADD COLUMN expires_at DATETIME NULL AFTER caption");
@@ -1030,7 +1041,16 @@ $unread_notifs = $conn->query("SELECT COUNT(*) as count FROM notifications WHERE
 $notifications = $conn->query("SELECT * FROM notifications WHERE user_id = $member_id AND user_type = 'member' ORDER BY created_at DESC LIMIT 20");
 
 // Member Content
-$daily_message = $conn->query("SELECT dm.*, p.first_name, p.last_name FROM daily_messages dm JOIN pastors p ON dm.pastor_id = p.id WHERE dm.expires_at IS NULL OR dm.expires_at > NOW() ORDER BY dm.created_at DESC LIMIT 1")->fetch_assoc();
+$daily_message = $conn->query("SELECT dm.*, p.first_name, p.last_name, p.profile_picture FROM daily_messages dm JOIN pastors p ON dm.pastor_id = p.id WHERE dm.expires_at > NOW() OR (dm.expires_at IS NULL AND dm.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)) ORDER BY dm.created_at DESC LIMIT 1")->fetch_assoc();
+if ($tab === 'inspiration_highlights' && $daily_message) {
+    $daily_message_id = (int)$daily_message['id'];
+    $daily_view_stmt = $conn->prepare("INSERT IGNORE INTO daily_message_views (daily_message_id, member_id) VALUES (?, ?)");
+    if ($daily_view_stmt) {
+        $daily_view_stmt->bind_param("ii", $daily_message_id, $member_id);
+        $daily_view_stmt->execute();
+        $daily_view_stmt->close();
+    }
+}
 $highlights = $conn->query("SELECT ch.*, p.first_name, p.last_name FROM church_highlights ch JOIN pastors p ON ch.pastor_id = p.id WHERE ch.expires_at IS NULL OR ch.expires_at > NOW() ORDER BY ch.created_at DESC");
 
 // Elder Announcements
@@ -5439,7 +5459,14 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 <div class="content-card" style="margin-bottom: 30px;">
                     <h2 style="font-size: 1.25rem; margin-top: 0; margin-bottom: 20px; color: var(--text-main);">Daily Quote</h2>
                     <?php if ($daily_message): ?>
+                        <?php
+                        $daily_quote_expiry = !empty($daily_message['expires_at']) ? strtotime($daily_message['expires_at']) : strtotime($daily_message['created_at']) + 86400;
+                        $daily_pastor_photo = !empty($daily_message['profile_picture']) ? basename($daily_message['profile_picture']) : 'default_avatar.png';
+                        ?>
                         <div style="text-align: center; max-width: 700px; margin: 0 auto;">
+                            <button type="button" aria-label="View Pastor <?= htmlspecialchars($daily_message['first_name'] . ' ' . $daily_message['last_name'], ENT_QUOTES) ?> profile photo" title="View pastor profile photo" onclick="viewProfileImage(this.querySelector('img').src)" style="display:inline-flex; padding:0; border:0; background:transparent; border-radius:50%; cursor:zoom-in; margin:8px auto 16px;">
+                                <img src="uploads/<?= htmlspecialchars($daily_pastor_photo, ENT_QUOTES) ?>" alt="Pastor <?= htmlspecialchars($daily_message['first_name'] . ' ' . $daily_message['last_name'], ENT_QUOTES) ?>" style="display:block; width:76px; height:76px; object-fit:cover; border-radius:50%; border:3px solid var(--primary); box-shadow:0 2px 10px rgba(0,0,0,.18);">
+                            </button>
                             <svg width="40" height="40" fill="currentColor" style="color: var(--primary); opacity: 0.3; margin-bottom: -15px; position: relative; z-index: 1;" viewBox="0 0 24 24"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/></svg>
                             <h2 style="font-size: 1.8rem; font-style: italic; color: var(--text-main); line-height: 1.5; margin-bottom: 20px; position: relative; z-index: 2;">
                                 "<?= nl2br(htmlspecialchars($daily_message['quote'])) ?>"
@@ -5448,6 +5475,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 — Pastor <?= htmlspecialchars($daily_message['first_name'] . ' ' . $daily_message['last_name']) ?>
                                 <small>(<?= date('M j, Y', strtotime($daily_message['created_at'])) ?>)</small>
                             </p>
+                            <p id="dailyQuoteCountdown" data-expires-at="<?= (int)$daily_quote_expiry * 1000 ?>" role="status" aria-live="polite" style="color:var(--text-muted); font-size:.9rem; margin:0 0 22px;"></p>
 
                             <?php if ($daily_message['video_file']): ?>
                                 <div style="border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
@@ -5462,6 +5490,27 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         <div class="alert alert-info">No daily quote posted for today.</div>
                     <?php endif; ?>
                 </div>
+
+                <script>
+                (() => {
+                    const countdown = document.getElementById('dailyQuoteCountdown');
+                    if (!countdown) return;
+                    const expiresAt = Number(countdown.dataset.expiresAt);
+                    const updateCountdown = () => {
+                        const remainingMs = expiresAt - Date.now();
+                        if (remainingMs <= 0) {
+                            countdown.textContent = 'This daily quote has expired.';
+                            window.clearInterval(timer);
+                            window.location.reload();
+                            return;
+                        }
+                        const remainingMinutes = Math.ceil(remainingMs / 60000);
+                        countdown.textContent = `${remainingMinutes.toLocaleString()} ${remainingMinutes === 1 ? 'minute' : 'minutes'} remaining`;
+                    };
+                    const timer = window.setInterval(updateCountdown, 15000);
+                    updateCountdown();
+                })();
+                </script>
 
                 <div class="content-card">
                     <h2 style="font-size: 1.25rem; margin-top: 0; margin-bottom: 20px; color: var(--text-main);">Church Highlights</h2>

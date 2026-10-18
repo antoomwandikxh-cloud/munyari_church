@@ -349,6 +349,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader
 
 $pastor = $conn->query("SELECT * FROM pastors WHERE id = $pastor_id")->fetch_assoc();
 
+$daily_expiry_col = $conn->query("SHOW COLUMNS FROM daily_messages LIKE 'expires_at'");
+if ($daily_expiry_col && $daily_expiry_col->num_rows == 0) {
+    $conn->query("ALTER TABLE daily_messages ADD COLUMN expires_at DATETIME NULL AFTER video_file");
+}
+$conn->query("UPDATE daily_messages SET expires_at = DATE_ADD(created_at, INTERVAL 24 HOUR) WHERE expires_at IS NULL");
+$conn->query("
+    CREATE TABLE IF NOT EXISTS daily_message_views (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        daily_message_id INT NOT NULL,
+        member_id INT(6) UNSIGNED NOT NULL,
+        viewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_daily_message_member_view (daily_message_id, member_id),
+        INDEX idx_daily_message_views_message (daily_message_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+");
+
 // Ensure required tables exist
 $conn->query("
     CREATE TABLE IF NOT EXISTS chats (
@@ -495,7 +511,14 @@ $appointments = $conn->query("
 ");
 
 // Pastor Content
-$current_daily_message = $conn->query("SELECT * FROM daily_messages WHERE pastor_id = $pastor_id ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
+$current_daily_message = $conn->query("SELECT * FROM daily_messages WHERE pastor_id = $pastor_id AND (expires_at > NOW() OR (expires_at IS NULL AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR))) ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
+$current_daily_message_views = 0;
+if ($current_daily_message) {
+    $daily_views_result = $conn->query("SELECT COUNT(DISTINCT member_id) AS view_count FROM daily_message_views WHERE daily_message_id = " . (int)$current_daily_message['id']);
+    if ($daily_views_result) {
+        $current_daily_message_views = (int)$daily_views_result->fetch_assoc()['view_count'];
+    }
+}
 $highlights = $conn->query("SELECT * FROM church_highlights WHERE pastor_id = $pastor_id ORDER BY created_at DESC");
 
 $has_username = !empty($pastor['username']);
@@ -1000,7 +1023,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_daily_message']))
         }
     }
     $conn->query("DELETE FROM daily_messages WHERE pastor_id = $pastor_id");
-    $conn->query("INSERT INTO daily_messages (pastor_id, quote, video_file) VALUES ($pastor_id, '$quote', " . ($video_name ? "'$video_name'" : "NULL") . ")");
+    $conn->query("INSERT INTO daily_messages (pastor_id, quote, video_file, expires_at) VALUES ($pastor_id, '$quote', " . ($video_name ? "'$video_name'" : "NULL") . ", DATE_ADD(NOW(), INTERVAL 24 HOUR))");
     
     // Notify all members
     $members_result = $conn->query("SELECT id FROM members");
@@ -6379,6 +6402,10 @@ w.document.write('</div>');
                                 &ldquo;<?= nl2br(htmlspecialchars($current_daily_message['quote'])) ?>&rdquo;
                             </blockquote>
                             <p style="color: var(--text-muted); font-size: 0.85rem;">Posted <?= date('M j, Y \a\t g:i A', strtotime($current_daily_message['created_at'])) ?></p>
+                            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px;">
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="vertical-align: -3px; margin-right: 5px;"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                Seen by <strong><?= $current_daily_message_views ?></strong> <?= $current_daily_message_views === 1 ? 'member' : 'members' ?>
+                            </p>
                             <?php if ($current_daily_message['video_file']): ?>
                                 <div style="margin-top: 15px; border-radius: 12px; overflow: hidden;">
                                     <video controls style="width: 100%; max-height: 350px; background: #000;">
