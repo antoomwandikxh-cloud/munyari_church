@@ -6427,6 +6427,11 @@ w.document.write('</div>');
                     <h2 style="margin-bottom: 15px;"><?= $current_daily_message_expired ? 'Most Recent Daily Quote' : 'Current Daily Quote' ?></h2>
                     <?php if ($current_daily_message): ?>
                         <div style="text-align: center; max-width: 700px; margin: 0 auto; padding: 20px 0;">
+                            <?php $daily_pastor_photo = !empty($pastor['profile_picture']) ? basename($pastor['profile_picture']) : 'default_avatar.png'; ?>
+                            <button type="button" aria-label="View your pastor profile photo" title="View profile photo" onclick="viewProfileImage(this.querySelector('img').src)" style="display:inline-flex; padding:0; border:0; background:transparent; border-radius:50%; cursor:zoom-in; margin:0 auto 10px;">
+                                <img src="uploads/<?= htmlspecialchars($daily_pastor_photo, ENT_QUOTES) ?>" alt="Pastor <?= htmlspecialchars($pastor['first_name'] . ' ' . $pastor['last_name'], ENT_QUOTES) ?>" style="display:block; width:76px; height:76px; object-fit:cover; border-radius:50%; border:3px solid var(--primary); box-shadow:0 2px 10px rgba(0,0,0,.18);">
+                            </button>
+                            <p style="color:var(--text-muted); margin:0 0 16px;">Pastor <?= htmlspecialchars($pastor['first_name'] . ' ' . $pastor['last_name']) ?></p>
                             <blockquote style="font-size: 1.4rem; font-style: italic; color: var(--text-main); line-height: 1.6; border-left: 4px solid var(--primary); padding-left: 20px; text-align: left; margin-bottom: 15px;">
                                 &ldquo;<?= nl2br(htmlspecialchars($current_daily_message['quote'])) ?>&rdquo;
                             </blockquote>
