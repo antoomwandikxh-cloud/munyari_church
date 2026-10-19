@@ -7440,28 +7440,38 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
                         printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Paid Fine Records - ${department}</title>
                             <style>
-                                @page{size:A4 ${pageOrientation};margin:13mm 10mm 18mm}
-                                *{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#18212b;margin:0;padding:0 0 15mm}
-                                .watermark{position:fixed;top:47%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:42px;color:rgba(14,116,144,.1);font-weight:900;white-space:nowrap;z-index:-1;pointer-events:none}
-                                .brand{position:relative;display:flex;align-items:center;justify-content:center;gap:18px;border-bottom:2px solid #0e7490;padding:0 0 10px;text-align:center}
-                                .logo{width:58px;height:58px;object-fit:contain}.brand h1{font-size:18px;line-height:1.3;color:#0e7490;margin:0;text-transform:uppercase}
-                                .subtitle{margin:5px 0 0;font-size:12px;color:#43515e}.leader{display:flex;align-items:center;justify-content:center;gap:10px;margin:13px 0}
-                                .leader img{width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid #0e7490}.leader-name{font-size:14px;font-weight:800;color:#1769aa;text-transform:uppercase}
-                                h2{font-size:15px;text-align:center;margin:12px 0 4px}.meta{text-align:center;font-size:11px;color:#4b5563;margin-bottom:12px}
-                                table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #aeb8c2;padding:6px 7px;text-align:left;font-size:10px;overflow-wrap:anywhere}
-                                th{background:#e8f3f5;color:#153b48;font-size:10px}.photo{width:48px;text-align:center}.photo img{width:34px;height:34px;object-fit:cover;border-radius:50%}
+                                @page{size:A4 ${pageOrientation};margin:12mm 10mm 21mm}
+                                *{box-sizing:border-box}body{position:relative;font:12px Arial,sans-serif;color:#17202a;margin:0;padding:8px 4px 0}
+                                .watermark{position:fixed;top:43%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:44px;color:rgba(14,116,144,.16);font-weight:900;white-space:nowrap;z-index:0;pointer-events:none}
+                                .leader,.brand,.report-heading,.report-meta,table,.signature{position:relative;z-index:1}
+                                .leader{text-align:center;margin:0 auto 12px}.leader img{width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}
+                                .leader-name{font-size:14px;font-weight:800;color:#0e7490;margin-top:4px}
+                                .brand{display:grid;grid-template-columns:62px 1fr 62px;align-items:center;gap:12px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 10px;margin-bottom:12px}
+                                .logo{width:62px;height:62px;object-fit:contain}.brand h1{font-size:18px;line-height:1.3;color:#0e7490;text-transform:uppercase;margin:4px 0}
+                                .subtitle{font-size:11px;color:#555;margin:4px 0}.report-heading{text-align:center;font-size:16px;font-weight:800;text-transform:uppercase;margin:0 0 7px}
+                                .report-meta{text-align:center;margin:0 0 12px;color:#444;font-size:11px}
+                                table{width:100%;border-collapse:collapse;table-layout:fixed}thead{display:table-header-group}
+                                th,td{border:1px solid #888;padding:6px;text-align:left;vertical-align:middle;font-size:10px;overflow-wrap:anywhere}
+                                th{background:#0e7490;color:#fff;text-transform:uppercase}.photo{width:48px;text-align:center}.photo img{display:block;width:34px;height:34px;object-fit:cover;border-radius:50%;border:1px solid #aaa;margin:auto}
                                 .amount{white-space:nowrap}.paid{color:#087a46;font-weight:700;white-space:nowrap}.paid span{font-size:14px}
-                                tr{break-inside:avoid;page-break-inside:avoid}thead{display:table-header-group}
-                                .signature{display:flex;justify-content:space-between;gap:35px;margin:24px 12px 0;font-size:10px}.sign-line{width:220px;border-top:1px solid #333;padding-top:5px;margin-top:24px}
-                                .footer{position:fixed;bottom:-12mm;left:0;right:0;border-top:1px solid #0e7490;padding-top:4px;text-align:center;font-size:9px;color:#53606b}
+                                tr{break-inside:avoid;page-break-inside:avoid}
+                                .signature{display:grid;grid-template-columns:minmax(0,1fr) 100px;align-items:center;gap:28px;width:min(100%,560px);margin:24px auto 0;break-inside:avoid;page-break-inside:avoid;font-size:10px}
+                                .signature-details{display:flex;flex-direction:column;gap:12px}.signature-row{display:grid;grid-template-columns:170px minmax(80px,1fr);gap:12px;align-items:end;min-height:24px}
+                                .signature-label{font-weight:700}.signature-line{height:20px;border-bottom:1px solid #333}
+                                .stamp{width:82px;height:82px;justify-self:end;border:2px dashed #777;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#555;font-size:10px;font-weight:700}
+                                .footer{position:fixed;bottom:-15mm;left:0;right:0;z-index:2;border-top:1px solid #0e7490;padding-top:4px;text-align:center;font-size:9px;color:#53606b}
                                 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
                             </style></head><body>
                             <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
-                            <header class="brand"><img class="logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C Munyari Church</h1><div class="subtitle">${department} Department</div></div><img class="logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></header>
-                            <div class="leader"><img src="${escapeHtml(leaderPhoto)}" alt="Treasurer profile"><div><div class="leader-name">${leader}</div><div style="font-size:10px;color:#555">Treasurer</div></div></div>
-                            <h2>Verified Paid Fines</h2><div class="meta">${department} Department &nbsp; | &nbsp; ${rows.length} paid fine${rows.length === 1 ? '' : 's'}</div>
+                            <div class="leader"><img src="${escapeHtml(leaderPhoto)}" alt="Treasurer profile"><div class="leader-name">${leader}</div><div style="font-size:10px;color:#555">Treasurer</div></div>
+                            <header class="brand"><img class="logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"><div><h1>E.A.P.C Munyari Church</h1><div class="subtitle">${department} Department</div></div><img class="logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"></header>
+                            <div class="report-heading">Verified Paid Fines</div><p class="report-meta">${department} Department | Total Paid Fines: ${rows.length}</p>
                             <table><thead><tr><th class="photo">Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Paid On</th></tr></thead><tbody>${bodyRows}</tbody></table>
-                            <div class="signature"><div class="sign-line">Treasurer Signature / Date</div><div class="sign-line" style="text-align:right">Official Stamp</div></div>
+                            <div class="signature"><div class="signature-details">
+                                <div class="signature-row"><span class="signature-label">Treasurer Signature</span><span class="signature-line"></span></div>
+                                <div class="signature-row"><span class="signature-label">Name: ${leader}</span><span></span></div>
+                                <div class="signature-row"><span class="signature-label">Date</span><span class="signature-line"></span></div>
+                            </div><div class="stamp">OFFICIAL<br>STAMP</div></div>
                             <div class="footer">E.A.P.C Munyari Church | Verified fine payments | Generated: ${escapeHtml(generated)}</div>
                             </body></html>`);
                         printWindow.document.close();
