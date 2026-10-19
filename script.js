@@ -324,6 +324,44 @@ function sortChurchPrintRowsByMemberName(table, nameHeaders) {
     sortGroup();
 }
 
+function addChurchPrintRowNumbers(table) {
+    const headerRow = table?.tHead?.rows?.[table.tHead.rows.length - 1];
+    const body = table?.tBodies?.[0];
+    if (!headerRow || !body) return;
+
+    const existingIndex = Array.from(headerRow.cells).findIndex(cell => /^(?:#|no\.?|number)$/i.test(cell.textContent.trim()));
+    const numberHeader = existingIndex >= 0 ? headerRow.cells[existingIndex] : document.createElement('th');
+    if (existingIndex < 0) {
+        numberHeader.textContent = 'No.';
+        headerRow.insertBefore(numberHeader, headerRow.cells[0] || null);
+    }
+    numberHeader.style.cssText += ';width:38px;text-align:center;white-space:nowrap';
+
+    let number = 0;
+    Array.from(body.rows).forEach(row => {
+        const existingCell = existingIndex >= 0 ? row.cells[existingIndex] : null;
+        if (row.querySelector('td[colspan], th[colspan]')) {
+            if (existingIndex < 0) {
+                const spanningCell = row.querySelector('td[colspan], th[colspan]');
+                spanningCell.colSpan += 1;
+            }
+            return;
+        }
+
+        number += 1;
+        if (existingCell) {
+            existingCell.textContent = String(number);
+            existingCell.style.cssText += ';width:38px;text-align:center;white-space:nowrap';
+            return;
+        }
+
+        const numberCell = document.createElement('td');
+        numberCell.textContent = String(number);
+        numberCell.style.cssText = 'width:38px;text-align:center;white-space:nowrap;font-weight:700';
+        row.insertBefore(numberCell, row.cells[0] || null);
+    });
+}
+
 function printDisciplinaryCases(button, orientation) {
     const card = button?.closest('.content-card');
     const sourceTable = card?.querySelector('.table-responsive table');
@@ -509,6 +547,7 @@ function printFineReport(button, orientation, statusFilter) {
     }
 
     sortChurchPrintRowsByMemberName(table, ['member name', 'reported member', 'member']);
+    addChurchPrintRowNumbers(table);
     table.querySelectorAll('img').forEach(image => {
         image.src = image.src || new URL('uploads/default_avatar.png', window.location.href).href;
         image.removeAttribute('onclick');
