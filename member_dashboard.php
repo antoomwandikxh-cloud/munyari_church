@@ -4330,39 +4330,25 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             <h2 style="margin: 0;">Registered Members</h2>
                             <span class="badge" style="background: var(--primary); color: white; font-size: 14px; padding: 5px 12px; margin-top:5px; display:inline-block;">Total: <?= $dept_members->num_rows ?></span>
                         </div>
-                        <input type="text" id="deptMemberSearch" placeholder="Search by name or phone..." style="padding:10px 15px; border:1px solid var(--border-color); border-radius:8px; width:100%; max-width:280px;" onkeyup="filterDeptMembers()">
+                        <input type="search" id="deptMemberSearch" placeholder="Search by name or phone..." aria-label="Search department members by name or phone" style="padding:10px 15px; border:1px solid var(--border-color); border-radius:8px; width:100%; max-width:280px;" oninput="filterDeptMembers()">
                     </div>
                     <script>
                     function filterDeptMembers() {
-                        let input = document.getElementById("deptMemberSearch");
-                        if (!input) return;
-                        let filter = input.value.toLowerCase();
-                        let table = input.closest(".content-card").querySelector(".table-responsive table");
+                        const input = document.getElementById("deptMemberSearch");
+                        const table = document.getElementById("departmentMembersList");
                         if (!table) return;
-                        let trs = table.querySelectorAll("tbody tr");
-                        
-                        for (let i = 0; i < trs.length; i++) {
-                            let tr = trs[i];
-                            let nameTd = tr.querySelector("td:nth-child(2)"); 
-                            let phoneTd = tr.querySelector("td:nth-child(4)"); 
-                            
-                            if (nameTd || phoneTd) {
-                                let nameTxt = nameTd ? nameTd.textContent.toLowerCase() : "";
-                                let phoneTxt = phoneTd ? phoneTd.textContent.toLowerCase() : "";
-                                
-                                if (nameTxt.includes(filter) || phoneTxt.includes(filter)) {
-                                    tr.style.display = "";
-                                } else {
-                                    tr.style.display = "none";
-                                }
-                            }
-                        }
+                        const filter = (input?.value || "").trim().toLocaleLowerCase();
+                        table.querySelectorAll("tbody tr").forEach((row) => {
+                            const name = row.querySelector("td:nth-child(2)")?.textContent.toLocaleLowerCase() || "";
+                            const phone = row.querySelector("td:nth-child(4)")?.textContent.toLocaleLowerCase() || "";
+                            row.hidden = filter !== "" && !name.includes(filter) && !phone.includes(filter);
+                        });
                     }
                     </script>
 
                     <?php if ($dept_members->num_rows > 0): ?>
                         <div class="table-responsive">
-                            <table>
+                            <table id="departmentMembersList">
                                 <thead><tr><th>Profile</th><th>Name</th><th>Role</th><th>Phone</th><th>Area</th><th>Member Since</th></tr></thead>
                                 <tbody>
                                     <?php while($dm = $dept_members->fetch_assoc()): ?>
