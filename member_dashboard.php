@@ -8552,6 +8552,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
                             <button type="button" class="btn-sm" <?= (!$all_fines || $all_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'portrait')">Print Fines History - Portrait</button>
                             <button type="button" class="btn-sm" <?= (!$all_fines || $all_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'landscape')">Print Fines History - Landscape</button>
+                            <button type="button" class="btn-sm" <?= (!$all_fines || $all_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'portrait', 'paid')">Print Paid Fines Only - Portrait</button>
+                            <button type="button" class="btn-sm" <?= (!$all_fines || $all_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'landscape', 'paid')">Print Paid Fines Only - Landscape</button>
                         </div>
                     </div>
                     <?php
@@ -8562,7 +8564,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($af = $all_fines->fetch_assoc()): ?>
-                                        <tr data-notification-row="discipline-fine-<?= (int)$af['id'] ?>">
+                                        <tr data-notification-row="discipline-fine-<?= (int)$af['id'] ?>" data-fine-status="<?= htmlspecialchars(strtolower(trim($af['status'] ?? '')), ENT_QUOTES) ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($af['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?></td>
                                             <td>
@@ -10162,7 +10164,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
-    <script src="script.js?v=20261019-print-rules-13"></script>
+    <script src="script.js?v=20261019-fine-paid-14"></script>
 <!-- Image Viewer Modal -->
 <div id="imageViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; flex-direction:column;">
     <span onclick="document.getElementById('imageViewerModal').style.display='none'" style="position:absolute; top:20px; right:30px; font-size:40px; color:white; cursor:pointer; font-weight:bold; transition:color 0.2s;" onmouseover="this.style.color='#ff4444'" onmouseout="this.style.color='white'">&times;</span>

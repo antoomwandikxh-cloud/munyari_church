@@ -422,7 +422,7 @@ function printDisciplinaryCases(button, orientation) {
     });
 }
 
-function printFineReport(button, orientation) {
+function printFineReport(button, orientation, statusFilter) {
     const card = button?.closest('.fine-print-card');
     const sourceTable = card?.querySelector('.table-responsive table');
     if (!card || !sourceTable) return;
@@ -435,7 +435,26 @@ function printFineReport(button, orientation) {
 
     try {
     let table = sourceTable.cloneNode(true);
-    const reportType = card.dataset.printTitle || 'Fine Records';
+    const paidOnly = String(statusFilter || '').trim().toLowerCase() === 'paid';
+    const reportType = paidOnly ? 'Paid Fines Only' : (card.dataset.printTitle || 'Fine Records');
+    if (paidOnly) {
+        const statusIndex = Array.from(table.querySelectorAll('thead th'))
+            .findIndex(header => header.textContent.trim().toLowerCase() === 'status');
+        const body = table.tBodies[0];
+        if (body) {
+            Array.from(body.rows).forEach(row => {
+                const rowStatus = String(row.dataset.fineStatus || (statusIndex >= 0 ? row.cells[statusIndex]?.textContent : '') || '')
+                    .trim()
+                    .toLowerCase();
+                if (rowStatus !== 'paid' && !/^paid\b/.test(rowStatus)) row.remove();
+            });
+            if (!body.rows.length) {
+                printWindow.close();
+                window.alert('There are no paid fines in this history to print.');
+                return;
+            }
+        }
+    }
     const leaderRole = card.dataset.printLeaderRole || 'Organising Secretary';
     const disciplineMasterUnpaidReport = card.dataset.printKind === 'discipline-master-unpaid'
         || (reportType.toLowerCase() === 'unpaid fines' && leaderRole.toLowerCase() === 'discipline master');
