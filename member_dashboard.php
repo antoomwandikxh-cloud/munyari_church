@@ -8085,6 +8085,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             return;
                         }
                         var generatedAt = new Date().toLocaleString();
+                        var signatureMarkup = buildChurchPrintSignatureMarkup('Organising Secretary', leaderName, escapeHtml);
                         var printHtml = `<!doctype html><html><head><title>E.A.P.C Munyari Online Attendance Register</title><style>
                             @page{size:A4 ${orientation};margin:12mm 10mm 24mm}*{box-sizing:border-box}
                             body{position:relative;font:12px Arial,sans-serif;color:#17202a;margin:0;padding:8px 4px 30px}
@@ -8099,10 +8100,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             table{width:100%;border-collapse:collapse;position:relative}thead{display:table-header-group}tr{page-break-inside:avoid;break-inside:avoid}
                             th,td{border:1px solid #888;padding:6px;text-align:left;vertical-align:middle}th{background:#0e7490;color:#fff;font-size:10px;text-transform:uppercase}
                             .member-photo{display:block;width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #aaa}
-                            .signature{display:grid;grid-template-columns:minmax(0,1fr) 100px;align-items:center;gap:28px;width:min(100%,560px);margin:28px auto 0;page-break-inside:avoid}
-                            .signature-details{display:flex;flex-direction:column;gap:14px}.signature-row{display:grid;grid-template-columns:170px minmax(80px,1fr);gap:12px;align-items:end;min-height:24px}
-                            .signature-label{font-weight:700}.signature-line{height:20px;border-bottom:1px solid #333}
-                            .stamp{width:82px;height:82px;justify-self:end;border:2px dashed #999;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#777;font-size:10px}
                             .footer{position:fixed;bottom:-16mm;left:0;right:0;z-index:2;border-top:1px solid #0e7490;padding-top:5px;text-align:center;font-size:9px;color:#53606b}
                             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
                         </style></head><body>
@@ -8112,14 +8109,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <div class="report-heading">${escapeHtml(reportHeading)}</div>
                             <p class="report-meta">${escapeHtml(department)} Department | Meeting date: ${escapeHtml(meetingDate)}<br>Total Members: ${totalMembers} | Present: ${presentCount} | Absent: ${absentCount}<br><strong>Printed list: ${statusLabel} (${selected.length})</strong></p>
                             <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Member Name</th><th>Gender</th><th>Phone</th>${absenceHeaders}${joinedTimeHeader}<th>Status</th></tr></thead><tbody>${rows}</tbody></table>
-                            <div class="signature">
-                                <div class="signature-details">
-                                    <div class="signature-row"><span class="signature-label">Organising Secretary Signature</span><span class="signature-line"></span></div>
-                                    <div class="signature-row"><span class="signature-label">Name: ${escapeHtml(leaderName)}</span><span></span></div>
-                                    <div class="signature-row"><span class="signature-label">Date</span><span class="signature-line"></span></div>
-                                </div>
-                                <div class="stamp">OFFICIAL<br>STAMP</div>
-                            </div>
+                            ${signatureMarkup}
                             <div class="footer">E.A.P.C Munyari Online Attendance Register | ${escapeHtml(department)} Department | Present: ${presentCount} | Absent: ${absentCount} | Generated: ${escapeHtml(generatedAt)}</div>
                         </body></html>`;
                         printWindow.document.write(printHtml);
@@ -10161,7 +10151,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
-    <script src="script.js?v=20261019-discipline-print-11"></script>
+    <script src="script.js?v=20261019-print-signature-12"></script>
 <!-- Image Viewer Modal -->
 <div id="imageViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; flex-direction:column;">
     <span onclick="document.getElementById('imageViewerModal').style.display='none'" style="position:absolute; top:20px; right:30px; font-size:40px; color:white; cursor:pointer; font-weight:bold; transition:color 0.2s;" onmouseover="this.style.color='#ff4444'" onmouseout="this.style.color='white'">&times;</span>

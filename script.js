@@ -266,6 +266,29 @@ function validateInput(input, type) {
     }
 }
 
+// Keep report signatures consistent with the Manage Members print layout.
+function buildChurchPrintSignatureMarkup(role, name, escapeText) {
+    const escape = typeof escapeText === 'function'
+        ? escapeText
+        : value => String(value).replace(/[&<>"']/g, character => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[character]);
+
+    return `<div class="signature" style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;width:100%;margin:80px auto 0;padding:0 40px;page-break-inside:avoid;break-inside:avoid">
+        <div class="signature-details" style="display:flex;flex-direction:column;gap:9px;text-align:center">
+            <div style="font-size:.85rem;font-weight:bold;text-transform:uppercase;color:#1e3a8a">${escape(role || 'Authorized Signatory')}</div>
+            <div style="font-size:.75rem;font-weight:bold;color:#333;margin-top:2px;margin-bottom:10px">${escape(name || '')}</div>
+            <div style="font-size:.9rem;display:flex;align-items:flex-end;justify-content:center;gap:8px"><span style="font-style:italic;color:#333">Sign:</span><span style="display:inline-block;border-bottom:1px solid #000;width:220px;height:14px"></span></div>
+            <div style="font-size:.85rem;margin-top:12px;display:flex;align-items:flex-end;justify-content:center;gap:8px"><span style="color:#333">Date:</span><span style="display:inline-block;border-bottom:1px dotted #000;width:220px;height:14px"></span></div>
+        </div>
+        <div style="text-align:center;flex:0 0 140px"><div class="stamp" style="box-sizing:border-box;border:2px dashed #aaa;width:140px;height:140px;min-width:140px;min-height:140px;border-radius:50%;margin:0 0 10px auto;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:.85rem;text-transform:uppercase;letter-spacing:1px">Official<br>Stamp</div></div>
+    </div>`;
+}
+
 function printDisciplinaryCases(button, orientation) {
     const card = button?.closest('.content-card');
     const sourceTable = card?.querySelector('.table-responsive table');
@@ -347,6 +370,7 @@ function printDisciplinaryCases(button, orientation) {
             <header class="brand"><img src="${escapeText(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><h2>${escapeText(reportTitle)}</h2></div><img src="${escapeText(logoUrl)}" alt="Church logo"></header>
             <p class="meta"><span>Total cases: ${caseCount}</span><span>Generated: ${escapeText(printedAt)}</span></p>
             ${table.outerHTML}
+            ${buildChurchPrintSignatureMarkup(leaderRole, leaderName || leaderRole, escapeText)}
         </main>
         <footer class="footer">E.A.P.C Munyari Portal | ${escapeText(reportTitle)} | Printed on ${escapeText(printedAt)}</footer>
         </body></html>`);
@@ -444,21 +468,7 @@ function printFineReport(button, orientation) {
         '"': '&quot;',
         "'": '&#39;'
     })[character]);
-    const signatureMarkup = disciplineMasterUnpaidReport
-        ? `<div class="signature" style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:80px;padding:0 40px;page-break-inside:avoid">
-            <div style="text-align:center">
-                <div style="font-size:.85rem;font-weight:bold;text-transform:uppercase;color:#1e3a8a">${escapeText(leaderRole)}</div>
-                <div style="font-size:.75rem;font-weight:bold;color:#333;margin-top:2px;margin-bottom:10px">${escapeText(leaderName)}</div>
-                <div style="font-size:.9rem;margin-bottom:8px;display:flex;align-items:flex-end;justify-content:center;gap:8px"><span style="font-style:italic;color:#333">Sign:</span><span style="display:inline-block;border-bottom:1px solid #000;width:220px;height:14px"></span></div>
-                <div style="font-size:.85rem;margin-top:12px;display:flex;align-items:flex-end;justify-content:center;gap:8px"><span style="color:#333">Date:</span><span style="display:inline-block;border-bottom:1px dotted #000;width:220px;height:14px"></span></div>
-            </div>
-            <div style="text-align:center"><div style="border:2px dashed #aaa;width:140px;height:140px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:.85rem;text-transform:uppercase;letter-spacing:1px">Official<br>Stamp</div></div>
-        </div>`
-        : `<div class="signature"><div class="signature-details">
-            <div class="signature-row"><span class="signature-label">${escapeText(leaderRole)} Signature</span><span class="signature-line"></span></div>
-            <div class="signature-row"><span class="signature-label">Name: ${escapeText(leaderName)}</span><span></span></div>
-            <div class="signature-row"><span class="signature-label">Date</span><span class="signature-line"></span></div>
-        </div><div class="stamp">OFFICIAL<br>STAMP</div></div>`;
+    const signatureMarkup = buildChurchPrintSignatureMarkup(leaderRole, leaderName, escapeText);
 
     printWindow.document.open();
     printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeText(heading)}</title><style>
@@ -475,14 +485,6 @@ function printFineReport(button, orientation) {
         table{width:100%;border-collapse:collapse;page-break-inside:auto}thead{display:table-header-group}tr,td,th{page-break-inside:avoid;break-inside:avoid}
         th,td{border:1px solid #888;padding:4px;text-align:left;vertical-align:middle;overflow-wrap:anywhere}th{background:#0e7490!important;color:#fff;font-size:9px;text-transform:uppercase}
         td img{display:block;width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid #aaa}
-        .signature{display:grid;grid-template-columns:minmax(0,1fr) 66px;align-items:center;gap:16px;width:min(100%,520px);margin:12px auto 0}
-        .signature-details{display:flex;flex-direction:column;gap:5px}.signature-row{display:grid;grid-template-columns:165px minmax(70px,1fr);gap:8px;align-items:end;min-height:17px}
-        .signature-label{font-weight:700}.signature-line{height:14px;border-bottom:1px solid #333}
-        .stamp{width:64px;height:64px;justify-self:end;border:2px dashed #999;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#777;font-size:9px}
-        .discipline-unpaid-print .signature{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;width:100%;margin:80px auto 0;padding:0 40px;page-break-inside:avoid;break-inside:avoid}
-        .discipline-unpaid-print .signature-details{gap:9px;text-align:center}.discipline-unpaid-print .signature-row{display:flex;justify-content:center;gap:8px;align-items:flex-end;min-height:18px}
-        .discipline-unpaid-print .signature-line{display:inline-block;width:220px;height:14px}
-        .discipline-unpaid-print .stamp{width:140px;height:140px;flex:0 0 140px;margin-left:auto;margin-bottom:10px;border-color:#aaa;color:#ccc;font-size:.85rem;letter-spacing:1px;text-transform:uppercase}
         .footer{position:fixed;bottom:0;left:0;right:0;z-index:2;border-top:1px solid #0e7490;padding:4px 0;text-align:center;font-size:8px;color:#53606b;background:rgba(255,255,255,.95)}
         @media print{body{margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}thead{display:table-header-group}tfoot{display:table-footer-group}}
     </style></head><body class="${disciplineMasterUnpaidReport ? 'discipline-unpaid-print' : ''}">
