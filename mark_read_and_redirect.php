@@ -65,16 +65,20 @@ if ($stmt) {
 
 if ($user_type === 'member') {
     $destination = 'member_dashboard.php?tab=' . urlencode($redirect_tab);
-    if ($redirect_tab === 'leader_chat' || $redirect_tab === 'manage_department') {
-        $department_by_group = [
-            'youths' => 'Youths',
-            'womens_ministry' => 'Womens Ministry',
-            'elders' => 'Elders',
-            'sunday_school' => 'Sunday School',
-            'building_construction' => 'Building & Construction'
-        ];
-        if (isset($department_by_group[$redirect_group])) {
-            $_SESSION['dashboard_dept'] = $department_by_group[$redirect_group];
+    $department_by_group = [
+        'youths' => 'Youths',
+        'womens_ministry' => 'Womens Ministry',
+        'elders' => 'Elders',
+        'sunday_school' => 'Sunday School',
+        'building_construction' => 'Building & Construction'
+    ];
+    if (isset($department_by_group[$redirect_group])) {
+        $department = $department_by_group[$redirect_group];
+        if ($redirect_tab === 'leader_chat' || $redirect_tab === 'manage_department' || $redirect_tab === 'financials') {
+            $_SESSION['dashboard_dept'] = $department;
+        }
+        if ($redirect_tab === 'financials') {
+            $destination .= '&treasurer_dept=' . urlencode($department);
         }
     }
     header("Location: $destination");

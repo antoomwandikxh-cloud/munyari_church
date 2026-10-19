@@ -1531,14 +1531,25 @@ if (isset($_GET['action'])) {
         // Ensure the fine belongs to the member
         $fine = $conn->query("SELECT * FROM member_fines WHERE id = $fine_id AND member_id = $member_id")->fetch_assoc();
         if ($fine && $fine['status'] == 'Unpaid') {
-            $conn->query("UPDATE member_fines SET status = 'Pending Verification' WHERE id = $fine_id");
-            
-            // Find treasurer and notify
-            $dept = $conn->real_escape_string($fine['department']);
-            $treasurers = $conn->query("SELECT id FROM members WHERE department = '$dept' AND church_role LIKE '%treasurer%'");
-            while ($t = $treasurers->fetch_assoc()) {
-                $msg = $conn->real_escape_string("A member in $dept has initiated a fine payment. Please verify in your Financial Records tab.");
-                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$t['id']}, 'member', '$msg')");
+            $payment_started = $conn->query("UPDATE member_fines SET status = 'Pending Verification' WHERE id = $fine_id AND member_id = $member_id AND status = 'Unpaid'");
+            if ($payment_started && $conn->affected_rows === 1) {
+                $department = trim((string)$fine['department']);
+                $department_sql = $conn->real_escape_string($department);
+                $payer_result = $conn->query("SELECT first_name, last_name FROM members WHERE id = $member_id LIMIT 1");
+                $payer = $payer_result ? $payer_result->fetch_assoc() : null;
+                $payer_name = trim(($payer['first_name'] ?? '') . ' ' . ($payer['last_name'] ?? ''));
+                $fine_reason = trim((string)$fine['fine_reason']);
+                $fine_amount = number_format((float)$fine['amount'], 2);
+                $message = "$payer_name initiated a fine payment in $department department. Fine: $fine_reason (KSh $fine_amount). Fine record #$fine_id. Please verify in Financial Records.";
+                $treasurers = $conn->query("SELECT id FROM members
+                    WHERE is_approved = 1 AND id <> $member_id
+                      AND department = '$department_sql'
+                      AND LOWER(church_role) LIKE '%treasurer%'");
+                if ($treasurers) {
+                    while ($treasurer = $treasurers->fetch_assoc()) {
+                        member_action_insert_notification($conn, (int)$treasurer['id'], 'member', $message);
+                    }
+                }
             }
             
             header("Location: member_dashboard.php?tab=my_fines&success=Payment initiated. Pending Treasurer verification.");

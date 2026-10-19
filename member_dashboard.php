@@ -3136,6 +3136,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 <a href="?tab=financials" class="sidebar-link <?= $tab == 'financials' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></rect><circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9h.01M18 15h.01"></path></svg>
                     Financial Records
+                    <?= render_tab_notification_badge($tab_badges, 'financials') ?>
                 </a>
                 <?php endif; ?>
 
@@ -7332,7 +7333,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Action</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($pf = $pending_fines->fetch_assoc()): ?>
-                                        <tr>
+                                        <tr data-notification-row="pending-fine-<?= (int)$pf['id'] ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($pf['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($pf['first_name'] . ' ' . $pf['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($pf['first_name'] . ' ' . $pf['last_name']) ?></td>
                                             <td><?= htmlspecialchars($pf['fine_reason']) ?></td>

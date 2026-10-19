@@ -911,7 +911,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         var fineMatch = notificationMessage.match(/\bfine record\s*#\s*(\d+)/i);
         if (fineMatch) {
-            var fineRow = main.querySelector('[data-notification-row="member-fine-' + fineMatch[1] + '"]');
+            var fineRow = main.querySelector('[data-notification-row="pending-fine-' + fineMatch[1] + '"]')
+                || main.querySelector('[data-notification-row="member-fine-' + fineMatch[1] + '"]');
             if (fineRow) {
                 addHighlightedRow(fineRow);
                 return;
@@ -1000,6 +1001,18 @@ HTML;
 
 function notification_target_group($message, $user_type) {
     $msg = strtolower($message);
+    if ($user_type === 'member'
+        && preg_match('/initiated a fine payment in\s+(.+?)\s+department\./i', $message, $fine_department_match)) {
+        $department_groups = [
+            'youths' => 'youths',
+            'women ministry' => 'womens_ministry',
+            'womens ministry' => 'womens_ministry',
+            'elders' => 'elders',
+            'sunday school' => 'sunday_school',
+            'building & construction' => 'building_construction',
+        ];
+        return $department_groups[strtolower(trim($fine_department_match[1]))] ?? '';
+    }
     if ($user_type === 'member'
         && preg_match('/^new member added to your department:.*\(([^)]+)\)/i', $message, $department_match)) {
         $department_groups = [
