@@ -1474,7 +1474,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
     <title>Pastor Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
     <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_messages) ?>
-    <script src="script.js?v=20261019-print-signature-12"></script>
+    <script src="script.js?v=20261019-print-rules-13"></script>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
 .role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}
@@ -2425,7 +2425,9 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                          $db = $drank[$b['department'] ?? ''] ?? 5;
                          if ($da !== $db) return $da - $db;
                      }
-                    return strcmp($a['first_name'].$a['last_name'], $b['first_name'].$b['last_name']);
+                    $nameA = trim(($a['first_name'] ?? '') . ' ' . ($a['last_name'] ?? ''));
+                    $nameB = trim(($b['first_name'] ?? '') . ' ' . ($b['last_name'] ?? ''));
+                    return strnatcasecmp($nameA, $nameB);
                 });
                 ?>
                 <div class="content-card">
@@ -3112,7 +3114,9 @@ w.document.write('</div>');
                     }
                     usort($dept_members_arr, function($a, $b) {
                         if ($a['role_rank'] != $b['role_rank']) return $a['role_rank'] <=> $b['role_rank'];
-                        return strcmp($a['first_name'], $b['first_name']);
+                        $nameA = trim(($a['first_name'] ?? '') . ' ' . ($a['last_name'] ?? ''));
+                        $nameB = trim(($b['first_name'] ?? '') . ' ' . ($b['last_name'] ?? ''));
+                        return strnatcasecmp($nameA, $nameB);
                     });
 
                     // Find top leaders dynamically based on rank (1 = Chair, 2 = Vice, 3 = Sec, etc.)

@@ -1573,7 +1573,9 @@ if (!empty($action)) {
                          $db = $drank[$b['department'] ?? ''] ?? 5;
                          if ($da !== $db) return $da - $db;
                      }
-                    return strcmp($a['first_name'].$a['last_name'], $b['first_name'].$b['last_name']);
+                    $nameA = trim(($a['first_name'] ?? '') . ' ' . ($a['last_name'] ?? ''));
+                    $nameB = trim(($b['first_name'] ?? '') . ' ' . ($b['last_name'] ?? ''));
+                    return strnatcasecmp($nameA, $nameB);
                 });
                 ?>
 
@@ -2216,7 +2218,9 @@ w.document.write('</div>');
                     }
                     usort($dept_members_arr, function($a, $b) {
                         if ($a['role_rank'] != $b['role_rank']) return $a['role_rank'] <=> $b['role_rank'];
-                        return strcmp($a['first_name'], $b['first_name']);
+                        $nameA = trim(($a['first_name'] ?? '') . ' ' . ($a['last_name'] ?? ''));
+                        $nameB = trim(($b['first_name'] ?? '') . ' ' . ($b['last_name'] ?? ''));
+                        return strnatcasecmp($nameA, $nameB);
                     });
 
                     // Find top leaders dynamically based on rank (1 = Chair, 2 = Vice, 3 = Sec, etc.)
@@ -5842,7 +5846,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
-    <script src="script.js?v=20261019-print-signature-12"></script>
+    <script src="script.js?v=20261019-print-rules-13"></script>
     <script>
     function validateInput(input, type) {
         let errorMsg = input.nextElementSibling;

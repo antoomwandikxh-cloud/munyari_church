@@ -8071,7 +8071,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 ? '<td>' + (apologyCheckbox && apologyCheckbox.checked ? 'Yes' : 'No') + '</td><td style="max-width:220px;white-space:normal;overflow-wrap:anywhere">' + escapeHtml(apologyCheckbox && apologyCheckbox.checked && apologyReason ? apologyReason.value.trim() : 'Not recorded') + '</td>'
                                 : '';
                             var joinedTimeCell = isAbsentReport ? '' : '<td>' + escapeHtml(displayTime) + '</td>';
-                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td>' + escapeHtml(row.dataset.name) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td>' + apologyCells + joinedTimeCell + '<td>' + (isAbsentReport ? 'Absent' : 'Present') + '</td></tr>';
+                            return '<tr><td>' + (index + 1) + '</td><td><img class="member-photo" src="' + escapeHtml(photo) + '" onerror="this.src=\'uploads/default_avatar.png\'"></td><td style="text-transform:uppercase">' + escapeHtml(String(row.dataset.name || '').toLocaleUpperCase()) + '</td><td>' + escapeHtml(row.dataset.gender) + '</td><td>' + escapeHtml(row.dataset.phone) + '</td>' + apologyCells + joinedTimeCell + '<td>' + (isAbsentReport ? 'Absent' : 'Present') + '</td></tr>';
                         }).join('');
                         var department = card.dataset.department || <?= json_encode($active_org_dept) ?>;
                         var meetingDate = form.querySelector('[name="meeting_date"]').value;
@@ -10151,7 +10151,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
-    <script src="script.js?v=20261019-print-signature-12"></script>
+    <script src="script.js?v=20261019-print-rules-13"></script>
 <!-- Image Viewer Modal -->
 <div id="imageViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; flex-direction:column;">
     <span onclick="document.getElementById('imageViewerModal').style.display='none'" style="position:absolute; top:20px; right:30px; font-size:40px; color:white; cursor:pointer; font-weight:bold; transition:color 0.2s;" onmouseover="this.style.color='#ff4444'" onmouseout="this.style.color='white'">&times;</span>

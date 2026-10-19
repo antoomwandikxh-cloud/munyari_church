@@ -289,6 +289,41 @@ function buildChurchPrintSignatureMarkup(role, name, escapeText) {
     </div>`;
 }
 
+// Keep each report's existing group order, while sorting people alphabetically inside each group.
+function sortChurchPrintRowsByMemberName(table, nameHeaders) {
+    const headerRow = table?.tHead?.rows?.[table.tHead.rows.length - 1];
+    const body = table?.tBodies?.[0];
+    if (!headerRow || !body) return;
+
+    const acceptedHeaders = new Set((nameHeaders || []).map(label => String(label).trim().toLowerCase()));
+    const nameIndex = Array.from(headerRow.cells).findIndex(cell => acceptedHeaders.has(cell.textContent.trim().replace(/\s+/g, ' ').toLowerCase()));
+    if (nameIndex < 0) return;
+
+    let groupRows = [];
+    const sortGroup = () => {
+        groupRows.sort((left, right) => {
+            const leftName = left.cells[nameIndex]?.textContent.trim().replace(/\s+/g, ' ') || '';
+            const rightName = right.cells[nameIndex]?.textContent.trim().replace(/\s+/g, ' ') || '';
+            return leftName.localeCompare(rightName, undefined, {sensitivity: 'base', numeric: true});
+        });
+        groupRows.forEach(row => {
+            if (row.cells[nameIndex]) row.cells[nameIndex].style.textTransform = 'uppercase';
+            body.appendChild(row);
+        });
+        groupRows = [];
+    };
+
+    Array.from(body.rows).forEach(row => {
+        if (row.querySelector('td[colspan], th[colspan]')) {
+            sortGroup();
+            body.appendChild(row);
+        } else {
+            groupRows.push(row);
+        }
+    });
+    sortGroup();
+}
+
 function printDisciplinaryCases(button, orientation) {
     const card = button?.closest('.content-card');
     const sourceTable = card?.querySelector('.table-responsive table');
@@ -309,6 +344,7 @@ function printDisciplinaryCases(button, orientation) {
             table.querySelectorAll('tbody tr').forEach(row => row.deleteCell(actionIndex));
         }
     }
+    sortChurchPrintRowsByMemberName(table, ['reported member', 'member name', 'member']);
 
     const fallbackPhoto = new URL('uploads/default_avatar.png', window.location.href).href;
     table.querySelectorAll('img').forEach(image => {
@@ -446,6 +482,7 @@ function printFineReport(button, orientation) {
         table = cleanTable;
     }
 
+    sortChurchPrintRowsByMemberName(table, ['member name', 'reported member', 'member']);
     table.querySelectorAll('img').forEach(image => {
         image.src = image.src || new URL('uploads/default_avatar.png', window.location.href).href;
         image.removeAttribute('onclick');
