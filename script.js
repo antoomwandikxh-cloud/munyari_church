@@ -384,7 +384,7 @@ function printFineReport(button, orientation) {
         const headerCells = Array.from(table.querySelectorAll('thead th'));
         const removedColumnIndexes = headerCells
             .map((cell, index) => ({label: cell.textContent.trim().toLowerCase(), index}))
-            .filter(column => ['offense', 'status', 'action'].includes(column.label))
+            .filter(column => ['offense', 'action'].includes(column.label))
             .map(column => column.index)
             .sort((first, second) => second - first);
 
@@ -396,6 +396,9 @@ function printFineReport(button, orientation) {
 
         table.querySelectorAll('td div').forEach(reason => {
             if (reason.textContent.toLowerCase().includes("treasurer's decline reason:")) reason.remove();
+        });
+        table.querySelectorAll('span').forEach(badge => {
+            if (badge.textContent.trim().toLowerCase() === 'reminder sent') badge.remove();
         });
 
         const remainingHeaders = Array.from(table.querySelectorAll('thead th'));
