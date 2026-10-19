@@ -374,7 +374,8 @@ function printFineReport(button, orientation) {
         return;
     }
 
-    const table = sourceTable.cloneNode(true);
+    try {
+    let table = sourceTable.cloneNode(true);
     const reportType = card.dataset.printTitle || 'Fine Records';
     const leaderRole = card.dataset.printLeaderRole || 'Organising Secretary';
     const disciplineMasterUnpaidReport = card.dataset.printKind === 'discipline-master-unpaid'
@@ -494,5 +495,13 @@ function printFineReport(button, orientation) {
         printWindow.focus();
         window.setTimeout(() => printWindow.print(), 300);
     });
+    } catch (error) {
+        console.error('Fine report could not be prepared:', error);
+        if (!printWindow.closed) {
+            printWindow.document.open();
+            printWindow.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Print report error</title></head><body style="font:16px Arial,sans-serif;padding:32px;color:#7f1d1d"><h1>Could not prepare the fine report</h1><p>Please close this window and try printing again. The error has been recorded in the browser console.</p></body></html>');
+            printWindow.document.close();
+        }
+    }
 }
 
