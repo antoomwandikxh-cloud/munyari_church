@@ -501,6 +501,13 @@ function printFineReport(button, orientation, statusFilter) {
         table = cleanTable;
     }
 
+    if (String(card.dataset.printTitle || '').trim().toLowerCase() === 'fines history') {
+        table.querySelectorAll('strong').forEach(label => {
+            if (!label.textContent.trim().toLowerCase().startsWith("treasurer's decline reason:")) return;
+            label.closest('div')?.remove();
+        });
+    }
+
     sortChurchPrintRowsByMemberName(table, ['member name', 'reported member', 'member']);
     table.querySelectorAll('img').forEach(image => {
         image.src = image.src || new URL('uploads/default_avatar.png', window.location.href).href;
