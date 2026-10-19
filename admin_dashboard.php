@@ -5846,7 +5846,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
-    <script src="script.js?v=20261019-fine-numbered-16"></script>
+    <script src="script.js?v=20261019-all-print-numbers-17"></script>
     <script>
     function validateInput(input, type) {
         let errorMsg = input.nextElementSibling;
@@ -6222,6 +6222,7 @@ function printRequiredLeadersTable(orientation) {
     w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + printDate + '</div>');
     w.document.write('</body></html>');
     w.document.close();
+    if (typeof addChurchPrintRowNumbers === 'function') w.document.querySelectorAll('table').forEach(addChurchPrintRowNumbers);
     w.focus();
     setTimeout(function(){ w.print(); }, 600);
 }
@@ -6254,6 +6255,7 @@ function printRequiredTable() {
     w.document.write(card.innerHTML);
     w.document.write('</body></html>');
     w.document.close();
+    if (typeof addChurchPrintRowNumbers === 'function') w.document.querySelectorAll('table').forEach(addChurchPrintRowNumbers);
     setTimeout(function(){ w.print(); }, 600);
 }
 function viewProfileImage(src) {
@@ -6339,6 +6341,7 @@ function openDeclineModal(id, name) {
         w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
         w.document.write('</body></html>');
         w.document.close();
+        if (typeof addChurchPrintRowNumbers === 'function') w.document.querySelectorAll('table').forEach(addChurchPrintRowNumbers);
         w.focus();
         setTimeout(function(){ w.print(); }, 500);
     }

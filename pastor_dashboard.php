@@ -1474,7 +1474,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
     <title>Pastor Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css">
     <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_messages) ?>
-    <script src="script.js?v=20261019-fine-numbered-16"></script>
+    <script src="script.js?v=20261019-all-print-numbers-17"></script>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
 .role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}
@@ -7793,6 +7793,7 @@ function printRequiredLeadersTable(orientation) {
     w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + printDate + '</div>');
     w.document.write('</body></html>');
     w.document.close();
+    if (typeof addChurchPrintRowNumbers === 'function') w.document.querySelectorAll('table').forEach(addChurchPrintRowNumbers);
     w.focus();
     setTimeout(function(){ w.print(); }, 600);
 }
@@ -7825,6 +7826,7 @@ function printRequiredTable() {
     w.document.write(card.innerHTML);
     w.document.write('</body></html>');
     w.document.close();
+    if (typeof addChurchPrintRowNumbers === 'function') w.document.querySelectorAll('table').forEach(addChurchPrintRowNumbers);
     setTimeout(function(){ w.print(); }, 600);
 }
 function viewProfileImage(src) {
@@ -8054,6 +8056,7 @@ w.document.write('</div>');
         w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + (typeof printDate !== 'undefined' ? printDate : new Date().toLocaleString()) + '</div>');
         w.document.write('</body></html>');
         w.document.close();
+        if (typeof addChurchPrintRowNumbers === 'function') w.document.querySelectorAll('table').forEach(addChurchPrintRowNumbers);
         w.focus();
         setTimeout(function(){ w.print(); }, 500);
     }

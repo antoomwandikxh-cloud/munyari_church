@@ -261,6 +261,7 @@ function fmt_amount($n) {
     <table>
         <thead>
             <tr>
+                <th style="width:38px;text-align:center;">No.</th>
                 <th>Department / Ministry</th>
                 <th class="amt">Amount Collected (KSh)</th>
             </tr>
@@ -268,11 +269,14 @@ function fmt_amount($n) {
         <tbody>
             <?php
             $all_totals = 0;
+            $row_number = 0;
             foreach ($depts as $db_key => $label):
                 $amt = $totals[$db_key] ?? 0;
                 $all_totals += $amt;
+                $row_number++;
             ?>
             <tr>
+                <td style="text-align:center;font-weight:700;"><?= $row_number ?></td>
                 <td class="dept-cell"><?= htmlspecialchars($label) ?> Treasurer</td>
                 <td class="amt">KSh <?= number_format($amt, 2) ?></td>
             </tr>
@@ -281,7 +285,7 @@ function fmt_amount($n) {
 
 
             <tr class="total-row">
-                <td style="text-align:right;padding-right:18px;font-weight:700;">GRAND TOTAL</td>
+                <td colspan="2" style="text-align:right;padding-right:18px;font-weight:700;">GRAND TOTAL</td>
                 <td class="amt">KSh <?= number_format($all_totals, 2) ?></td>
             </tr>
         </tbody>

@@ -232,6 +232,7 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
     <table>
         <thead>
             <tr>
+                <th style="width:38px;text-align:center;">No.</th>
                 <th>Date</th>
                 <th>Recorded By</th>
                 <th>Description</th>
@@ -241,11 +242,14 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
         <tbody>
             <?php 
             $total = 0;
+            $record_number = 0;
             if ($records_q && $records_q->num_rows > 0) {
                 while ($r = $records_q->fetch_assoc()) {
                     $total += $r['amount'];
+                    $record_number++;
                     $date = date('M j, Y', strtotime($r['record_date'] ?: $r['recorded_at']));
                     echo "<tr>";
+                    echo "<td style='text-align:center;font-weight:700;'>$record_number</td>";
                     echo "<td>$date</td>";
                     echo "<td>" . htmlspecialchars($r['poster_name'] ?: 'Unknown') . "</td>";
                     echo "<td>" . htmlspecialchars($r['description']) . "</td>";
@@ -253,11 +257,11 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
                     echo "</tr>";
                 }
             } else {
-                echo "<tr><td colspan='4' style='text-align:center;'>No records found for this period.</td></tr>";
+                echo "<tr><td colspan='5' style='text-align:center;'>No records found for this period.</td></tr>";
             }
             ?>
             <tr class="total-row">
-                <td colspan="3" style="text-align: right; padding-right: 20px;"><strong>TOTAL AMOUNT COLLECTED</strong></td>
+                <td colspan="4" style="text-align: right; padding-right: 20px;"><strong>TOTAL AMOUNT COLLECTED</strong></td>
                 <td class="amt" style="color: #166534;">KSh <?= number_format($total, 2) ?></td>
             </tr>
         </tbody>

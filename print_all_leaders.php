@@ -326,6 +326,7 @@ foreach($leader_sections as $sk => $section):
   <table>
     <thead>
       <tr style="background:<?=htmlspecialchars($section['accent'])?>;">
+        <th style="width:38px;text-align:center;">No.</th>
         <th style="width:48px;">Photo</th>
         <th>Name</th>
         <th>Phone Number</th>
@@ -337,6 +338,7 @@ foreach($leader_sections as $sk => $section):
     <tbody>
       <?php foreach($rows as $i => $r): ?>
       <tr>
+        <td style="text-align:center;font-weight:700;"><?=$i + 1?></td>
         <td class="td-photo">
           <?php if($r['pic']): ?>
             <img src="<?=$r['pic']?>" style="border:2px solid <?=htmlspecialchars($r['accent'])?>;" alt="">
