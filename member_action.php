@@ -1569,22 +1569,51 @@ if (isset($_GET['action'])) {
         }
         if ($is_treasurer) {
             $fine_id = (int)$_GET['id'];
-            $conn->query("UPDATE member_fines SET status = 'Paid', paid_at = CURRENT_TIMESTAMP WHERE id = $fine_id");
-            
-            $fine = $conn->query("SELECT member_id, fine_reason, amount, department FROM member_fines WHERE id = $fine_id")->fetch_assoc();
+            $fine_result = $conn->query("SELECT mf.*, m.first_name, m.last_name
+                FROM member_fines mf JOIN members m ON m.id = mf.member_id
+                WHERE mf.id = $fine_id AND mf.status = 'Pending Verification'
+                LIMIT 1");
+            $fine = $fine_result ? $fine_result->fetch_assoc() : null;
+            $verified = false;
             if ($fine) {
-                $msg = $conn->real_escape_string("Your fine for '{$fine['fine_reason']}' has been verified and cleared by the Treasurer.");
-                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$fine['member_id']}, 'member', '$msg')");
-                
-                // Add the fine amount to the financial records!
-                $dept = $conn->real_escape_string($fine['department']);
-                $desc = $conn->real_escape_string("Disciplinary Fine: " . $fine['fine_reason']);
+                $paid = $conn->query("UPDATE member_fines SET status = 'Paid', paid_at = CURRENT_TIMESTAMP WHERE id = $fine_id AND status = 'Pending Verification'");
+                $verified = $paid && $conn->affected_rows === 1;
+            }
+            if ($verified) {
+                $department = trim((string)$fine['department']);
+                $department_sql = $conn->real_escape_string($department);
+                $fine_reason = trim((string)$fine['fine_reason']);
+                $fine_amount = number_format((float)$fine['amount'], 2);
+                $fine_record_label = "Fine record #$fine_id.";
+                $member_message = "Your fine payment for $fine_reason (KSh $fine_amount) in $department has been verified and marked paid by the Treasurer. $fine_record_label";
+                member_action_insert_notification($conn, (int)$fine['member_id'], 'member', $member_message);
+
+                $member_name = trim($fine['first_name'] . ' ' . $fine['last_name']);
+                $staff_message = "Fine payment verified: $member_name's fine for $fine_reason (KSh $fine_amount) in $department was marked Paid by the Treasurer. $fine_record_label";
+                $admins = $conn->query("SELECT id FROM admins");
+                if ($admins) {
+                    while ($admin = $admins->fetch_assoc()) {
+                        member_action_insert_notification($conn, (int)$admin['id'], 'admin', $staff_message);
+                    }
+                }
+                $pastors = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
+                if ($pastors) {
+                    while ($pastor = $pastors->fetch_assoc()) {
+                        member_action_insert_notification($conn, (int)$pastor['id'], 'pastor', $staff_message);
+                    }
+                }
+
+                // Add the verified fine payment to the department's financial records.
+                $description = $conn->real_escape_string("Disciplinary Fine: " . $fine_reason);
                 $amount = (float)$fine['amount'];
                 $fine_verifier = $conn->query("SELECT first_name, last_name FROM members WHERE id = $member_id")->fetch_assoc();
                 $fine_recorder_name = $conn->real_escape_string($fine_verifier ? ($fine_verifier['first_name'] . ' ' . $fine_verifier['last_name']) : 'System');
-                $conn->query("INSERT INTO financial_records (department, amount, record_date, description, recorded_by, recorded_by_name) VALUES ('$dept', $amount, CURRENT_DATE(), '$desc', $member_id, '$fine_recorder_name')");
+                $conn->query("INSERT INTO financial_records (department, amount, record_date, description, recorded_by, recorded_by_name) VALUES ('$department_sql', $amount, CURRENT_DATE(), '$description', $member_id, '$fine_recorder_name')");
             }
-            header("Location: member_dashboard.php?tab=financials&success=Fine payment verified and added to records");
+            $result_message = $verified
+                ? 'Fine payment verified and added to records'
+                : 'This fine is no longer awaiting verification';
+            header("Location: member_dashboard.php?tab=financials&" . ($verified ? 'success=' : 'error=') . urlencode($result_message));
             exit();
         }
     }

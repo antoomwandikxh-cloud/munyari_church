@@ -3729,7 +3729,14 @@ w.document.write('</div>');
                 <div class="content-card" style="margin-bottom: 30px;">
                     <h2>All Fines Issued</h2>
                     <?php
-                    $all_fines_pastor = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture, dm.first_name as dm_first, dm.last_name as dm_last FROM member_fines mf JOIN members m ON mf.member_id = m.id JOIN members dm ON mf.discipline_master_id = dm.id ORDER BY mf.issued_at DESC LIMIT 50");
+                    $focus_fine_id = 0;
+                    foreach (($notification_focus_messages ?? []) as $focus_message) {
+                        if (preg_match('/\bfine record\s*#\s*(\d+)/i', (string)$focus_message, $focus_fine_match)) {
+                            $focus_fine_id = (int)$focus_fine_match[1];
+                            break;
+                        }
+                    }
+                    $all_fines_pastor = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture, dm.first_name as dm_first, dm.last_name as dm_last FROM member_fines mf JOIN members m ON mf.member_id = m.id JOIN members dm ON mf.discipline_master_id = dm.id ORDER BY (mf.id = $focus_fine_id) DESC, mf.issued_at DESC LIMIT 50");
                     if ($all_fines_pastor && $all_fines_pastor->num_rows > 0):
                     ?>
                         <div class="table-responsive">
@@ -3737,7 +3744,7 @@ w.document.write('</div>');
                                 <thead><tr><th>Profile</th><th>Member</th><th>Department</th><th>Offense</th><th>Amount</th><th>Issued By</th><th>Status</th><th>Date & Time</th></tr></thead>
                                 <tbody>
                                     <?php while($af = $all_fines_pastor->fetch_assoc()): ?>
-                                        <tr>
+                                        <tr data-notification-row="oversight-fine-<?= (int)$af['id'] ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($af['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?></td>
                                             <td><span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;"><?= htmlspecialchars($af['department']) ?></span></td>
