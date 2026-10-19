@@ -421,7 +421,7 @@ function printDisciplinaryCases(button, orientation) {
             .watermark{position:fixed;z-index:0;top:48%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);color:rgba(30,58,138,.12);font-size:42px;font-weight:900;letter-spacing:3px;white-space:nowrap;pointer-events:none}
             .report{position:relative;z-index:1;break-after:auto;page-break-after:auto}
             .leader{display:flex;align-items:center;justify-content:center;gap:9px;margin:0 0 7px;break-inside:avoid}
-            .leader img{width:56px;height:56px;object-fit:cover;border-radius:50%;border:2px solid #1e3a8a}
+            .leader img{width:62px;height:62px;object-fit:cover;border-radius:50%;border:2px solid #1e3a8a}
             .leader-name{font-size:12px;font-weight:700;color:#1e3a8a;text-transform:uppercase}
             .leader-role{font-size:10px;color:#4b5563;margin-top:2px}
             .brand{display:grid;grid-template-columns:42px 1fr 42px;align-items:center;gap:7px;text-align:center;border-bottom:2px solid #1e3a8a;padding:0 0 5px;margin-bottom:6px;break-inside:avoid}
