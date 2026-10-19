@@ -5842,7 +5842,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
-    <script src="script.js?v=20261019-discipline-print-10"></script>
+    <script src="script.js?v=20261019-discipline-print-11"></script>
     <script>
     function validateInput(input, type) {
         let errorMsg = input.nextElementSibling;

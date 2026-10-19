@@ -312,7 +312,6 @@ function printDisciplinaryCases(button, orientation) {
         '"': '&quot;',
         "'": '&#39;'
     })[character]);
-
     printWindow.document.open();
     printWindow.document.write(`<!doctype html>
         <html><head><meta charset="utf-8"><title>${escapeText(reportTitle)}</title>
@@ -445,6 +444,21 @@ function printFineReport(button, orientation) {
         '"': '&quot;',
         "'": '&#39;'
     })[character]);
+    const signatureMarkup = disciplineMasterUnpaidReport
+        ? `<div class="signature" style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:80px;padding:0 40px;page-break-inside:avoid">
+            <div style="text-align:center">
+                <div style="font-size:.85rem;font-weight:bold;text-transform:uppercase;color:#1e3a8a">${escapeText(leaderRole)}</div>
+                <div style="font-size:.75rem;font-weight:bold;color:#333;margin-top:2px;margin-bottom:10px">${escapeText(leaderName)}</div>
+                <div style="font-size:.9rem;margin-bottom:8px;display:flex;align-items:flex-end;justify-content:center;gap:8px"><span style="font-style:italic;color:#333">Sign:</span><span style="display:inline-block;border-bottom:1px solid #000;width:220px;height:14px"></span></div>
+                <div style="font-size:.85rem;margin-top:12px;display:flex;align-items:flex-end;justify-content:center;gap:8px"><span style="color:#333">Date:</span><span style="display:inline-block;border-bottom:1px dotted #000;width:220px;height:14px"></span></div>
+            </div>
+            <div style="text-align:center"><div style="border:2px dashed #aaa;width:140px;height:140px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:.85rem;text-transform:uppercase;letter-spacing:1px">Official<br>Stamp</div></div>
+        </div>`
+        : `<div class="signature"><div class="signature-details">
+            <div class="signature-row"><span class="signature-label">${escapeText(leaderRole)} Signature</span><span class="signature-line"></span></div>
+            <div class="signature-row"><span class="signature-label">Name: ${escapeText(leaderName)}</span><span></span></div>
+            <div class="signature-row"><span class="signature-label">Date</span><span class="signature-line"></span></div>
+        </div><div class="stamp">OFFICIAL<br>STAMP</div></div>`;
 
     printWindow.document.open();
     printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeText(heading)}</title><style>
@@ -478,11 +492,7 @@ function printFineReport(button, orientation) {
         <div class="report-heading">${escapeText(reportType)}</div>
         <p class="report-meta">${escapeText(department)} Department | Total records: ${caseCount}<br>Generated: ${escapeText(printedAt)}</p>
         ${table.outerHTML}
-        <div class="signature" style="${disciplineMasterUnpaidReport ? 'display:flex;justify-content:space-between;align-items:flex-end;gap:16px;width:100%;margin:80px auto 0;padding:0 40px;page-break-inside:avoid;break-inside:avoid' : ''}"><div class="signature-details" style="${disciplineMasterUnpaidReport ? 'display:flex;flex-direction:column;gap:9px;text-align:center' : ''}">
-            <div class="signature-row" style="${disciplineMasterUnpaidReport ? 'display:flex;justify-content:center;gap:8px;align-items:flex-end;min-height:18px' : ''}"><span class="signature-label">${escapeText(leaderRole)} Signature</span><span class="signature-line" style="${disciplineMasterUnpaidReport ? 'display:inline-block;width:220px;height:14px' : ''}"></span></div>
-            <div class="signature-row" style="${disciplineMasterUnpaidReport ? 'display:block;text-align:center' : ''}"><span class="signature-label">Name: ${escapeText(leaderName)}</span></div>
-            <div class="signature-row" style="${disciplineMasterUnpaidReport ? 'display:flex;justify-content:center;gap:8px;align-items:flex-end;min-height:18px' : ''}"><span class="signature-label">Date</span><span class="signature-line" style="${disciplineMasterUnpaidReport ? 'display:inline-block;width:220px;height:14px' : ''}"></span></div>
-        </div><div class="stamp" style="${disciplineMasterUnpaidReport ? 'box-sizing:border-box;border:2px dashed #aaa;width:140px;height:140px;min-width:140px;min-height:140px;flex:0 0 140px;margin:0 0 10px auto;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#ccc;font-size:.85rem;letter-spacing:1px;text-transform:uppercase' : ''}">OFFICIAL<br>STAMP</div></div>
+        ${signatureMarkup}
         <div class="footer">E.A.P.C Munyari Fine Records | ${escapeText(department)} Department | ${escapeText(reportType)} | Printed: ${escapeText(printedAt)}</div>
     </body></html>`);
     printWindow.document.close();
