@@ -141,6 +141,13 @@ function ensure_financial_record_workflow_schema($conn) {
     }
 }
 
+function ensure_member_fine_decline_schema($conn) {
+    $exists = $conn->query("SHOW COLUMNS FROM member_fines LIKE 'payment_decline_reason'");
+    if ($exists && $exists->num_rows === 0) {
+        $conn->query("ALTER TABLE member_fines ADD COLUMN payment_decline_reason VARCHAR(500) NULL");
+    }
+}
+
 function chair_roles_for_department($department) {
     if (department_matches($department, 'Youths')) {
         return ['youth chairperson', 'youth chairman', 'youth chairlady', 'vice youth chairperson', 'vice youth chairman', 'vice youth chairlady'];
@@ -166,6 +173,7 @@ function member_is_chair_for_department($roles, $department) {
 }
 
 ensure_financial_record_workflow_schema($conn);
+ensure_member_fine_decline_schema($conn);
 
 if (isset($_GET['action'])) {
     $action = $_GET['action'];
@@ -1573,7 +1581,7 @@ if (isset($_GET['action'])) {
         // Ensure the fine belongs to the member
         $fine = $conn->query("SELECT * FROM member_fines WHERE id = $fine_id AND member_id = $member_id")->fetch_assoc();
         if ($fine && $fine['status'] == 'Unpaid') {
-            $payment_started = $conn->query("UPDATE member_fines SET status = 'Pending Verification' WHERE id = $fine_id AND member_id = $member_id AND status = 'Unpaid'");
+            $payment_started = $conn->query("UPDATE member_fines SET status = 'Pending Verification', payment_decline_reason = NULL WHERE id = $fine_id AND member_id = $member_id AND status = 'Unpaid'");
             if ($payment_started && $conn->affected_rows === 1) {
                 $department = trim((string)$fine['department']);
                 $department_sql = $conn->real_escape_string($department);
@@ -1698,8 +1706,12 @@ if (isset($_GET['action'])) {
             $declined = false;
             $reason_length = function_exists('mb_strlen') ? mb_strlen($decline_reason, 'UTF-8') : strlen($decline_reason);
             if ($fine && $decline_reason !== '' && $reason_length <= 500) {
-                $update = $conn->query("UPDATE member_fines SET status = 'Unpaid', paid_at = NULL WHERE id = $fine_id AND status = 'Pending Verification'");
-                $declined = $update && $conn->affected_rows === 1;
+                $update = $conn->prepare("UPDATE member_fines SET status = 'Unpaid', paid_at = NULL, payment_decline_reason = ? WHERE id = ? AND status = 'Pending Verification'");
+                if ($update) {
+                    $update->bind_param('si', $decline_reason, $fine_id);
+                    $declined = $update->execute() && $update->affected_rows === 1;
+                    $update->close();
+                }
             }
 
             $department = trim((string)($fine['department'] ?? ''));

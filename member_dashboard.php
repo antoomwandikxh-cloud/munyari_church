@@ -905,6 +905,11 @@ foreach ($financial_workflow_columns as $financial_workflow_column => $financial
     }
 }
 
+$fine_decline_reason_column = $conn->query("SHOW COLUMNS FROM member_fines LIKE 'payment_decline_reason'");
+if ($fine_decline_reason_column && $fine_decline_reason_column->num_rows === 0) {
+    $conn->query("ALTER TABLE member_fines ADD COLUMN payment_decline_reason VARCHAR(500) NULL");
+}
+
 $daily_expiry_col = $conn->query("SHOW COLUMNS FROM daily_messages LIKE 'expires_at'");
 if ($daily_expiry_col && $daily_expiry_col->num_rows == 0) {
     $conn->query("ALTER TABLE daily_messages ADD COLUMN expires_at DATETIME NULL AFTER video_file");
@@ -8658,7 +8663,15 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     <?php while($mf = $my_fines->fetch_assoc()): ?>
                                         <tr data-notification-row="member-fine-<?= (int)$mf['id'] ?>">
                                             <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($mf['issued_at'])) ?></td>
-                                            <td><?= htmlspecialchars($mf['fine_reason']) ?></td>
+                                            <td>
+                                                <?= htmlspecialchars($mf['fine_reason']) ?>
+                                                <?php if ($mf['status'] === 'Unpaid' && !empty($mf['payment_decline_reason'])): ?>
+                                                    <div style="margin-top:6px;padding:7px 9px;border-left:3px solid var(--danger);background:rgba(239,68,68,.08);border-radius:4px;color:var(--text-main);font-size:.9em;line-height:1.45;">
+                                                        <strong style="color:var(--danger);">Treasurer's decline reason:</strong>
+                                                        <?= htmlspecialchars($mf['payment_decline_reason'], ENT_QUOTES) ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </td>
                                             <td style="font-weight: 600;">KSh <?= number_format($mf['amount'], 2) ?></td>
                                             <td>
                                                 <?php if ($mf['status'] == 'Paid'): ?>
