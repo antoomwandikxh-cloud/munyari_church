@@ -3341,7 +3341,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                         <div style="display:flex; align-items:flex-start; gap:8px;">
                                             <div style="width:7px; height:7px; border-radius:50%; background:<?= !$dn['is_read'] ? 'var(--danger)' : 'var(--border-color)' ?>; margin-top:5px; flex-shrink:0;"></div>
                                             <div style="min-width:0;">
-                                                <p style="margin:0; font-size:0.8rem; color:var(--text-main); line-height:1.35;"><?= htmlspecialchars($dn['message']) ?></p>
+                                                <p style="margin:0; font-size:0.8rem; color:var(--text-main); line-height:1.35;"><?= htmlspecialchars(notification_display_message($dn['message'])) ?></p>
                                                 <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
                                                     <small style="color:var(--text-muted); font-size:0.7rem;"><?= date('M j, g:i A', strtotime($dn['created_at'])) ?></small>
                                                     <?php if (!$dn['is_read']): ?>
@@ -5222,7 +5222,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             }
                             ?>
                             <a href="mark_read_and_redirect.php?id=<?= $n['id'] ?>&redirect=<?= urlencode($target_tab) ?><?= $dn_group !== '' ? '&group=' . urlencode($dn_group) : '' ?>" class="notification-item <?= !$n['is_read'] ? 'unread' : '' ?>">
-                                <p><?= htmlspecialchars($n['message']) ?></p>
+                                <p><?= htmlspecialchars(notification_display_message($n['message'])) ?></p>
                                 <div class="notification-meta">
                                     <small><?= date('M j, Y g:i A', strtotime($n['created_at'])) ?></small>
                                     <?php if (!$n['is_read']): ?>

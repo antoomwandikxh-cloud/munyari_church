@@ -1584,12 +1584,12 @@ if (isset($_GET['action'])) {
                 $department_sql = $conn->real_escape_string($department);
                 $fine_reason = trim((string)$fine['fine_reason']);
                 $fine_amount = number_format((float)$fine['amount'], 2);
-                $fine_record_label = "Fine record #$fine_id.";
-                $member_message = "Your fine payment for $fine_reason (KSh $fine_amount) in $department has been verified and marked paid by the Treasurer. $fine_record_label";
+                $fine_focus_tag = "[focus-fine-id:$fine_id]";
+                $member_message = "Your fine payment for $fine_reason (KSh $fine_amount) in $department has been verified and marked paid by the Treasurer. $fine_focus_tag";
                 member_action_insert_notification($conn, (int)$fine['member_id'], 'member', $member_message);
 
                 $member_name = trim($fine['first_name'] . ' ' . $fine['last_name']);
-                $staff_message = "Fine payment verified: $member_name's fine for $fine_reason (KSh $fine_amount) in $department was marked Paid by the Treasurer. $fine_record_label";
+                $staff_message = "Fine payment verified: $member_name's fine for $fine_reason (KSh $fine_amount) in $department was marked Paid by the Treasurer. $fine_focus_tag";
                 $admins = $conn->query("SELECT id FROM admins");
                 if ($admins) {
                     while ($admin = $admins->fetch_assoc()) {

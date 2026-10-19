@@ -1,4 +1,10 @@
 <?php
+function notification_display_message($message) {
+    $message = preg_replace('/\s*\[focus-fine-id:\s*\d+\]/i', '', (string)$message);
+    $message = preg_replace('/\s*Fine record\s*#\s*\d+\.?/i', '', $message);
+    return trim($message);
+}
+
 function notification_badge_tabs($message, $user_type) {
     $msg  = strtolower($message);
     $tabs = [];
@@ -909,7 +915,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
         }
-        var fineMatch = notificationMessage.match(/\bfine record\s*#\s*(\d+)/i);
+        var fineMatch = notificationMessage.match(/\bfine record\s*#\s*(\d+)/i)
+            || notificationMessage.match(/\[focus-fine-id:\s*(\d+)\]/i);
         if (fineMatch) {
             var fineRow = main.querySelector('[data-notification-row="pending-fine-' + fineMatch[1] + '"]')
                 || main.querySelector('[data-notification-row="oversight-fine-' + fineMatch[1] + '"]')
