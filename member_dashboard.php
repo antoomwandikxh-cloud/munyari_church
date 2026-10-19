@@ -8656,10 +8656,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php if ($dm_report_history && $dm_report_history->num_rows > 0): ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Profile</th><th>Member</th><th>Department</th><th>Reason</th><th>Status</th><th>Date</th></tr></thead>
+                                <thead><tr><th>No.</th><th>Profile</th><th>Member</th><th>Department</th><th>Reason</th><th>Status</th><th>Date</th></tr></thead>
                                 <tbody>
-                                    <?php while ($dm_report = $dm_report_history->fetch_assoc()): ?>
+                                    <?php $dm_report_number = 0; while ($dm_report = $dm_report_history->fetch_assoc()): $dm_report_number++; ?>
                                         <tr data-notification-row="disciplinary-report-<?= (int)$dm_report['id'] ?>">
+                                            <td style="text-align:center;font-weight:700;"><?= $dm_report_number ?></td>
                                             <td><img src="uploads/<?= htmlspecialchars(basename($dm_report['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($dm_report['first_name'] . ' ' . $dm_report['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View reported member photo"></td>
                                             <td><?= htmlspecialchars($dm_report['first_name'] . ' ' . $dm_report['last_name']) ?></td>
                                             <td><?= htmlspecialchars($dm_report['department']) ?></td>
