@@ -382,22 +382,24 @@ function printFineReport(button, orientation) {
 
     if (disciplineMasterUnpaidReport) {
         const headerCells = Array.from(table.querySelectorAll('thead th'));
-        const actionColumnIndex = headerCells.findIndex(cell => cell.textContent.trim().toLowerCase() === 'action');
-        const amountColumnIndex = headerCells.findIndex(cell => cell.textContent.trim().toLowerCase() === 'amount');
+        const removedColumnIndexes = headerCells
+            .map((cell, index) => ({label: cell.textContent.trim().toLowerCase(), index}))
+            .filter(column => ['offense', 'status', 'action'].includes(column.label))
+            .map(column => column.index)
+            .sort((first, second) => second - first);
 
-        if (actionColumnIndex >= 0) {
+        removedColumnIndexes.forEach(columnIndex => {
             table.querySelectorAll('tr').forEach(row => {
-                if (row.children[actionColumnIndex]) row.children[actionColumnIndex].remove();
+                if (row.children[columnIndex]) row.children[columnIndex].remove();
             });
-        }
+        });
 
         table.querySelectorAll('td div').forEach(reason => {
             if (reason.textContent.toLowerCase().includes("treasurer's decline reason:")) reason.remove();
         });
-        table.querySelectorAll('span').forEach(badge => {
-            if (badge.textContent.trim().toLowerCase() === 'reminder sent') badge.remove();
-        });
 
+        const remainingHeaders = Array.from(table.querySelectorAll('thead th'));
+        const amountColumnIndex = remainingHeaders.findIndex(cell => cell.textContent.trim().toLowerCase() === 'amount');
         if (amountColumnIndex >= 0) {
             table.querySelectorAll('tbody tr').forEach(row => {
                 const amountCell = row.children[amountColumnIndex];
@@ -464,11 +466,11 @@ function printFineReport(button, orientation) {
         <div class="report-heading">${escapeText(reportType)}</div>
         <p class="report-meta">${escapeText(department)} Department | Total records: ${caseCount}<br>Generated: ${escapeText(printedAt)}</p>
         ${table.outerHTML}
-        <div class="signature"><div class="signature-details">
-            <div class="signature-row"><span class="signature-label">${escapeText(leaderRole)} Signature</span><span class="signature-line"></span></div>
-            <div class="signature-row"><span class="signature-label">Name: ${escapeText(leaderName)}</span><span></span></div>
-            <div class="signature-row"><span class="signature-label">Date</span><span class="signature-line"></span></div>
-        </div><div class="stamp">OFFICIAL<br>STAMP</div></div>
+        <div class="signature" style="${disciplineMasterUnpaidReport ? 'display:flex;justify-content:space-between;align-items:flex-end;gap:16px;width:100%;margin:80px auto 0;padding:0 40px;page-break-inside:avoid;break-inside:avoid' : ''}"><div class="signature-details" style="${disciplineMasterUnpaidReport ? 'display:flex;flex-direction:column;gap:9px;text-align:center' : ''}">
+            <div class="signature-row" style="${disciplineMasterUnpaidReport ? 'display:flex;justify-content:center;gap:8px;align-items:flex-end;min-height:18px' : ''}"><span class="signature-label">${escapeText(leaderRole)} Signature</span><span class="signature-line" style="${disciplineMasterUnpaidReport ? 'display:inline-block;width:220px;height:14px' : ''}"></span></div>
+            <div class="signature-row" style="${disciplineMasterUnpaidReport ? 'display:block;text-align:center' : ''}"><span class="signature-label">Name: ${escapeText(leaderName)}</span></div>
+            <div class="signature-row" style="${disciplineMasterUnpaidReport ? 'display:flex;justify-content:center;gap:8px;align-items:flex-end;min-height:18px' : ''}"><span class="signature-label">Date</span><span class="signature-line" style="${disciplineMasterUnpaidReport ? 'display:inline-block;width:220px;height:14px' : ''}"></span></div>
+        </div><div class="stamp" style="${disciplineMasterUnpaidReport ? 'box-sizing:border-box;border:2px dashed #aaa;width:140px;height:140px;min-width:140px;min-height:140px;flex:0 0 140px;margin:0 0 10px auto;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#ccc;font-size:.85rem;letter-spacing:1px;text-transform:uppercase' : ''}">OFFICIAL<br>STAMP</div></div>
         <div class="footer">E.A.P.C Munyari Fine Records | ${escapeText(department)} Department | ${escapeText(reportType)} | Printed: ${escapeText(printedAt)}</div>
     </body></html>`);
     printWindow.document.close();
