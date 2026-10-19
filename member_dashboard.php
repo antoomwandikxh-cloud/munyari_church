@@ -7433,17 +7433,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             <td style="font-weight: 600; color: var(--danger);">KSh <?= number_format($uf['amount'], 2) ?></td>
                                             <td>
                                                 <?php if ($uf['reminded_for_meeting'] == 1): ?>
-                                                    <span class="badge" style="background: rgba(37,99,235,0.1); color: var(--primary);">Reminded for Next Mtg</span>
+                                                    <span class="badge" style="background: rgba(37,99,235,0.1); color: var(--primary);">Reminder Sent</span>
                                                 <?php else: ?>
                                                     <span class="badge" style="background: rgba(239,68,68,0.1); color: var(--danger);">Unpaid</span>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <?php if ($uf['reminded_for_meeting'] == 0): ?>
-                                                    <a href="member_action.php?action=remind_fine_meeting&id=<?= $uf['id'] ?>" class="btn-sm" style="background: var(--primary); color: white; padding: 6px 12px; font-size: 0.85em; text-decoration: none;" onclick="return confirm('Send an official reminder requesting this member to pay at the next meeting?');">Remind for Next Meeting</a>
-                                                <?php else: ?>
-                                                    <span style="font-size: 0.85em; color: var(--text-muted);">Reminder Sent</span>
-                                                <?php endif; ?>
+                                                <a href="member_action.php?action=remind_fine_meeting&amp;id=<?= (int)$uf['id'] ?>&amp;treasurer_dept=<?= urlencode($active_treasurer_dept) ?>" class="btn-sm" style="background: var(--primary); color: white; padding: 6px 12px; font-size: 0.85em; text-decoration: none;" onclick="return confirm('Send a payment reminder to this member?');">Remind Him</a>
                                             </td>
                                             <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($uf['issued_at'])) ?></td>
                                         </tr>

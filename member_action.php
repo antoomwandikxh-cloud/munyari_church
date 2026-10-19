@@ -1627,33 +1627,82 @@ if (isset($_GET['action'])) {
         }
     }
     
-    // Treasurer: Remind Member to Pay Fine at Next Meeting
+    // Treasurer: Send a repeatable reminder for an unpaid fine.
     elseif ($action === 'remind_fine_meeting' && isset($_GET['id'])) {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
-        $is_treasurer = false;
-        foreach (get_member_roles($member_query['church_role'] ?? '') as $role) {
-            if (strpos($role, 'treasurer') !== false) {
-                $is_treasurer = true;
+        $roles = get_member_roles($member_query['church_role'] ?? '');
+        $treasurer_departments = [
+            'treasurer' => 'General Church',
+            'youth treasurer' => 'Youths',
+            'women treasurer' => 'Womens Ministry',
+            'elder treasurer' => 'Elders',
+            'sunday school treasurer' => 'Sunday School',
+            'building treasurer' => 'Building & Construction'
+        ];
+        $allowed_departments = [];
+        foreach ($roles as $role) {
+            if (isset($treasurer_departments[$role])) {
+                $allowed_departments[] = $treasurer_departments[$role];
+            }
+        }
+
+        $fine_id = (int)$_GET['id'];
+        $fine_stmt = $conn->prepare("SELECT member_id, fine_reason, amount, department, status FROM member_fines WHERE id = ? LIMIT 1");
+        $fine = null;
+        if ($fine_stmt) {
+            $fine_stmt->bind_param('i', $fine_id);
+            $fine_stmt->execute();
+            $fine_result = $fine_stmt->get_result();
+            $fine = $fine_result ? $fine_result->fetch_assoc() : null;
+            $fine_stmt->close();
+        }
+
+        $department = trim((string)($fine['department'] ?? ''));
+        $redirect = 'member_dashboard.php?tab=financials';
+        if ($department !== '') {
+            $redirect .= '&treasurer_dept=' . urlencode($department);
+        }
+        if (!$fine) {
+            header('Location: ' . $redirect . '&error=' . urlencode('This fine could not be found. No reminder was sent.'));
+            exit();
+        }
+
+        $department_is_allowed = false;
+        foreach ($allowed_departments as $allowed_department) {
+            if (department_matches($department, $allowed_department)) {
+                $department_is_allowed = true;
                 break;
             }
         }
-        if ($is_treasurer) {
-            $fine_id = (int)$_GET['id'];
-            
-            // Mark as reminded
-            $conn->query("UPDATE member_fines SET reminded_for_meeting = 1 WHERE id = $fine_id");
-            
-            // Notify the member
-            $fine = $conn->query("SELECT member_id, fine_reason, amount FROM member_fines WHERE id = $fine_id")->fetch_assoc();
-            if ($fine) {
-                $amount_fmt = number_format($fine['amount'], 2);
-                $msg = $conn->real_escape_string("Treasurer Reminder: You have an unpaid fine of KSh $amount_fmt for '{$fine['fine_reason']}'. You are requested to bring payment to the next department meeting.");
-                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$fine['member_id']}, 'member', '$msg')");
-            }
-            
-            header("Location: member_dashboard.php?tab=financials&success=Reminder sent successfully");
+
+        if (!$department_is_allowed) {
+            header('Location: ' . $redirect . '&error=' . urlencode("You are not authorized to remind members about this department's fines."));
             exit();
         }
+
+        if (($fine['status'] ?? '') !== 'Unpaid') {
+            header('Location: ' . $redirect . '&error=' . urlencode('This fine is no longer unpaid, so no reminder was sent.'));
+            exit();
+        }
+
+        $update_stmt = $conn->prepare("UPDATE member_fines SET reminded_for_meeting = 1 WHERE id = ? AND status = 'Unpaid'");
+        if ($update_stmt) {
+            $update_stmt->bind_param('i', $fine_id);
+            $update_stmt->execute();
+            $update_stmt->close();
+        }
+
+        $amount_fmt = number_format((float)$fine['amount'], 2);
+        $fine_reason = trim((string)$fine['fine_reason']);
+        $message = "Treasurer Reminder: Your fine for '$fine_reason' (KSh $amount_fmt) in $department is still unpaid. Please pay it as soon as possible. [focus-fine-id:$fine_id]";
+        $notification_sent = member_action_insert_notification($conn, (int)$fine['member_id'], 'member', $message);
+        if (!$notification_sent) {
+            header('Location: ' . $redirect . '&error=' . urlencode('The reminder could not be sent. Please try again.'));
+            exit();
+        }
+
+        header('Location: ' . $redirect . '&success=' . urlencode('Payment reminder sent successfully.'));
+        exit();
     }
     
     // Discipline Master: Report Member
