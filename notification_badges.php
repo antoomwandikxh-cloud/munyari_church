@@ -920,6 +920,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (fineMatch) {
             var fineRow = main.querySelector('[data-notification-row="pending-fine-' + fineMatch[1] + '"]')
                 || main.querySelector('[data-notification-row="oversight-fine-' + fineMatch[1] + '"]')
+                || main.querySelector('[data-notification-row="paid-fine-' + fineMatch[1] + '"]')
                 || main.querySelector('[data-notification-row="member-fine-' + fineMatch[1] + '"]');
             if (fineRow) {
                 addHighlightedRow(fineRow);

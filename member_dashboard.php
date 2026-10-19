@@ -7339,7 +7339,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             <td><?= htmlspecialchars($pf['fine_reason']) ?></td>
                                             <td style="font-weight: 600; color: #10b981;">KSh <?= number_format($pf['amount'], 2) ?></td>
                                             <td>
-                                                <a href="member_action.php?action=mark_fine_paid&id=<?= $pf['id'] ?>" class="btn-submit" style="background: #10b981; padding: 6px 12px; font-size: 0.85em; text-decoration: none;" onclick="return confirm('Verify payment and clear this fine?');">Verify Payment</a>
+                                                <a href="member_action.php?action=mark_fine_paid&id=<?= (int)$pf['id'] ?>&treasurer_dept=<?= urlencode($active_treasurer_dept) ?>" class="btn-submit" style="background: #10b981; padding: 6px 12px; font-size: 0.85em; text-decoration: none;" onclick="return confirm('Verify payment and clear this fine?');">Verify Payment</a>
                                             </td>
                                             <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($pf['issued_at'])) ?></td>
                                         </tr>
@@ -7349,6 +7349,43 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </div>
                     <?php else: ?>
                         <p style="color: var(--text-muted);">No pending fine payments to verify.</p>
+                    <?php endif; ?>
+                </div>
+
+                <?php
+                $recent_paid_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture
+                    FROM member_fines mf
+                    JOIN members m ON mf.member_id = m.id
+                    WHERE mf.department='$esc_dept' AND mf.status = 'Paid'
+                    ORDER BY mf.paid_at DESC, mf.issued_at DESC");
+                $just_verified_fine_id = (int)($_GET['verified_fine'] ?? 0);
+                ?>
+                <div class="content-card" style="margin-top: 30px; border-left: 4px solid #10b981;">
+                    <h2 style="color:#10b981;margin-bottom:15px;">Verified Fine Payments</h2>
+                    <p style="color:var(--text-muted);margin-bottom:15px;">Verified fines remain here for your department records.</p>
+                    <?php if ($recent_paid_fines && $recent_paid_fines->num_rows > 0): ?>
+                        <div class="table-responsive">
+                            <table>
+                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Paid On</th></tr></thead>
+                                <tbody>
+                                    <?php while ($paid_fine = $recent_paid_fines->fetch_assoc()): ?>
+                                        <?php $paid_fine_id = (int)$paid_fine['id']; ?>
+                                        <tr id="paid-fine-<?= $paid_fine_id ?>"
+                                            data-notification-row="paid-fine-<?= $paid_fine_id ?>"
+                                            class="<?= $just_verified_fine_id === $paid_fine_id ? 'notification-row-glow' : '' ?>">
+                                            <td><img src="uploads/<?= htmlspecialchars(basename($paid_fine['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($paid_fine['first_name'] . ' ' . $paid_fine['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
+                                            <td style="font-weight:500;"><?= htmlspecialchars($paid_fine['first_name'] . ' ' . $paid_fine['last_name']) ?></td>
+                                            <td><?= htmlspecialchars($paid_fine['fine_reason']) ?></td>
+                                            <td style="font-weight:600;color:#10b981;">KSh <?= number_format((float)$paid_fine['amount'], 2) ?></td>
+                                            <td><span class="badge" style="background:rgba(16,185,129,0.1);color:#10b981;">Paid</span></td>
+                                            <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);"><?= !empty($paid_fine['paid_at']) ? date('M j, Y g:i A', strtotime($paid_fine['paid_at'])) : '—' ?></td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <p style="color:var(--text-muted);">No fine payments have been verified yet.</p>
                     <?php endif; ?>
                 </div>
 

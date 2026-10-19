@@ -1613,7 +1613,16 @@ if (isset($_GET['action'])) {
             $result_message = $verified
                 ? 'Fine payment verified and added to records'
                 : 'This fine is no longer awaiting verification';
-            header("Location: member_dashboard.php?tab=financials&" . ($verified ? 'success=' : 'error=') . urlencode($result_message));
+            $redirect_department = $verified ? $department : '';
+            $redirect = 'member_dashboard.php?tab=financials';
+            if ($redirect_department !== '') {
+                $redirect .= '&treasurer_dept=' . urlencode($redirect_department);
+            }
+            $redirect .= '&' . ($verified ? 'success=' : 'error=') . urlencode($result_message);
+            if ($verified) {
+                $redirect .= '&verified_fine=' . $fine_id . '#paid-fine-' . $fine_id;
+            }
+            header("Location: $redirect");
             exit();
         }
     }
