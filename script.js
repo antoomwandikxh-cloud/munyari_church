@@ -277,7 +277,7 @@ function printDisciplinaryCases(button, orientation) {
         return;
     }
 
-    const table = sourceTable.cloneNode(true);
+    let table = sourceTable.cloneNode(true);
     const header = table.querySelector('thead tr');
     if (header) {
         const actionIndex = Array.from(header.cells).findIndex(cell => cell.textContent.trim().toLowerCase() === 'action');
@@ -381,37 +381,40 @@ function printFineReport(button, orientation) {
         && leaderRole.toLowerCase() === 'discipline master';
 
     if (disciplineMasterUnpaidReport) {
-        const headerCells = Array.from(table.querySelectorAll('thead th'));
-        const removedColumnIndexes = headerCells
-            .map((cell, index) => ({label: cell.textContent.trim().toLowerCase(), index}))
-            .filter(column => ['offense', 'action'].includes(column.label))
-            .map(column => column.index)
-            .sort((first, second) => second - first);
+        const sourceHeaders = Array.from(sourceTable.querySelectorAll('thead th'));
+        const printColumns = ['profile', 'member', 'amount', 'status', 'date'].map(label => ({
+            label,
+            index: sourceHeaders.findIndex(header => header.textContent.trim().toLowerCase() === label)
+        })).filter(column => column.index >= 0);
+        const cleanTable = sourceTable.cloneNode(false);
+        const cleanHead = document.createElement('thead');
+        const cleanHeadRow = document.createElement('tr');
+        const cleanBody = document.createElement('tbody');
 
-        removedColumnIndexes.forEach(columnIndex => {
-            table.querySelectorAll('tr').forEach(row => {
-                if (row.children[columnIndex]) row.children[columnIndex].remove();
-            });
-        });
-
-        table.querySelectorAll('td div').forEach(reason => {
-            if (reason.textContent.toLowerCase().includes("treasurer's decline reason:")) reason.remove();
-        });
-        table.querySelectorAll('span').forEach(badge => {
-            if (badge.textContent.trim().toLowerCase() === 'reminder sent') badge.remove();
-        });
-
-        const remainingHeaders = Array.from(table.querySelectorAll('thead th'));
-        const amountColumnIndex = remainingHeaders.findIndex(cell => cell.textContent.trim().toLowerCase() === 'amount');
-        if (amountColumnIndex >= 0) {
-            table.querySelectorAll('tbody tr').forEach(row => {
-                const amountCell = row.children[amountColumnIndex];
-                if (amountCell) {
-                    amountCell.style.color = '#dc2626';
-                    amountCell.style.fontWeight = '700';
+        printColumns.forEach(column => cleanHeadRow.appendChild(sourceHeaders[column.index].cloneNode(true)));
+        cleanHead.appendChild(cleanHeadRow);
+        sourceTable.querySelectorAll('tbody tr').forEach(sourceRow => {
+            const cleanRow = document.createElement('tr');
+            printColumns.forEach(column => {
+                const sourceCell = sourceRow.children[column.index];
+                if (!sourceCell) return;
+                const cleanCell = sourceCell.cloneNode(true);
+                if (column.label === 'status') {
+                    cleanCell.querySelectorAll('span').forEach(badge => {
+                        if (badge.textContent.trim().toLowerCase() === 'reminder sent') badge.remove();
+                    });
                 }
+                if (column.label === 'amount') {
+                    cleanCell.style.color = '#dc2626';
+                    cleanCell.style.fontWeight = '700';
+                }
+                cleanRow.appendChild(cleanCell);
             });
-        }
+            cleanBody.appendChild(cleanRow);
+        });
+
+        cleanTable.append(cleanHead, cleanBody);
+        table = cleanTable;
     }
 
     table.querySelectorAll('img').forEach(image => {
