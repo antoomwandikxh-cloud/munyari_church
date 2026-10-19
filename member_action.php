@@ -1498,10 +1498,11 @@ if (isset($_GET['action'])) {
             }
 
             $fine_name = trim((string)($_POST['fine_name'] ?? ''));
-            $amount = (float)($_POST['amount'] ?? 0);
+            $amount_input = trim((string)($_POST['amount'] ?? ''));
+            $amount = is_numeric($amount_input) ? (float)$amount_input : 0;
             $fine_template_id = 0;
 
-            if ($dept !== '' && $fine_name !== '' && $amount > 0) {
+            if ($dept !== '' && $fine_name !== '' && is_finite($amount) && $amount > 0) {
                 $insert = $conn->prepare("INSERT INTO fine_templates (department, fine_name, amount) VALUES (?, ?, ?)");
                 if ($insert) {
                     $insert->bind_param('ssd', $dept, $fine_name, $amount);
@@ -1550,7 +1551,8 @@ if (isset($_GET['action'])) {
         $member_query = $conn->query("SELECT id, department, church_role FROM members WHERE id = $member_id")->fetch_assoc();
         $template_id = (int)($_POST['fine_template_id'] ?? 0);
         $fine_name = trim((string)($_POST['fine_name'] ?? ''));
-        $amount = (float)($_POST['amount'] ?? 0);
+        $amount_input = trim((string)($_POST['amount'] ?? ''));
+        $amount = is_numeric($amount_input) ? (float)$amount_input : 0;
         $template = null;
 
         if ($template_id > 0) {
@@ -1570,7 +1572,7 @@ if (isset($_GET['action'])) {
             exit();
         }
 
-        if ($fine_name === '' || $amount <= 0) {
+        if ($fine_name === '' || !is_finite($amount) || $amount <= 0) {
             header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($template['department']) . "&error=" . urlencode('Enter a fine name and an amount greater than zero.'));
             exit();
         }

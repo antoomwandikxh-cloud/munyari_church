@@ -8328,7 +8328,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             </div>
                             <div class="form-group" style="flex: 1; margin-bottom: 0; min-width: 150px;">
                                 <label style="font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Penalty Amount (KSh)</label>
-                                <input type="number" name="amount" class="form-control" placeholder="0.00" required style="margin-top: 5px;" min="1">
+                                <input type="number" name="amount" class="form-control" placeholder="0.00" required style="margin-top: 5px;" min="0.01" step="0.01" inputmode="decimal">
                             </div>
                             <button type="submit" class="btn-submit" style="margin: 0; padding: 12px 24px; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
                                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
