@@ -375,6 +375,40 @@ function printFineReport(button, orientation) {
     }
 
     const table = sourceTable.cloneNode(true);
+    const reportType = card.dataset.printTitle || 'Fine Records';
+    const leaderRole = card.dataset.printLeaderRole || 'Organising Secretary';
+    const disciplineMasterUnpaidReport = reportType.toLowerCase() === 'unpaid fines'
+        && leaderRole.toLowerCase() === 'discipline master';
+
+    if (disciplineMasterUnpaidReport) {
+        const headerCells = Array.from(table.querySelectorAll('thead th'));
+        const actionColumnIndex = headerCells.findIndex(cell => cell.textContent.trim().toLowerCase() === 'action');
+        const amountColumnIndex = headerCells.findIndex(cell => cell.textContent.trim().toLowerCase() === 'amount');
+
+        if (actionColumnIndex >= 0) {
+            table.querySelectorAll('tr').forEach(row => {
+                if (row.children[actionColumnIndex]) row.children[actionColumnIndex].remove();
+            });
+        }
+
+        table.querySelectorAll('td div').forEach(reason => {
+            if (reason.textContent.toLowerCase().includes("treasurer's decline reason:")) reason.remove();
+        });
+        table.querySelectorAll('span').forEach(badge => {
+            if (badge.textContent.trim().toLowerCase() === 'reminder sent') badge.remove();
+        });
+
+        if (amountColumnIndex >= 0) {
+            table.querySelectorAll('tbody tr').forEach(row => {
+                const amountCell = row.children[amountColumnIndex];
+                if (amountCell) {
+                    amountCell.style.color = '#dc2626';
+                    amountCell.style.fontWeight = '700';
+                }
+            });
+        }
+    }
+
     table.querySelectorAll('img').forEach(image => {
         image.src = image.src || new URL('uploads/default_avatar.png', window.location.href).href;
         image.removeAttribute('onclick');
@@ -382,11 +416,9 @@ function printFineReport(button, orientation) {
         image.setAttribute('onerror', `this.onerror=null;this.src='${new URL('uploads/default_avatar.png', window.location.href).href}'`);
     });
 
-    const reportType = card.dataset.printTitle || 'Fine Records';
     const department = card.dataset.printDepartment || '';
     const heading = `${department} Department - ${reportType}`;
     const leaderName = card.dataset.printLeader || 'Organising Secretary';
-    const leaderRole = card.dataset.printLeaderRole || 'Organising Secretary';
     const leaderPhoto = new URL(card.dataset.printLeaderPhoto || 'uploads/default_avatar.png', window.location.href).href;
     const logoUrl = new URL('church_logo.jpg', window.location.href).href;
     const printedAt = new Date().toLocaleString();
@@ -419,9 +451,13 @@ function printFineReport(button, orientation) {
         .signature-details{display:flex;flex-direction:column;gap:5px}.signature-row{display:grid;grid-template-columns:165px minmax(70px,1fr);gap:8px;align-items:end;min-height:17px}
         .signature-label{font-weight:700}.signature-line{height:14px;border-bottom:1px solid #333}
         .stamp{width:64px;height:64px;justify-self:end;border:2px dashed #999;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#777;font-size:9px}
+        .discipline-unpaid-print .signature{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;width:100%;margin:16px auto 0;padding:0 20px;page-break-inside:avoid;break-inside:avoid}
+        .discipline-unpaid-print .signature-details{gap:9px}.discipline-unpaid-print .signature-row{display:flex;gap:8px;align-items:flex-end;min-height:18px}
+        .discipline-unpaid-print .signature-line{display:inline-block;width:200px;height:14px}
+        .discipline-unpaid-print .stamp{width:100px;height:100px;flex:0 0 100px;margin-left:auto;font-size:11px}
         .footer{position:fixed;bottom:0;left:0;right:0;z-index:2;border-top:1px solid #0e7490;padding:4px 0;text-align:center;font-size:8px;color:#53606b;background:rgba(255,255,255,.95)}
         @media print{body{margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}thead{display:table-header-group}tfoot{display:table-footer-group}}
-    </style></head><body>
+    </style></head><body class="${disciplineMasterUnpaidReport ? 'discipline-unpaid-print' : ''}">
         <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
         <div class="leader"><img src="${escapeText(leaderPhoto)}" alt="${escapeText(leaderRole)}"><div class="leader-name">${escapeText(leaderName)}</div><div style="font-size:10px;color:#555">${escapeText(leaderRole)} - ${escapeText(department)} Department</div></div>
         <div class="brand"><img class="brand-logo" src="${escapeText(logoUrl)}" alt="E.A.P.C Munyari logo"><h1>E.A.P.C MUNYARI CHURCH<br>${escapeText(heading)}</h1><img class="brand-logo" src="${escapeText(logoUrl)}" alt="E.A.P.C Munyari logo"></div>
