@@ -8347,11 +8347,23 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <thead><tr><th>Offense</th><th>Fine Amount</th><th style="text-align: right;">Action</th></tr></thead>
                                 <tbody>
                                     <?php while($f = $fines->fetch_assoc()): ?>
-                                        <tr>
+                                        <tr data-notification-row="fine-rule-<?= (int)$f['id'] ?>">
                                             <td style="font-weight: 500;"><?= htmlspecialchars($f['fine_name']) ?></td>
                                             <td style="font-weight: 600; color: #10b981;">KSh <?= number_format($f['amount'], 2) ?></td>
                                             <td style="text-align: right;">
+                                                <button type="button" class="btn-action" onclick="toggleFineRuleEditor(<?= (int)$f['id'] ?>)" style="padding: 6px 12px; font-size: 0.85em; margin-right: 6px;">Edit</button>
                                                 <a href="member_action.php?action=delete_fine_template&id=<?= $f['id'] ?>" class="btn-action btn-reject" onclick="return confirm('Delete this fine rule?');" style="padding: 6px 12px; font-size: 0.85em;">Remove</a>
+                                                <form id="editFineRule<?= (int)$f['id'] ?>" method="POST" action="member_action.php?action=update_fine_template" style="display:none; margin-top:12px; text-align:left; min-width:260px;">
+                                                    <input type="hidden" name="fine_template_id" value="<?= (int)$f['id'] ?>">
+                                                    <div style="display:grid; gap:8px;">
+                                                        <input type="text" name="fine_name" class="form-control" value="<?= htmlspecialchars($f['fine_name'], ENT_QUOTES) ?>" aria-label="Fine rule name" required>
+                                                        <input type="number" name="amount" class="form-control" value="<?= htmlspecialchars((string)$f['amount'], ENT_QUOTES) ?>" min="0.01" step="0.01" aria-label="Fine amount in Kenyan shillings" required>
+                                                        <div style="display:flex; gap:8px;">
+                                                            <button type="submit" class="btn-submit" style="margin:0; padding:7px 12px;">Save changes</button>
+                                                            <button type="button" class="btn-action" onclick="toggleFineRuleEditor(<?= (int)$f['id'] ?>, false)" style="padding:7px 12px;">Cancel</button>
+                                                        </div>
+                                                    </div>
+                                                </form>
                                             </td>
                                         </tr>
                                     <?php endwhile; ?>
@@ -8364,6 +8376,19 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </div>
                     <?php endif; ?>
                 </div>
+
+                <script>
+                function toggleFineRuleEditor(ruleId, show) {
+                    var editor = document.getElementById('editFineRule' + ruleId);
+                    if (!editor) return;
+                    var shouldShow = typeof show === 'boolean' ? show : editor.style.display === 'none';
+                    editor.style.display = shouldShow ? 'block' : 'none';
+                    if (shouldShow) {
+                        var nameField = editor.querySelector('input[name="fine_name"]');
+                        if (nameField) nameField.focus();
+                    }
+                }
+                </script>
 
                 <!-- Issue a Fine -->
                 <div class="content-card" style="border-top: 4px solid var(--warning); margin-bottom: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">

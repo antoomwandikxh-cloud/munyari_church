@@ -26,6 +26,23 @@ function member_can_manage_disciplinary_report($member, $department) {
     return false;
 }
 
+function member_can_manage_fine_department($member, $department) {
+    foreach (preg_split('/\s*,\s*/', (string)($member['church_role'] ?? '')) as $assigned_role) {
+        if (normalize_role_name($assigned_role) !== 'discipline master') {
+            continue;
+        }
+        $role_department = trim((string)($member['department'] ?? ''));
+        if (preg_match('/\(([^)]+)\)/', $assigned_role, $role_context)
+            && strtolower(trim($role_context[1])) !== 'subsidiary') {
+            $role_department = trim($role_context[1]);
+        }
+        if (department_matches($department, $role_department)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function member_action_insert_notification($conn, $user_id, $user_type, $message) {
     try {
         $statement = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
@@ -1475,22 +1492,7 @@ if (isset($_GET['action'])) {
         
         if (member_has_role($member_query['church_role'] ?? '', 'discipline master')) {
             $dept = isset($_POST['active_dept']) ? trim($_POST['active_dept']) : trim((string)$member_query['department']);
-            $can_manage_fine_department = false;
-            foreach (preg_split('/\s*,\s*/', (string)($member_query['church_role'] ?? '')) as $assigned_role) {
-                if (normalize_role_name($assigned_role) !== 'discipline master') {
-                    continue;
-                }
-                $role_department = trim((string)($member_query['department'] ?? ''));
-                if (preg_match('/\(([^)]+)\)/', $assigned_role, $role_context)
-                    && strtolower(trim($role_context[1])) !== 'subsidiary') {
-                    $role_department = trim($role_context[1]);
-                }
-                if (department_matches($dept, $role_department)) {
-                    $can_manage_fine_department = true;
-                    break;
-                }
-            }
-            if (!$can_manage_fine_department) {
+            if (!member_can_manage_fine_department($member_query, $dept)) {
                 header("Location: member_dashboard.php?tab=discipline&error=" . urlencode('You can create fine rules only for your assigned department.'));
                 exit();
             }
@@ -1541,6 +1543,77 @@ if (isset($_GET['action'])) {
             }
             exit();
         }
+    }
+
+    // Discipline Master: Edit Fine Template
+    elseif ($action === 'update_fine_template' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $member_query = $conn->query("SELECT id, department, church_role FROM members WHERE id = $member_id")->fetch_assoc();
+        $template_id = (int)($_POST['fine_template_id'] ?? 0);
+        $fine_name = trim((string)($_POST['fine_name'] ?? ''));
+        $amount = (float)($_POST['amount'] ?? 0);
+        $template = null;
+
+        if ($template_id > 0) {
+            $find_template = $conn->prepare("SELECT department FROM fine_templates WHERE id = ? LIMIT 1");
+            if ($find_template) {
+                $find_template->bind_param('i', $template_id);
+                if ($find_template->execute()) {
+                    $template = $find_template->get_result()->fetch_assoc();
+                }
+                $find_template->close();
+            }
+        }
+
+        if (!$member_query || !member_has_role($member_query['church_role'] ?? '', 'discipline master')
+            || !$template || !member_can_manage_fine_department($member_query, $template['department'])) {
+            header("Location: member_dashboard.php?tab=discipline&error=" . urlencode('You can edit fine rules only in your assigned department.'));
+            exit();
+        }
+
+        if ($fine_name === '' || $amount <= 0) {
+            header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($template['department']) . "&error=" . urlencode('Enter a fine name and an amount greater than zero.'));
+            exit();
+        }
+
+        $update = $conn->prepare("UPDATE fine_templates SET fine_name = ?, amount = ? WHERE id = ?");
+        $updated = false;
+        if ($update) {
+            $update->bind_param('sdi', $fine_name, $amount, $template_id);
+            $updated = $update->execute();
+            $update->close();
+        }
+
+        if ($updated) {
+            $amount_display = number_format($amount, 2);
+            $focus_tag = "[focus-fine-rule-id:$template_id]";
+            $department = $template['department'];
+            $department_filter = department_match_sql($conn, 'department', $department);
+            $department_members = $conn->query("SELECT id FROM members WHERE is_approved = 1 AND $department_filter");
+            if ($department_members) {
+                $message = "Department fine rule updated: '$fine_name' is now KSh $amount_display in $department. Review this rule under My Fines. $focus_tag";
+                while ($department_member = $department_members->fetch_assoc()) {
+                    member_action_insert_notification($conn, (int)$department_member['id'], 'member', $message);
+                }
+            }
+
+            $staff_message = "Department fine rule updated: '$fine_name' is now KSh $amount_display in $department. Review Department Fine Rules. $focus_tag";
+            $admins = $conn->query("SELECT id FROM admins");
+            if ($admins) {
+                while ($admin = $admins->fetch_assoc()) {
+                    member_action_insert_notification($conn, (int)$admin['id'], 'admin', $staff_message);
+                }
+            }
+            $pastors = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
+            if ($pastors) {
+                while ($pastor = $pastors->fetch_assoc()) {
+                    member_action_insert_notification($conn, (int)$pastor['id'], 'pastor', $staff_message);
+                }
+            }
+            header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($department) . "&success=" . urlencode('Fine rule updated and notifications sent.'));
+        } else {
+            header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($template['department']) . "&error=" . urlencode('Could not update the fine rule. Please try again.'));
+        }
+        exit();
     }
     
     // Discipline Master: Delete Fine Template
