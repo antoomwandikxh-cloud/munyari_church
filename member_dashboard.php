@@ -8039,6 +8039,18 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         selected.sort(function(a, b) {
                             var rowA = a.closest('[data-attendee-row]');
                             var rowB = b.closest('[data-attendee-row]');
+                            if (isAbsentReport) {
+                                return String(rowA.dataset.name || '').trim().localeCompare(
+                                    String(rowB.dataset.name || '').trim(),
+                                    undefined,
+                                    {sensitivity: 'base', numeric: true}
+                                );
+                            }
+                            var timeA = rowA.dataset.joinedAt || '';
+                            var timeB = rowB.dataset.joinedAt || '';
+                            if (!timeA && timeB) return 1;
+                            if (timeA && !timeB) return -1;
+                            if (timeA !== timeB) return timeA.localeCompare(timeB);
                             return String(rowA.dataset.name || '').trim().localeCompare(
                                 String(rowB.dataset.name || '').trim(),
                                 undefined,
