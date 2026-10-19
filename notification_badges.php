@@ -23,6 +23,9 @@ function notification_badge_tabs($message, $user_type) {
     if ($user_type === 'member' && strpos($msg, 'discipline master fine payment update:') !== false) {
         return ['discipline'];
     }
+    if ($user_type === 'member' && strpos($msg, 'discipline master fine payment declined in ') !== false) {
+        return ['discipline'];
+    }
     if ($user_type === 'member' && strpos($msg, 'fine payment awaiting treasurer verification:') !== false) {
         return ['discipline'];
     }
@@ -1022,6 +1025,10 @@ function notification_target_group($message, $user_type) {
     if ($user_type === 'member'
         && strpos($msg, 'fine payment awaiting treasurer verification:') !== false
         && preg_match('/fine payment awaiting treasurer verification:.*?\bin\s+(.+?)\s+is paid/i', $message, $fine_department_match)) {
+        $fine_department = trim($fine_department_match[1]);
+    } elseif ($user_type === 'member'
+        && strpos($msg, 'discipline master fine payment declined in ') !== false
+        && preg_match('/discipline master fine payment declined in\s+(.+?):/i', $message, $fine_department_match)) {
         $fine_department = trim($fine_department_match[1]);
     } elseif ($user_type === 'member'
         && strpos($msg, 'discipline master fine payment update:') !== false

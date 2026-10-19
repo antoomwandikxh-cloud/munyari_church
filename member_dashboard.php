@@ -7341,7 +7341,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             <td>
                                                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
                                                     <a href="member_action.php?action=mark_fine_paid&id=<?= (int)$pf['id'] ?>&treasurer_dept=<?= urlencode($active_treasurer_dept) ?>" class="btn-submit" style="background:#10b981;padding:6px 12px;font-size:.85em;text-decoration:none;" onclick="return confirm('Verify payment and clear this fine?');">Verify Payment</a>
-                                                    <a href="member_action.php?action=decline_fine_payment&id=<?= (int)$pf['id'] ?>&treasurer_dept=<?= urlencode($active_treasurer_dept) ?>" class="btn-submit" style="background:var(--danger);padding:6px 12px;font-size:.85em;text-decoration:none;" onclick="return confirm('Decline this payment? The fine will return to Unpaid and the member will be notified.');">Decline Payment</a>
+                                                    <button type="button" class="btn-submit" style="background:var(--danger);padding:6px 12px;font-size:.85em;" data-fine-id="<?= (int)$pf['id'] ?>" data-member-name="<?= htmlspecialchars($pf['first_name'] . ' ' . $pf['last_name'], ENT_QUOTES) ?>" data-fine-reason="<?= htmlspecialchars($pf['fine_reason'], ENT_QUOTES) ?>" data-fine-amount="KSh <?= number_format((float)$pf['amount'], 2) ?>" onclick="openFineDeclineModal(this)">Decline Payment</button>
                                                 </div>
                                             </td>
                                             <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($pf['issued_at'])) ?></td>
@@ -7354,6 +7354,42 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <p style="color: var(--text-muted);">No pending fine payments to verify.</p>
                     <?php endif; ?>
                 </div>
+
+                <div id="declineFineModal" role="dialog" aria-modal="true" aria-labelledby="declineFineTitle" style="display:none;position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,.72);align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeFineDeclineModal();">
+                    <div style="width:min(100%,480px);max-height:90vh;overflow:auto;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border-color);border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.4);padding:22px;">
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">
+                            <div>
+                                <h2 id="declineFineTitle" style="margin:0 0 6px;font-size:1.2rem;">Decline Fine Payment</h2>
+                                <p id="declineFineDetails" style="margin:0;color:var(--text-muted);line-height:1.5;"></p>
+                            </div>
+                            <button type="button" class="btn-sm" aria-label="Close decline form" onclick="closeFineDeclineModal();">Close</button>
+                        </div>
+                        <form method="POST" action="member_action.php?action=decline_fine_payment&amp;treasurer_dept=<?= urlencode($active_treasurer_dept) ?>">
+                            <input type="hidden" id="declineFineId" name="fine_id" value="">
+                            <label for="declineFineReason" style="display:block;font-weight:600;margin-bottom:7px;">Reason for declining</label>
+                            <textarea id="declineFineReason" name="decline_reason" required maxlength="500" rows="4" placeholder="Explain why you could not verify this payment." style="width:100%;box-sizing:border-box;resize:vertical;background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);border-radius:6px;padding:11px;font:inherit;"></textarea>
+                            <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:15px;">
+                                <button type="button" class="btn-sm" onclick="closeFineDeclineModal();">Cancel</button>
+                                <button type="submit" class="btn-submit" style="background:var(--danger);margin:0;">Decline &amp; Notify</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <script>
+                    function openFineDeclineModal(button) {
+                        document.getElementById('declineFineId').value = button.dataset.fineId || '';
+                        document.getElementById('declineFineDetails').textContent = (button.dataset.memberName || 'Member') + ' - ' + (button.dataset.fineReason || 'Fine') + ' - ' + (button.dataset.fineAmount || '');
+                        document.getElementById('declineFineReason').value = '';
+                        document.getElementById('declineFineModal').style.display = 'flex';
+                        window.setTimeout(function () { document.getElementById('declineFineReason').focus(); }, 0);
+                    }
+                    function closeFineDeclineModal() {
+                        document.getElementById('declineFineModal').style.display = 'none';
+                    }
+                    document.addEventListener('keydown', function (event) {
+                        if (event.key === 'Escape') closeFineDeclineModal();
+                    });
+                </script>
 
                 <?php
                 $recent_paid_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture

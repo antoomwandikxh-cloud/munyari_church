@@ -1677,7 +1677,7 @@ if (isset($_GET['action'])) {
     }
 
     // Treasurer: Decline a payment that could not be confirmed as received.
-    elseif ($action === 'decline_fine_payment' && isset($_GET['id'])) {
+    elseif ($action === 'decline_fine_payment' && (isset($_POST['fine_id']) || isset($_GET['id']))) {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         $is_treasurer = false;
         foreach (get_member_roles($member_query['church_role'] ?? '') as $role) {
@@ -1688,14 +1688,16 @@ if (isset($_GET['action'])) {
         }
 
         if ($is_treasurer) {
-            $fine_id = (int)$_GET['id'];
+            $fine_id = (int)($_POST['fine_id'] ?? $_GET['id']);
+            $decline_reason = trim((string)($_POST['decline_reason'] ?? ''));
             $fine_result = $conn->query("SELECT mf.*, m.first_name, m.last_name
                 FROM member_fines mf JOIN members m ON m.id = mf.member_id
                 WHERE mf.id = $fine_id AND mf.status = 'Pending Verification'
                 LIMIT 1");
             $fine = $fine_result ? $fine_result->fetch_assoc() : null;
             $declined = false;
-            if ($fine) {
+            $reason_length = function_exists('mb_strlen') ? mb_strlen($decline_reason, 'UTF-8') : strlen($decline_reason);
+            if ($fine && $decline_reason !== '' && $reason_length <= 500) {
                 $update = $conn->query("UPDATE member_fines SET status = 'Unpaid', paid_at = NULL WHERE id = $fine_id AND status = 'Pending Verification'");
                 $declined = $update && $conn->affected_rows === 1;
             }
@@ -1709,10 +1711,15 @@ if (isset($_GET['action'])) {
                 $fine_reason = trim((string)$fine['fine_reason']);
                 $fine_amount = number_format((float)$fine['amount'], 2);
                 $fine_focus_tag = "[focus-fine-id:$fine_id]";
-                $member_message = "Your payment for the fine '$fine_reason' (KSh $fine_amount) in $department could not be verified by the Treasurer. The fine is unpaid again. Please contact the Treasurer if you already paid. $fine_focus_tag";
+                $member_message = "Your payment for the fine '$fine_reason' (KSh $fine_amount) in $department was declined by the Treasurer. Reason: $decline_reason. The fine is unpaid again. Please contact the Treasurer if you already paid. $fine_focus_tag";
                 member_action_insert_notification($conn, (int)$fine['member_id'], 'member', $member_message);
+                $member_name = trim($fine['first_name'] . ' ' . $fine['last_name']);
+                $discipline_message = "Discipline Master fine payment declined in $department: $member_name's fine for '$fine_reason' (KSh $fine_amount) was declined by the Treasurer. Reason: $decline_reason. The fine is Unpaid again. $fine_focus_tag";
+                member_action_notify_discipline_masters_for_department($conn, $department, $discipline_message);
                 $redirect .= '&success=' . urlencode('Payment declined. The fine has been returned to Unpaid.');
                 $redirect .= '&declined_fine=' . $fine_id;
+            } elseif ($fine && ($decline_reason === '' || $reason_length > 500)) {
+                $redirect .= '&error=' . urlencode('Enter a decline reason of up to 500 characters.');
             } else {
                 $redirect .= '&error=' . urlencode('This fine is no longer awaiting payment verification.');
             }
