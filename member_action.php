@@ -47,6 +47,48 @@ function member_action_insert_notification($conn, $user_id, $user_type, $message
     }
 }
 
+function member_action_notify_discipline_masters_for_department($conn, $department, $message) {
+    $department = trim((string)$department);
+    if ($department === '') {
+        return false;
+    }
+
+    $discipline_masters = $conn->query("SELECT id, department, church_role FROM members WHERE is_approved = 1 AND LOWER(church_role) LIKE '%discipline master%'");
+    if (!$discipline_masters) {
+        error_log('Could not load Discipline Master notification recipients: ' . $conn->error);
+        return false;
+    }
+
+    $sent = false;
+    while ($discipline_master = $discipline_masters->fetch_assoc()) {
+        $leader_department_match = false;
+        $role_matches = [];
+        preg_match_all('/(?:^|[, &])\s*((?:vice\s+)?discipline master)\s*(?:\(([^)]+)\))?/i', (string)$discipline_master['church_role'], $role_matches, PREG_SET_ORDER);
+        foreach ($role_matches as $role_match) {
+            $leader_role = normalize_role_name($role_match[1] ?? '');
+            if (!in_array($leader_role, ['discipline master', 'vice discipline master'], true)) {
+                continue;
+            }
+
+            $leader_department = trim((string)($discipline_master['department'] ?? ''));
+            $role_context = trim((string)($role_match[2] ?? ''));
+            if ($role_context !== '' && strtolower($role_context) !== 'subsidiary') {
+                $leader_department = $role_context;
+            }
+            if (department_matches($leader_department, $department)) {
+                $leader_department_match = true;
+                break;
+            }
+        }
+
+        if ($leader_department_match && member_action_insert_notification($conn, (int)$discipline_master['id'], 'member', $message)) {
+            $sent = true;
+        }
+    }
+
+    return $sent;
+}
+
 function member_organizing_secretary_departments($member) {
     $departments = [];
     foreach (preg_split('/\s*,\s*/', str_replace('&', ',', $member['church_role'] ?? '')) as $assigned_role) {
@@ -1550,6 +1592,10 @@ if (isset($_GET['action'])) {
                         member_action_insert_notification($conn, (int)$treasurer['id'], 'member', $message);
                     }
                 }
+
+                $fine_focus_tag = "[focus-fine-id:$fine_id]";
+                $discipline_message = "Fine payment awaiting Treasurer verification: $payer_name says the fine for '$fine_reason' (KSh $fine_amount) in $department is paid. $fine_focus_tag";
+                member_action_notify_discipline_masters_for_department($conn, $department, $discipline_message);
             }
             
             header("Location: member_dashboard.php?tab=my_fines&success=Payment initiated. Pending Treasurer verification.");
@@ -1603,33 +1649,8 @@ if (isset($_GET['action'])) {
                     }
                 }
 
-                $discipline_masters = $conn->query("SELECT id, department, church_role FROM members WHERE is_approved = 1 AND LOWER(church_role) LIKE '%discipline master%'");
-                if ($discipline_masters) {
-                    while ($discipline_master = $discipline_masters->fetch_assoc()) {
-                        $leader_department_match = false;
-                        $role_matches = [];
-                        preg_match_all('/(?:^|[, &])\s*((?:vice\s+)?discipline master)\s*(?:\(([^)]+)\))?/i', (string)$discipline_master['church_role'], $role_matches, PREG_SET_ORDER);
-                        foreach ($role_matches as $role_match) {
-                            $leader_role = normalize_role_name($role_match[1] ?? '');
-                            if (!in_array($leader_role, ['discipline master', 'vice discipline master'], true)) {
-                                continue;
-                            }
-                            $leader_department = trim((string)($discipline_master['department'] ?? ''));
-                            $role_context = trim((string)($role_match[2] ?? ''));
-                            if ($role_context !== '' && strtolower($role_context) !== 'subsidiary') {
-                                $leader_department = $role_context;
-                            }
-                            if (department_matches($leader_department, $department)) {
-                                $leader_department_match = true;
-                                break;
-                            }
-                        }
-                        if ($leader_department_match) {
-                            $discipline_message = "Discipline Master fine payment update: $member_name's fine for '$fine_reason' (KSh $fine_amount) in $department department was marked Paid by the Treasurer. $fine_focus_tag";
-                            member_action_insert_notification($conn, (int)$discipline_master['id'], 'member', $discipline_message);
-                        }
-                    }
-                }
+                $discipline_message = "Discipline Master fine payment update: $member_name's fine for '$fine_reason' (KSh $fine_amount) in $department department was marked Paid by the Treasurer. $fine_focus_tag";
+                member_action_notify_discipline_masters_for_department($conn, $department, $discipline_message);
 
                 // Add the verified fine payment to the department's financial records.
                 $description = $conn->real_escape_string("Disciplinary Fine: " . $fine_reason);
@@ -1651,6 +1672,52 @@ if (isset($_GET['action'])) {
                 $redirect .= '&verified_fine=' . $fine_id . '#paid-fine-' . $fine_id;
             }
             header("Location: $redirect");
+            exit();
+        }
+    }
+
+    // Treasurer: Decline a payment that could not be confirmed as received.
+    elseif ($action === 'decline_fine_payment' && isset($_GET['id'])) {
+        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
+        $is_treasurer = false;
+        foreach (get_member_roles($member_query['church_role'] ?? '') as $role) {
+            if (strpos($role, 'treasurer') !== false) {
+                $is_treasurer = true;
+                break;
+            }
+        }
+
+        if ($is_treasurer) {
+            $fine_id = (int)$_GET['id'];
+            $fine_result = $conn->query("SELECT mf.*, m.first_name, m.last_name
+                FROM member_fines mf JOIN members m ON m.id = mf.member_id
+                WHERE mf.id = $fine_id AND mf.status = 'Pending Verification'
+                LIMIT 1");
+            $fine = $fine_result ? $fine_result->fetch_assoc() : null;
+            $declined = false;
+            if ($fine) {
+                $update = $conn->query("UPDATE member_fines SET status = 'Unpaid', paid_at = NULL WHERE id = $fine_id AND status = 'Pending Verification'");
+                $declined = $update && $conn->affected_rows === 1;
+            }
+
+            $department = trim((string)($fine['department'] ?? ''));
+            $redirect = 'member_dashboard.php?tab=financials';
+            if ($department !== '') {
+                $redirect .= '&treasurer_dept=' . urlencode($department);
+            }
+            if ($declined) {
+                $fine_reason = trim((string)$fine['fine_reason']);
+                $fine_amount = number_format((float)$fine['amount'], 2);
+                $fine_focus_tag = "[focus-fine-id:$fine_id]";
+                $member_message = "Your payment for the fine '$fine_reason' (KSh $fine_amount) in $department could not be verified by the Treasurer. The fine is unpaid again. Please contact the Treasurer if you already paid. $fine_focus_tag";
+                member_action_insert_notification($conn, (int)$fine['member_id'], 'member', $member_message);
+                $redirect .= '&success=' . urlencode('Payment declined. The fine has been returned to Unpaid.');
+                $redirect .= '&declined_fine=' . $fine_id;
+            } else {
+                $redirect .= '&error=' . urlencode('This fine is no longer awaiting payment verification.');
+            }
+
+            header('Location: ' . $redirect);
             exit();
         }
     }

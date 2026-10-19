@@ -7339,7 +7339,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             <td><?= htmlspecialchars($pf['fine_reason']) ?></td>
                                             <td style="font-weight: 600; color: #10b981;">KSh <?= number_format($pf['amount'], 2) ?></td>
                                             <td>
-                                                <a href="member_action.php?action=mark_fine_paid&id=<?= (int)$pf['id'] ?>&treasurer_dept=<?= urlencode($active_treasurer_dept) ?>" class="btn-submit" style="background: #10b981; padding: 6px 12px; font-size: 0.85em; text-decoration: none;" onclick="return confirm('Verify payment and clear this fine?');">Verify Payment</a>
+                                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                                    <a href="member_action.php?action=mark_fine_paid&id=<?= (int)$pf['id'] ?>&treasurer_dept=<?= urlencode($active_treasurer_dept) ?>" class="btn-submit" style="background:#10b981;padding:6px 12px;font-size:.85em;text-decoration:none;" onclick="return confirm('Verify payment and clear this fine?');">Verify Payment</a>
+                                                    <a href="member_action.php?action=decline_fine_payment&id=<?= (int)$pf['id'] ?>&treasurer_dept=<?= urlencode($active_treasurer_dept) ?>" class="btn-submit" style="background:var(--danger);padding:6px 12px;font-size:.85em;text-decoration:none;" onclick="return confirm('Decline this payment? The fine will return to Unpaid and the member will be notified.');">Decline Payment</a>
+                                                </div>
                                             </td>
                                             <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($pf['issued_at'])) ?></td>
                                         </tr>

@@ -23,6 +23,9 @@ function notification_badge_tabs($message, $user_type) {
     if ($user_type === 'member' && strpos($msg, 'discipline master fine payment update:') !== false) {
         return ['discipline'];
     }
+    if ($user_type === 'member' && strpos($msg, 'fine payment awaiting treasurer verification:') !== false) {
+        return ['discipline'];
+    }
 
     if (strpos($msg, 'fine') !== false) {
         if (strpos($msg, 'initiated a fine payment') !== false && strpos($msg, 'financial records') !== false) {
@@ -1015,9 +1018,17 @@ HTML;
 
 function notification_target_group($message, $user_type) {
     $msg = strtolower($message);
+    $fine_department = '';
     if ($user_type === 'member'
+        && strpos($msg, 'fine payment awaiting treasurer verification:') !== false
+        && preg_match('/fine payment awaiting treasurer verification:.*?\bin\s+(.+?)\s+is paid/i', $message, $fine_department_match)) {
+        $fine_department = trim($fine_department_match[1]);
+    } elseif ($user_type === 'member'
         && strpos($msg, 'discipline master fine payment update:') !== false
         && preg_match('/discipline master fine payment update:.*?\bin\s+(.+?)\s+department was marked paid/i', $message, $fine_department_match)) {
+        $fine_department = trim($fine_department_match[1]);
+    }
+    if ($fine_department !== '') {
         $department_groups = [
             'youths' => 'youths',
             'youth ministry' => 'youths',
@@ -1033,7 +1044,7 @@ function notification_target_group($message, $user_type) {
             'building & construction' => 'building_construction',
             'building and construction' => 'building_construction',
         ];
-        return $department_groups[strtolower(trim($fine_department_match[1]))] ?? '';
+        return $department_groups[strtolower($fine_department)] ?? '';
     }
     if ($user_type === 'member'
         && preg_match('/initiated a fine payment in\s+(.+?)\s+department\./i', $message, $fine_department_match)) {
