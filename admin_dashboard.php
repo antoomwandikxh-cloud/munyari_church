@@ -3704,6 +3704,44 @@ w.document.write('</div>');
                     <p>View all fines issued and disciplinary reports forwarded from Chairmen across all departments.</p>
                 </div>
 
+                <!-- Department Fine Rules -->
+                <?php
+                $department_fine_rules_by_department = [];
+                $department_fine_rules = $conn->query("SELECT id, department, fine_name, amount, created_at FROM fine_templates ORDER BY department ASC, fine_name ASC");
+                if ($department_fine_rules) {
+                    while ($fine_rule = $department_fine_rules->fetch_assoc()) {
+                        $department_fine_rules_by_department[$fine_rule['department']][] = $fine_rule;
+                    }
+                }
+                ?>
+                <div class="content-card" style="margin-bottom:30px;">
+                    <h2>Department Fine Rules</h2>
+                    <p style="color:var(--text-muted);">Current fine rules set by Discipline Masters, grouped by department.</p>
+                    <?php if (!empty($department_fine_rules_by_department)): ?>
+                        <?php $fine_rule_group_index = 0; foreach ($department_fine_rules_by_department as $fine_rule_department => $department_rules): ?>
+                            <section style="<?= $fine_rule_group_index > 0 ? 'margin-top:22px;padding-top:18px;border-top:1px solid var(--border-color);' : '' ?>">
+                                <h3 style="margin:0 0 10px;"><?= htmlspecialchars($fine_rule_department) ?></h3>
+                                <div class="table-responsive">
+                                    <table>
+                                        <thead><tr><th>Fine Rule</th><th>Amount</th><th>Created</th></tr></thead>
+                                        <tbody>
+                                            <?php foreach ($department_rules as $fine_rule): ?>
+                                                <tr data-notification-row="fine-rule-<?= (int)$fine_rule['id'] ?>">
+                                                    <td><?= htmlspecialchars($fine_rule['fine_name']) ?></td>
+                                                    <td style="font-weight:600;">KSh <?= number_format((float)$fine_rule['amount'], 2) ?></td>
+                                                    <td style="white-space:nowrap;color:var(--text-muted);font-size:.9em;"><?= !empty($fine_rule['created_at']) ? date('M j, Y', strtotime($fine_rule['created_at'])) : '—' ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+                        <?php $fine_rule_group_index++; endforeach; ?>
+                    <?php else: ?>
+                        <p style="color:var(--text-muted);">No department fine rules have been set up yet.</p>
+                    <?php endif; ?>
+                </div>
+
                 <!-- Summary Cards -->
                 <?php
                 $total_fines = $conn->query("SELECT SUM(amount) as total FROM member_fines WHERE status = 'Paid'")->fetch_assoc();

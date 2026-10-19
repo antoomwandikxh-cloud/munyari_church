@@ -1474,12 +1474,71 @@ if (isset($_GET['action'])) {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
         
         if (member_has_role($member_query['church_role'] ?? '', 'discipline master')) {
-            $dept = isset($_POST['active_dept']) ? $conn->real_escape_string(trim($_POST['active_dept'])) : $conn->real_escape_string($member_query['department']);
-            $fine_name = $conn->real_escape_string($_POST['fine_name']);
-            $amount = floatval($_POST['amount']);
-            
-            $conn->query("INSERT INTO fine_templates (department, fine_name, amount) VALUES ('$dept', '$fine_name', $amount)");
-            header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($dept) . "&success=Fine rule added");
+            $dept = isset($_POST['active_dept']) ? trim($_POST['active_dept']) : trim((string)$member_query['department']);
+            $can_manage_fine_department = false;
+            foreach (preg_split('/\s*,\s*/', (string)($member_query['church_role'] ?? '')) as $assigned_role) {
+                if (normalize_role_name($assigned_role) !== 'discipline master') {
+                    continue;
+                }
+                $role_department = trim((string)($member_query['department'] ?? ''));
+                if (preg_match('/\(([^)]+)\)/', $assigned_role, $role_context)
+                    && strtolower(trim($role_context[1])) !== 'subsidiary') {
+                    $role_department = trim($role_context[1]);
+                }
+                if (department_matches($dept, $role_department)) {
+                    $can_manage_fine_department = true;
+                    break;
+                }
+            }
+            if (!$can_manage_fine_department) {
+                header("Location: member_dashboard.php?tab=discipline&error=" . urlencode('You can create fine rules only for your assigned department.'));
+                exit();
+            }
+
+            $fine_name = trim((string)($_POST['fine_name'] ?? ''));
+            $amount = (float)($_POST['amount'] ?? 0);
+            $fine_template_id = 0;
+
+            if ($dept !== '' && $fine_name !== '' && $amount > 0) {
+                $insert = $conn->prepare("INSERT INTO fine_templates (department, fine_name, amount) VALUES (?, ?, ?)");
+                if ($insert) {
+                    $insert->bind_param('ssd', $dept, $fine_name, $amount);
+                    if ($insert->execute()) {
+                        $fine_template_id = (int)$insert->insert_id;
+                    }
+                    $insert->close();
+                }
+            }
+
+            if ($fine_template_id > 0) {
+                $amount_display = number_format($amount, 2);
+                $focus_tag = "[focus-fine-rule-id:$fine_template_id]";
+                $member_message = "New department fine rule: '$fine_name' is KSh $amount_display in $dept. Review this rule under My Fines. $focus_tag";
+                $department_filter = department_match_sql($conn, 'department', $dept);
+                $department_members = $conn->query("SELECT id FROM members WHERE is_approved = 1 AND $department_filter");
+                if ($department_members) {
+                    while ($department_member = $department_members->fetch_assoc()) {
+                        member_action_insert_notification($conn, (int)$department_member['id'], 'member', $member_message);
+                    }
+                }
+
+                $staff_message = "Department fine rule added: '$fine_name' is KSh $amount_display in $dept. Review Department Fine Rules. $focus_tag";
+                $admins = $conn->query("SELECT id FROM admins");
+                if ($admins) {
+                    while ($admin = $admins->fetch_assoc()) {
+                        member_action_insert_notification($conn, (int)$admin['id'], 'admin', $staff_message);
+                    }
+                }
+                $pastors = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
+                if ($pastors) {
+                    while ($pastor = $pastors->fetch_assoc()) {
+                        member_action_insert_notification($conn, (int)$pastor['id'], 'pastor', $staff_message);
+                    }
+                }
+                header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($dept) . "&success=" . urlencode('Fine rule saved and notifications sent.'));
+            } else {
+                header("Location: member_dashboard.php?tab=discipline&disc_dept=" . urlencode($dept) . "&error=" . urlencode('Enter a fine name and an amount greater than zero.'));
+            }
             exit();
         }
     }

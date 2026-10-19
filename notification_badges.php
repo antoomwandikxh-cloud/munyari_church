@@ -1,5 +1,6 @@
 <?php
 function notification_display_message($message) {
+    $message = preg_replace('/\s*\[focus-fine-rule-id:\s*\d+\]/i', '', (string)$message);
     $message = preg_replace('/\s*\[focus-fine-id:\s*\d+\]/i', '', (string)$message);
     $message = preg_replace('/\s*Fine record\s*#\s*\d+\.?/i', '', $message);
     return trim($message);
@@ -922,6 +923,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 addHighlightedRow(main.querySelector("[data-welcome-greeting]"));
                 roleNode.classList.add("notification-role-glow");
                 addHighlightedRow(roleNode);
+                return;
+            }
+        }
+        var fineRuleMatch = notificationMessage.match(/\[focus-fine-rule-id:\s*(\d+)\]/i);
+        if (fineRuleMatch) {
+            var fineRuleRow = main.querySelector('[data-notification-row="fine-rule-' + fineRuleMatch[1] + '"]');
+            if (fineRuleRow) {
+                addHighlightedRow(fineRuleRow);
                 return;
             }
         }

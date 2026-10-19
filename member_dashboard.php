@@ -8638,8 +8638,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php $fine_scope_index = 0; ?>
                     <?php foreach ($youth_advisor_scopes as $fine_dept => $fine_label): ?>
                         <?php
-                        $esc_fine_dept = $conn->real_escape_string($fine_dept);
-                        $rules = $conn->query("SELECT * FROM fine_templates WHERE department = '$esc_fine_dept' ORDER BY fine_name ASC");
+                        $fine_department_filter = department_match_sql($conn, 'department', $fine_dept);
+                        $rules = $conn->query("SELECT * FROM fine_templates WHERE $fine_department_filter ORDER BY fine_name ASC");
                         ?>
                         <div style="<?= $fine_scope_index > 0 ? 'margin-top:24px;padding-top:20px;border-top:1px solid var(--border-color);' : '' ?>">
                             <h2><?= htmlspecialchars($fine_label) ?> Fine Rules</h2>
@@ -8649,7 +8649,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         <thead><tr><th>Offense</th><th>Fine Amount</th></tr></thead>
                                         <tbody>
                                             <?php while($r = $rules->fetch_assoc()): ?>
-                                                <tr>
+                                                <tr data-notification-row="fine-rule-<?= (int)$r['id'] ?>">
                                                     <td><?= htmlspecialchars($r['fine_name']) ?></td>
                                                     <td style="font-weight: 600;">KSh <?= number_format($r['amount'], 2) ?></td>
                                                 </tr>
