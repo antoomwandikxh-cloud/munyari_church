@@ -8321,14 +8321,15 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </div>
 
                     <div style="background: var(--bg-body); padding: 20px; border-radius: 12px; margin-top: 25px; border: 1px solid rgba(255,255,255,0.05);">
-                        <form method="POST" action="member_action.php?action=add_fine_template" style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
+                        <form method="POST" action="member_action.php?action=add_fine_template" class="fine-rule-form" style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
                             <div class="form-group" style="flex: 2; margin-bottom: 0; min-width: 250px;">
                                 <label style="font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Offense Description</label>
                                 <input type="text" name="fine_name" class="form-control" placeholder="e.g., Making Noise, Late Arrival..." required style="margin-top: 5px;">
                             </div>
                             <div class="form-group" style="flex: 1; margin-bottom: 0; min-width: 150px;">
                                 <label style="font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Penalty Amount (KSh)</label>
-                                <input type="number" name="amount" class="form-control" placeholder="0.00" required style="margin-top: 5px;" min="0.01" step="0.01" inputmode="decimal">
+                                <input type="number" name="amount" class="form-control fine-rule-amount-input" placeholder="0.00" required style="margin-top: 5px;" min="0.01" step="0.01" inputmode="decimal">
+                                <small class="fine-amount-error" role="alert" style="display:none; color:#ef4444; margin-top:5px;">Enter a value more than zero.</small>
                             </div>
                             <button type="submit" class="btn-submit" style="margin: 0; padding: 12px 24px; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
                                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
@@ -8353,11 +8354,14 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             <td style="text-align: right;">
                                                 <button type="button" class="btn-action" onclick="toggleFineRuleEditor(<?= (int)$f['id'] ?>)" style="padding: 6px 12px; font-size: 0.85em; margin-right: 6px;">Edit</button>
                                                 <a href="member_action.php?action=delete_fine_template&id=<?= $f['id'] ?>" class="btn-action btn-reject" onclick="return confirm('Delete this fine rule?');" style="padding: 6px 12px; font-size: 0.85em;">Remove</a>
-                                                <form id="editFineRule<?= (int)$f['id'] ?>" method="POST" action="member_action.php?action=update_fine_template" style="display:none; margin-top:12px; text-align:left; min-width:260px;">
+                                                <form id="editFineRule<?= (int)$f['id'] ?>" method="POST" action="member_action.php?action=update_fine_template" class="fine-rule-form" style="display:none; margin-top:12px; text-align:left; min-width:260px;">
                                                     <input type="hidden" name="fine_template_id" value="<?= (int)$f['id'] ?>">
                                                     <div style="display:grid; gap:8px;">
                                                         <input type="text" name="fine_name" class="form-control" value="<?= htmlspecialchars($f['fine_name'], ENT_QUOTES) ?>" aria-label="Fine rule name" required>
-                                                        <input type="number" name="amount" class="form-control" value="<?= htmlspecialchars((string)$f['amount'], ENT_QUOTES) ?>" min="0.01" step="0.01" aria-label="Fine amount in Kenyan shillings" required>
+                                                        <div>
+                                                            <input type="number" name="amount" class="form-control fine-rule-amount-input" value="<?= htmlspecialchars((string)$f['amount'], ENT_QUOTES) ?>" min="0.01" step="0.01" inputmode="decimal" aria-label="Fine amount in Kenyan shillings" required>
+                                                            <small class="fine-amount-error" role="alert" style="display:none; color:#ef4444; margin-top:5px;">Enter a value more than zero.</small>
+                                                        </div>
                                                         <div style="display:flex; gap:8px;">
                                                             <button type="submit" class="btn-submit" style="margin:0; padding:7px 12px;">Save changes</button>
                                                             <button type="button" class="btn-action" onclick="toggleFineRuleEditor(<?= (int)$f['id'] ?>, false)" style="padding:7px 12px;">Cancel</button>
@@ -8378,6 +8382,33 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 </div>
 
                 <script>
+                function validateFineRuleAmount(input) {
+                    var message = input.parentElement.querySelector('.fine-amount-error');
+                    var rawValue = input.value.trim();
+                    var invalid = rawValue !== '' && (!Number.isFinite(Number(rawValue)) || Number(rawValue) <= 0);
+                    input.setCustomValidity(invalid ? 'Enter a value more than zero.' : '');
+                    input.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+                    if (message) message.style.display = invalid ? 'block' : 'none';
+                    return !invalid;
+                }
+
+                document.querySelectorAll('.fine-rule-amount-input').forEach(function(input) {
+                    input.addEventListener('input', function() {
+                        validateFineRuleAmount(input);
+                    });
+                });
+
+                document.querySelectorAll('.fine-rule-form').forEach(function(form) {
+                    form.addEventListener('submit', function(event) {
+                        var amountInput = form.querySelector('.fine-rule-amount-input');
+                        if (amountInput && !validateFineRuleAmount(amountInput)) {
+                            event.preventDefault();
+                            amountInput.reportValidity();
+                            amountInput.focus();
+                        }
+                    });
+                });
+
                 function toggleFineRuleEditor(ruleId, show) {
                     var editor = document.getElementById('editFineRule' + ruleId);
                     if (!editor) return;
