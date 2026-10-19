@@ -8102,7 +8102,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             body{position:relative;font:12px Arial,sans-serif;color:#17202a;margin:0;padding:8px 4px 30px}
                             .watermark{position:fixed;top:43%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:44px;color:rgba(14,116,144,.18);font-weight:900;white-space:nowrap;z-index:0;pointer-events:none}
                             .leader,.brand,.report-heading,.report-meta,table,.signature{position:relative;z-index:1}
-                            .leader{text-align:center;margin:0 auto 14px}.leader img{width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}
+                            .leader{text-align:center;margin:0 auto 14px}.leader img{width:55px;height:55px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}
                             .leader-name{font-size:14px;font-weight:800;color:#0e7490;margin-top:4px}
                             .brand{display:grid;grid-template-columns:62px 1fr 62px;align-items:center;gap:12px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 10px;margin-bottom:14px}
                             .brand-logo{width:62px;height:62px;object-fit:contain}.brand h1{font-size:18px;line-height:1.3;color:#0e7490;text-transform:uppercase;margin:4px 0}
@@ -10165,7 +10165,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
-    <script src="script.js?v=20261019-discipline-photo-19"></script>
+    <script src="script.js?v=20261019-all-leader-print-photos-20"></script>
 <!-- Image Viewer Modal -->
 <div id="imageViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; flex-direction:column;">
     <span onclick="document.getElementById('imageViewerModal').style.display='none'" style="position:absolute; top:20px; right:30px; font-size:40px; color:white; cursor:pointer; font-weight:bold; transition:color 0.2s;" onmouseover="this.style.color='#ff4444'" onmouseout="this.style.color='white'">&times;</span>

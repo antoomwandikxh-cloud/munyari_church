@@ -579,7 +579,7 @@ function printFineReport(button, orientation, statusFilter) {
         body{position:relative;font:10px Arial,Helvetica,sans-serif;color:#17202a;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
         .watermark{position:fixed;top:43%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:40px;color:rgba(14,116,144,.16);font-weight:900;white-space:nowrap;z-index:0;pointer-events:none}
         .leader,.brand,.report-heading,.report-meta,table,.signature{position:relative;z-index:1}
-        .leader{text-align:center;margin:0 auto 7px}.leader img{width:58px;height:58px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}
+        .leader{text-align:center;margin:0 auto 7px}.leader img{width:55px;height:55px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}
         .leader-name{font-size:12px;font-weight:800;color:#2563eb;margin-top:3px;text-transform:uppercase}
         .brand{display:grid;grid-template-columns:46px 1fr 46px;align-items:center;gap:8px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 5px;margin-bottom:7px}
         .brand-logo{width:42px;height:42px;object-fit:contain}.brand h1{font-size:15px;line-height:1.2;color:#0e7490;text-transform:uppercase;margin:2px 0}
