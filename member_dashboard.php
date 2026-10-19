@@ -8039,12 +8039,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         selected.sort(function(a, b) {
                             var rowA = a.closest('[data-attendee-row]');
                             var rowB = b.closest('[data-attendee-row]');
-                            if (isAbsentReport) return rowA.dataset.name.localeCompare(rowB.dataset.name);
-                            var timeA = rowA.dataset.joinedAt || '';
-                            var timeB = rowB.dataset.joinedAt || '';
-                            if (!timeA && timeB) return 1;
-                            if (timeA && !timeB) return -1;
-                            return timeA.localeCompare(timeB) || rowA.dataset.name.localeCompare(rowB.dataset.name);
+                            return String(rowA.dataset.name || '').trim().localeCompare(
+                                String(rowB.dataset.name || '').trim(),
+                                undefined,
+                                {sensitivity: 'base', numeric: true}
+                            );
                         });
                         if (!selected.length) {
                             alert(isApologyReport ? 'There are no absent members with an apology to print.' : (isAbsentReport ? 'There are no absent members to print.' : 'Select at least one attending member before printing.'));
