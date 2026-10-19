@@ -8440,7 +8440,15 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         <tr data-notification-row="discipline-fine-<?= (int)$uf['id'] ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($uf['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?></td>
-                                            <td><?= htmlspecialchars($uf['fine_reason']) ?></td>
+                                            <td>
+                                                <?= htmlspecialchars($uf['fine_reason']) ?>
+                                                <?php if (!empty($uf['payment_decline_reason'])): ?>
+                                                    <div style="margin-top:6px;padding:7px 9px;border-left:3px solid var(--danger);background:rgba(239,68,68,.08);border-radius:4px;color:var(--text-main);font-size:.9em;line-height:1.45;">
+                                                        <strong style="color:var(--danger);">Treasurer's decline reason:</strong>
+                                                        <?= htmlspecialchars($uf['payment_decline_reason'], ENT_QUOTES) ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </td>
                                             <td style="font-weight: 600; color: var(--danger);">KSh <?= number_format($uf['amount'], 2) ?></td>
                                             <td>
                                                 <?php if ($uf['status'] == 'Pending Verification'): ?>
@@ -8499,7 +8507,15 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         <tr data-notification-row="discipline-fine-<?= (int)$af['id'] ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($af['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?></td>
-                                            <td><?= htmlspecialchars($af['fine_reason']) ?></td>
+                                            <td>
+                                                <?= htmlspecialchars($af['fine_reason']) ?>
+                                                <?php if (!empty($af['payment_decline_reason'])): ?>
+                                                    <div style="margin-top:6px;padding:7px 9px;border-left:3px solid var(--danger);background:rgba(239,68,68,.08);border-radius:4px;color:var(--text-main);font-size:.9em;line-height:1.45;">
+                                                        <strong style="color:var(--danger);">Treasurer's decline reason:</strong>
+                                                        <?= htmlspecialchars($af['payment_decline_reason'], ENT_QUOTES) ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </td>
                                             <td style="font-weight: 600;">KSh <?= number_format($af['amount'], 2) ?></td>
                                             <td>
                                                 <?php if ($af['status'] == 'Paid'): ?>
