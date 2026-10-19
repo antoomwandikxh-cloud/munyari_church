@@ -377,29 +377,34 @@ function printFineReport(button, orientation) {
     const table = sourceTable.cloneNode(true);
     const reportType = card.dataset.printTitle || 'Fine Records';
     const leaderRole = card.dataset.printLeaderRole || 'Organising Secretary';
-    const disciplineMasterUnpaidReport = reportType.toLowerCase() === 'unpaid fines'
-        && leaderRole.toLowerCase() === 'discipline master';
+    const disciplineMasterUnpaidReport = card.dataset.printKind === 'discipline-master-unpaid'
+        || (reportType.toLowerCase() === 'unpaid fines' && leaderRole.toLowerCase() === 'discipline master');
 
     if (disciplineMasterUnpaidReport) {
         const sourceHeaders = Array.from(sourceTable.querySelectorAll('thead th'));
         const printColumns = ['profile', 'member', 'amount', 'status', 'date'].map(label => ({
             label,
             index: sourceHeaders.findIndex(header => header.textContent.trim().toLowerCase() === label)
-        })).filter(column => column.index >= 0);
+        }));
         const cleanTable = sourceTable.cloneNode(false);
         const cleanHead = document.createElement('thead');
         const cleanHeadRow = document.createElement('tr');
         const cleanBody = document.createElement('tbody');
 
-        printColumns.forEach(column => cleanHeadRow.appendChild(sourceHeaders[column.index].cloneNode(true)));
+        printColumns.forEach(column => {
+            const header = column.index >= 0 ? sourceHeaders[column.index].cloneNode(true) : document.createElement('th');
+            if (column.index < 0) header.textContent = column.label.charAt(0).toUpperCase() + column.label.slice(1);
+            cleanHeadRow.appendChild(header);
+        });
         cleanHead.appendChild(cleanHeadRow);
         sourceTable.querySelectorAll('tbody tr').forEach(sourceRow => {
             const cleanRow = document.createElement('tr');
             printColumns.forEach(column => {
-                const sourceCell = sourceRow.children[column.index];
-                if (!sourceCell) return;
-                const cleanCell = sourceCell.cloneNode(true);
+                const sourceCell = column.index >= 0 ? sourceRow.children[column.index] : null;
+                if (!sourceCell && column.label !== 'status') return;
+                const cleanCell = sourceCell ? sourceCell.cloneNode(true) : document.createElement('td');
                 if (column.label === 'status') {
+                    if (!sourceCell) cleanCell.textContent = sourceRow.dataset.fineStatus || 'Unpaid';
                     cleanCell.querySelectorAll('span').forEach(badge => {
                         if (badge.textContent.trim().toLowerCase() === 'reminder sent') badge.remove();
                     });

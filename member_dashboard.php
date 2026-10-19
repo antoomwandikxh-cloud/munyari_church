@@ -8477,6 +8477,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 $discipline_print_photo = 'uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png');
                 ?>
                 <div class="content-card fine-print-card" style="margin-top: 30px;"
+                     data-print-kind="discipline-master-unpaid"
                      data-print-title="Unpaid Fines" data-print-department="<?= htmlspecialchars($dm_dept, ENT_QUOTES) ?>"
                      data-print-leader="<?= htmlspecialchars($discipline_print_name, ENT_QUOTES) ?>"
                      data-print-leader-photo="<?= htmlspecialchars($discipline_print_photo, ENT_QUOTES) ?>" data-print-leader-role="Discipline Master">
@@ -8493,7 +8494,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Action</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($uf = $unpaid->fetch_assoc()): ?>
-                                        <tr data-notification-row="discipline-fine-<?= (int)$uf['id'] ?>">
+                                        <tr data-notification-row="discipline-fine-<?= (int)$uf['id'] ?>" data-fine-status="<?= htmlspecialchars($uf['status'] === 'Pending Verification' ? 'Pending Treasurer Verification' : 'Unpaid', ENT_QUOTES) ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($uf['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?></td>
                                             <td>
@@ -10160,7 +10161,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
-    <script src="script.js?v=20261019-discipline-print-8"></script>
+    <script src="script.js?v=20261019-discipline-print-9"></script>
 <!-- Image Viewer Modal -->
 <div id="imageViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; flex-direction:column;">
     <span onclick="document.getElementById('imageViewerModal').style.display='none'" style="position:absolute; top:20px; right:30px; font-size:40px; color:white; cursor:pointer; font-weight:bold; transition:color 0.2s;" onmouseover="this.style.color='#ff4444'" onmouseout="this.style.color='white'">&times;</span>
