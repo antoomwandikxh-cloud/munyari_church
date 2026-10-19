@@ -7362,16 +7362,18 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 $treasurer_print_name = strtoupper(trim($member['first_name'] . ' ' . $member['last_name']));
                 $treasurer_print_photo = 'uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png');
                 ?>
-                <div class="content-card" id="treasurerPaidFinePrint"
+                <div class="content-card fine-print-card"
+                     data-print-title="Paid Fine Payments"
                      data-print-department="<?= htmlspecialchars($active_treasurer_dept, ENT_QUOTES) ?>"
                      data-print-leader="<?= htmlspecialchars($treasurer_print_name, ENT_QUOTES) ?>"
                      data-print-leader-photo="<?= htmlspecialchars($treasurer_print_photo, ENT_QUOTES) ?>"
+                     data-print-leader-role="Treasurer"
                      style="margin-top: 30px; border-left: 4px solid #10b981;">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:15px;">
                         <h2 style="color:#10b981;margin:0;">Verified Fine Payments</h2>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            <button type="button" class="btn-sm" <?= (!$recent_paid_fines || $recent_paid_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printPaidFinePayments('portrait')">Print Paid Fines - Portrait</button>
-                            <button type="button" class="btn-sm" <?= (!$recent_paid_fines || $recent_paid_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printPaidFinePayments('landscape')">Print Paid Fines - Landscape</button>
+                            <button type="button" class="btn-sm" <?= (!$recent_paid_fines || $recent_paid_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'portrait')">Print Paid Fines - Portrait</button>
+                            <button type="button" class="btn-sm" <?= (!$recent_paid_fines || $recent_paid_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'landscape')">Print Paid Fines - Landscape</button>
                         </div>
                     </div>
                     <p style="color:var(--text-muted);margin-bottom:15px;">Verified fines remain here for your department records.</p>
@@ -7400,86 +7402,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <p style="color:var(--text-muted);">No fine payments have been verified yet.</p>
                     <?php endif; ?>
                 </div>
-                <script>
-                    function printPaidFinePayments(orientation) {
-                        var card = document.getElementById('treasurerPaidFinePrint');
-                        var table = card ? card.querySelector('table') : null;
-                        var rows = table ? Array.from(table.querySelectorAll('tbody tr')) : [];
-                        if (!rows.length) {
-                            alert('There are no paid fines to print.');
-                            return;
-                        }
-
-                        var printWindow = window.open('', '_blank', 'width=1000,height=750');
-                        if (!printWindow) {
-                            alert('Please allow pop-ups to print the paid fines.');
-                            return;
-                        }
-                        var escapeHtml = function(value) {
-                            return String(value || '').replace(/[&<>\"']/g, function(character) {
-                                return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[character];
-                            });
-                        };
-                        var bodyRows = rows.map(function(row) {
-                            var cells = row.cells;
-                            var profile = cells[0] ? cells[0].querySelector('img') : null;
-                            var profileUrl = profile ? new URL(profile.getAttribute('src'), window.location.href).href : '';
-                            var values = [1, 2, 3, 5].map(function(index) {
-                                return escapeHtml(cells[index] ? cells[index].textContent.trim() : '');
-                            });
-                            return '<tr><td class="photo">' + (profileUrl ? '<img src="' + escapeHtml(profileUrl) + '" alt="Member profile">' : '') +
-                                '</td><td>' + values[0] + '</td><td>' + values[1] + '</td><td class="amount">' + values[2] +
-                                '</td><td class="paid">Paid <span>&#10003;</span></td><td>' + values[3] + '</td></tr>';
-                        }).join('');
-                        var department = escapeHtml(card.dataset.printDepartment);
-                        var leader = escapeHtml(card.dataset.printLeader);
-                        var leaderPhoto = new URL(card.dataset.printLeaderPhoto, window.location.href).href;
-                        var logoUrl = new URL('church_logo.jpg', window.location.href).href;
-                        var generated = new Date().toLocaleString();
-                        var pageOrientation = orientation === 'landscape' ? 'landscape' : 'portrait';
-
-                        printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Paid Fine Records - ${department}</title>
-                            <style>
-                                @page{size:A4 ${pageOrientation};margin:12mm 10mm 21mm}
-                                *{box-sizing:border-box}body{position:relative;font:12px Arial,sans-serif;color:#17202a;margin:0;padding:8px 4px 0}
-                                .watermark{position:fixed;top:43%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:44px;color:rgba(14,116,144,.16);font-weight:900;white-space:nowrap;z-index:0;pointer-events:none}
-                                .leader,.brand,.report-heading,.report-meta,table,.signature{position:relative;z-index:1}
-                                .leader{text-align:center;margin:0 auto 12px}.leader img{width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid #0e7490}
-                                .leader-name{font-size:14px;font-weight:800;color:#0e7490;margin-top:4px}
-                                .brand{display:grid;grid-template-columns:62px 1fr 62px;align-items:center;gap:12px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 10px;margin-bottom:12px}
-                                .logo{width:62px;height:62px;object-fit:contain}.brand h1{font-size:18px;line-height:1.3;color:#0e7490;text-transform:uppercase;margin:4px 0}
-                                .subtitle{font-size:11px;color:#555;margin:4px 0}.report-heading{text-align:center;font-size:16px;font-weight:800;text-transform:uppercase;margin:0 0 7px}
-                                .report-meta{text-align:center;margin:0 0 12px;color:#444;font-size:11px}
-                                table{width:100%;border-collapse:collapse;table-layout:fixed}thead{display:table-header-group}
-                                th,td{border:1px solid #888;padding:6px;text-align:left;vertical-align:middle;font-size:10px;overflow-wrap:anywhere}
-                                th{background:#0e7490;color:#fff;text-transform:uppercase}.photo{width:48px;text-align:center}.photo img{display:block;width:34px;height:34px;object-fit:cover;border-radius:50%;border:1px solid #aaa;margin:auto}
-                                .amount{white-space:nowrap}.paid{color:#087a46;font-weight:700;white-space:nowrap}.paid span{font-size:14px}
-                                tr{break-inside:avoid;page-break-inside:avoid}
-                                .signature{display:grid;grid-template-columns:minmax(0,1fr) 100px;align-items:center;gap:28px;width:min(100%,560px);margin:24px auto 0;break-inside:avoid;page-break-inside:avoid;font-size:10px}
-                                .signature-details{display:flex;flex-direction:column;gap:12px}.signature-row{display:grid;grid-template-columns:170px minmax(80px,1fr);gap:12px;align-items:end;min-height:24px}
-                                .signature-label{font-weight:700}.signature-line{height:20px;border-bottom:1px solid #333}
-                                .stamp{width:82px;height:82px;justify-self:end;border:2px dashed #777;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#555;font-size:10px;font-weight:700}
-                                .footer{position:fixed;bottom:-15mm;left:0;right:0;z-index:2;border-top:1px solid #0e7490;padding-top:4px;text-align:center;font-size:9px;color:#53606b}
-                                @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-                            </style></head><body>
-                            <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
-                            <div class="leader"><img src="${escapeHtml(leaderPhoto)}" alt="Treasurer profile"><div class="leader-name">${leader}</div><div style="font-size:10px;color:#555">Treasurer</div></div>
-                            <header class="brand"><img class="logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"><div><h1>E.A.P.C Munyari Church</h1><div class="subtitle">${department} Department</div></div><img class="logo" src="${escapeHtml(logoUrl)}" alt="E.A.P.C Munyari logo"></header>
-                            <div class="report-heading">Verified Paid Fines</div><p class="report-meta">${department} Department | Total Paid Fines: ${rows.length}</p>
-                            <table><thead><tr><th class="photo">Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Paid On</th></tr></thead><tbody>${bodyRows}</tbody></table>
-                            <div class="signature"><div class="signature-details">
-                                <div class="signature-row"><span class="signature-label">Treasurer Signature</span><span class="signature-line"></span></div>
-                                <div class="signature-row"><span class="signature-label">Name: ${leader}</span><span></span></div>
-                                <div class="signature-row"><span class="signature-label">Date</span><span class="signature-line"></span></div>
-                            </div><div class="stamp">OFFICIAL<br>STAMP</div></div>
-                            <div class="footer">E.A.P.C Munyari Church | Verified fine payments | Generated: ${escapeHtml(generated)}</div>
-                            </body></html>`);
-                        printWindow.document.close();
-                        printWindow.focus();
-                        setTimeout(function() { printWindow.print(); }, 700);
-                    }
-                </script>
-
                 <!-- Unpaid Fines Tracker -->
                 <?php
                 $unpaid_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department='$esc_dept' AND mf.status = 'Unpaid' ORDER BY mf.issued_at ASC");
