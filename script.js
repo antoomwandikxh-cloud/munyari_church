@@ -451,10 +451,10 @@ function printFineReport(button, orientation) {
         .signature-details{display:flex;flex-direction:column;gap:5px}.signature-row{display:grid;grid-template-columns:165px minmax(70px,1fr);gap:8px;align-items:end;min-height:17px}
         .signature-label{font-weight:700}.signature-line{height:14px;border-bottom:1px solid #333}
         .stamp{width:64px;height:64px;justify-self:end;border:2px dashed #999;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#777;font-size:9px}
-        .discipline-unpaid-print .signature{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;width:100%;margin:16px auto 0;padding:0 20px;page-break-inside:avoid;break-inside:avoid}
-        .discipline-unpaid-print .signature-details{gap:9px}.discipline-unpaid-print .signature-row{display:flex;gap:8px;align-items:flex-end;min-height:18px}
-        .discipline-unpaid-print .signature-line{display:inline-block;width:200px;height:14px}
-        .discipline-unpaid-print .stamp{width:100px;height:100px;flex:0 0 100px;margin-left:auto;font-size:11px}
+        .discipline-unpaid-print .signature{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;width:100%;margin:80px auto 0;padding:0 40px;page-break-inside:avoid;break-inside:avoid}
+        .discipline-unpaid-print .signature-details{gap:9px;text-align:center}.discipline-unpaid-print .signature-row{display:flex;justify-content:center;gap:8px;align-items:flex-end;min-height:18px}
+        .discipline-unpaid-print .signature-line{display:inline-block;width:220px;height:14px}
+        .discipline-unpaid-print .stamp{width:140px;height:140px;flex:0 0 140px;margin-left:auto;margin-bottom:10px;border-color:#aaa;color:#ccc;font-size:.85rem;letter-spacing:1px;text-transform:uppercase}
         .footer{position:fixed;bottom:0;left:0;right:0;z-index:2;border-top:1px solid #0e7490;padding:4px 0;text-align:center;font-size:8px;color:#53606b;background:rgba(255,255,255,.95)}
         @media print{body{margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}thead{display:table-header-group}tfoot{display:table-footer-group}}
     </style></head><body class="${disciplineMasterUnpaidReport ? 'discipline-unpaid-print' : ''}">
