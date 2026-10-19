@@ -80,6 +80,9 @@ if ($user_type === 'member') {
         if ($redirect_tab === 'financials') {
             $destination .= '&treasurer_dept=' . urlencode($department);
         }
+        if ($redirect_tab === 'discipline') {
+            $destination .= '&disc_dept=' . urlencode($department);
+        }
     }
     header("Location: $destination");
 } elseif ($user_type === 'admin' || $user_type === 'pastor') {

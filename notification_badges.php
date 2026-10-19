@@ -20,6 +20,10 @@ function notification_badge_tabs($message, $user_type) {
         return ['discipline_reports'];
     }
 
+    if ($user_type === 'member' && strpos($msg, 'discipline master fine payment update:') !== false) {
+        return ['discipline'];
+    }
+
     if (strpos($msg, 'fine') !== false) {
         if (strpos($msg, 'initiated a fine payment') !== false && strpos($msg, 'financial records') !== false) {
             return ['financials'];
@@ -921,6 +925,7 @@ document.addEventListener("DOMContentLoaded", function () {
             var fineRow = main.querySelector('[data-notification-row="pending-fine-' + fineMatch[1] + '"]')
                 || main.querySelector('[data-notification-row="oversight-fine-' + fineMatch[1] + '"]')
                 || main.querySelector('[data-notification-row="paid-fine-' + fineMatch[1] + '"]')
+                || main.querySelector('[data-notification-row="discipline-fine-' + fineMatch[1] + '"]')
                 || main.querySelector('[data-notification-row="member-fine-' + fineMatch[1] + '"]');
             if (fineRow) {
                 addHighlightedRow(fineRow);
@@ -1010,6 +1015,26 @@ HTML;
 
 function notification_target_group($message, $user_type) {
     $msg = strtolower($message);
+    if ($user_type === 'member'
+        && strpos($msg, 'discipline master fine payment update:') !== false
+        && preg_match('/discipline master fine payment update:.*?\bin\s+(.+?)\s+department was marked paid/i', $message, $fine_department_match)) {
+        $department_groups = [
+            'youths' => 'youths',
+            'youth ministry' => 'youths',
+            'youth' => 'youths',
+            'women ministry' => 'womens_ministry',
+            'womens ministry' => 'womens_ministry',
+            "women's ministry" => 'womens_ministry',
+            'women' => 'womens_ministry',
+            'elders' => 'elders',
+            'elder ministry' => 'elders',
+            'elder' => 'elders',
+            'sunday school' => 'sunday_school',
+            'building & construction' => 'building_construction',
+            'building and construction' => 'building_construction',
+        ];
+        return $department_groups[strtolower(trim($fine_department_match[1]))] ?? '';
+    }
     if ($user_type === 'member'
         && preg_match('/initiated a fine payment in\s+(.+?)\s+department\./i', $message, $fine_department_match)) {
         $department_groups = [

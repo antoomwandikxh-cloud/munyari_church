@@ -7411,19 +7411,19 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                      data-print-leader="<?= htmlspecialchars($treasurer_print_name, ENT_QUOTES) ?>"
                      data-print-leader-photo="<?= htmlspecialchars($treasurer_print_photo, ENT_QUOTES) ?>" data-print-leader-role="Treasurer">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:15px;">
-                        <h2 style="color: var(--danger);margin:0;">Unpaid Fines &amp; Reminders</h2>
+                        <h2 style="color: var(--danger);margin:0;">Unpaid Fines</h2>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
                             <button type="button" class="btn-sm" <?= (!$unpaid_fines || $unpaid_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'portrait')">Print Unpaid Fines - Portrait</button>
                             <button type="button" class="btn-sm" <?= (!$unpaid_fines || $unpaid_fines->num_rows === 0) ? 'disabled' : '' ?> onclick="printFineReport(this, 'landscape')">Print Unpaid Fines - Landscape</button>
                         </div>
                     </div>
-                    <p style="color: var(--text-muted); margin-bottom: 15px;">Members who have not yet paid their fines. If a member fails to pay, you can request them to pay at the next meeting.</p>
+                    <p style="color: var(--text-muted); margin-bottom: 15px;">Members who have not yet paid their fines.</p>
                     <?php
                     if ($unpaid_fines && $unpaid_fines->num_rows > 0):
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Action</th><th>Date</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($uf = $unpaid_fines->fetch_assoc()): ?>
                                         <tr>
@@ -7431,16 +7431,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             <td style="font-weight: 500;"><?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?></td>
                                             <td><?= htmlspecialchars($uf['fine_reason']) ?></td>
                                             <td style="font-weight: 600; color: var(--danger);">KSh <?= number_format($uf['amount'], 2) ?></td>
-                                            <td>
-                                                <?php if ($uf['reminded_for_meeting'] == 1): ?>
-                                                    <span class="badge" style="background: rgba(37,99,235,0.1); color: var(--primary);">Reminder Sent</span>
-                                                <?php else: ?>
-                                                    <span class="badge" style="background: rgba(239,68,68,0.1); color: var(--danger);">Unpaid</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <a href="member_action.php?action=remind_fine_meeting&amp;id=<?= (int)$uf['id'] ?>&amp;treasurer_dept=<?= urlencode($active_treasurer_dept) ?>" class="btn-sm" style="background: var(--primary); color: white; padding: 6px 12px; font-size: 0.85em; text-decoration: none;" onclick="return confirm('Send a payment reminder to this member?');">Remind Him</a>
-                                            </td>
+                                            <td><span class="badge" style="background: rgba(239,68,68,0.1); color: var(--danger);">Unpaid</span></td>
                                             <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($uf['issued_at'])) ?></td>
                                         </tr>
                                     <?php endwhile; ?>
@@ -8378,7 +8369,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </form>
                 </div>
 
-                <?php if ($active_treasurer_dept !== 'General Church' && $active_treasurer_dept !== 'Building & Construction'): ?>
+                <?php if ($active_disc_dept !== 'General Church' && $active_disc_dept !== 'Building & Construction'): ?>
                 <!-- Unpaid Fines -->
                 <?php
                 $unpaid = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department = '$dm_dept' AND mf.status IN ('Unpaid', 'Pending Verification') ORDER BY mf.issued_at DESC");
@@ -8399,10 +8390,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php if ($unpaid && $unpaid->num_rows > 0): ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+                                <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Action</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($uf = $unpaid->fetch_assoc()): ?>
-                                        <tr>
+                                        <tr data-notification-row="discipline-fine-<?= (int)$uf['id'] ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($uf['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?></td>
                                             <td><?= htmlspecialchars($uf['fine_reason']) ?></td>
@@ -8412,6 +8403,16 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                     <span class="badge" style="background: rgba(245,158,11,0.1); color: #f59e0b;">Pending Treasurer Verification</span>
                                                 <?php else: ?>
                                                     <span class="badge" style="background: rgba(239,68,68,0.1); color: #ef4444;">Unpaid</span>
+                                                    <?php if (!empty($uf['reminded_for_meeting'])): ?>
+                                                        <span class="badge" style="background:rgba(37,99,235,.1);color:var(--primary);margin-left:5px;">Reminder Sent</span>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <?php if ($uf['status'] === 'Unpaid'): ?>
+                                                    <a href="member_action.php?action=remind_fine_meeting&amp;id=<?= (int)$uf['id'] ?>&amp;disc_dept=<?= urlencode($active_disc_dept) ?>" class="btn-sm" style="background:var(--primary);color:#fff;padding:6px 12px;font-size:.85em;text-decoration:none;" onclick="return confirm('Send a payment reminder to this member?');">Remind Member</a>
+                                                <?php else: ?>
+                                                    <span style="font-size:.85em;color:var(--text-muted);">Payment pending verification</span>
                                                 <?php endif; ?>
                                             </td>
                                             <td style="white-space: nowrap; font-size: 0.85em; color: var(--text-muted);"><?= date('M j, Y g:i A', strtotime($uf['issued_at'])) ?></td>
@@ -8451,14 +8452,14 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($af = $all_fines->fetch_assoc()): ?>
-                                        <tr>
+                                        <tr data-notification-row="discipline-fine-<?= (int)$af['id'] ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($af['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?></td>
                                             <td><?= htmlspecialchars($af['fine_reason']) ?></td>
                                             <td style="font-weight: 600;">KSh <?= number_format($af['amount'], 2) ?></td>
                                             <td>
                                                 <?php if ($af['status'] == 'Paid'): ?>
-                                                    <span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;">Paid</span>
+                                                    <span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;">Paid &#10003;</span>
                                                 <?php elseif ($af['status'] == 'Pending Verification'): ?>
                                                     <span class="badge" style="background: rgba(245,158,11,0.1); color: #f59e0b;">Pending Verification</span>
                                                 <?php else: ?>

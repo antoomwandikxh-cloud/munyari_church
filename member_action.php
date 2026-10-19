@@ -1603,6 +1603,34 @@ if (isset($_GET['action'])) {
                     }
                 }
 
+                $discipline_masters = $conn->query("SELECT id, department, church_role FROM members WHERE is_approved = 1 AND LOWER(church_role) LIKE '%discipline master%'");
+                if ($discipline_masters) {
+                    while ($discipline_master = $discipline_masters->fetch_assoc()) {
+                        $leader_department_match = false;
+                        $role_matches = [];
+                        preg_match_all('/(?:^|[, &])\s*((?:vice\s+)?discipline master)\s*(?:\(([^)]+)\))?/i', (string)$discipline_master['church_role'], $role_matches, PREG_SET_ORDER);
+                        foreach ($role_matches as $role_match) {
+                            $leader_role = normalize_role_name($role_match[1] ?? '');
+                            if (!in_array($leader_role, ['discipline master', 'vice discipline master'], true)) {
+                                continue;
+                            }
+                            $leader_department = trim((string)($discipline_master['department'] ?? ''));
+                            $role_context = trim((string)($role_match[2] ?? ''));
+                            if ($role_context !== '' && strtolower($role_context) !== 'subsidiary') {
+                                $leader_department = $role_context;
+                            }
+                            if (department_matches($leader_department, $department)) {
+                                $leader_department_match = true;
+                                break;
+                            }
+                        }
+                        if ($leader_department_match) {
+                            $discipline_message = "Discipline Master fine payment update: $member_name's fine for '$fine_reason' (KSh $fine_amount) in $department department was marked Paid by the Treasurer. $fine_focus_tag";
+                            member_action_insert_notification($conn, (int)$discipline_master['id'], 'member', $discipline_message);
+                        }
+                    }
+                }
+
                 // Add the verified fine payment to the department's financial records.
                 $description = $conn->real_escape_string("Disciplinary Fine: " . $fine_reason);
                 $amount = (float)$fine['amount'];
@@ -1627,22 +1655,22 @@ if (isset($_GET['action'])) {
         }
     }
     
-    // Treasurer: Send a repeatable reminder for an unpaid fine.
+    // Discipline Master: Send a repeatable reminder for an unpaid fine.
     elseif ($action === 'remind_fine_meeting' && isset($_GET['id'])) {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
-        $roles = get_member_roles($member_query['church_role'] ?? '');
-        $treasurer_departments = [
-            'treasurer' => 'General Church',
-            'youth treasurer' => 'Youths',
-            'women treasurer' => 'Womens Ministry',
-            'elder treasurer' => 'Elders',
-            'sunday school treasurer' => 'Sunday School',
-            'building treasurer' => 'Building & Construction'
-        ];
-        $allowed_departments = [];
-        foreach ($roles as $role) {
-            if (isset($treasurer_departments[$role])) {
-                $allowed_departments[] = $treasurer_departments[$role];
+        $discipline_departments = [];
+        $raw_roles = preg_split('/\s*,\s*/', (string)($member_query['church_role'] ?? ''));
+        foreach ($raw_roles as $raw_role) {
+            if (!in_array(normalize_role_name($raw_role), ['discipline master', 'vice discipline master'], true)) {
+                continue;
+            }
+            $role_department = trim((string)($member_query['department'] ?? ''));
+            if (preg_match('/\(([^)]+)\)/', $raw_role, $role_context)
+                && strtolower(trim($role_context[1])) !== 'subsidiary') {
+                $role_department = trim($role_context[1]);
+            }
+            if ($role_department !== '') {
+                $discipline_departments[] = $role_department;
             }
         }
 
@@ -1658,9 +1686,9 @@ if (isset($_GET['action'])) {
         }
 
         $department = trim((string)($fine['department'] ?? ''));
-        $redirect = 'member_dashboard.php?tab=financials';
+        $redirect = 'member_dashboard.php?tab=discipline';
         if ($department !== '') {
-            $redirect .= '&treasurer_dept=' . urlencode($department);
+            $redirect .= '&disc_dept=' . urlencode($department);
         }
         if (!$fine) {
             header('Location: ' . $redirect . '&error=' . urlencode('This fine could not be found. No reminder was sent.'));
@@ -1668,8 +1696,8 @@ if (isset($_GET['action'])) {
         }
 
         $department_is_allowed = false;
-        foreach ($allowed_departments as $allowed_department) {
-            if (department_matches($department, $allowed_department)) {
+        foreach ($discipline_departments as $discipline_department) {
+            if (department_matches($department, $discipline_department)) {
                 $department_is_allowed = true;
                 break;
             }
@@ -1694,7 +1722,7 @@ if (isset($_GET['action'])) {
 
         $amount_fmt = number_format((float)$fine['amount'], 2);
         $fine_reason = trim((string)$fine['fine_reason']);
-        $message = "Treasurer Reminder: Your fine for '$fine_reason' (KSh $amount_fmt) in $department is still unpaid. Please pay it as soon as possible. [focus-fine-id:$fine_id]";
+        $message = "Discipline Master Reminder: Your fine for '$fine_reason' (KSh $amount_fmt) in $department is still unpaid. Please pay it as soon as possible. [focus-fine-id:$fine_id]";
         $notification_sent = member_action_insert_notification($conn, (int)$fine['member_id'], 'member', $message);
         if (!$notification_sent) {
             header('Location: ' . $redirect . '&error=' . urlencode('The reminder could not be sent. Please try again.'));
