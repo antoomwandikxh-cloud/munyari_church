@@ -6567,6 +6567,7 @@ w.document.write('</div>');
                         <?php endforeach; ?>
                     </div>
                 </div>
+                <p id="organized-event-filter-empty" role="status" style="display:none;color:var(--text-muted);text-align:center;padding:16px;">Event list closed. Choose a department or All Events to show events.</p>
 
                 <div class="content-card">
                     <h2>Recent Events</h2>
@@ -6623,6 +6624,7 @@ w.document.write('</div>');
                         if (!filterRoot) return;
                         const eventRows = Array.from(document.querySelectorAll('[data-organized-event-department]'));
                         const filterButtons = Array.from(filterRoot.querySelectorAll('[data-organized-event-filter]'));
+                        const emptyMessage = document.getElementById('organized-event-filter-empty');
                         const notificationFocusMessages = <?= json_encode(array_values($notification_focus_messages ?? []), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
                         const counts = { all: eventRows.length };
                         eventRows.forEach(row => {
@@ -6636,11 +6638,12 @@ w.document.write('</div>');
                             button.addEventListener('click', function () {
                                 const selected = this.dataset.organizedEventFilter;
                                 const wasSelected = this.getAttribute('aria-pressed') === 'true';
-                                const nextFilter = selected === 'all' || wasSelected ? 'all' : selected;
+                                const nextFilter = wasSelected ? '' : selected;
                                 filterButtons.forEach(item => item.setAttribute('aria-pressed', item.dataset.organizedEventFilter === nextFilter ? 'true' : 'false'));
                                 eventRows.forEach(row => {
-                                    row.style.display = nextFilter === 'all' || row.dataset.organizedEventDepartment === nextFilter ? '' : 'none';
+                                    row.style.display = nextFilter === 'all' || (nextFilter !== '' && row.dataset.organizedEventDepartment === nextFilter) ? '' : 'none';
                                 });
+                                if (emptyMessage) emptyMessage.style.display = nextFilter === '' && eventRows.length ? 'block' : 'none';
                             });
                         });
 

@@ -73,8 +73,11 @@ foreach (['youths', 'womens_ministry', 'elders', 'sunday_school'] as $event_depa
 }
 if (strpos($pastor_dashboard_source, 'data-organized-event-filter="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>"') === false
     || strpos($pastor_dashboard_source, 'data-organized-event-department=') === false
-    || strpos($pastor_dashboard_source, 'notification-group:([a-z0-9_-]+)') === false) {
-    fwrite(STDERR, "FAIL: pastor Organised Events must filter and auto-select the department from a routed notification.\n");
+    || strpos($pastor_dashboard_source, 'notification-group:([a-z0-9_-]+)') === false
+    || strpos($pastor_dashboard_source, 'const nextFilter = wasSelected ? \'\' : selected;') === false
+    || strpos($pastor_dashboard_source, 'nextFilter !== \'\' && row.dataset.organizedEventDepartment === nextFilter') === false
+    || strpos($pastor_dashboard_source, 'organized-event-filter-empty') === false) {
+    fwrite(STDERR, "FAIL: pastor Organised Events must filter, toggle closed, and auto-select the department from a routed notification.\n");
     exit(1);
 }
 $glow_script = render_notification_tab_glow_script('manage_department', 'manage_department', $routed_message);
