@@ -1022,7 +1022,7 @@ if (!empty($action)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Munyari Church</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20261020-search-icons-1">
     <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_messages) ?>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
@@ -1587,7 +1587,7 @@ if (!empty($action)) {
                             <h2 style="margin: 0;">All Members</h2>
                             <span style="background:linear-gradient(135deg,#1e3a8a,#6366f1);color:white;font-size:0.85rem;font-weight:800;padding:5px 14px;border-radius:20px;letter-spacing:0.5px;">Total: <?= count($all_print_members) ?> Members</span>
                         </div>
-                        <input type="text" id="memberSearch" placeholder="Search by name or phone..." style="padding:10px 15px; border:1px solid var(--border-color); border-radius:8px; width:100%; max-width:280px; flex-grow:1;" onkeyup="filterMembersTable()">
+                        <input type="text" id="memberSearch" class="search-icon-input" placeholder="Search by name or phone..." style="padding:10px 15px; border:1px solid var(--border-color); border-radius:8px; width:100%; max-width:280px; flex-grow:1;" onkeyup="filterMembersTable()">
                         <div style="display:flex;gap:10px;">
                             <button onclick="printMemberDirectory('landscape')" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#2563eb,#6366f1);color:white;border:none;padding:10px 20px;border-radius:10px;cursor:pointer;font-size:0.9rem;font-weight:600;box-shadow:0 2px 8px rgba(37,99,235,0.3);">
                                 Print Landscape
@@ -2304,7 +2304,7 @@ w.document.write('</div>');
                                 </div>
                                 </div>
                                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                                    <input type="text" placeholder="Search <?= htmlspecialchars($dept) ?>..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" onkeyup="filterDeptTable(this, 'dept_print_<?= str_replace(' ', '', $dept) ?>')">
+                                    <input type="text" class="search-icon-input" placeholder="Search <?= htmlspecialchars($dept) ?>..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" onkeyup="filterDeptTable(this, 'dept_print_<?= str_replace(' ', '', $dept) ?>')">
                                     <button onclick="printDepartment('<?= htmlspecialchars($dept, ENT_QUOTES) ?>', 'dept_print_<?= str_replace(' ', '', $dept) ?>', '<?= $leader_id ?>', 'landscape')" class="btn-submit" style="width:auto; margin:0; padding:8px 16px; background:linear-gradient(135deg,#2563eb,#6366f1); border:none; box-shadow:0 2px 8px rgba(37,99,235,0.3); font-weight:600; display:inline-flex; align-items:center; gap:8px; color:white; cursor:pointer; border-radius:8px;">
                                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                         Print Landscape
@@ -4249,7 +4249,7 @@ w.document.write('</div>');
                             <?= $v ?> Village
                         </h2>
                         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                            <input type="text" placeholder="Search <?= htmlspecialchars($v) ?> members..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" onkeyup="filterDeptTable(this, 'village_table_<?= str_replace(' ', '_', $v) ?>')">
+                            <input type="text" class="search-icon-input" placeholder="Search <?= htmlspecialchars($v) ?> members..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" onkeyup="filterDeptTable(this, 'village_table_<?= str_replace(' ', '_', $v) ?>')">
                             <span class="badge" style="background:<?= $v_color ?>22; color:<?= $v_color ?>; font-weight:700; font-size:1rem; padding:6px 14px;"><?= $v_total ?> Members</span>
                             <a href="print_village_members.php?village=<?= urlencode($v) ?>&orientation=landscape" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#2563eb,#6366f1);color:white;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;text-decoration:none;">Print Landscape</a>
                             <a href="print_village_members.php?village=<?= urlencode($v) ?>&orientation=portrait" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:white;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;text-decoration:none;">Print Portrait</a>
@@ -4363,7 +4363,7 @@ w.document.write('</div>');
                             <?= $c_icon ?> <?= htmlspecialchars($c_role) ?> &mdash; All Villages
                         </h3>
                         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                            <input type="text" placeholder="Search <?= htmlspecialchars($c_role) ?> volunteers..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" onkeyup="filterDeptTable(this, 'vol_table_<?= md5($c_role) ?>')">
+                            <input type="text" class="search-icon-input" placeholder="Search <?= htmlspecialchars($c_role) ?> volunteers..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" onkeyup="filterDeptTable(this, 'vol_table_<?= md5($c_role) ?>')">
                             <span class="badge" style="background:<?= $c_color ?>22; color:<?= $c_color ?>; font-size:0.95rem; padding:5px 14px;"><?= $c_count ?> Volunteer<?= $c_count != 1 ? 's' : '' ?></span>
                         </div>
                     </div>
@@ -4516,7 +4516,7 @@ w.document.write('</div>');
                             </div>
                         </div>
                         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                            <input type="text" id="worshipperSearch" placeholder="Search worshippers..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" oninput="filterWorshippersTable()">
+                            <input type="text" id="worshipperSearch" class="search-icon-input" placeholder="Search worshippers..." style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:220px; font-size:0.85rem;" oninput="filterWorshippersTable()">
                             <a href="print_worshippers.php?mode=landscape" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;padding:8px 16px;border-radius:8px;font-size:0.85rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(139,92,246,0.3);">
                                 <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                 Print Landscape
@@ -5215,7 +5215,7 @@ w.document.write('</div>');
                     <form method="POST" action="admin_dashboard.php?tab=appointments">
                         <div class="form-group">
                             <label for="admin_member_search">Search Member</label>
-                            <input type="search" id="admin_member_search" class="form-control" placeholder="Search member name..." autocomplete="off" oninput="filterAdminMessageMembers(this.value)">
+                            <input type="search" id="admin_member_search" class="form-control search-icon-input" placeholder="Search member name..." autocomplete="off" oninput="filterAdminMessageMembers(this.value)">
                             <select name="member_id" id="admin_message_member" class="form-control" required style="margin-top:8px;">
                                 <option value="">-- Choose Member --</option>
                                 <?php 
