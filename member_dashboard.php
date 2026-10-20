@@ -1648,21 +1648,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_village_leader_c
 
     $village_chat_message = trim((string)($_POST['village_leader_message'] ?? ''));
     $village_chat_message_length = function_exists('mb_strlen') ? mb_strlen($village_chat_message, 'UTF-8') : strlen($village_chat_message);
-    if ($village_chat_message === '' || $village_chat_message_length > 4000) {
-        header('Location: ?tab=village_leader_chat&error=' . urlencode('Enter a message up to 4,000 characters.'));
+    if ($village_chat_message_length > 4000) {
+        header('Location: ?tab=village_leader_chat&error=' . urlencode('Messages must be 4,000 characters or less.'));
         exit();
     }
 
-    $village_chat_insert = $conn->prepare('INSERT INTO village_leader_messages (sender_id, message) VALUES (?, ?)');
+    $village_chat_audio = save_voice_note($_POST['pastor_voice_note_blob'] ?? null, $_FILES['pastor_voice_note'] ?? null);
+    if ($village_chat_message === '' && !$village_chat_audio) {
+        header('Location: ?tab=village_leader_chat&error=' . urlencode('Write a message or record/upload a voice note.'));
+        exit();
+    }
+
+    $village_chat_insert = $conn->prepare('INSERT INTO village_leader_messages (sender_id, message, audio_path) VALUES (?, ?, ?)');
     if (!$village_chat_insert) {
         error_log('Village leaders chat could not prepare message insert: ' . $conn->error);
+        if ($village_chat_audio) @unlink(__DIR__ . '/' . $village_chat_audio);
         header('Location: ?tab=village_leader_chat&error=' . urlencode('Your message could not be sent. Please try again.'));
         exit();
     }
-    $village_chat_insert->bind_param('is', $member_id, $village_chat_message);
+    $village_chat_insert->bind_param('iss', $member_id, $village_chat_message, $village_chat_audio);
     if (!$village_chat_insert->execute()) {
         error_log('Village leaders chat message insert failed: ' . $village_chat_insert->error);
         $village_chat_insert->close();
+        if ($village_chat_audio) @unlink(__DIR__ . '/' . $village_chat_audio);
         header('Location: ?tab=village_leader_chat&error=' . urlencode('Your message could not be sent. Please try again.'));
         exit();
     }
@@ -1671,7 +1679,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_village_leader_c
 
     $village_chat_sender = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
     $village_chat_village = trim((string)($member['church_village'] ?? ''));
-    $village_chat_notice = "Village leaders chat message from $village_chat_sender ($village_chat_village): A new message was posted in the shared village leaders chat. [village-leader-chat-id:$village_chat_message_id]";
+    $village_chat_summary = $village_chat_message !== '' ? 'A new message was posted' : 'A voice note was posted';
+    $village_chat_notice = "Village leaders chat message from $village_chat_sender ($village_chat_village): $village_chat_summary in the shared village leaders chat. [village-leader-chat-id:$village_chat_message_id]";
     try {
         $village_chat_notice_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) SELECT id, 'member', ? FROM members WHERE is_village_leader = 1 AND is_approved = 1 AND LOWER(TRIM(COALESCE(church_village, ''))) IN (LOWER(?), LOWER(?), LOWER(?))");
         if (!$village_chat_notice_stmt) throw new RuntimeException($conn->error);
@@ -10221,11 +10230,16 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <div class="content-card" style="margin-bottom:24px;">
                     <h2 style="margin-bottom:15px; font-size:1.1rem; color:var(--text-main);">Village Announcements</h2>
                     <?php
-                    $announcements = $conn->query("SELECT id, message, created_at FROM village_announcements WHERE LOWER(TRIM(village)) = LOWER(TRIM('$cv')) ORDER BY created_at DESC");
+                    $announcements = $conn->query("SELECT va.id, va.message, va.audio_path, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id WHERE LOWER(TRIM(va.village)) = LOWER(TRIM('$cv')) ORDER BY va.created_at DESC");
                     if ($announcements && $announcements->num_rows > 0) {
                         while ($ann = $announcements->fetch_assoc()) {
+                            $announcement_leader = trim(($ann['first_name'] ?? '') . ' ' . ($ann['last_name'] ?? '')) ?: 'Village Leader';
+                            $announcement_photo_file = trim((string)($ann['profile_picture'] ?? ''));
+                            $announcement_photo = $announcement_photo_file !== '' ? 'uploads/' . rawurlencode(basename($announcement_photo_file)) : 'uploads/default_avatar.png';
                             echo "<article class='announcement-card' data-notification-row='village-announcement-" . (int)$ann['id'] . "' style='padding:12px; background:var(--bg-lighter); border-radius:8px; margin-bottom:12px; border-left:3px solid #10b981;'>";
-                            echo "<p style='margin:0 0 8px; font-size:0.95rem; color:var(--text-main);'>" . nl2br(htmlspecialchars($ann['message'])) . "</p>";
+                            echo "<div style='display:flex;align-items:center;gap:9px;margin-bottom:8px;'><img src='" . htmlspecialchars($announcement_photo, ENT_QUOTES, 'UTF-8') . "' alt='' style='width:34px;height:34px;border-radius:50%;object-fit:cover;'><strong style='color:var(--text-main);'>" . htmlspecialchars($announcement_leader) . "</strong></div>";
+                            if (trim((string)$ann['message']) !== '') echo "<p style='margin:0 0 8px; font-size:0.95rem; color:var(--text-main);'>" . nl2br(htmlspecialchars($ann['message'])) . "</p>";
+                            if (!empty($ann['audio_path'])) echo render_whatsapp_voice_player($ann['audio_path'], $announcement_leader, $announcement_photo, $ann['created_at']);
                             echo "<small style='color:var(--text-muted); font-size:0.8rem;'>Posted: " . date('M j, Y g:i A', strtotime($ann['created_at'])) . "</small>";
                             echo "</article>";
                         }
@@ -10293,13 +10307,18 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_village_announcement'])) {
                 $announcement_text = trim((string)($_POST['message'] ?? ''));
                 $village_name = trim((string)($member['church_village'] ?? ''));
+                $announcement_text_length = function_exists('mb_strlen') ? mb_strlen($announcement_text, 'UTF-8') : strlen($announcement_text);
                 $announcement_saved = false;
                 $announcement_id = 0;
-                if ($announcement_text !== '' && $village_name !== '') {
+                $announcement_audio = null;
+                if ($announcement_text_length <= 4000 && $village_name !== '') {
+                    $announcement_audio = save_voice_note($_POST['pastor_voice_note_blob'] ?? null, $_FILES['pastor_voice_note'] ?? null);
+                }
+                if ($announcement_text_length <= 4000 && ($announcement_text !== '' || $announcement_audio) && $village_name !== '') {
                     try {
-                        $announcement_stmt = $conn->prepare("INSERT INTO village_announcements (village, leader_id, message) VALUES (?, ?, ?)");
+                        $announcement_stmt = $conn->prepare("INSERT INTO village_announcements (village, leader_id, message, audio_path) VALUES (?, ?, ?, ?)");
                         if ($announcement_stmt) {
-                            $announcement_stmt->bind_param('sis', $village_name, $member_id, $announcement_text);
+                            $announcement_stmt->bind_param('siss', $village_name, $member_id, $announcement_text, $announcement_audio);
                             $announcement_saved = $announcement_stmt->execute();
                             if ($announcement_saved) $announcement_id = (int)$conn->insert_id;
                             $announcement_stmt->close();
@@ -10308,10 +10327,12 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         error_log('Village announcement save failed: ' . $error->getMessage());
                     }
                 }
+                if (!$announcement_saved && $announcement_audio) @unlink(__DIR__ . '/' . $announcement_audio);
 
                 if ($announcement_saved && $announcement_id > 0) {
                     $leader_name = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
-                    $notice = "New village announcement from Village Leader $leader_name in $village_name village: $announcement_text [village-announcement-id:$announcement_id]";
+                    $announcement_summary = $announcement_text !== '' ? $announcement_text : 'A voice announcement is available.';
+                    $notice = "New village announcement from Village Leader $leader_name in $village_name village: $announcement_summary [village-announcement-id:$announcement_id]";
                     $notifications_sent = 0;
                     $notification_failures = [];
 
@@ -10362,7 +10383,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     $_SESSION['village_announcement_flash'] = $delivery_message;
                     echo "<script>window.location.replace('?tab=manage_church_village');</script>";
                 } else {
-                    echo "<div role='alert' style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>The announcement could not be posted. Please try again.</div>";
+                    $announcement_error = $announcement_text_length > 4000
+                        ? 'Announcements must be 4,000 characters or less.'
+                        : 'Write a message or record/upload audio before posting.';
+                    echo "<div role='alert' style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>" . htmlspecialchars($announcement_error, ENT_QUOTES, 'UTF-8') . "</div>";
                 }
             }
             ?>
@@ -10375,10 +10399,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             <!-- Post Announcement Form -->
             <div class="content-card" style="margin-bottom:18px;">
                 <h2 style="margin-bottom:15px; color:var(--text-main); font-size:1.1rem;">Post Announcement to <?= htmlspecialchars($member['church_village']) ?></h2>
-                <form method="POST" action="?tab=manage_church_village">
+                <form method="POST" action="?tab=manage_church_village" enctype="multipart/form-data" data-sending-label="Posting announcement..." onsubmit="return handlePastorAnnFormSubmit(this,event);">
                     <input type="hidden" name="post_village_announcement" value="1">
-                    <textarea name="message" required rows="3" style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-lighter); color:var(--text-main); margin-bottom:16px; font-family:inherit; resize:vertical;" placeholder="Write a message or announcement for your village members..."></textarea>
-                    <button type="submit" class="btn-primary" style="padding:10px 20px;">Post Announcement</button>
+                    <textarea id="pastor_ann_textarea" name="message" maxlength="4000" rows="3" style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-lighter); color:var(--text-main); margin-bottom:16px; font-family:inherit; resize:vertical;" placeholder="Write a message, record audio, or do both..."></textarea>
+                    <?= render_voice_note_recorder('members of ' . ($member['church_village'] ?? 'your village')) ?>
+                    <button id="pastor_ann_submit_btn" type="submit" class="btn-primary" style="padding:10px 20px;">Post Announcement</button>
                 </form>
             </div>
 
@@ -10386,7 +10411,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <h2 style="margin:0 0 14px; color:var(--text-main); font-size:1.05rem;">Recent Village Announcements</h2>
                 <?php
                 $village_name = trim((string)($member['church_village'] ?? ''));
-                $announcement_list_stmt = $conn->prepare("SELECT va.id, va.message, va.created_at, m.first_name, m.last_name FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id WHERE LOWER(TRIM(va.village)) = LOWER(?) ORDER BY va.created_at DESC LIMIT 20");
+                $announcement_list_stmt = $conn->prepare("SELECT va.id, va.message, va.audio_path, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id WHERE LOWER(TRIM(va.village)) = LOWER(?) ORDER BY va.created_at DESC LIMIT 20");
                 $announcement_list = false;
                 if ($announcement_list_stmt) {
                     $announcement_list_stmt->bind_param('s', $village_name);
@@ -10396,7 +10421,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     while ($announcement = $announcement_list->fetch_assoc()):
                 ?>
                     <article class="announcement-card" data-notification-row="village-announcement-<?= (int)$announcement['id'] ?>" style="padding:12px 14px; background:var(--bg-lighter); border:1px solid var(--border-color); border-left:3px solid #10b981; border-radius:8px; margin-bottom:10px;">
-                        <p style="margin:0 0 8px; color:var(--text-main); white-space:pre-wrap;"><?= htmlspecialchars($announcement['message']) ?></p>
+                        <?php if (trim((string)$announcement['message']) !== ''): ?><p style="margin:0 0 8px; color:var(--text-main); white-space:pre-wrap;"><?= nl2br(htmlspecialchars($announcement['message'])) ?></p><?php endif; ?>
+                        <?php if (!empty($announcement['audio_path'])):
+                            $announcement_photo_file = trim((string)($announcement['profile_picture'] ?? ''));
+                            $announcement_photo = $announcement_photo_file !== '' ? 'uploads/' . rawurlencode(basename($announcement_photo_file)) : 'uploads/default_avatar.png';
+                        ?>
+                            <?= render_whatsapp_voice_player($announcement['audio_path'], trim(($announcement['first_name'] ?? '') . ' ' . ($announcement['last_name'] ?? '')) ?: 'Village Leader', $announcement_photo, $announcement['created_at']) ?>
+                        <?php endif; ?>
                         <small style="color:var(--text-muted); font-size:0.8rem;">Posted by <?= htmlspecialchars(trim(($announcement['first_name'] ?? '') . ' ' . ($announcement['last_name'] ?? '')) ?: 'Village Leader') ?> · <?= htmlspecialchars(date('M j, Y g:i A', strtotime($announcement['created_at']))) ?></small>
                     </article>
                 <?php
@@ -10583,7 +10614,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         <strong style="font-size:.84rem;"><?= htmlspecialchars($chat_message_sender) ?></strong>
                                         <span style="font-size:.74rem;color:var(--text-muted);"><?= htmlspecialchars($chat_message['church_village'] ?? '') ?> Village</span>
                                     </div>
-                                    <div class="village-chat-text"><?= htmlspecialchars($chat_message['message']) ?></div>
+                                    <?php if (trim((string)$chat_message['message']) !== ''): ?><div class="village-chat-text"><?= nl2br(htmlspecialchars($chat_message['message'])) ?></div><?php endif; ?>
+                                    <?php if (!empty($chat_message['audio_path'])): ?>
+                                        <?= render_whatsapp_voice_player($chat_message['audio_path'], $chat_message_sender, $chat_message_photo, $chat_message['created_at']) ?>
+                                    <?php endif; ?>
                                     <time class="village-chat-time" datetime="<?= htmlspecialchars($chat_message['created_at']) ?>">
                                         <?= htmlspecialchars(date('M j, Y g:i A', strtotime($chat_message['created_at']))) ?>
                                     </time>
@@ -10594,10 +10628,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <p style="margin:auto;color:var(--text-muted);text-align:center;">No messages yet. Start the conversation with the other village leaders.</p>
                     <?php endif; ?>
                 </div>
-                <form method="POST" action="?tab=village_leader_chat" class="village-chat-composer">
+                <form method="POST" action="?tab=village_leader_chat" enctype="multipart/form-data" data-sending-label="Sending message..." onsubmit="return handlePastorAnnFormSubmit(this,event);">
                     <input type="hidden" name="send_village_leader_chat" value="1">
-                    <textarea name="village_leader_message" required maxlength="4000" rows="2" placeholder="Write a message..." aria-label="Message to all village leaders"></textarea>
-                    <button type="submit" class="village-chat-send">Send</button>
+                    <div class="village-chat-composer">
+                        <textarea id="pastor_ann_textarea" name="village_leader_message" maxlength="4000" rows="2" placeholder="Write a message or record audio..." aria-label="Message to all village leaders"></textarea>
+                        <button id="pastor_ann_submit_btn" type="submit" class="village-chat-send">Send</button>
+                    </div>
+                    <?= render_voice_note_recorder('the other church village leaders') ?>
                 </form>
             </section>
             <script>

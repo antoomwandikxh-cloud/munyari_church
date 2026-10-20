@@ -5,10 +5,23 @@ function ensure_village_leader_chat_schema($conn) {
             id INT AUTO_INCREMENT PRIMARY KEY,
             sender_id INT NOT NULL,
             message TEXT NOT NULL,
+            audio_path VARCHAR(500) NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_village_leader_messages_created (created_at)
         )
     ");
+    try {
+        $chat_audio_column = $conn->query("SHOW COLUMNS FROM village_leader_messages LIKE 'audio_path'");
+        if ($chat_audio_column && $chat_audio_column->num_rows === 0) {
+            $conn->query("ALTER TABLE village_leader_messages ADD COLUMN audio_path VARCHAR(500) NULL AFTER message");
+        }
+        $announcement_audio_column = $conn->query("SHOW COLUMNS FROM village_announcements LIKE 'audio_path'");
+        if ($announcement_audio_column && $announcement_audio_column->num_rows === 0) {
+            $conn->query("ALTER TABLE village_announcements ADD COLUMN audio_path VARCHAR(500) NULL AFTER message");
+        }
+    } catch (Throwable $error) {
+        error_log('Village audio schema update failed: ' . $error->getMessage());
+    }
 }
 
 function village_leader_chat_styles() {
@@ -55,7 +68,7 @@ function village_leader_chat_message_result($conn, $focus_messages = []) {
     $message_filter = $focus_ids
         ? '((' . $recent_ids . ') OR vlm.id IN (' . implode(',', $focus_ids) . '))'
         : $recent_ids;
-    return $conn->query("SELECT vlm.id, vlm.message, vlm.created_at, m.first_name, m.last_name, m.church_village, m.profile_picture FROM village_leader_messages vlm JOIN members m ON m.id = vlm.sender_id WHERE m.is_village_leader = 1 AND m.is_approved = 1 AND LOWER(TRIM(COALESCE(m.church_village, ''))) IN ('akoritho', 'philadelphia', 'bethsaida') AND $message_filter ORDER BY vlm.id ASC");
+    return $conn->query("SELECT vlm.id, vlm.sender_id, vlm.message, vlm.audio_path, vlm.created_at, m.first_name, m.last_name, m.church_village, m.profile_picture FROM village_leader_messages vlm JOIN members m ON m.id = vlm.sender_id WHERE m.is_village_leader = 1 AND m.is_approved = 1 AND LOWER(TRIM(COALESCE(m.church_village, ''))) IN ('akoritho', 'philadelphia', 'bethsaida') AND $message_filter ORDER BY vlm.id ASC");
 }
 
 function render_village_leaders_chat_monitor($conn, $focus_messages = []) {
@@ -96,7 +109,12 @@ function render_village_leaders_chat_monitor($conn, $focus_messages = []) {
                             <strong style="font-size:.84rem;"><?= htmlspecialchars($sender_name, ENT_QUOTES, 'UTF-8') ?></strong>
                             <span style="font-size:.74rem;color:var(--text-muted);"><?= htmlspecialchars($message['church_village'] ?? '', ENT_QUOTES, 'UTF-8') ?> Village</span>
                         </div>
-                        <div class="village-chat-text"><?= htmlspecialchars($message['message'], ENT_QUOTES, 'UTF-8') ?></div>
+                        <?php if (trim((string)$message['message']) !== ''): ?>
+                            <div class="village-chat-text"><?= nl2br(htmlspecialchars($message['message'], ENT_QUOTES, 'UTF-8')) ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($message['audio_path'])): ?>
+                            <?= render_whatsapp_voice_player($message['audio_path'], $sender_name, $photo_url, $message['created_at']) ?>
+                        <?php endif; ?>
                         <time class="village-chat-time" datetime="<?= htmlspecialchars($message['created_at'], ENT_QUOTES, 'UTF-8') ?>">
                             <?= htmlspecialchars(date('M j, Y g:i A', strtotime($message['created_at']))) ?>
                         </time>

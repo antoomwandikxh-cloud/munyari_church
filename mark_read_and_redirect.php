@@ -97,7 +97,7 @@ if ($user_type === 'member') {
     header("Location: $destination");
 } elseif ($user_type === 'admin' || $user_type === 'pastor') {
     $destination = ($user_type === 'admin' ? 'admin_dashboard.php' : 'pastor_dashboard.php') . '?tab=' . urlencode($redirect_tab);
-    $valid_leader_groups = ['youths', 'womens_ministry', 'elders', 'sunday_school', 'general_church', 'building_construction', 'worship_leaders'];
+    $valid_leader_groups = ['youths', 'womens_ministry', 'elders', 'sunday_school', 'general_church', 'building_construction', 'worship_leaders', 'village_leaders'];
     if ($redirect_tab === 'general_leadership' && in_array($redirect_group, $valid_leader_groups, true)) {
         $destination .= '&leader_group=' . urlencode($redirect_group);
     }

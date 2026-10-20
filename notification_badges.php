@@ -1128,6 +1128,10 @@ HTML;
 
 function notification_target_group($message, $user_type) {
     $msg = strtolower($message);
+    if (in_array($user_type, ['pastor', 'admin'], true)
+        && strpos($msg, 'village leaders chat message from ') !== false) {
+        return 'village_leaders';
+    }
     $fine_department = '';
     if ($user_type === 'member'
         && preg_match('/^financial record submitted for chairperson review in\s+(.+?)\.\s*KSh/i', $message, $finance_department_match)) {

@@ -3477,6 +3477,7 @@ w.document.write('</div>');
                     'general_church'  => ['label' => '⛪ General Church Leaders',  'dept_key' => 'general_church',  'color' => '#10b981'],
                     'building_construction' => ['label' => '🏗️ Building Dept',    'dept_key' => 'building_construction', 'color' => '#ef4444'],
                     'worship_leaders' => ['label' => '🎶 Worship Dept',           'dept_key' => 'worship_leaders', 'color' => '#d946ef'],
+                    'village_leaders' => ['label' => '🏘️ Church Villages',       'dept_key' => 'village_leaders', 'color' => '#d6a832'],
                 ];
                 $active_group = $_GET['leader_group'] ?? 'general_church';
                 if (!array_key_exists($active_group, $dept_groups)) $active_group = 'general_church';
@@ -3503,6 +3504,9 @@ w.document.write('</div>');
                     <?php endforeach; ?>
                 </div>
 
+                <?php if ($active_group === 'village_leaders'): ?>
+                    <?php render_village_leaders_chat_monitor($conn, $notification_focus_messages ?? []); ?>
+                <?php else: ?>
                 <!-- Chat view for active group -->
                 <div class="content-card" style="margin-bottom:24px;border-left:4px solid <?= $active_color ?>;">
                     <h2 style="font-size:1.05rem;margin-top:0;color:<?= $active_color ?>;"><?= $active_label ?> — Leadership Chat</h2>
@@ -3601,7 +3605,7 @@ w.document.write('</div>');
                         </div>
                     </form>
                 </div>
-                <?php render_village_leaders_chat_monitor($conn, $notification_focus_messages ?? []); ?>
+                <?php endif; ?>
 
 
             <?php elseif ($tab == 'settings'): ?>
@@ -4082,7 +4086,7 @@ w.document.write('</div>');
                     <p>View all members categorized by their church village and preferred roles.</p>
                 </div>
                 <?php
-                $village_announcement_updates = $conn->query("SELECT va.id, va.village, va.message, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id ORDER BY va.created_at DESC");
+                $village_announcement_updates = $conn->query("SELECT va.id, va.village, va.message, va.audio_path, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id ORDER BY va.created_at DESC");
                 if ($village_announcement_updates && $village_announcement_updates->num_rows > 0):
                 ?>
                 <div class="content-card" style="margin-bottom:24px;">
@@ -4096,7 +4100,10 @@ w.document.write('</div>');
                                 <div style="font-size:0.82rem;color:var(--text-muted);"><?= htmlspecialchars($village_announcement['village']) ?> Village &middot; <?= date('M j, Y g:i A', strtotime($village_announcement['created_at'])) ?></div>
                             </div>
                         </div>
-                        <p style="margin:0;line-height:1.55;white-space:normal;"><?= nl2br(htmlspecialchars($village_announcement['message'])) ?></p>
+                        <?php if (trim((string)$village_announcement['message']) !== ''): ?><p style="margin:0;line-height:1.55;white-space:normal;"><?= nl2br(htmlspecialchars($village_announcement['message'])) ?></p><?php endif; ?>
+                        <?php if (!empty($village_announcement['audio_path'])): ?>
+                            <?= render_whatsapp_voice_player($village_announcement['audio_path'], trim(($village_announcement['first_name'] ?? '') . ' ' . ($village_announcement['last_name'] ?? '')) ?: 'Village Leader', !empty($village_announcement['profile_picture']) ? 'uploads/' . basename($village_announcement['profile_picture']) : 'uploads/default_avatar.png', $village_announcement['created_at']) ?>
+                        <?php endif; ?>
                     </article>
                     <?php endwhile; ?>
                 </div>
@@ -4854,7 +4861,7 @@ w.document.write('</div>');
                 <div class="content-card" style="margin:24px 0;border-left:4px solid #10b981;">
                     <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">Church Village Leader Announcements</h2>
                     <?php
-                    $village_announcements = $conn->query("SELECT va.id, va.village, va.message, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id ORDER BY va.created_at DESC LIMIT 100");
+                    $village_announcements = $conn->query("SELECT va.id, va.village, va.message, va.audio_path, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id ORDER BY va.created_at DESC LIMIT 100");
                     if ($village_announcements && $village_announcements->num_rows > 0):
                         while ($village_announcement = $village_announcements->fetch_assoc()):
                             $village_leader_name = trim(($village_announcement['first_name'] ?? '') . ' ' . ($village_announcement['last_name'] ?? '')) ?: 'Village Leader';
@@ -4868,7 +4875,10 @@ w.document.write('</div>');
                                     <div style="font-size:0.82rem;color:var(--text-muted);"><?= htmlspecialchars($village_announcement['village']) ?> Village · <?= date('M j, Y g:i A', strtotime($village_announcement['created_at'])) ?></div>
                                 </div>
                             </div>
-                            <p style="margin:0;line-height:1.55;white-space:pre-wrap;color:var(--text-main);"><?= nl2br(htmlspecialchars($village_announcement['message'])) ?></p>
+                            <?php if (trim((string)$village_announcement['message']) !== ''): ?><p style="margin:0;line-height:1.55;white-space:pre-wrap;color:var(--text-main);"><?= nl2br(htmlspecialchars($village_announcement['message'])) ?></p><?php endif; ?>
+                            <?php if (!empty($village_announcement['audio_path'])): ?>
+                                <?= render_whatsapp_voice_player($village_announcement['audio_path'], $village_leader_name, $village_leader_photo, $village_announcement['created_at']) ?>
+                            <?php endif; ?>
                         </article>
                     <?php endwhile; else: ?>
                         <p style="color:var(--text-muted);margin:0;">No village leader announcements yet.</p>

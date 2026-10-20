@@ -23,7 +23,7 @@ function save_voice_note($base64_data = null, $file_upload = null) {
     // 1. Check $_FILES upload first (from file picker or DataTransfer)
     if (!empty($file_upload) && isset($file_upload['tmp_name']) && $file_upload['error'] === UPLOAD_ERR_OK && !empty($file_upload['size']) && $file_upload['size'] > 50) {
         $ext = strtolower(pathinfo($file_upload['name'] ?? '', PATHINFO_EXTENSION));
-        if (!in_array($ext, ['webm', 'mp3', 'ogg', 'wav', 'm4a', 'aac', 'opus'])) {
+        if (!in_array($ext, ['webm', 'mp3', 'ogg', 'wav', 'm4a', 'mp4', 'aac', 'opus'])) {
             $ext = 'webm';
         }
         $fname = 'pastor_vn_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
@@ -45,7 +45,7 @@ function save_voice_note($base64_data = null, $file_upload = null) {
                 $raw_ext = strtolower($ext_matches[1]);
                 if ($raw_ext === 'mpeg') $ext = 'mp3';
                 elseif ($raw_ext === 'ogg' || $raw_ext === 'opus') $ext = 'ogg';
-                elseif (in_array($raw_ext, ['webm', 'mp3', 'ogg', 'wav', 'm4a', 'aac'])) $ext = $raw_ext;
+                elseif (in_array($raw_ext, ['webm', 'mp3', 'ogg', 'wav', 'm4a', 'mp4', 'aac'])) $ext = $raw_ext;
             }
 
             $binary = base64_decode($base64_content);
@@ -719,7 +719,7 @@ function render_voice_note_recorder($audience_label = 'all church members') {
         var submitBtn = document.getElementById("pastor_ann_submit_btn");
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.innerHTML = "Sending to Entire Church...";
+            submitBtn.innerHTML = form.getAttribute("data-sending-label") || "Sending to Entire Church...";
         }
         return true;
     }
