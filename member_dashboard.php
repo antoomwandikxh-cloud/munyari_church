@@ -3903,7 +3903,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
 
                         <?php
                         $received_records = $conn->query("
-                            SELECT fr.*, fr.id AS financial_record_id, dft.created_at AS transfer_created_at, dft.description AS transfer_description, cb.first_name AS confirmed_first, cb.last_name AS confirmed_last, m.first_name, m.last_name
+                            SELECT fr.*, fr.id AS financial_record_id, dft.created_at AS transfer_created_at, dft.description AS transfer_description, cb.first_name AS confirmed_first, cb.last_name AS confirmed_last, m.first_name, m.last_name, m.profile_picture AS treasurer_profile_picture
                             FROM financial_records fr
                             LEFT JOIN department_funds_transfer dft ON dft.financial_record_id = fr.id AND dft.transfer_type = 'To Chairperson'
                             JOIN members m ON fr.recorded_by = m.id
@@ -3931,7 +3931,12 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                     <?php while($rr = $received_records->fetch_assoc()): ?>
                                     <tr data-notification-row="financial-record-<?= (int)$rr['financial_record_id'] ?>">
                                         <td><?= date('M j, Y', strtotime($rr['transfer_created_at'] ?: $rr['record_date'])) ?></td>
-                                        <td><?= htmlspecialchars($rr['first_name'] . ' ' . $rr['last_name']) ?></td>
+                                        <td>
+                                            <div style="display:flex;align-items:center;gap:8px;min-width:150px;">
+                                                <img src="uploads/<?= htmlspecialchars(basename($rr['treasurer_profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($rr['first_name'] . ' ' . $rr['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid var(--border-color);cursor:zoom-in;flex-shrink:0;" onclick="viewProfileImage(this.src);" title="View treasurer profile photo">
+                                                <span><?= htmlspecialchars($rr['first_name'] . ' ' . $rr['last_name']) ?></span>
+                                            </div>
+                                        </td>
                                         <td>
                                             <div><?= htmlspecialchars($rr['description'] ?: ($rr['transfer_description'] ?: 'No description')) ?></div>
                                             <?php if (!empty($rr['chair_disbursement_note'])): ?>
@@ -9713,7 +9718,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             <?php
             $my_dept = $conn->real_escape_string($member['department']);
             $my_dept_records = $conn->query("
-                SELECT fr.*, tr.first_name AS treasurer_first, tr.last_name AS treasurer_last, cb.first_name AS chair_first, cb.last_name AS chair_last
+                SELECT fr.*, tr.first_name AS treasurer_first, tr.last_name AS treasurer_last, tr.profile_picture AS treasurer_profile_picture, cb.first_name AS chair_first, cb.last_name AS chair_last
                 FROM financial_records fr
                 JOIN members tr ON fr.recorded_by = tr.id
                 LEFT JOIN members cb ON fr.chair_confirmed_by = cb.id
@@ -9751,7 +9756,12 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     <td><?= htmlspecialchars($dept_record['department']) ?></td>
                                     <td style="font-weight: 700; color: #10b981;">KSh <?= number_format($dept_record['amount'], 2) ?></td>
                                     <td><?= htmlspecialchars($dept_record['chair_disbursement_note'] ?: ($dept_record['description'] ?: 'No note')) ?></td>
-                                    <td><?= htmlspecialchars($dept_record['treasurer_first'] . ' ' . $dept_record['treasurer_last']) ?></td>
+                                    <td>
+                                        <div style="display:flex;align-items:center;gap:8px;min-width:150px;">
+                                            <img src="uploads/<?= htmlspecialchars(basename($dept_record['treasurer_profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($dept_record['treasurer_first'] . ' ' . $dept_record['treasurer_last']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid var(--border-color);cursor:zoom-in;flex-shrink:0;" onclick="viewProfileImage(this.src);" title="View treasurer profile photo">
+                                            <span><?= htmlspecialchars($dept_record['treasurer_first'] . ' ' . $dept_record['treasurer_last']) ?></span>
+                                        </div>
+                                    </td>
                                     <td><?= htmlspecialchars(trim(($dept_record['chair_first'] ?? '') . ' ' . ($dept_record['chair_last'] ?? ''))) ?></td>
                                 </tr>
                                 <?php endwhile; ?>
