@@ -10653,21 +10653,20 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <?= $selected_village !== '' ? 'Selected village: ' . htmlspecialchars($selected_village) : 'Choose a village to continue.' ?>
                     </p>
                     <style>
-                        .church-village-choice-row{display:flex;gap:12px;overflow-x:auto;padding:3px 2px 10px;scroll-snap-type:x mandatory}
+                        .church-village-choice-row{display:flex;gap:12px;overflow-x:auto;padding:8px 8px 14px;scroll-snap-type:x mandatory}
                         .church-village-choice{flex:1 0 165px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;padding:12px 14px;border:1px solid var(--choice-accent);border-left:4px solid var(--choice-accent);border-radius:8px;background:var(--choice-tint);color:var(--text-main);text-align:left;font:inherit;cursor:pointer;scroll-snap-align:start;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}
                         .church-village-choice:hover{transform:translateY(-2px);border-color:var(--choice-accent);box-shadow:0 6px 16px rgba(15,23,42,.2)}
-                        .church-village-choice[aria-pressed="true"]{border-color:var(--choice-accent);background:var(--choice-accent);color:#fff;animation:member-choice-selected-glow 1.8s ease-in-out infinite}
-                        @keyframes member-choice-selected-glow{0%,100%{box-shadow:0 0 0 2px rgba(212,160,23,.58),0 0 10px 2px rgba(212,160,23,.34),0 6px 16px rgba(15,23,42,.18)}50%{box-shadow:0 0 0 3px rgba(212,160,23,.92),0 0 20px 6px rgba(212,160,23,.58),0 6px 16px rgba(15,23,42,.2)}}
-                        @media(prefers-reduced-motion:reduce){.church-village-choice[aria-pressed="true"],.desired-role-choice[aria-pressed="true"]{animation:none;box-shadow:0 0 0 3px rgba(212,160,23,.84),0 0 15px 4px rgba(212,160,23,.48),0 6px 16px rgba(15,23,42,.18)}}
-                        .church-village-choice:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+                        .church-village-choice[aria-pressed="true"]{position:relative;z-index:1;border-color:var(--choice-accent);background:var(--choice-accent);color:#fff;outline:3px solid #facc15;outline-offset:2px;animation:member-choice-selected-glow 1.8s ease-in-out infinite}
+                        @keyframes member-choice-selected-glow{0%,100%{box-shadow:0 0 0 3px rgba(250,204,21,.82),0 0 16px 5px rgba(250,204,21,.52),0 0 30px 9px rgba(250,204,21,.26),0 6px 16px rgba(15,23,42,.18)}50%{box-shadow:0 0 0 4px rgba(250,204,21,1),0 0 24px 9px rgba(250,204,21,.82),0 0 42px 14px rgba(250,204,21,.42),0 6px 16px rgba(15,23,42,.2)}}
+                        @media(prefers-reduced-motion:reduce){.church-village-choice[aria-pressed="true"],.desired-role-choice[aria-pressed="true"]{animation:none;outline:3px solid #facc15;outline-offset:2px;box-shadow:0 0 0 4px rgba(250,204,21,.9),0 0 20px 8px rgba(250,204,21,.66),0 6px 16px rgba(15,23,42,.18)}}
+                        .church-village-choice:focus-visible,.desired-role-choice:focus-visible{outline:3px solid #facc15;outline-offset:2px}
                         .church-village-choice-name{font-weight:750}
                         .church-village-choice-selected{font-size:.74rem;font-weight:700;opacity:.9}
                         .church-village-choice-selected[hidden]{display:none}
-                        .desired-role-choice-row{display:flex;gap:12px;overflow-x:auto;padding:3px 2px 10px;scroll-snap-type:x mandatory}
+                        .desired-role-choice-row{display:flex;gap:12px;overflow-x:auto;padding:8px 8px 14px;scroll-snap-type:x mandatory}
                         .desired-role-choice{flex:1 0 165px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;padding:12px 14px;border:1px solid var(--choice-accent);border-left:4px solid var(--choice-accent);border-radius:8px;background:var(--choice-tint);color:var(--text-main);text-align:left;font:inherit;cursor:pointer;scroll-snap-align:start;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}
                         .desired-role-choice:hover{transform:translateY(-2px);border-color:var(--choice-accent);box-shadow:0 6px 16px rgba(15,23,42,.2)}
-                        .desired-role-choice[aria-pressed="true"]{border-color:var(--choice-accent);background:var(--choice-accent);color:#fff;animation:member-choice-selected-glow 1.8s ease-in-out infinite}
-                        .desired-role-choice:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+                        .desired-role-choice[aria-pressed="true"]{position:relative;z-index:1;border-color:var(--choice-accent);background:var(--choice-accent);color:#fff;outline:3px solid #facc15;outline-offset:2px;animation:member-choice-selected-glow 1.8s ease-in-out infinite}
                         .desired-role-choice-name{font-weight:750;overflow-wrap:anywhere}
                         .desired-role-choice-selected{font-size:.74rem;font-weight:700;opacity:.9}
                         .desired-role-choice-selected[hidden]{display:none}
