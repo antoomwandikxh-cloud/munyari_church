@@ -7467,6 +7467,14 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     $dept_records = $conn->query("SELECT fr.*, COALESCE(NULLIF(fr.recorded_by_name, ''), NULLIF(CONCAT_WS(' ', m.first_name, m.last_name), ''), 'Unknown Treasurer') AS poster_name, COALESCE(NULLIF(m.profile_picture, ''), 'default_avatar.png') AS poster_pic FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE fr.department='$esc_dept' AND COALESCE(fr.description, '') NOT LIKE 'Disciplinary Fine:%' ORDER BY fr.record_date DESC, fr.recorded_at DESC LIMIT 50");
                     if ($dept_records && $dept_records->num_rows > 0):
                     ?>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
+                        <label for="treasurerFinanceSearch" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Search recent financial transactions</label>
+                        <div style="position:relative;flex:1 1 280px;max-width:380px;">
+                            <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"><circle cx="11" cy="11" r="7" stroke-width="2"></circle><path d="m20 20-4-4" stroke-width="2" stroke-linecap="round"></path></svg>
+                            <input id="treasurerFinanceSearch" type="search" class="form-control" oninput="filterTreasurerFinancialRecords()" placeholder="Search date, description, amount, or treasurer" autocomplete="off" style="width:100%;padding:9px 12px 9px 36px;">
+                        </div>
+                        <span id="treasurerFinanceSearchCount" aria-live="polite" style="font-size:.85rem;color:var(--text-muted);"></span>
+                    </div>
                     <div class="table-responsive">
                         <table>
                             <thead>
@@ -7481,7 +7489,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             </thead>
                             <tbody>
                                 <?php while($rec = $dept_records->fetch_assoc()): ?>
-                                <tr>
+                                <tr class="treasurer-finance-search-row">
                                     <td><?= date('M j, Y', strtotime($rec['record_date'])) ?></td>
                                     <td><?= htmlspecialchars($rec['description'] ?: 'No description') ?></td>
                                     <td style="font-weight: 600; color: #10b981;">KSh <?= number_format($rec['amount'], 2) ?></td>
@@ -7511,6 +7519,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     </td>
                                 </tr>
                                 <?php endwhile; ?>
+                                <tr id="treasurerFinanceNoMatches" style="display:none;">
+                                    <td colspan="6" style="text-align:center;color:var(--text-muted);padding:18px;">No transactions match your search.</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -7557,6 +7568,26 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </div>
                 </div>
                 <script>
+                    function filterTreasurerFinancialRecords() {
+                        var input = document.getElementById('treasurerFinanceSearch');
+                        var rows = document.querySelectorAll('.treasurer-finance-search-row');
+                        var emptyRow = document.getElementById('treasurerFinanceNoMatches');
+                        var count = document.getElementById('treasurerFinanceSearchCount');
+                        if (!input || !rows.length) return;
+
+                        var term = input.value.trim().toLocaleLowerCase();
+                        var visible = 0;
+                        rows.forEach(function(row) {
+                            var matches = !term || (row.textContent || '').toLocaleLowerCase().includes(term);
+                            row.style.display = matches ? '' : 'none';
+                            if (matches) visible++;
+                        });
+
+                        if (emptyRow) emptyRow.style.display = visible ? 'none' : '';
+                        if (count) count.textContent = 'Showing ' + visible + ' of ' + rows.length + ' transactions';
+                    }
+                    filterTreasurerFinancialRecords();
+
                     function openEditFinanceModal(id, amount, desc, date, isSent) {
                         document.getElementById('edit_finance_id').value = id;
                         document.getElementById('edit_finance_amount').value = amount;
