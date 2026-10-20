@@ -3758,9 +3758,7 @@ w.document.write('</div>');
                                             </div>
                                             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                                                 <button type="submit" name="action" value="approve" data-village-approve class="btn-sm btn-success" style="border:none;cursor:pointer;">Approve</button>
-                                                <button type="button" data-open-decline class="btn-sm" style="border:none;background:var(--danger);color:white;cursor:pointer;">Decline</button>
-                                                <button type="submit" name="action" value="reject" data-confirm-decline hidden class="btn-sm" style="border:none;background:var(--danger);color:white;cursor:pointer;">Decline &amp; Notify</button>
-                                                <button type="button" data-cancel-decline hidden class="btn-sm" style="border:1px solid var(--border-color);background:var(--bg-main);color:var(--text-main);cursor:pointer;">Cancel</button>
+                                                <button type="button" name="action" value="reject" data-decline-notify class="btn-sm" style="border:none;background:var(--danger);color:white;cursor:pointer;">Decline &amp; Notify</button>
                                             </div>
                                         </form>
                                     </td>
@@ -3775,27 +3773,21 @@ w.document.write('</div>');
                         var reasonPanel = form.querySelector('[data-decline-reason-panel]');
                         var reasonField = form.querySelector('[name="decline_reason"]');
                         var approveButton = form.querySelector('[data-village-approve]');
-                        var openButton = form.querySelector('[data-open-decline]');
-                        var confirmButton = form.querySelector('[data-confirm-decline]');
-                        var cancelButton = form.querySelector('[data-cancel-decline]');
-                        if (!reasonPanel || !reasonField || !openButton || !confirmButton || !cancelButton) return;
-                        openButton.addEventListener('click', function () {
+                        var declineButton = form.querySelector('[data-decline-notify]');
+                        if (!reasonPanel || !reasonField || !declineButton) return;
+                        declineButton.addEventListener('click', function () {
+                            if (!reasonPanel.hidden) return;
                             reasonPanel.hidden = false;
                             reasonField.required = true;
-                            openButton.hidden = true;
-                            confirmButton.hidden = false;
-                            cancelButton.hidden = false;
+                            declineButton.type = 'submit';
                             if (approveButton) approveButton.hidden = true;
                             reasonField.focus();
                         });
-                        cancelButton.addEventListener('click', function () {
-                            reasonPanel.hidden = true;
-                            reasonField.required = false;
-                            reasonField.value = '';
-                            openButton.hidden = false;
-                            confirmButton.hidden = true;
-                            cancelButton.hidden = true;
-                            if (approveButton) approveButton.hidden = false;
+                        form.addEventListener('submit', function (event) {
+                            if (declineButton.type === 'submit' && !reasonField.value.trim()) {
+                                event.preventDefault();
+                                reasonField.focus();
+                            }
                         });
                     });
                 </script>
