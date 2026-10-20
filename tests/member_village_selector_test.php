@@ -23,6 +23,14 @@ $required_markers = [
     'village change confirmation names only the selected village' => "confirmMessage = 'You selected ' + villageInput.value + ' village. Send this church village change request to the Pastor for approval?'",
     'village request message omits the unchanged role' => '"requested to change their church village to $cv"',
     'role change asks Pastor approval' => 'Send this role change request to the Pastor for approval?',
+    'reason field appears when leaving Worshipper' => 'id="worshipperExitReasonWrap" hidden',
+    'reason is submitted with a Worshipper role change' => 'name="preference_reason"',
+    'Worshipper exit requires a reason in the browser' => 'Please explain why you want to leave the Worshipper role before sending your request.',
+    'Worshipper exit reason is enforced server side' => '$requires_worshipper_exit_reason && $preference_reason === \'\'',
+    'request reason is saved for Pastor review' => 'pending_preference_reason = $preference_reason_sql',
+    'pending reason column is created when needed' => "ALTER TABLE members ADD COLUMN pending_preference_reason TEXT NULL AFTER pending_desired_role_pref",
+    'village options have exact preference row keys' => "member_preference_notification_row('village', \$village_option)",
+    'role options have exact preference row keys' => "member_preference_notification_row('role', \$role_option)",
     'village request preserves the saved role' => '$requested_role = $current_role;',
     'role request preserves the saved village' => '$requested_village = $current_village;',
     'unchanged preferences are blocked server side' => 'if ($unchanged_message !== \'\')',
@@ -58,7 +66,11 @@ foreach ($required_markers as $label => $marker) {
 }
 if (strpos($pastor_dashboard, '$pending_village_changed = strcasecmp(trim((string)($pu[\'pending_church_village\'] ?? \'\')), trim((string)($pu[\'church_village\'] ?? \'\'))) !== 0;') === false
     || strpos($pastor_dashboard, '$pending_role_changed = strcasecmp(trim((string)($pu[\'pending_desired_role_pref\'] ?? \'\')), trim((string)($pu[\'desired_role_pref\'] ?? \'\'))) !== 0;') === false
-    || strpos($pastor_dashboard, '<?php if ($pending_role_changed): ?>') === false) {
+    || strpos($pastor_dashboard, '<?php if ($pending_role_changed): ?>') === false
+    || strpos($pastor_dashboard, 'Reason for declining') === false
+    || strpos($pastor_dashboard, 'Enter a reason of 1,000 characters or fewer before declining this request.') === false
+    || strpos($pastor_dashboard, "pending_preference_reason'] ??") === false
+    || strpos($pastor_dashboard, "'. Reason: ' . \$decline_reason") === false) {
     fwrite(STDERR, "FAIL: Pastor pending update list must only show the role when it changed.\n");
     exit(1);
 }

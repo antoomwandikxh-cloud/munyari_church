@@ -34,42 +34,46 @@ expect_same(
     notification_display_message($village_update_notification, 'pastor'),
     'village preference route metadata stays hidden from the Pastor notification text'
 );
+$village_focus_row = member_preference_notification_row('village', 'Philadelphia');
+$role_focus_row = member_preference_notification_row('role', 'Worshipper');
+expect_same('member-preference-village-' . md5('philadelphia'), $village_focus_row, 'village preference row keys are stable and specific');
+expect_same('member-preference-role-' . md5('worshipper'), $role_focus_row, 'role preference row keys are stable and specific');
 $village_approved_notification = notification_with_route(
     'The Pastor approved your request to change your church village to Philadelphia.',
     'desired_roles',
     '',
-    'member-village-update-42'
+    $village_focus_row
 );
 expect_same(['desired_roles'], notification_badge_tabs($village_approved_notification, 'member'), 'approved village request badges the member Desired Roles tab');
 expect_same('desired_roles', notification_target_tab($village_approved_notification, 'member'), 'approved village request opens the member Desired Roles tab');
-expect_same('member-village-update-42', notification_route_metadata($village_approved_notification)['row'], 'approved request targets the member preference panel');
+expect_same($village_focus_row, notification_route_metadata($village_approved_notification)['row'], 'approved request targets the selected village option');
 expect_same(
     'The Pastor approved your request to change your church village to Philadelphia.',
     notification_display_message($village_approved_notification, 'member'),
     'approved request hides route metadata from the member notification text'
 );
 $village_approved_glow = render_notification_tab_glow_script('desired_roles', 'desired_roles', $village_approved_notification);
-if (strpos($village_approved_glow, 'notification-row:member-village-update-42') === false
+if (strpos($village_approved_glow, 'notification-row:' . $village_focus_row) === false
     || strpos($village_approved_glow, 'notification-row-glow') === false) {
     fwrite(STDERR, "FAIL: approved village request opens the exact preference panel and applies its gold glow.\n");
     exit(1);
 }
 $village_declined_notification = notification_with_route(
-    'The Pastor declined your request to change your church village to Philadelphia.',
+    'The Pastor declined your request to change your church village to Philadelphia. Reason: Not in the selected village.',
     'desired_roles',
     '',
-    'member-village-update-42'
+    $village_focus_row
 );
 expect_same(['desired_roles'], notification_badge_tabs($village_declined_notification, 'member'), 'declined village request badges the member Desired Roles tab');
 expect_same('desired_roles', notification_target_tab($village_declined_notification, 'member'), 'declined village request opens the member Desired Roles tab');
-expect_same('member-village-update-42', notification_route_metadata($village_declined_notification)['row'], 'declined request targets the member preference panel');
+expect_same($village_focus_row, notification_route_metadata($village_declined_notification)['row'], 'declined request targets the selected village option');
 expect_same(
-    'The Pastor declined your request to change your church village to Philadelphia.',
+    'The Pastor declined your request to change your church village to Philadelphia. Reason: Not in the selected village.',
     notification_display_message($village_declined_notification, 'member'),
     'declined request hides route metadata from the member notification text'
 );
 $village_declined_glow = render_notification_tab_glow_script('desired_roles', 'desired_roles', $village_declined_notification);
-if (strpos($village_declined_glow, 'notification-row:member-village-update-42') === false
+if (strpos($village_declined_glow, 'notification-row:' . $village_focus_row) === false
     || strpos($village_declined_glow, 'notification-row-glow') === false) {
     fwrite(STDERR, "FAIL: declined village request opens the exact preference panel and applies its gold glow.\n");
     exit(1);
@@ -80,15 +84,32 @@ if (strpos($village_update_glow, 'notification-row:member-village-update-42') ==
     fwrite(STDERR, "FAIL: village preference request opens and highlights the exact pending member row.\n");
     exit(1);
 }
+$role_declined_notification = notification_with_route(
+    'The Pastor declined your request to change your desired role to No role. Reason: Please discuss first.',
+    'desired_roles',
+    '',
+    member_preference_notification_row('role', '')
+);
+expect_same('desired_roles', notification_target_tab($role_declined_notification, 'member'), 'declined role change opens Desired Roles');
+expect_same(member_preference_notification_row('role', ''), notification_route_metadata($role_declined_notification)['row'], 'declined role change targets the No role option');
+$role_declined_glow = render_notification_tab_glow_script('desired_roles', 'desired_roles', $role_declined_notification);
+if (strpos($role_declined_glow, 'notification-row:' . member_preference_notification_row('role', '')) === false
+    || strpos($role_declined_glow, 'notification-row-glow') === false) {
+    fwrite(STDERR, "FAIL: declined role request targets and glows only its selected role option.\n");
+    exit(1);
+}
 $member_dashboard_source = file_get_contents(__DIR__ . '/../member_dashboard.php');
 $pastor_dashboard_source = file_get_contents(__DIR__ . '/../pastor_dashboard.php');
 if ($member_dashboard_source === false
     || strpos($member_dashboard_source, 'notification_with_route($update_msg, \'desired_roles\', \'\', \'member-village-update-\' . $member_id)') === false
     || strpos($member_dashboard_source, 'data-notification-row="member-village-update-<?= (int)$member_id ?>"') === false
+    || strpos($member_dashboard_source, "member_preference_notification_row('village', \$village_option)") === false
+    || strpos($member_dashboard_source, "member_preference_notification_row('role', \$role_option)") === false
+    || strpos($member_dashboard_source, 'name="preference_reason"') === false
     || strpos($member_dashboard_source, 'form.dataset.hasSavedVillage === \'true\'') === false
     || $pastor_dashboard_source === false
-    || strpos($pastor_dashboard_source, 'notification_with_route($approval_message, \'desired_roles\', \'\', \'member-village-update-\' . $update_id)') === false
-    || strpos($pastor_dashboard_source, 'notification_with_route($decline_message, \'desired_roles\', \'\', \'member-village-update-\' . $update_id)') === false
+    || strpos($pastor_dashboard_source, 'notification_with_route($approval_message, \'desired_roles\', \'\', $preference_focus_row)') === false
+    || strpos($pastor_dashboard_source, 'notification_with_route($decline_message, \'desired_roles\', \'\', $preference_focus_row)') === false
     || strpos($pastor_dashboard_source, 'data-notification-row="member-village-update-<?= (int)$pu[\'id\'] ?>"') === false) {
     fwrite(STDERR, "FAIL: village update requests and rejections must route to exact member and Pastor preference rows.\n");
     exit(1);

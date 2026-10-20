@@ -63,6 +63,10 @@ if (!function_exists('notify_worship_announcement_audience')) {
 $member_id = $_SESSION['member_id'];
 cleanup_expired_church_highlights($conn);
 ensure_village_leader_chat_schema($conn);
+$pending_preference_reason_column = $conn->query("SHOW COLUMNS FROM members LIKE 'pending_preference_reason'");
+if ($pending_preference_reason_column && $pending_preference_reason_column->num_rows === 0) {
+    $conn->query("ALTER TABLE members ADD COLUMN pending_preference_reason TEXT NULL AFTER pending_desired_role_pref");
+}
 $conn->query("
     CREATE TABLE IF NOT EXISTS sunday_school_class_requests (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1614,6 +1618,7 @@ if ($can_use_department_leader_chat) {
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])) {
     $posted_village = trim((string)($_POST['church_village'] ?? ''));
     $posted_role = trim((string)($_POST['desired_role_pref'] ?? ''));
+    $preference_reason = trim((string)($_POST['preference_reason'] ?? ''));
     $current_village = trim((string)($member['church_village'] ?? ''));
     $current_role = trim((string)($member['desired_role_pref'] ?? ''));
     $preference_action = trim((string)($_POST['preference_action'] ?? ''));
@@ -1656,9 +1661,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
     $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles");
     if ($cr_q) { while($cr = $cr_q->fetch_assoc()){ $valid_roles[] = $cr['role_name']; } }
     if (!in_array($requested_role, $valid_roles, true)) { $requested_role = ''; }
+    $requires_worshipper_exit_reason = $preference_action === 'change_role'
+        && strcasecmp($current_role, 'Worshipper') === 0
+        && strcasecmp($requested_role, 'Worshipper') !== 0;
+    $preference_reason_length = function_exists('mb_strlen') ? mb_strlen($preference_reason, 'UTF-8') : strlen($preference_reason);
+    if ($requires_worshipper_exit_reason && $preference_reason === '') {
+        header("Location: member_dashboard.php?tab=desired_roles&error=" . urlencode('Please explain why you want to leave the Worshipper role before sending your request.'));
+        exit();
+    }
+    if ($requires_worshipper_exit_reason && $preference_reason_length > 1000) {
+        header("Location: member_dashboard.php?tab=desired_roles&error=" . urlencode('Your reason must be 1,000 characters or fewer.'));
+        exit();
+    }
     $cv = $conn->real_escape_string($requested_village);
     $drp = $conn->real_escape_string($requested_role);
     $drp_sql = $drp ? "'$drp'" : "NULL";
+    $preference_reason_sql = $requires_worshipper_exit_reason
+        ? "'" . $conn->real_escape_string($preference_reason) . "'"
+        : 'NULL';
 
     if ($current_village === '') {
         // Initial setup
@@ -1732,7 +1752,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
         }
 
         // Update request - goes to pending
-        $conn->query("UPDATE members SET pending_church_village = '$cv', pending_desired_role_pref = $drp_sql WHERE id = $member_id");
+        $conn->query("UPDATE members SET pending_church_village = '$cv', pending_desired_role_pref = $drp_sql, pending_preference_reason = $preference_reason_sql WHERE id = $member_id");
         $requested_role_label = $drp !== '' ? $drp : 'No desired role';
         $change_summary = $preference_action === 'change_village'
             ? "requested to change their church village to $cv"
@@ -1740,6 +1760,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
                 ? "requested to change their desired role to $requested_role_label (church village: $cv)"
                 : "requested to change their church village to $cv and desired role to $requested_role_label");
         $update_msg = "Member " . trim($member['first_name'] . " " . $member['last_name']) . " $change_summary.";
+        if ($requires_worshipper_exit_reason) {
+            $update_msg .= ' Reason for leaving Worshipper: ' . $preference_reason;
+        }
         $routed_update_msg = notification_with_route($update_msg, 'desired_roles', '', 'member-village-update-' . $member_id);
         $pastors_q = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
         if ($pastors_q) {
@@ -10733,7 +10756,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             $village_selected = $selected_village === $village_option;
                             $choice_palette = $village_choice_palette[$village_option] ?? ['accent' => '#64748b', 'tint' => 'rgba(100, 116, 139, 0.15)'];
                         ?>
-                            <button type="button" class="church-village-choice" style="--choice-accent:<?= htmlspecialchars($choice_palette['accent'], ENT_QUOTES, 'UTF-8') ?>;--choice-tint:<?= htmlspecialchars($choice_palette['tint'], ENT_QUOTES, 'UTF-8') ?>" data-village-option="<?= htmlspecialchars($village_option, ENT_QUOTES, 'UTF-8') ?>" aria-pressed="<?= $village_selected ? 'true' : 'false' ?>">
+                            <button type="button" class="church-village-choice" style="--choice-accent:<?= htmlspecialchars($choice_palette['accent'], ENT_QUOTES, 'UTF-8') ?>;--choice-tint:<?= htmlspecialchars($choice_palette['tint'], ENT_QUOTES, 'UTF-8') ?>" data-village-option="<?= htmlspecialchars($village_option, ENT_QUOTES, 'UTF-8') ?>" data-notification-row="<?= htmlspecialchars(member_preference_notification_row('village', $village_option), ENT_QUOTES, 'UTF-8') ?>" aria-pressed="<?= $village_selected ? 'true' : 'false' ?>">
                                 <span class="church-village-choice-name"><?= htmlspecialchars($village_option) ?></span>
                                 <span class="church-village-choice-selected" <?= $village_selected ? '' : 'hidden' ?>>Selected</span>
                             </button>
@@ -10821,6 +10844,17 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             window.alert('You cannot choose the same role you picked earlier. Go back and choose a different one.');
                                             return;
                                         }
+                                        if (normalize(savedRole) === 'worshipper' && normalize(selectedRole) !== 'worshipper') {
+                                            var reasonField = form.querySelector('#worshipperExitReason');
+                                            if (!reasonField || !reasonField.value.trim()) {
+                                                event.preventDefault();
+                                                var reasonPanel = form.querySelector('#worshipperExitReasonWrap');
+                                                if (reasonPanel) reasonPanel.hidden = false;
+                                                window.alert('Please explain why you want to leave the Worshipper role before sending your request.');
+                                                if (reasonField) reasonField.focus();
+                                                return;
+                                            }
+                                        }
                                         confirmMessage = 'You selected ' + savedVillage + ' village and ' + (selectedRole || 'No desired role') + ' role. Send this role change request to the Pastor for approval?';
                                     } else if (action === 'change_both') {
                                         if (normalize(villageInput.value) === normalize(savedVillage) && normalize(selectedRole) === normalize(savedRole)) {
@@ -10876,7 +10910,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             $role_label = $role_option !== '' ? $role_option : 'No role';
                             $choice_palette = $role_choice_palette[$role_index % count($role_choice_palette)];
                         ?>
-                            <button type="button" class="desired-role-choice" style="--choice-accent:<?= htmlspecialchars($choice_palette['accent'], ENT_QUOTES, 'UTF-8') ?>;--choice-tint:<?= htmlspecialchars($choice_palette['tint'], ENT_QUOTES, 'UTF-8') ?>" data-desired-role-option="<?= htmlspecialchars($role_option, ENT_QUOTES, 'UTF-8') ?>" aria-pressed="<?= $role_selected ? 'true' : 'false' ?>">
+                            <button type="button" class="desired-role-choice" style="--choice-accent:<?= htmlspecialchars($choice_palette['accent'], ENT_QUOTES, 'UTF-8') ?>;--choice-tint:<?= htmlspecialchars($choice_palette['tint'], ENT_QUOTES, 'UTF-8') ?>" data-desired-role-option="<?= htmlspecialchars($role_option, ENT_QUOTES, 'UTF-8') ?>" data-notification-row="<?= htmlspecialchars(member_preference_notification_row('role', $role_option), ENT_QUOTES, 'UTF-8') ?>" aria-pressed="<?= $role_selected ? 'true' : 'false' ?>">
                                 <span class="desired-role-choice-name"><?= htmlspecialchars($role_label) ?></span>
                                 <span class="desired-role-choice-selected" <?= $role_selected ? '' : 'hidden' ?>>Selected</span>
                             </button>
@@ -10885,6 +10919,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <p id="desiredRoleSelectionStatus" aria-live="polite" style="margin:10px 0 0;color:var(--text-muted);font-size:0.86rem;">
                         <?= $selected_role !== '' ? 'Selected desired role: ' . htmlspecialchars($selected_role) : 'No desired role selected.' ?>
                     </p>
+                    <div id="worshipperExitReasonWrap" hidden style="margin-top:14px;padding:14px;border:1px solid rgba(180,83,9,.35);border-left:4px solid #b45309;border-radius:8px;background:rgba(180,83,9,.08);">
+                        <label for="worshipperExitReason" style="display:block;margin-bottom:7px;font-weight:700;color:var(--text-main);">Why are you leaving the Worshipper role? <span style="color:var(--danger);">*</span></label>
+                        <textarea id="worshipperExitReason" name="preference_reason" rows="3" maxlength="1000" placeholder="Explain your reason for the Pastor." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-main);color:var(--text-main);font:inherit;resize:vertical;"></textarea>
+                    </div>
                     <?php if ($has_church_village): ?>
                         <button type="submit" name="preference_action" value="change_role" class="btn-primary" style="margin-top:10px;padding:9px 16px;">Change Role</button>
                     <?php endif; ?>
@@ -10893,8 +10931,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             var form = document.getElementById('churchVillagePreferencesForm');
                             var roleInput = document.getElementById('desiredRoleSelection');
                             var status = document.getElementById('desiredRoleSelectionStatus');
+                            var reasonPanel = document.getElementById('worshipperExitReasonWrap');
+                            var reasonField = document.getElementById('worshipperExitReason');
                             if (!form || !roleInput || !status) return;
                             var choices = Array.from(form.querySelectorAll('[data-desired-role-option]'));
+                            var savedRole = (form.dataset.savedRole || '').trim().toLocaleLowerCase();
                             function selectRole(value) {
                                 roleInput.value = value;
                                 choices.forEach(function (choice) {
@@ -10904,6 +10945,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     if (selectedLabel) selectedLabel.hidden = !selected;
                                 });
                                 status.textContent = value ? 'Selected desired role: ' + value : 'No desired role selected.';
+                                var leavingWorshipper = savedRole === 'worshipper' && (value || '').trim().toLocaleLowerCase() !== 'worshipper';
+                                if (reasonPanel) reasonPanel.hidden = !leavingWorshipper;
+                                if (!leavingWorshipper && reasonField) reasonField.value = '';
                             }
                             choices.forEach(function (choice) {
                                 choice.addEventListener('click', function () {

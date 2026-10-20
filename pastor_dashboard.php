@@ -310,6 +310,10 @@ require_once 'village_leader_chat_helper.php';
 if (!isset($_SESSION['pastor_id'])) { header("Location: login.php"); exit(); }
 
 $pastor_id = $_SESSION['pastor_id'];
+$pending_preference_reason_column = $conn->query("SHOW COLUMNS FROM members LIKE 'pending_preference_reason'");
+if ($pending_preference_reason_column && $pending_preference_reason_column->num_rows === 0) {
+    $conn->query("ALTER TABLE members ADD COLUMN pending_preference_reason TEXT NULL AFTER pending_desired_role_pref");
+}
 ensure_village_leader_chat_schema($conn);
 cleanup_expired_church_highlights($conn);
 $pastor_name = $_SESSION['pastor_name'];
@@ -3521,8 +3525,18 @@ w.document.write('</div>');
                 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['handle_village_update'])) {
                     $update_id = (int)$_POST['member_id'];
                     $action = $_POST['action'];
-                    $mem = $conn->query("SELECT first_name, last_name, church_village, desired_role_pref, pending_church_village, pending_desired_role_pref FROM members WHERE id = $update_id")->fetch_assoc();
+                    $mem = $conn->query("SELECT first_name, last_name, church_village, desired_role_pref, pending_church_village, pending_desired_role_pref, pending_preference_reason FROM members WHERE id = $update_id")->fetch_assoc();
                     if ($mem && $mem['pending_church_village']) {
+                        $pending_village_for_focus = trim((string)($mem['pending_church_village'] ?? ''));
+                        $current_village_for_focus = trim((string)($mem['church_village'] ?? ''));
+                        $pending_role_for_focus = trim((string)($mem['pending_desired_role_pref'] ?? ''));
+                        $current_role_for_focus = trim((string)($mem['desired_role_pref'] ?? ''));
+                        $preference_focus_row = 'member-village-update-' . $update_id;
+                        if (strcasecmp($pending_village_for_focus, $current_village_for_focus) !== 0) {
+                            $preference_focus_row = member_preference_notification_row('village', $pending_village_for_focus);
+                        } elseif (strcasecmp($pending_role_for_focus, $current_role_for_focus) !== 0) {
+                            $preference_focus_row = member_preference_notification_row('role', $pending_role_for_focus);
+                        }
                         if ($action === 'approve') {
                             $new_v_raw = trim((string)$mem['pending_church_village']);
                             $new_v = $conn->real_escape_string($new_v_raw);
@@ -3542,9 +3556,9 @@ w.document.write('</div>');
                                 ? 'change ' . implode(' and ', $approved_changes)
                                 : 'update your church village or desired role';
                             $approval_message = 'The Pastor approved your request to ' . $approved_request . '.';
-                            $routed_approval_message = notification_with_route($approval_message, 'desired_roles', '', 'member-village-update-' . $update_id);
+                            $routed_approval_message = notification_with_route($approval_message, 'desired_roles', '', $preference_focus_row);
                             $escaped_approval_message = $conn->real_escape_string($routed_approval_message);
-                            $village_update_ok = $conn->query("UPDATE members SET church_village = '$new_v', desired_role_pref = $new_drp, pending_church_village = NULL, pending_desired_role_pref = NULL WHERE id = $update_id");
+                            $village_update_ok = $conn->query("UPDATE members SET church_village = '$new_v', desired_role_pref = $new_drp, pending_church_village = NULL, pending_desired_role_pref = NULL, pending_preference_reason = NULL WHERE id = $update_id");
                             if ($village_update_ok && strcasecmp(trim((string)($mem['church_village'] ?? '')), $new_v_raw) !== 0) {
                                 notify_church_village_leaders_of_member($conn, $update_id, $new_v_raw);
                             }
@@ -3570,26 +3584,32 @@ w.document.write('</div>');
 
                             echo "<div style='background:rgba(16,185,129,0.1);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>Update approved!</div>";
                         } else if ($action === 'reject') {
-                            $declined_changes = [];
-                            $pending_village = trim((string)($mem['pending_church_village'] ?? ''));
-                            $current_village = trim((string)($mem['church_village'] ?? ''));
-                            $pending_role = trim((string)($mem['pending_desired_role_pref'] ?? ''));
-                            $current_role = trim((string)($mem['desired_role_pref'] ?? ''));
-                            if ($pending_village !== '' && strcasecmp($pending_village, $current_village) !== 0) {
-                                $declined_changes[] = 'your church village to ' . $pending_village;
+                            $decline_reason = trim((string)($_POST['decline_reason'] ?? ''));
+                            $decline_reason_length = function_exists('mb_strlen') ? mb_strlen($decline_reason, 'UTF-8') : strlen($decline_reason);
+                            if ($decline_reason === '' || $decline_reason_length > 1000) {
+                                echo "<div role='alert' style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>Enter a reason of 1,000 characters or fewer before declining this request.</div>";
+                            } else {
+                                $declined_changes = [];
+                                $pending_village = trim((string)($mem['pending_church_village'] ?? ''));
+                                $current_village = trim((string)($mem['church_village'] ?? ''));
+                                $pending_role = trim((string)($mem['pending_desired_role_pref'] ?? ''));
+                                $current_role = trim((string)($mem['desired_role_pref'] ?? ''));
+                                if ($pending_village !== '' && strcasecmp($pending_village, $current_village) !== 0) {
+                                    $declined_changes[] = 'your church village to ' . $pending_village;
+                                }
+                                if (strcasecmp($pending_role, $current_role) !== 0) {
+                                    $declined_changes[] = 'your desired role to ' . ($pending_role !== '' ? $pending_role : 'No role');
+                                }
+                                $declined_request = $declined_changes
+                                    ? 'change ' . implode(' and ', $declined_changes)
+                                    : 'update your church village or desired role';
+                                $decline_message = 'The Pastor declined your request to ' . $declined_request . '. Reason: ' . $decline_reason;
+                                $routed_decline_message = notification_with_route($decline_message, 'desired_roles', '', $preference_focus_row);
+                                $escaped_decline_message = $conn->real_escape_string($routed_decline_message);
+                                $conn->query("UPDATE members SET pending_church_village = NULL, pending_desired_role_pref = NULL, pending_preference_reason = NULL WHERE id = $update_id");
+                                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($update_id, 'member', '$escaped_decline_message')");
+                                echo "<div style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>Update rejected and the member has been notified.</div>";
                             }
-                            if (strcasecmp($pending_role, $current_role) !== 0) {
-                                $declined_changes[] = 'your desired role to ' . ($pending_role !== '' ? $pending_role : 'No role');
-                            }
-                            $declined_request = $declined_changes
-                                ? 'change ' . implode(' and ', $declined_changes)
-                                : 'update your church village or desired role';
-                            $decline_message = 'The Pastor declined your request to ' . $declined_request . '.';
-                            $routed_decline_message = notification_with_route($decline_message, 'desired_roles', '', 'member-village-update-' . $update_id);
-                            $escaped_decline_message = $conn->real_escape_string($routed_decline_message);
-                            $conn->query("UPDATE members SET pending_church_village = NULL, pending_desired_role_pref = NULL WHERE id = $update_id");
-                            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($update_id, 'member', '$escaped_decline_message')");
-                            echo "<div style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>Update rejected.</div>";
                         }
                     }
                 }
@@ -3691,7 +3711,7 @@ w.document.write('</div>');
                 <?php endif; ?>
                 <?php
                 // Fetch Pending Updates
-                $pending_updates = $conn->query("SELECT id, first_name, last_name, church_village, pending_church_village, desired_role_pref, pending_desired_role_pref FROM members WHERE pending_church_village IS NOT NULL ORDER BY first_name ASC");
+                $pending_updates = $conn->query("SELECT id, first_name, last_name, church_village, pending_church_village, desired_role_pref, pending_desired_role_pref, pending_preference_reason FROM members WHERE pending_church_village IS NOT NULL ORDER BY first_name ASC");
                 if ($pending_updates && $pending_updates->num_rows > 0):
                 ?>
                 <div class="content-card" style="margin-bottom: 30px; border-left: 4px solid var(--warning);">
@@ -3724,13 +3744,24 @@ w.document.write('</div>');
                                         <?php if (!$pending_village_changed && !$pending_role_changed): ?>
                                             <span style="font-size:0.85rem;color:var(--text-muted);">No preference changes detected</span>
                                         <?php endif; ?>
+                                        <?php if (trim((string)($pu['pending_preference_reason'] ?? '')) !== ''): ?>
+                                            <span style="display:block;margin-top:5px;font-size:0.78rem;color:var(--text-muted);"><strong>Member's reason:</strong> <?= nl2br(htmlspecialchars($pu['pending_preference_reason'], ENT_QUOTES, 'UTF-8')) ?></span>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
-                                        <form method="POST" action="?tab=desired_roles" style="display:inline-flex; gap:8px;">
+                                        <form data-village-update-form method="POST" action="?tab=desired_roles" style="display:flex;flex-direction:column;gap:8px;min-width:190px;">
                                             <input type="hidden" name="handle_village_update" value="1">
                                             <input type="hidden" name="member_id" value="<?= $pu['id'] ?>">
-                                            <button type="submit" name="action" value="approve" class="btn-sm btn-success" style="border:none; cursor:pointer;">Approve</button>
-                                            <button type="submit" name="action" value="reject" class="btn-sm" style="border:none; background:var(--danger); color:white; cursor:pointer;">Reject</button>
+                                            <div data-decline-reason-panel hidden>
+                                                <label style="display:block;margin-bottom:5px;font-size:.8rem;font-weight:700;color:var(--text-main);">Reason for declining <span style="color:var(--danger);">*</span></label>
+                                                <textarea name="decline_reason" rows="3" maxlength="1000" placeholder="Explain why this request is declined." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-main);color:var(--text-main);font:inherit;resize:vertical;"></textarea>
+                                            </div>
+                                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                                <button type="submit" name="action" value="approve" data-village-approve class="btn-sm btn-success" style="border:none;cursor:pointer;">Approve</button>
+                                                <button type="button" data-open-decline class="btn-sm" style="border:none;background:var(--danger);color:white;cursor:pointer;">Decline</button>
+                                                <button type="submit" name="action" value="reject" data-confirm-decline hidden class="btn-sm" style="border:none;background:var(--danger);color:white;cursor:pointer;">Send Decline</button>
+                                                <button type="button" data-cancel-decline hidden class="btn-sm" style="border:1px solid var(--border-color);background:var(--bg-main);color:var(--text-main);cursor:pointer;">Cancel</button>
+                                            </div>
                                         </form>
                                     </td>
                                 </tr>
@@ -3739,6 +3770,35 @@ w.document.write('</div>');
                         </table>
                     </div>
                 </div>
+                <script>
+                    document.querySelectorAll('[data-village-update-form]').forEach(function (form) {
+                        var reasonPanel = form.querySelector('[data-decline-reason-panel]');
+                        var reasonField = form.querySelector('[name="decline_reason"]');
+                        var approveButton = form.querySelector('[data-village-approve]');
+                        var openButton = form.querySelector('[data-open-decline]');
+                        var confirmButton = form.querySelector('[data-confirm-decline]');
+                        var cancelButton = form.querySelector('[data-cancel-decline]');
+                        if (!reasonPanel || !reasonField || !openButton || !confirmButton || !cancelButton) return;
+                        openButton.addEventListener('click', function () {
+                            reasonPanel.hidden = false;
+                            reasonField.required = true;
+                            openButton.hidden = true;
+                            confirmButton.hidden = false;
+                            cancelButton.hidden = false;
+                            if (approveButton) approveButton.hidden = true;
+                            reasonField.focus();
+                        });
+                        cancelButton.addEventListener('click', function () {
+                            reasonPanel.hidden = true;
+                            reasonField.required = false;
+                            reasonField.value = '';
+                            openButton.hidden = false;
+                            confirmButton.hidden = true;
+                            cancelButton.hidden = true;
+                            if (approveButton) approveButton.hidden = false;
+                        });
+                    });
+                </script>
                 <?php endif; ?>
                 <?php
                 

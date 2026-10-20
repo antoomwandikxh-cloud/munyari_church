@@ -35,6 +35,15 @@ function notification_with_route($message, $target_tab, $target_group = '', $tar
     return $message;
 }
 
+function member_preference_notification_row($preference_type, $value) {
+    $preference_type = strtolower(trim((string)$preference_type));
+    if (!in_array($preference_type, ['village', 'role'], true)) {
+        return '';
+    }
+
+    return 'member-preference-' . $preference_type . '-' . md5(strtolower(trim((string)$value)));
+}
+
 function notification_route_metadata($message) {
     $metadata = ['tab' => '', 'group' => '', 'row' => ''];
     foreach (['tab', 'group', 'row'] as $key) {
