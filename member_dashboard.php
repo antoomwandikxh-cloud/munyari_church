@@ -7688,7 +7688,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     ?>
                         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
                             <div style="flex:1 1 280px;max-width:420px;">
-                                <input type="search" id="treasurerPendingFineSearch" class="form-control" data-fine-target="treasurerPendingFineRows" data-fine-count="treasurerPendingFineCount" oninput="filterFineMemberRows(this)" placeholder="Search member name" autocomplete="off" aria-label="Search pending fine payments by member name" style="width:100%;padding:9px 12px;">
+                                <input type="search" id="treasurerPendingFineSearch" class="form-control" data-fine-target="treasurerPendingFineRows" data-fine-count="treasurerPendingFineCount" placeholder="Search member name" autocomplete="off" aria-label="Search pending fine payments by member name" style="width:100%;padding:9px 12px;">
                             </div>
                             <span id="treasurerPendingFineCount" aria-live="polite" style="font-size:.85rem;color:var(--text-muted);">Showing <?= (int)$pending_fines->num_rows ?> fines</span>
                         </div>
@@ -7784,7 +7784,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php if ($recent_paid_fines && $recent_paid_fines->num_rows > 0): ?>
                         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
                             <div style="flex:1 1 280px;max-width:420px;">
-                                <input type="search" id="treasurerPaidFineSearch" class="form-control" data-fine-target="treasurerPaidFineRows" data-fine-count="treasurerPaidFineCount" oninput="filterFineMemberRows(this)" placeholder="Search member name" autocomplete="off" aria-label="Search verified fine payments by member name" style="width:100%;padding:9px 12px;">
+                                <input type="search" id="treasurerPaidFineSearch" class="form-control" data-fine-target="treasurerPaidFineRows" data-fine-count="treasurerPaidFineCount" placeholder="Search member name" autocomplete="off" aria-label="Search verified fine payments by member name" style="width:100%;padding:9px 12px;">
                             </div>
                             <span id="treasurerPaidFineCount" aria-live="polite" style="font-size:.85rem;color:var(--text-muted);">Showing <?= (int)$recent_paid_fines->num_rows ?> fines</span>
                         </div>
@@ -7835,7 +7835,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     ?>
                         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
                             <div style="flex:1 1 280px;max-width:420px;">
-                                <input type="search" id="treasurerUnpaidFineSearch" class="form-control" data-fine-target="treasurerUnpaidFineRows" data-fine-count="treasurerUnpaidFineCount" oninput="filterFineMemberRows(this)" placeholder="Search member name" autocomplete="off" aria-label="Search unpaid fines by member name" style="width:100%;padding:9px 12px;">
+                                <input type="search" id="treasurerUnpaidFineSearch" class="form-control" data-fine-target="treasurerUnpaidFineRows" data-fine-count="treasurerUnpaidFineCount" placeholder="Search member name" autocomplete="off" aria-label="Search unpaid fines by member name" style="width:100%;padding:9px 12px;">
                             </div>
                             <span id="treasurerUnpaidFineCount" aria-live="polite" style="font-size:.85rem;color:var(--text-muted);">Showing <?= (int)$unpaid_fines->num_rows ?> fines</span>
                         </div>
@@ -8867,7 +8867,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php if ($unpaid && $unpaid->num_rows > 0): ?>
                         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
                             <div style="flex:1 1 280px;max-width:420px;">
-                                <input type="search" id="disciplineUnpaidFineSearch" class="form-control" data-fine-target="disciplineUnpaidFineRows" data-fine-count="disciplineUnpaidFineCount" oninput="filterFineMemberRows(this)" placeholder="Search member name" autocomplete="off" aria-label="Search unpaid fines by member name" style="width:100%;padding:9px 12px;">
+                                <input type="search" id="disciplineUnpaidFineSearch" class="form-control" data-fine-target="disciplineUnpaidFineRows" data-fine-count="disciplineUnpaidFineCount" placeholder="Search member name" autocomplete="off" aria-label="Search unpaid fines by member name" style="width:100%;padding:9px 12px;">
                             </div>
                             <button type="button" class="btn-sm" onclick="filterFineMemberRows(document.getElementById('disciplineUnpaidFineSearch'))" aria-label="Search unpaid fine records" style="display:inline-flex;align-items:center;gap:6px;">
                                 <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke-width="2"></circle><path d="m20 20-4-4" stroke-width="2" stroke-linecap="round"></path></svg>
@@ -8947,7 +8947,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     ?>
                         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
                             <div style="flex:1 1 280px;max-width:420px;">
-                                <input type="search" id="disciplineFineHistorySearch" class="form-control" data-fine-target="disciplineFineHistoryRows" data-fine-count="disciplineFineHistoryCount" oninput="filterFineMemberRows(this)" placeholder="Search member name" autocomplete="off" aria-label="Search fines history by member name" style="width:100%;padding:9px 12px;">
+                                <input type="search" id="disciplineFineHistorySearch" class="form-control" data-fine-target="disciplineFineHistoryRows" data-fine-count="disciplineFineHistoryCount" placeholder="Search member name" autocomplete="off" aria-label="Search fines history by member name" style="width:100%;padding:9px 12px;">
                             </div>
                             <button type="button" class="btn-sm" onclick="filterFineMemberRows(document.getElementById('disciplineFineHistorySearch'))" aria-label="Search paid and unpaid fine history" style="display:inline-flex;align-items:center;gap:6px;">
                                 <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke-width="2"></circle><path d="m20 20-4-4" stroke-width="2" stroke-linecap="round"></path></svg>
@@ -10712,6 +10712,7 @@ if (imgModal) {
 }
 
 window.filterFineMemberRows = function(input) {
+    if (!input) return;
     var tbody = document.getElementById(input.dataset.fineTarget || '');
     if (!tbody) return;
 
@@ -10732,6 +10733,11 @@ window.filterFineMemberRows = function(input) {
     var count = document.getElementById(input.dataset.fineCount || '');
     if (count) count.textContent = 'Showing ' + visible + ' of ' + rows.length + ' fines';
 };
+document.querySelectorAll('input[data-fine-target]').forEach(function(input) {
+    input.addEventListener('input', function() {
+        window.filterFineMemberRows(input);
+    });
+});
 
 if (typeof filterWTeam !== 'function') {
     window.filterWTeam = function() {
