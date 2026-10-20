@@ -80,6 +80,12 @@ if (strpos($pastor_dashboard, '$pending_village_changed = strcasecmp(trim((strin
     fwrite(STDERR, "FAIL: Pastor pending update list must only show the role when it changed.\n");
     exit(1);
 }
+$reason_box_position = strpos($member_dashboard, 'id="preferenceReasonWrap"');
+$change_village_button_position = strpos($member_dashboard, 'value="change_village" class="btn-primary"');
+if ($reason_box_position === false || $change_village_button_position === false || $reason_box_position > $change_village_button_position) {
+    fwrite(STDERR, "FAIL: the preference reason box must appear before the Change Village button.\n");
+    exit(1);
+}
 if (strpos($member_dashboard, '<select name="church_village"') !== false) {
     fwrite(STDERR, "FAIL: the member Church Village form should not render the old village dropdown.\n");
     exit(1);

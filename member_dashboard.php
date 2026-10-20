@@ -10779,6 +10779,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <p id="churchVillageSelectionStatus" aria-live="polite" style="margin:10px 0 0;color:var(--text-muted);font-size:0.86rem;">
                         <?= $selected_village !== '' ? 'Selected village: ' . htmlspecialchars($selected_village) : 'Choose a village to continue.' ?>
                     </p>
+                    <div id="preferenceReasonWrap" hidden style="margin-top:14px;padding:14px;border:1px solid rgba(180,83,9,.35);border-left:4px solid #b45309;border-radius:8px;background:rgba(180,83,9,.08);">
+                        <label for="preferenceReason" style="display:block;margin-bottom:7px;font-weight:700;color:var(--text-main);"><span id="preferenceReasonLabelText">Reason for this preference change</span> <span style="color:var(--danger);">*</span></label>
+                        <textarea id="preferenceReason" name="preference_reason" rows="3" maxlength="1000" placeholder="Explain your reason for the Pastor." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-main);color:var(--text-main);font:inherit;resize:vertical;"></textarea>
+                    </div>
                     <?php if ($has_church_village): ?>
                         <button type="submit" name="preference_action" value="change_village" class="btn-primary" style="margin-top:10px;padding:9px 16px;">Change Village</button>
                     <?php endif; ?>
@@ -10970,10 +10974,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <p id="desiredRoleSelectionStatus" aria-live="polite" style="margin:10px 0 0;color:var(--text-muted);font-size:0.86rem;">
                         <?= $selected_role !== '' ? 'Selected desired role: ' . htmlspecialchars($selected_role) : 'No desired role selected.' ?>
                     </p>
-                    <div id="preferenceReasonWrap" hidden style="margin-top:14px;padding:14px;border:1px solid rgba(180,83,9,.35);border-left:4px solid #b45309;border-radius:8px;background:rgba(180,83,9,.08);">
-                        <label for="preferenceReason" style="display:block;margin-bottom:7px;font-weight:700;color:var(--text-main);"><span id="preferenceReasonLabelText">Reason for this preference change</span> <span style="color:var(--danger);">*</span></label>
-                        <textarea id="preferenceReason" name="preference_reason" rows="3" maxlength="1000" placeholder="Explain your reason for the Pastor." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-main);color:var(--text-main);font:inherit;resize:vertical;"></textarea>
-                    </div>
                     <?php if ($has_church_village): ?>
                         <button type="submit" name="preference_action" value="change_role" class="btn-primary" style="margin-top:10px;padding:9px 16px;">Change Role</button>
                     <?php endif; ?>
