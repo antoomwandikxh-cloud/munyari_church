@@ -1612,20 +1612,48 @@ if ($can_use_department_leader_chat) {
 
 // ─── Desired Roles / Church Village onboarding handler ───────────────────────
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])) {
-    $cv  = $conn->real_escape_string(trim($_POST['church_village'] ?? ''));
-    $drp = $conn->real_escape_string(trim($_POST['desired_role_pref'] ?? ''));
+    $posted_village = trim((string)($_POST['church_village'] ?? ''));
+    $posted_role = trim((string)($_POST['desired_role_pref'] ?? ''));
+    $current_village = trim((string)($member['church_village'] ?? ''));
+    $current_role = trim((string)($member['desired_role_pref'] ?? ''));
+    $preference_action = trim((string)($_POST['preference_action'] ?? ''));
+
+    if ($current_village === '') {
+        if ($preference_action !== '' && $preference_action !== 'initial_setup') {
+            header("Location: member_dashboard.php?tab=desired_roles&error=" . urlencode('Save your initial church village and role choices first.'));
+            exit();
+        }
+        $requested_village = $posted_village;
+        $requested_role = $posted_role;
+    } elseif ($preference_action === 'change_village') {
+        $requested_village = $posted_village;
+        $requested_role = $current_role;
+    } elseif ($preference_action === 'change_role') {
+        $requested_village = $current_village;
+        $requested_role = $posted_role;
+    } elseif ($preference_action === '' || $preference_action === 'change_both') {
+        $preference_action = 'change_both';
+        $requested_village = $posted_village;
+        $requested_role = $posted_role;
+    } else {
+        header("Location: member_dashboard.php?tab=desired_roles&error=" . urlencode('Choose whether to change your church village or desired role.'));
+        exit();
+    }
+
     $valid_villages = ['Akoritho', 'Philadelphia', 'Bethsaida'];
-    if (!in_array($cv, $valid_villages)) {
+    if (!in_array($requested_village, $valid_villages, true)) {
         header("Location: member_dashboard.php?tab=desired_roles&error=Please select a valid church village");
         exit();
     }
     $valid_roles = ['', 'Worshipper'];
     $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles");
     if ($cr_q) { while($cr = $cr_q->fetch_assoc()){ $valid_roles[] = $cr['role_name']; } }
-    if (!in_array($drp, $valid_roles)) { $drp = ''; }
+    if (!in_array($requested_role, $valid_roles, true)) { $requested_role = ''; }
+    $cv = $conn->real_escape_string($requested_village);
+    $drp = $conn->real_escape_string($requested_role);
     $drp_sql = $drp ? "'$drp'" : "NULL";
 
-    if (empty($member['church_village'])) {
+    if ($current_village === '') {
         // Initial setup
         $conn->query("UPDATE members SET church_village = '$cv', desired_role_pref = $drp_sql WHERE id = $member_id");
         // Reload member
@@ -1680,10 +1708,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
         header("Location: member_dashboard.php?tab=desired_roles&success=Your church village has been saved! All tabs are now unlocked.");
         exit();
     } else {
+        $same_village = strcasecmp($requested_village, $current_village) === 0;
+        $same_role = strcasecmp($requested_role, $current_role) === 0;
+        $unchanged_message = '';
+        if ($preference_action === 'change_village' && $same_village) {
+            $unchanged_message = "You already chose the $current_village village. You can change the village you selected earlier if you want to update it.";
+        } elseif ($preference_action === 'change_role' && $same_role) {
+            $current_role_label = $current_role !== '' ? $current_role : 'No desired role';
+            $unchanged_message = "You already chose the $current_role_label role. You can change the role you selected earlier if you want to update it.";
+        } elseif ($preference_action === 'change_both' && $same_village && $same_role) {
+            $current_role_label = $current_role !== '' ? $current_role : 'No desired role';
+            $unchanged_message = "You already chose $current_village village and $current_role_label role. You can change your earlier choices if you want to update them.";
+        }
+        if ($unchanged_message !== '') {
+            header("Location: member_dashboard.php?tab=desired_roles&error=" . urlencode($unchanged_message));
+            exit();
+        }
+
         // Update request - goes to pending
         $conn->query("UPDATE members SET pending_church_village = '$cv', pending_desired_role_pref = $drp_sql WHERE id = $member_id");
         $requested_role_label = $drp !== '' ? $drp : 'No desired role';
-        $update_msg = "Member " . trim($member['first_name'] . " " . $member['last_name']) . " requested to change their church village to $cv and desired role to $requested_role_label.";
+        $change_summary = $preference_action === 'change_village'
+            ? "requested to change their church village to $cv (desired role: $requested_role_label)"
+            : ($preference_action === 'change_role'
+                ? "requested to change their desired role to $requested_role_label (church village: $cv)"
+                : "requested to change their church village to $cv and desired role to $requested_role_label");
+        $update_msg = "Member " . trim($member['first_name'] . " " . $member['last_name']) . " $change_summary.";
         $routed_update_msg = notification_with_route($update_msg, 'desired_roles', '', 'member-village-update-' . $member_id);
         $pastors_q = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
         if ($pastors_q) {
@@ -1697,7 +1747,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
                 $notice->close();
             }
         }
-        header("Location: member_dashboard.php?tab=desired_roles&success=Your update request has been sent to the Pastor for approval.");
+        $request_success = $preference_action === 'change_village'
+            ? 'Your church village change request has been sent to the Pastor for approval.'
+            : ($preference_action === 'change_role'
+                ? 'Your desired role change request has been sent to the Pastor for approval.'
+                : 'Your update request has been sent to the Pastor for approval.');
+        header("Location: member_dashboard.php?tab=desired_roles&success=" . urlencode($request_success));
         exit();
     }
 }
@@ -10626,7 +10681,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             }
             ?>
 
-            <form id="churchVillagePreferencesForm" method="POST" action="?tab=desired_roles" class="content-card" data-has-saved-village="<?= $has_church_village ? 'true' : 'false' ?>" style="max-width:800px;">
+            <form id="churchVillagePreferencesForm" method="POST" action="?tab=desired_roles" class="content-card" data-has-saved-village="<?= $has_church_village ? 'true' : 'false' ?>" data-saved-village="<?= htmlspecialchars((string)($member['church_village'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-saved-role="<?= htmlspecialchars((string)($member['desired_role_pref'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" style="max-width:800px;">
                 <input type="hidden" name="save_church_village" value="1">
                 
                 <div style="margin-bottom:30px;">
@@ -10664,6 +10719,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <p id="churchVillageSelectionStatus" aria-live="polite" style="margin:10px 0 0;color:var(--text-muted);font-size:0.86rem;">
                         <?= $selected_village !== '' ? 'Selected village: ' . htmlspecialchars($selected_village) : 'Choose a village to continue.' ?>
                     </p>
+                    <?php if ($has_church_village): ?>
+                        <button type="submit" name="preference_action" value="change_village" class="btn-primary" style="margin-top:10px;padding:9px 16px;">Change Village</button>
+                    <?php endif; ?>
                     <style>
                         .church-village-choice-row{display:flex;gap:12px;overflow-x:auto;padding:8px 8px 14px;scroll-snap-type:x mandatory}
                         .church-village-choice{flex:1 0 165px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;padding:12px 14px;border:1px solid var(--choice-accent);border-left:4px solid var(--choice-accent);border-radius:8px;background:var(--choice-tint);color:var(--text-main);text-align:left;font:inherit;cursor:pointer;scroll-snap-align:start;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}
@@ -10715,8 +10773,40 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 }
                                 if (form.dataset.hasSavedVillage === 'true') {
                                     var roleInput = form.querySelector('#desiredRoleSelection');
-                                    var roleLabel = roleInput && roleInput.value ? roleInput.value : 'No desired role';
-                                    var confirmMessage = 'You have already chosen ' + villageInput.value + ' village and ' + roleLabel + ' role. Do you want to confirm sending this change request to the Pastor for approval?';
+                                    var selectedRole = roleInput ? roleInput.value.trim() : '';
+                                    var savedVillage = (form.dataset.savedVillage || '').trim();
+                                    var savedRole = (form.dataset.savedRole || '').trim();
+                                    var action = event.submitter ? event.submitter.value : '';
+                                    var normalize = function (value) { return (value || '').trim().toLocaleLowerCase(); };
+                                    var confirmMessage = '';
+
+                                    if (action === 'change_village') {
+                                        if (normalize(villageInput.value) === normalize(savedVillage)) {
+                                            event.preventDefault();
+                                            window.alert('You already chose ' + savedVillage + ' village. You can change the village you selected earlier if you want to update it.');
+                                            return;
+                                        }
+                                        confirmMessage = 'You selected ' + villageInput.value + ' village and ' + (savedRole || 'No desired role') + ' role. Send this village change request to the Pastor for approval?';
+                                    } else if (action === 'change_role') {
+                                        if (normalize(selectedRole) === normalize(savedRole)) {
+                                            event.preventDefault();
+                                            window.alert('You already chose ' + (savedRole || 'No desired role') + '. You can change the role you selected earlier if you want to update it.');
+                                            return;
+                                        }
+                                        confirmMessage = 'You selected ' + savedVillage + ' village and ' + (selectedRole || 'No desired role') + ' role. Send this role change request to the Pastor for approval?';
+                                    } else if (action === 'change_both') {
+                                        if (normalize(villageInput.value) === normalize(savedVillage) && normalize(selectedRole) === normalize(savedRole)) {
+                                            event.preventDefault();
+                                            window.alert('You already chose ' + savedVillage + ' village and ' + (savedRole || 'No desired role') + ' role. You can change your earlier choices if you want to update them.');
+                                            return;
+                                        }
+                                        confirmMessage = 'You selected ' + villageInput.value + ' village and ' + (selectedRole || 'No desired role') + ' role. Send this change request to the Pastor for approval?';
+                                    } else {
+                                        event.preventDefault();
+                                        window.alert('Use Change Village or Change Role to update one preference at a time.');
+                                        return;
+                                    }
+
                                     if (!window.confirm(confirmMessage)) event.preventDefault();
                                 }
                             });
@@ -10767,6 +10857,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <p id="desiredRoleSelectionStatus" aria-live="polite" style="margin:10px 0 0;color:var(--text-muted);font-size:0.86rem;">
                         <?= $selected_role !== '' ? 'Selected desired role: ' . htmlspecialchars($selected_role) : 'No desired role selected.' ?>
                     </p>
+                    <?php if ($has_church_village): ?>
+                        <button type="submit" name="preference_action" value="change_role" class="btn-primary" style="margin-top:10px;padding:9px 16px;">Change Role</button>
+                    <?php endif; ?>
                     <script>
                         (function () {
                             var form = document.getElementById('churchVillagePreferencesForm');
@@ -10794,7 +10887,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </script>
                 </div>
                 
-                <button type="submit" class="btn-primary" style="padding:12px 24px;">Save Preferences</button>
+                <?php if (!$has_church_village): ?>
+                    <button type="submit" name="preference_action" value="initial_setup" class="btn-primary" style="padding:12px 24px;">Save Preferences</button>
+                <?php endif; ?>
             </form>
 
             <?php if ($has_church_village): ?>
