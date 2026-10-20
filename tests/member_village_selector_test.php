@@ -23,10 +23,12 @@ $required_markers = [
     'village change confirmation names only the selected village' => "confirmMessage = 'You selected ' + villageInput.value + ' village. Send this church village change request to the Pastor for approval?'",
     'village request message omits the unchanged role' => '"requested to change their church village to $cv"',
     'role change asks Pastor approval' => 'Send this role change request to the Pastor for approval?',
-    'reason field appears when leaving Worshipper' => 'id="worshipperExitReasonWrap" hidden',
-    'reason is submitted with a Worshipper role change' => 'name="preference_reason"',
-    'Worshipper exit requires a reason in the browser' => 'Please explain why you want to leave the Worshipper role before sending your request.',
-    'Worshipper exit reason is enforced server side' => '$requires_worshipper_exit_reason && $preference_reason === \'\'',
+    'preference reason appears when a required change is selected' => 'id="preferenceReasonWrap" hidden',
+    'preference reason is submitted with a change request' => 'name="preference_reason"',
+    'reason prompt tracks changed village and Worshipper role' => 'var reasonRequired = villageChanged || worshipperChanged;',
+    'browser requires a reason before request submission' => 'form.dataset.preferenceReasonRequired === \'true\'',
+    'server requires a reason for village or Worshipper changes' => '$requires_preference_reason && $preference_reason === \'\'',
+    'village changes require an explanation' => '$village_preference_changed || $worshipper_preference_changed',
     'request reason is saved for Pastor review' => 'pending_preference_reason = $preference_reason_sql',
     'pending reason column is created when needed' => "ALTER TABLE members ADD COLUMN pending_preference_reason TEXT NULL AFTER pending_desired_role_pref",
     'village options have exact preference row keys' => "member_preference_notification_row('village', \$village_option)",
@@ -68,6 +70,7 @@ if (strpos($pastor_dashboard, '$pending_village_changed = strcasecmp(trim((strin
     || strpos($pastor_dashboard, '$pending_role_changed = strcasecmp(trim((string)($pu[\'pending_desired_role_pref\'] ?? \'\')), trim((string)($pu[\'desired_role_pref\'] ?? \'\'))) !== 0;') === false
     || strpos($pastor_dashboard, '<?php if ($pending_role_changed): ?>') === false
     || strpos($pastor_dashboard, 'Reason for declining') === false
+    || strpos($pastor_dashboard, 'data-preference-reason-for-request="<?= (int)$pu[\'id\'] ?>"') === false
     || strpos($pastor_dashboard, 'data-open-decline') === false
     || strpos($pastor_dashboard, 'data-confirm-decline hidden') === false
     || strpos($pastor_dashboard, 'Decline &amp; Notify') === false

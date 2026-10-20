@@ -87,6 +87,26 @@ if (strpos($village_update_glow, 'notification-row:member-village-update-42') ==
     fwrite(STDERR, "FAIL: village preference request opens and highlights the exact pending member row.\n");
     exit(1);
 }
+$worship_preference_request = notification_with_route(
+    'Member Rose requested to change their desired role to Worshipper. Reason: I would like to serve in worship.',
+    'desired_roles',
+    '',
+    'member-village-update-42'
+);
+expect_same(
+    'Member Rose requested to change their desired role to Worshipper. Reason: I would like to serve in worship.',
+    notification_display_message($worship_preference_request, 'pastor'),
+    'Pastor notification keeps the member reason visible'
+);
+$worship_preference_glow = render_notification_tab_glow_script('desired_roles', 'desired_roles', $worship_preference_request);
+$style_source = file_get_contents(__DIR__ . '/../style.css');
+if (strpos($worship_preference_glow, 'notification-preference-reason-glow') === false
+    || strpos($worship_preference_glow, 'data-preference-reason-for-request') === false
+    || $style_source === false
+    || strpos($style_source, 'animation: preferenceRequestReasonGoldGlow 15s ease-in-out 1;') === false) {
+    fwrite(STDERR, "FAIL: the Pastor notification must gold-glow only that request's reason for 15 seconds.\n");
+    exit(1);
+}
 $role_declined_notification = notification_with_route(
     'The Pastor declined your request to change your desired role to No role. Reason: Please discuss first.',
     'desired_roles',

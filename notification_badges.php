@@ -1058,6 +1058,12 @@ document.addEventListener("DOMContentLoaded", function () {
                     }
                 }
                 addHighlightedRow(explicitRow);
+                var pendingPreferenceMatch = explicitRowMatch[1].match(/^member-village-update-(\d+)$/i);
+                var requestReasonMatch = notificationMessage.match(/\bReason:\s*([\s\S]*?)(?=\s*\[notification-(?:tab|group|row):|$)/i);
+                if (pendingPreferenceMatch && requestReasonMatch) {
+                    var requestReason = explicitRow.querySelector('[data-preference-reason-for-request="' + pendingPreferenceMatch[1] + '"]');
+                    if (requestReason) requestReason.classList.add("notification-preference-reason-glow");
+                }
                 if (/^member-preference-(?:village|role)-[a-f0-9]{32}$/i.test(explicitRowMatch[1])) {
                     var visibleDeclineMessage = notificationMessage
                         .replace(/\s*\[notification-(?:tab|group|row):[^\]]+\]/gi, "")

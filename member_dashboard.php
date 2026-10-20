@@ -1661,22 +1661,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
     $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles");
     if ($cr_q) { while($cr = $cr_q->fetch_assoc()){ $valid_roles[] = $cr['role_name']; } }
     if (!in_array($requested_role, $valid_roles, true)) { $requested_role = ''; }
-    $requires_worshipper_exit_reason = $preference_action === 'change_role'
+    $is_preference_update = $current_village !== ''
+        && in_array($preference_action, ['change_village', 'change_role', 'change_both'], true);
+    $village_preference_changed = $is_preference_update
+        && strcasecmp($requested_village, $current_village) !== 0;
+    $role_preference_changed = $is_preference_update
+        && strcasecmp($requested_role, $current_role) !== 0;
+    $worshipper_preference_changed = $role_preference_changed
+        && (strcasecmp($current_role, 'Worshipper') === 0 || strcasecmp($requested_role, 'Worshipper') === 0);
+    $requires_preference_reason = $village_preference_changed || $worshipper_preference_changed;
+    $requires_worshipper_exit_reason = $worshipper_preference_changed
         && strcasecmp($current_role, 'Worshipper') === 0
         && strcasecmp($requested_role, 'Worshipper') !== 0;
     $preference_reason_length = function_exists('mb_strlen') ? mb_strlen($preference_reason, 'UTF-8') : strlen($preference_reason);
-    if ($requires_worshipper_exit_reason && $preference_reason === '') {
-        header("Location: member_dashboard.php?tab=desired_roles&error=" . urlencode('Please explain why you want to leave the Worshipper role before sending your request.'));
+    if ($requires_preference_reason && $preference_reason === '') {
+        $reason_error = $village_preference_changed
+            ? 'Please explain why you want to change your church village before sending your request.'
+            : ($requires_worshipper_exit_reason
+                ? 'Please explain why you want to leave the Worshipper role before sending your request.'
+                : 'Please explain why you want to change your Worshipper preference before sending your request.');
+        header("Location: member_dashboard.php?tab=desired_roles&error=" . urlencode($reason_error));
         exit();
     }
-    if ($requires_worshipper_exit_reason && $preference_reason_length > 1000) {
+    if ($requires_preference_reason && $preference_reason_length > 1000) {
         header("Location: member_dashboard.php?tab=desired_roles&error=" . urlencode('Your reason must be 1,000 characters or fewer.'));
         exit();
     }
     $cv = $conn->real_escape_string($requested_village);
     $drp = $conn->real_escape_string($requested_role);
     $drp_sql = $drp ? "'$drp'" : "NULL";
-    $preference_reason_sql = $requires_worshipper_exit_reason
+    $preference_reason_sql = $requires_preference_reason
         ? "'" . $conn->real_escape_string($preference_reason) . "'"
         : 'NULL';
 
@@ -1760,8 +1774,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
                 ? "requested to change their desired role to $requested_role_label (church village: $cv)"
                 : "requested to change their church village to $cv and desired role to $requested_role_label");
         $update_msg = "Member " . trim($member['first_name'] . " " . $member['last_name']) . " $change_summary.";
-        if ($requires_worshipper_exit_reason) {
-            $update_msg .= ' Reason for leaving Worshipper: ' . $preference_reason;
+        if ($requires_preference_reason) {
+            $update_msg .= ' Reason: ' . $preference_reason;
         }
         $routed_update_msg = notification_with_route($update_msg, 'desired_roles', '', 'member-village-update-' . $member_id);
         $pastors_q = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
@@ -3191,7 +3205,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Member Dashboard - Munyari Church</title>
-    <link rel="stylesheet" href="style.css?v=20261020-preference-decline-reason-2">
+    <link rel="stylesheet" href="style.css?v=20261020-preference-reason-flow-1">
     <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_messages) ?>
     <?php
     $phones_result = $conn->query("SELECT phone FROM members WHERE phone IS NOT NULL AND phone != ''");
@@ -10794,6 +10808,41 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             var status = document.getElementById('churchVillageSelectionStatus');
                             if (!form || !villageInput || !status) return;
                             var choices = Array.from(form.querySelectorAll('[data-village-option]'));
+                            var normalize = function (value) { return (value || '').trim().toLocaleLowerCase(); };
+                            function updatePreferenceReasonVisibility() {
+                                var reasonPanel = form.querySelector('#preferenceReasonWrap');
+                                var reasonField = form.querySelector('#preferenceReason');
+                                var reasonLabel = form.querySelector('#preferenceReasonLabelText');
+                                var roleInput = form.querySelector('#desiredRoleSelection');
+                                if (!reasonPanel || !reasonField || !roleInput) return;
+
+                                var hasSavedPreference = form.dataset.hasSavedVillage === 'true';
+                                var savedVillage = form.dataset.savedVillage || '';
+                                var savedRole = form.dataset.savedRole || '';
+                                var selectedRole = roleInput.value || '';
+                                var villageChanged = hasSavedPreference && normalize(villageInput.value) !== normalize(savedVillage);
+                                var roleChanged = hasSavedPreference && normalize(selectedRole) !== normalize(savedRole);
+                                var worshipperChanged = roleChanged
+                                    && (normalize(savedRole) === 'worshipper' || normalize(selectedRole) === 'worshipper');
+                                var reasonRequired = villageChanged || worshipperChanged;
+
+                                reasonPanel.hidden = !reasonRequired;
+                                reasonField.required = reasonRequired;
+                                form.dataset.preferenceReasonRequired = reasonRequired ? 'true' : 'false';
+                                if (!reasonRequired) reasonField.value = '';
+                                if (reasonLabel) {
+                                    if (villageChanged && worshipperChanged) {
+                                        reasonLabel.textContent = 'Reason for changing your church village and Worshipper preference:';
+                                    } else if (villageChanged) {
+                                        reasonLabel.textContent = 'Reason for changing your church village:';
+                                    } else if (normalize(savedRole) === 'worshipper' && worshipperChanged) {
+                                        reasonLabel.textContent = 'Why are you leaving the Worshipper role?';
+                                    } else {
+                                        reasonLabel.textContent = 'Why do you want to join as a Worshipper?';
+                                    }
+                                }
+                            }
+                            form.updatePreferenceReasonVisibility = updatePreferenceReasonVisibility;
                             function selectVillage(value) {
                                 villageInput.value = value;
                                 choices.forEach(function (choice) {
@@ -10803,6 +10852,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     if (selectedLabel) selectedLabel.hidden = !selected;
                                 });
                                 status.textContent = value ? 'Selected village: ' + value : 'Choose a village to continue.';
+                                updatePreferenceReasonVisibility();
                             }
                             choices.forEach(function (choice) {
                                 choice.addEventListener('click', function () {
@@ -10828,8 +10878,20 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     var savedVillage = (form.dataset.savedVillage || '').trim();
                                     var savedRole = (form.dataset.savedRole || '').trim();
                                     var action = event.submitter ? event.submitter.value : '';
-                                    var normalize = function (value) { return (value || '').trim().toLocaleLowerCase(); };
                                     var confirmMessage = '';
+
+                                    updatePreferenceReasonVisibility();
+                                    if (form.dataset.preferenceReasonRequired === 'true') {
+                                        var reasonField = form.querySelector('#preferenceReason');
+                                        if (!reasonField || !reasonField.value.trim()) {
+                                            event.preventDefault();
+                                            var reasonPanel = form.querySelector('#preferenceReasonWrap');
+                                            if (reasonPanel) reasonPanel.hidden = false;
+                                            window.alert('Please provide a reason before sending this request to the Pastor.');
+                                            if (reasonField) reasonField.focus();
+                                            return;
+                                        }
+                                    }
 
                                     if (action === 'change_village') {
                                         if (normalize(villageInput.value) === normalize(savedVillage)) {
@@ -10843,17 +10905,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             event.preventDefault();
                                             window.alert('You cannot choose the same role you picked earlier. Go back and choose a different one.');
                                             return;
-                                        }
-                                        if (normalize(savedRole) === 'worshipper' && normalize(selectedRole) !== 'worshipper') {
-                                            var reasonField = form.querySelector('#worshipperExitReason');
-                                            if (!reasonField || !reasonField.value.trim()) {
-                                                event.preventDefault();
-                                                var reasonPanel = form.querySelector('#worshipperExitReasonWrap');
-                                                if (reasonPanel) reasonPanel.hidden = false;
-                                                window.alert('Please explain why you want to leave the Worshipper role before sending your request.');
-                                                if (reasonField) reasonField.focus();
-                                                return;
-                                            }
                                         }
                                         confirmMessage = 'You selected ' + savedVillage + ' village and ' + (selectedRole || 'No desired role') + ' role. Send this role change request to the Pastor for approval?';
                                     } else if (action === 'change_both') {
@@ -10919,9 +10970,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <p id="desiredRoleSelectionStatus" aria-live="polite" style="margin:10px 0 0;color:var(--text-muted);font-size:0.86rem;">
                         <?= $selected_role !== '' ? 'Selected desired role: ' . htmlspecialchars($selected_role) : 'No desired role selected.' ?>
                     </p>
-                    <div id="worshipperExitReasonWrap" hidden style="margin-top:14px;padding:14px;border:1px solid rgba(180,83,9,.35);border-left:4px solid #b45309;border-radius:8px;background:rgba(180,83,9,.08);">
-                        <label for="worshipperExitReason" style="display:block;margin-bottom:7px;font-weight:700;color:var(--text-main);">Why are you leaving the Worshipper role? <span style="color:var(--danger);">*</span></label>
-                        <textarea id="worshipperExitReason" name="preference_reason" rows="3" maxlength="1000" placeholder="Explain your reason for the Pastor." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-main);color:var(--text-main);font:inherit;resize:vertical;"></textarea>
+                    <div id="preferenceReasonWrap" hidden style="margin-top:14px;padding:14px;border:1px solid rgba(180,83,9,.35);border-left:4px solid #b45309;border-radius:8px;background:rgba(180,83,9,.08);">
+                        <label for="preferenceReason" style="display:block;margin-bottom:7px;font-weight:700;color:var(--text-main);"><span id="preferenceReasonLabelText">Reason for this preference change</span> <span style="color:var(--danger);">*</span></label>
+                        <textarea id="preferenceReason" name="preference_reason" rows="3" maxlength="1000" placeholder="Explain your reason for the Pastor." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-main);color:var(--text-main);font:inherit;resize:vertical;"></textarea>
                     </div>
                     <?php if ($has_church_village): ?>
                         <button type="submit" name="preference_action" value="change_role" class="btn-primary" style="margin-top:10px;padding:9px 16px;">Change Role</button>
@@ -10931,11 +10982,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             var form = document.getElementById('churchVillagePreferencesForm');
                             var roleInput = document.getElementById('desiredRoleSelection');
                             var status = document.getElementById('desiredRoleSelectionStatus');
-                            var reasonPanel = document.getElementById('worshipperExitReasonWrap');
-                            var reasonField = document.getElementById('worshipperExitReason');
                             if (!form || !roleInput || !status) return;
                             var choices = Array.from(form.querySelectorAll('[data-desired-role-option]'));
-                            var savedRole = (form.dataset.savedRole || '').trim().toLocaleLowerCase();
                             function selectRole(value) {
                                 roleInput.value = value;
                                 choices.forEach(function (choice) {
@@ -10945,9 +10993,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     if (selectedLabel) selectedLabel.hidden = !selected;
                                 });
                                 status.textContent = value ? 'Selected desired role: ' + value : 'No desired role selected.';
-                                var leavingWorshipper = savedRole === 'worshipper' && (value || '').trim().toLocaleLowerCase() !== 'worshipper';
-                                if (reasonPanel) reasonPanel.hidden = !leavingWorshipper;
-                                if (!leavingWorshipper && reasonField) reasonField.value = '';
+                                if (form.updatePreferenceReasonVisibility) form.updatePreferenceReasonVisibility();
                             }
                             choices.forEach(function (choice) {
                                 choice.addEventListener('click', function () {

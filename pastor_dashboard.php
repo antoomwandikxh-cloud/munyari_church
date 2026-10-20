@@ -1481,7 +1481,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
 <head>
     <meta charset="UTF-8">
     <title>Pastor Dashboard - Munyari Church</title>
-    <link rel="stylesheet" href="style.css?v=20261020-search-icons-1">
+    <link rel="stylesheet" href="style.css?v=20261020-preference-reason-flow-1">
     <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_messages) ?>
     <script src="print_orientation.js?v=20261020-compact-orientation"></script>
     <script src="script.js?v=20261019-all-leader-print-photos-20"></script>
@@ -3745,7 +3745,7 @@ w.document.write('</div>');
                                             <span style="font-size:0.85rem;color:var(--text-muted);">No preference changes detected</span>
                                         <?php endif; ?>
                                         <?php if (trim((string)($pu['pending_preference_reason'] ?? '')) !== ''): ?>
-                                            <span style="display:block;margin-top:5px;font-size:0.78rem;color:var(--text-muted);"><strong>Member's reason:</strong> <?= nl2br(htmlspecialchars($pu['pending_preference_reason'], ENT_QUOTES, 'UTF-8')) ?></span>
+                                            <span data-preference-reason-for-request="<?= (int)$pu['id'] ?>" style="display:block;margin-top:5px;font-size:0.78rem;color:var(--text-muted);"><strong>Member's reason:</strong> <?= nl2br(htmlspecialchars($pu['pending_preference_reason'], ENT_QUOTES, 'UTF-8')) ?></span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
