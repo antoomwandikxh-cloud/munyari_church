@@ -7780,7 +7780,23 @@ function printRequiredLeadersTable(orientation) {
     
     var theadRow = card.querySelector('thead') ? card.querySelector('thead').innerHTML : '';
     theadRow = theadRow.replace(/<tr>/i, '<tr style="background:#1e3a8a;color:white;-webkit-print-color-adjust:exact;">');
-    var tbody = card.querySelector('tbody') ? card.querySelector('tbody').innerHTML : '';
+    var sourceBody = card.querySelector('tbody');
+    var printBody = sourceBody ? sourceBody.cloneNode(true) : null;
+    if (printBody) {
+        var departmentCell = null;
+        Array.from(printBody.rows).forEach(function (row) {
+            if (row.cells.length >= 4) {
+                departmentCell = row.cells[0].cloneNode(true);
+                departmentCell.removeAttribute('rowspan');
+                row.cells[0].removeAttribute('rowspan');
+            } else if (departmentCell && row.cells.length === 3) {
+                var repeatedDepartmentCell = departmentCell.cloneNode(true);
+                repeatedDepartmentCell.removeAttribute('rowspan');
+                row.insertBefore(repeatedDepartmentCell, row.cells[0]);
+            }
+        });
+    }
+    var tbody = printBody ? printBody.innerHTML : '';
     
     var wmSize = orientation === 'landscape' ? '3.2rem' : '2.0rem';
     var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
