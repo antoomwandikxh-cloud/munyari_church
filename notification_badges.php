@@ -45,6 +45,19 @@ function notification_route_metadata($message) {
     return $metadata;
 }
 
+function notification_department_group_key($department) {
+    $department = strtolower(trim((string)$department));
+    if (strpos($department, 'youth') !== false) return 'youths';
+    if (strpos($department, 'women') !== false) return 'womens_ministry';
+    if (strpos($department, 'elder') !== false) return 'elders';
+    if (strpos($department, 'sunday') !== false) return 'sunday_school';
+    if (strpos($department, 'building') !== false || strpos($department, 'construction') !== false) return 'building_construction';
+    if (strpos($department, 'worship') !== false || strpos($department, 'choir') !== false) return 'worship_leaders';
+    if (strpos($department, 'village') !== false) return 'village_leaders';
+    if (strpos($department, 'general') !== false || strpos($department, 'church') !== false) return 'general_church';
+    return 'other';
+}
+
 function notification_badge_tabs($message, $user_type, $is_treasurer = false) {
     $route = notification_route_metadata($message);
     if ($route['tab'] !== '') {

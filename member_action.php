@@ -4,6 +4,7 @@ require_once 'db_connect.php';
 require_once 'role_departments.php';
 require_once 'voice_note_helper.php';
 require_once 'organized_event_helper.php';
+require_once 'notification_badges.php';
 
 function member_has_role($church_role_string, $target_role) {
     $roles = array_map('normalize_role_name', explode(',', str_replace('&', ',', $church_role_string ?? '')));
@@ -787,16 +788,21 @@ if (isset($_GET['action'])) {
                     VALUES ('$department', $member_id, '$title', '$announcement', '$meet_link', '$whatsapp_link', " . ($attendance_file ? "'$attendance_file'" : "NULL") . ", " . ($voice_note ? "'" . $conn->real_escape_string($voice_note) . "'" : "NULL") . ")";
             
             if ($conn->query($sql) === TRUE) {
+                $event_id = (int)$conn->insert_id;
                 $org_name = trim($member_query['first_name'] . ' ' . $member_query['last_name']);
                 $audio_label = $voice_note ? ' (voice note included)' : '';
-                $notif_msg = $conn->real_escape_string("New department event from Organising Secretary $org_name: $title$audio_label");
+                $notification_text = "New department announcement from Organising Secretary $org_name: $title$audio_label";
+                $event_row_key = 'organized-event-' . $event_id;
+                $department_group = notification_department_group_key($requested_department);
+                $member_notification = notification_with_route($notification_text, 'organized_events', '', $event_row_key);
+                $leader_notification = notification_with_route($notification_text, 'general_announcements', $department_group, $event_row_key);
 
                 $member_department_filter = department_match_sql($conn, 'department', $requested_department);
                 $dept_members = $conn->query("SELECT id FROM members WHERE $member_department_filter AND is_approved = 1 AND id != $member_id");
                 if ($dept_members) {
                     while ($dm = $dept_members->fetch_assoc()) {
                         $did = (int)$dm['id'];
-                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($did, 'member', '$notif_msg')");
+                        member_action_insert_notification($conn, $did, 'member', $member_notification);
                     }
                 }
 
@@ -805,7 +811,7 @@ if (isset($_GET['action'])) {
                     if ($leaders) {
                         while ($leader = $leaders->fetch_assoc()) {
                             $leader_id = (int)$leader['id'];
-                            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($leader_id, '$user_type', '$notif_msg')");
+                            member_action_insert_notification($conn, $leader_id, $user_type, $leader_notification);
                         }
                     }
                 }

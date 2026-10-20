@@ -4743,16 +4743,7 @@ w.document.write('</div>');
 
                 <?php
                 $announcement_department_key = static function ($department) {
-                    $department = strtolower(trim((string)$department));
-                    if (strpos($department, 'youth') !== false) return 'youths';
-                    if (strpos($department, 'women') !== false) return 'womens_ministry';
-                    if (strpos($department, 'elder') !== false) return 'elders';
-                    if (strpos($department, 'sunday') !== false) return 'sunday_school';
-                    if (strpos($department, 'building') !== false || strpos($department, 'construction') !== false) return 'building_construction';
-                    if (strpos($department, 'worship') !== false || strpos($department, 'choir') !== false) return 'worship_leaders';
-                    if (strpos($department, 'village') !== false) return 'village_leaders';
-                    if (strpos($department, 'general') !== false || strpos($department, 'church') !== false) return 'general_church';
-                    return 'other';
+                    return notification_department_group_key($department) ?: 'other';
                 };
                 $announcement_department_filters = [
                     'youths' => ['label' => 'Youth Announcements', 'color' => '#3b82f6'],
@@ -4764,6 +4755,7 @@ w.document.write('</div>');
                     'worship_leaders' => ['label' => 'Worship Announcements', 'color' => '#d946ef'],
                     'village_leaders' => ['label' => 'Church Village Announcements', 'color' => '#d6a832'],
                     'announcement_queries' => ['label' => 'Announcement Queries', 'color' => '#0f766e'],
+                    'other' => ['label' => 'Other Department Announcements', 'color' => '#64748b'],
                 ];
                 ?>
                 <div class="content-card" id="announcement-department-filter" style="margin:0 0 12px;padding:14px 16px;">
@@ -4862,6 +4854,44 @@ w.document.write('</div>');
                         </div>
                     <?php endwhile; else: ?>
                         <p style="color:var(--text-muted);margin:0;">No department announcements yet.</p>
+                    <?php endif; ?>
+                </div>
+
+                <div class="content-card" data-announcement-panel style="display:none;margin-bottom:24px;border-left:4px solid #0ea5a4;">
+                    <h2 style="font-size:1.05rem;margin-top:0;color:#0ea5a4;">Organising Secretary Announcements &amp; Events</h2>
+                    <?php
+                    $organised_announcements = $conn->query("SELECT oe.*, m.first_name, m.last_name, m.profile_picture FROM organized_events oe LEFT JOIN members m ON m.id = oe.organizer_id ORDER BY oe.created_at DESC");
+                    if ($organised_announcements && $organised_announcements->num_rows > 0):
+                        while ($organised_announcement = $organised_announcements->fetch_assoc()):
+                            $organised_filter_key = $announcement_department_key($organised_announcement['department'] ?? '');
+                            $organised_filter_color = $announcement_department_filters[$organised_filter_key]['color'] ?? '#64748b';
+                            $organised_name = trim(($organised_announcement['first_name'] ?? '') . ' ' . ($organised_announcement['last_name'] ?? '')) ?: 'Organising Secretary';
+                            $organised_photo = 'uploads/' . basename($organised_announcement['profile_picture'] ?: 'default_avatar.png');
+                    ?>
+                        <article class="announcement-card" data-announcement-department="<?= htmlspecialchars($organised_filter_key, ENT_QUOTES) ?>" data-notification-row="organized-event-<?= (int)$organised_announcement['id'] ?>" style="padding:14px;margin-bottom:12px;border:1px solid var(--border-color);border-left:3px solid <?= htmlspecialchars($organised_filter_color, ENT_QUOTES) ?>;border-radius:8px;background:var(--bg-main);">
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
+                                <img src="<?= htmlspecialchars($organised_photo, ENT_QUOTES) ?>" alt="Organising Secretary profile" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+                                <div style="min-width:0;">
+                                    <strong style="color:var(--text-main);">Posted by Organising Secretary <?= htmlspecialchars($organised_name) ?></strong>
+                                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:0.82rem;color:var(--text-muted);">
+                                        <span style="background:<?= htmlspecialchars($organised_filter_color, ENT_QUOTES) ?>;color:#fff;padding:2px 8px;border-radius:5px;font-weight:700;"><?= htmlspecialchars($organised_announcement['department']) ?></span>
+                                        <span><?= date('M j, Y g:i A', strtotime($organised_announcement['created_at'])) ?></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <h3 style="font-size:1rem;margin:0 0 7px;color:var(--primary);"><?= htmlspecialchars($organised_announcement['title']) ?></h3>
+                            <?php if (trim((string)$organised_announcement['announcement']) !== ''): ?><p style="margin:0 0 10px;line-height:1.55;white-space:pre-wrap;color:var(--text-main);"><?= nl2br(htmlspecialchars($organised_announcement['announcement'])) ?></p><?php endif; ?>
+                            <?php if (!empty($organised_announcement['audio_path'])): ?>
+                                <?= render_whatsapp_voice_player($organised_announcement['audio_path'], $organised_name, $organised_photo, $organised_announcement['created_at']) ?>
+                            <?php endif; ?>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                                <?php if (!empty($organised_announcement['meet_link'])): ?><a href="<?= htmlspecialchars($organised_announcement['meet_link'], ENT_QUOTES) ?>" target="_blank" rel="noopener" class="badge" style="background:rgba(16,185,129,.15);color:#10b981;text-decoration:none;padding:7px 10px;">Join Google Meet</a><?php endif; ?>
+                                <?php if (!empty($organised_announcement['whatsapp_link'])): ?><a href="<?= htmlspecialchars($organised_announcement['whatsapp_link'], ENT_QUOTES) ?>" target="_blank" rel="noopener" class="badge" style="background:rgba(37,99,235,.15);color:var(--primary);text-decoration:none;padding:7px 10px;">Join WhatsApp Group</a><?php endif; ?>
+                                <?php if (!empty($organised_announcement['attendance_file'])): ?><a href="uploads/<?= rawurlencode(basename($organised_announcement['attendance_file'])) ?>" target="_blank" rel="noopener" class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b;text-decoration:none;padding:7px 10px;">View Attendance / Document</a><?php endif; ?>
+                            </div>
+                        </article>
+                    <?php endwhile; else: ?>
+                        <p style="color:var(--text-muted);margin:0;">No organising secretary announcements have been posted yet.</p>
                     <?php endif; ?>
                 </div>
 
@@ -4979,7 +5009,13 @@ w.document.write('</div>');
                                 emptyMessage.textContent = visibleCount === 0 ? 'No announcements have been posted for this department yet.' : '';
                             });
                         });
-                        const hasVillageAnnouncementFocus = notificationFocusMessages.some(message =>
+                        const eventFocusMessage = notificationFocusMessages.find(message => /\[notification-row:organized-event-\d+\]/i.test(message));
+                        const eventFocusGroup = eventFocusMessage && eventFocusMessage.match(/\[notification-group:([a-z0-9_-]+)\]/i);
+                        if (eventFocusGroup) {
+                            const departmentButton = filterButtons.find(button => button.dataset.announcementFilter === eventFocusGroup[1].toLowerCase());
+                            if (departmentButton) departmentButton.click();
+                        }
+                        const hasVillageAnnouncementFocus = !eventFocusGroup && notificationFocusMessages.some(message =>
                             /\[village-announcement-id:\s*\d+\]/i.test(message)
                             || /\[notification-row:village-announcement-\d+\]/i.test(message)
                         );
