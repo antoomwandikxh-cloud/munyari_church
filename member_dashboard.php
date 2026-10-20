@@ -7201,57 +7201,62 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 </div>
                 <?php endif; ?>
 
-                <div class="content-card">
-                    <h2 style="margin-bottom:15px;">Your Posted Transactions</h2>
-                    <?php
-                    $treasurer_records_department_sql = department_match_sql($conn, 'fr.department', $active_treasurer_records_dept);
-                    $treasurer_records = $conn->query("SELECT fr.*, cb.first_name AS confirmed_first, cb.last_name AS confirmed_last
-                        FROM financial_records fr
-                        LEFT JOIN members cb ON fr.chair_confirmed_by = cb.id
-                        WHERE fr.recorded_by = $member_id
-                          AND $treasurer_records_department_sql
-                          AND COALESCE(fr.description, '') NOT LIKE 'Disciplinary Fine:%'
-                        ORDER BY fr.recorded_at DESC, fr.id DESC");
-                    if ($treasurer_records && $treasurer_records->num_rows > 0):
-                    ?>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Description</th>
-                                    <th>Amount (KSh)</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php while ($record = $treasurer_records->fetch_assoc()): ?>
-                                <tr data-notification-row="financial-record-<?= (int)$record['id'] ?>">
-                                    <td><?= date('M j, Y', strtotime($record['record_date'])) ?></td>
-                                    <td><?= htmlspecialchars($record['description'] ?: 'No description') ?></td>
-                                    <td style="font-weight:700;color:#10b981;">KSh <?= number_format((float)$record['amount'], 2) ?></td>
-                                    <td>
-                                        <?php if (!empty($record['is_chair_confirmed'])): ?>
-                                            <span class="badge" style="background:rgba(16,185,129,0.12);color:#10b981;">Confirmed &amp; Disbursed</span>
-                                            <?php if (!empty($record['chair_confirmed_at'])): ?>
-                                                <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">
-                                                    By <?= htmlspecialchars(trim(($record['confirmed_first'] ?? '') . ' ' . ($record['confirmed_last'] ?? ''))) ?> on <?= date('M j, Y', strtotime($record['chair_confirmed_at'])) ?>
-                                                </div>
-                                            <?php endif; ?>
-                                        <?php elseif (!empty($record['is_sent_to_chair'])): ?>
-                                            <span class="badge" style="background:rgba(245,158,11,0.12);color:#d97706;">Awaiting Chairperson Review</span>
-                                        <?php else: ?>
-                                            <span class="badge" style="background:rgba(100,100,100,0.1);color:var(--text-muted);">Saved, Not Yet Submitted</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
+                <?php
+                $treasurer_records_department_sql = department_match_sql($conn, 'fr.department', $active_treasurer_records_dept);
+                $treasurer_confirmed_records = $conn->query("SELECT fr.*, tr.first_name AS treasurer_first, tr.last_name AS treasurer_last, tr.profile_picture AS treasurer_profile_picture, cb.first_name AS chair_first, cb.last_name AS chair_last
+                    FROM financial_records fr
+                    JOIN members tr ON fr.recorded_by = tr.id
+                    LEFT JOIN members cb ON fr.chair_confirmed_by = cb.id
+                    WHERE $treasurer_records_department_sql
+                      AND fr.is_sent_to_chair = 1
+                      AND fr.is_chair_confirmed = 1
+                    ORDER BY fr.chair_confirmed_at DESC, fr.record_date DESC");
+                $treasurer_confirmed_total_result = $conn->query("SELECT COALESCE(SUM(amount), 0) AS total FROM financial_records fr WHERE " . department_match_sql($conn, 'fr.department', $active_treasurer_records_dept) . " AND fr.is_sent_to_chair = 1 AND fr.is_chair_confirmed = 1");
+                $treasurer_confirmed_total = $treasurer_confirmed_total_result ? ($treasurer_confirmed_total_result->fetch_assoc()['total'] ?? 0) : 0;
+                ?>
+                <div style="display:grid;grid-template-columns:1fr;gap:20px;">
+                    <div class="content-card" style="border-top:4px solid #10b981;">
+                        <div style="font-size:0.85rem;color:var(--text-muted);">Total Confirmed Department Records</div>
+                        <div style="font-size:2rem;font-weight:700;color:#10b981;margin-top:5px;">KSh <?= number_format((float)$treasurer_confirmed_total, 2) ?></div>
                     </div>
-                    <?php else: ?>
-                        <p style="color:var(--text-muted);">You have not posted any financial records for this department yet.</p>
-                    <?php endif; ?>
+                    <div class="content-card">
+                        <h2 style="margin-bottom:15px;">Confirmed Department Records</h2>
+                        <?php if ($treasurer_confirmed_records && $treasurer_confirmed_records->num_rows > 0): ?>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Department</th>
+                                        <th>Amount (KSh)</th>
+                                        <th>Source / Note</th>
+                                        <th>Treasurer</th>
+                                        <th>Confirmed By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php while ($record = $treasurer_confirmed_records->fetch_assoc()): ?>
+                                    <tr data-notification-row="financial-record-<?= (int)$record['id'] ?>">
+                                        <td><?= date('M j, Y', strtotime($record['chair_confirmed_at'] ?: $record['record_date'])) ?></td>
+                                        <td><?= htmlspecialchars($record['department']) ?></td>
+                                        <td style="font-weight:700;color:#10b981;">KSh <?= number_format((float)$record['amount'], 2) ?></td>
+                                        <td><?= htmlspecialchars($record['chair_disbursement_note'] ?: ($record['description'] ?: 'No note')) ?></td>
+                                        <td>
+                                            <div style="display:flex;align-items:center;gap:8px;min-width:150px;">
+                                                <img src="uploads/<?= htmlspecialchars(basename($record['treasurer_profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($record['treasurer_first'] . ' ' . $record['treasurer_last']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid var(--border-color);cursor:zoom-in;flex-shrink:0;" onclick="viewProfileImage(this.src);" title="View treasurer profile photo">
+                                                <span><?= htmlspecialchars($record['treasurer_first'] . ' ' . $record['treasurer_last']) ?></span>
+                                            </div>
+                                        </td>
+                                        <td><?= htmlspecialchars(trim(($record['chair_first'] ?? '') . ' ' . ($record['chair_last'] ?? ''))) ?></td>
+                                    </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <?php else: ?>
+                            <p style="color:var(--text-muted);">No confirmed financial records are available for this department yet.</p>
+                        <?php endif; ?>
+                    </div>
                 </div>
             <?php endif; ?>
 
