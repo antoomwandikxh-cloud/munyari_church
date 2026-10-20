@@ -10657,6 +10657,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         .church-village-choice{flex:1 0 165px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;padding:12px 14px;border:1px solid var(--choice-accent);border-left:4px solid var(--choice-accent);border-radius:8px;background:var(--choice-tint);color:var(--text-main);text-align:left;font:inherit;cursor:pointer;scroll-snap-align:start;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}
                         .church-village-choice:hover{transform:translateY(-2px);border-color:var(--choice-accent);box-shadow:0 6px 16px rgba(15,23,42,.2)}
                         .church-village-choice[aria-pressed="true"]{border-color:var(--choice-accent);background:var(--choice-accent);color:#fff;box-shadow:0 0 0 2px rgba(212,160,23,.32),0 6px 16px rgba(15,23,42,.18)}
+                        .choice-selection-pulse{animation:member-choice-selection-pulse 1.1s ease-out}
+                        @keyframes member-choice-selection-pulse{0%{box-shadow:0 0 0 0 rgba(212,160,23,0),0 0 0 rgba(212,160,23,0)}35%{box-shadow:0 0 0 6px rgba(212,160,23,.68),0 0 24px 7px rgba(212,160,23,.46)}68%{box-shadow:0 0 0 3px rgba(212,160,23,.48),0 0 15px 3px rgba(212,160,23,.28)}100%{box-shadow:0 0 0 2px rgba(212,160,23,.32),0 6px 16px rgba(15,23,42,.18)}}
+                        @media(prefers-reduced-motion:reduce){.choice-selection-pulse{animation:none;outline:3px solid #d4a017;outline-offset:3px}}
                         .church-village-choice:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
                         .church-village-choice-name{font-weight:750}
                         .church-village-choice-selected{font-size:.74rem;font-weight:700;opacity:.9}
@@ -10677,22 +10680,37 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             var status = document.getElementById('churchVillageSelectionStatus');
                             if (!form || !villageInput || !status) return;
                             var choices = Array.from(form.querySelectorAll('[data-village-option]'));
-                            function selectVillage(value) {
+                            var pulseTimers = new WeakMap();
+                            function pulseChoice(choice) {
+                                if (!choice) return;
+                                window.clearTimeout(pulseTimers.get(choice));
+                                choice.classList.remove('choice-selection-pulse');
+                                void choice.offsetWidth;
+                                choice.classList.add('choice-selection-pulse');
+                                pulseTimers.set(choice, window.setTimeout(function () {
+                                    choice.classList.remove('choice-selection-pulse');
+                                    pulseTimers.delete(choice);
+                                }, 1150));
+                            }
+                            function selectVillage(value, shouldPulse) {
                                 villageInput.value = value;
+                                var activeChoice = null;
                                 choices.forEach(function (choice) {
                                     var selected = choice.dataset.villageOption === value;
                                     choice.setAttribute('aria-pressed', selected ? 'true' : 'false');
                                     var selectedLabel = choice.querySelector('.church-village-choice-selected');
                                     if (selectedLabel) selectedLabel.hidden = !selected;
+                                    if (selected) activeChoice = choice;
                                 });
                                 status.textContent = value ? 'Selected village: ' + value : 'Choose a village to continue.';
+                                if (shouldPulse) pulseChoice(activeChoice);
                             }
                             choices.forEach(function (choice) {
                                 choice.addEventListener('click', function () {
-                                    selectVillage(choice.dataset.villageOption);
+                                    selectVillage(choice.dataset.villageOption, true);
                                 });
                             });
-                            selectVillage(villageInput.value);
+                            selectVillage(villageInput.value, false);
                             form.addEventListener('submit', function (event) {
                                 if (!villageInput.value) {
                                     event.preventDefault();
@@ -10754,22 +10772,37 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             var status = document.getElementById('desiredRoleSelectionStatus');
                             if (!form || !roleInput || !status) return;
                             var choices = Array.from(form.querySelectorAll('[data-desired-role-option]'));
-                            function selectRole(value) {
+                            var pulseTimers = new WeakMap();
+                            function pulseChoice(choice) {
+                                if (!choice) return;
+                                window.clearTimeout(pulseTimers.get(choice));
+                                choice.classList.remove('choice-selection-pulse');
+                                void choice.offsetWidth;
+                                choice.classList.add('choice-selection-pulse');
+                                pulseTimers.set(choice, window.setTimeout(function () {
+                                    choice.classList.remove('choice-selection-pulse');
+                                    pulseTimers.delete(choice);
+                                }, 1150));
+                            }
+                            function selectRole(value, shouldPulse) {
                                 roleInput.value = value;
+                                var activeChoice = null;
                                 choices.forEach(function (choice) {
                                     var selected = choice.dataset.desiredRoleOption === value;
                                     choice.setAttribute('aria-pressed', selected ? 'true' : 'false');
                                     var selectedLabel = choice.querySelector('.desired-role-choice-selected');
                                     if (selectedLabel) selectedLabel.hidden = !selected;
+                                    if (selected) activeChoice = choice;
                                 });
                                 status.textContent = value ? 'Selected desired role: ' + value : 'No desired role selected.';
+                                if (shouldPulse) pulseChoice(activeChoice);
                             }
                             choices.forEach(function (choice) {
                                 choice.addEventListener('click', function () {
-                                    selectRole(choice.dataset.desiredRoleOption);
+                                    selectRole(choice.dataset.desiredRoleOption, true);
                                 });
                             });
-                            selectRole(roleInput.value);
+                            selectRole(roleInput.value, false);
                         })();
                     </script>
                 </div>
