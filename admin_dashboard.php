@@ -4754,8 +4754,49 @@ w.document.write('</div>');
                     <?php endif; ?>
                 </div>
 
+                <?php
+                $announcement_department_key = static function ($department) {
+                    $department = strtolower(trim((string)$department));
+                    if (strpos($department, 'youth') !== false) return 'youths';
+                    if (strpos($department, 'women') !== false) return 'womens_ministry';
+                    if (strpos($department, 'elder') !== false) return 'elders';
+                    if (strpos($department, 'sunday') !== false) return 'sunday_school';
+                    if (strpos($department, 'building') !== false || strpos($department, 'construction') !== false) return 'building_construction';
+                    if (strpos($department, 'worship') !== false || strpos($department, 'choir') !== false) return 'worship_leaders';
+                    if (strpos($department, 'village') !== false) return 'village_leaders';
+                    if (strpos($department, 'general') !== false || strpos($department, 'church') !== false) return 'general_church';
+                    return 'other';
+                };
+                $announcement_department_filters = [
+                    'all' => ['label' => 'All Announcements', 'color' => '#64748b'],
+                    'youths' => ['label' => 'Youth Announcements', 'color' => '#3b82f6'],
+                    'womens_ministry' => ['label' => "Women's Ministry", 'color' => '#ec4899'],
+                    'elders' => ['label' => 'Elders', 'color' => '#8b5cf6'],
+                    'sunday_school' => ['label' => 'Sunday School', 'color' => '#f59e0b'],
+                    'general_church' => ['label' => 'General Church', 'color' => '#10b981'],
+                    'building_construction' => ['label' => 'Building Department', 'color' => '#ef4444'],
+                    'worship_leaders' => ['label' => 'Worship Department', 'color' => '#d946ef'],
+                    'village_leaders' => ['label' => 'Church Villages', 'color' => '#d6a832'],
+                    'other' => ['label' => 'Other Departments', 'color' => '#64748b'],
+                ];
+                ?>
+                <div class="content-card" id="announcement-department-filter" style="margin:0 0 16px;padding:14px 16px;">
+                    <strong style="display:block;margin-bottom:10px;color:var(--text-main);">Browse Announcements by Department</strong>
+                    <div class="announcement-filter-buttons" style="display:flex;flex-wrap:wrap;gap:8px;">
+                        <?php foreach ($announcement_department_filters as $filter_key => $filter): ?>
+                            <button type="button" class="announcement-filter-button" data-announcement-filter="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" aria-pressed="<?= $filter_key === 'all' ? 'true' : 'false' ?>" style="--announcement-accent:<?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;border:1px solid var(--border-color);border-radius:20px;padding:7px 11px;background:var(--bg-card);color:var(--text-muted);font:inherit;font-size:0.82rem;font-weight:650;cursor:pointer;">
+                                <?= htmlspecialchars($filter['label']) ?> <span data-announcement-count="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" style="margin-left:4px;opacity:.8;">0</span>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <style>
+                    .announcement-filter-button[aria-pressed="true"] { background:var(--announcement-accent)!important; border-color:var(--announcement-accent)!important; color:#fff!important; }
+                    .announcement-filter-button:focus-visible { outline:2px solid var(--announcement-accent); outline-offset:2px; }
+                </style>
+
                 <!-- All Department & Secretary Announcements -->
-                <div class="content-card" style="margin-bottom:24px;border-left:4px solid var(--secondary);">
+                <div class="content-card" data-announcement-panel style="margin-bottom:24px;border-left:4px solid var(--secondary);">
                     <h2 style="font-size:1.05rem;margin-top:0;color:var(--secondary);">📋 Department Announcements (All Secretaries & Elders)</h2>
                     <?php
                     $dept_anns = $conn->query("
@@ -4763,12 +4804,11 @@ w.document.write('</div>');
                         FROM department_announcements da
                         JOIN members m ON da.secretary_id = m.id
                         ORDER BY da.created_at DESC
-                        LIMIT 80
                     ");
                     if ($dept_anns && $dept_anns->num_rows > 0):
                         while ($dann = $dept_anns->fetch_assoc()):
                     ?>
-                        <div style="padding:14px 0;border-bottom:1px solid var(--border-color);">
+                        <div data-announcement-department="<?= htmlspecialchars($announcement_department_key($dann['department'] ?? ''), ENT_QUOTES) ?>" style="padding:14px 0;border-bottom:1px solid var(--border-color);">
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
                                 <div>
                                     <strong style="color:var(--text-main);"><?= htmlspecialchars($dann['first_name'] . ' ' . $dann['last_name']) ?></strong>
@@ -4828,16 +4868,16 @@ w.document.write('</div>');
                 </div>
 
 
-                <div class="content-card" style="margin:24px 0;border-left:4px solid #10b981;">
+                <div class="content-card" data-announcement-panel style="margin:24px 0;border-left:4px solid #10b981;">
                     <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">Church Village Leader Announcements</h2>
                     <?php
-                    $village_announcements = $conn->query("SELECT va.id, va.village, va.message, va.audio_path, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id ORDER BY va.created_at DESC LIMIT 100");
+                    $village_announcements = $conn->query("SELECT va.id, va.village, va.message, va.audio_path, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id ORDER BY va.created_at DESC");
                     if ($village_announcements && $village_announcements->num_rows > 0):
                         while ($village_announcement = $village_announcements->fetch_assoc()):
                             $village_leader_name = trim(($village_announcement['first_name'] ?? '') . ' ' . ($village_announcement['last_name'] ?? '')) ?: 'Village Leader';
                             $village_leader_photo = !empty($village_announcement['profile_picture']) ? 'uploads/' . basename($village_announcement['profile_picture']) : 'uploads/default_avatar.png';
                     ?>
-                        <article class="announcement-card" data-notification-row="village-announcement-<?= (int)$village_announcement['id'] ?>" style="padding:14px;margin-bottom:12px;border:1px solid var(--border-color);border-left:3px solid #10b981;border-radius:8px;background:var(--bg-main);">
+                        <article class="announcement-card" data-announcement-department="village_leaders" data-notification-row="village-announcement-<?= (int)$village_announcement['id'] ?>" style="padding:14px;margin-bottom:12px;border:1px solid var(--border-color);border-left:3px solid #10b981;border-radius:8px;background:var(--bg-main);">
                             <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
                                 <img src="<?= htmlspecialchars($village_leader_photo, ENT_QUOTES) ?>" alt="Village leader profile" onerror="this.src='uploads/default_avatar.png'" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">
                                 <div>
@@ -4854,9 +4894,44 @@ w.document.write('</div>');
                         <p style="color:var(--text-muted);margin:0;">No village leader announcements yet.</p>
                     <?php endif; ?>
                 </div>
+                <p id="announcement-department-empty" class="content-card" style="display:none;color:var(--text-muted);text-align:center;">No announcements have been posted for this department yet.</p>
+                <script>
+                    (function () {
+                        const filterRoot = document.getElementById('announcement-department-filter');
+                        if (!filterRoot) return;
+                        const archivePanels = Array.from(document.querySelectorAll('[data-announcement-panel]'));
+                        const announcementRows = archivePanels.flatMap(panel => Array.from(panel.querySelectorAll('[data-announcement-department]')));
+                        const filterButtons = Array.from(filterRoot.querySelectorAll('[data-announcement-filter]'));
+                        const emptyMessage = document.getElementById('announcement-department-empty');
+                        const counts = {};
+                        announcementRows.forEach(row => {
+                            const key = row.dataset.announcementDepartment || 'other';
+                            counts[key] = (counts[key] || 0) + 1;
+                        });
+                        filterButtons.forEach(button => {
+                            const key = button.dataset.announcementFilter;
+                            const count = filterRoot.querySelector('[data-announcement-count="' + key + '"]');
+                            if (count) count.textContent = key === 'all' ? String(announcementRows.length) : String(counts[key] || 0);
+                            button.addEventListener('click', function () {
+                                const selected = this.dataset.announcementFilter;
+                                filterButtons.forEach(item => item.setAttribute('aria-pressed', item === this ? 'true' : 'false'));
+                                let visibleCount = 0;
+                                announcementRows.forEach(row => {
+                                    const visible = selected === 'all' || row.dataset.announcementDepartment === selected;
+                                    row.style.display = visible ? '' : 'none';
+                                    if (visible) visibleCount++;
+                                });
+                                archivePanels.forEach(panel => {
+                                    const hasVisibleRows = Array.from(panel.querySelectorAll('[data-announcement-department]')).some(row => row.style.display !== 'none');
+                                    panel.style.display = selected === 'all' || hasVisibleRows ? '' : 'none';
+                                });
+                                emptyMessage.style.display = selected !== 'all' && visibleCount === 0 ? 'block' : 'none';
+                            });
+                        });
+                    })();
+                </script>
 
-            
-<?php elseif ($tab == 'financials'): ?>
+            <?php elseif ($tab == 'financials'): ?>
                 <div class="page-header">
                     <h1>Financial Records Tracking</h1>
                     <p>Overview of all monies collected by department treasurers.</p>
