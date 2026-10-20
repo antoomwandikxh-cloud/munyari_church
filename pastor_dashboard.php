@@ -1687,7 +1687,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                         <div style="display:flex; align-items:flex-start; gap:8px;">
                                             <div style="width:7px; height:7px; border-radius:50%; background:<?= !$dn['is_read'] ? 'var(--danger)' : 'var(--border-color)' ?>; margin-top:5px; flex-shrink:0;"></div>
                                             <div style="min-width:0;">
-                                                <p style="margin:0; font-size:0.8rem; color:var(--text-main); line-height:1.35;"><?= htmlspecialchars(notification_display_message($dn['message'])) ?></p>
+                                                <p style="margin:0; font-size:0.8rem; color:var(--text-main); line-height:1.35;"><?= htmlspecialchars(notification_display_message($dn['message'], 'pastor')) ?></p>
                                                 <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
                                                     <small style="color:var(--text-muted); font-size:0.7rem;"><?= date('M j, g:i A', strtotime($dn['created_at'])) ?></small>
                                                     <?php if (!$dn["is_read"]): ?>
@@ -2068,7 +2068,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             <?php while($n = $pastor_notifs->fetch_assoc()): ?>
                                 <?php $dn_target = notification_target_tab($n['message'], 'pastor', 'dashboard'); $dn_group = notification_target_group($n['message'], 'pastor'); ?>
                                 <a href="mark_read_and_redirect.php?id=<?= $n['id'] ?>&redirect=<?= urlencode($dn_target) ?><?= $dn_group !== '' ? '&group=' . urlencode($dn_group) : '' ?>" style="display:block; padding:12px 18px; border-bottom:1px solid var(--border-color); text-decoration:none;">
-                                    <div style="font-size:0.9rem; color:var(--text-main); font-weight:500;"><?= htmlspecialchars(notification_display_message($n['message'])) ?></div>
+                                    <div style="font-size:0.9rem; color:var(--text-main); font-weight:500;"><?= htmlspecialchars(notification_display_message($n['message'], 'pastor')) ?></div>
                                     <small style="color:var(--text-muted); font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($n['created_at'])) ?></small>
                                                 <?php if (!$n["is_read"]): ?>
                                     <small style="color: red; font-size: 0.75rem; margin-left: 8px;">unread</small>

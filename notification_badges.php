@@ -1,5 +1,9 @@
 <?php
-function notification_display_message($message) {
+function notification_display_message($message, $user_type = null) {
+    if ($user_type === 'pastor'
+        && preg_match('/^Financial record submitted for chairperson review in (.+?)\. KSh ([\d,]+(?:\.\d{2})?) from the Treasurer\. Open Received Financial Records to confirm and disburse\. Reason: (.*?)(?=\s*\[financial-record-id:\s*\d+\]|\s*$)/i', (string)$message, $legacy_finance_match)) {
+        $message = "Treasurer submitted a financial record of KSh {$legacy_finance_match[2]} for the {$legacy_finance_match[1]} department. It is awaiting chairperson confirmation and has not yet been disbursed to members. Please review the transaction before the chairperson disburses it. Reason: {$legacy_finance_match[3]}" . (preg_match('/\[financial-record-id:\s*\d+\]/i', (string)$message, $record_id_match) ? ' ' . $record_id_match[0] : '');
+    }
     $message = preg_replace('/\s*\[financial-record-id:\s*\d+\]/i', '', (string)$message);
     $message = preg_replace('/\s*\[focus-fine-rule-id:\s*\d+\]/i', '', (string)$message);
     $message = preg_replace('/\s*\[focus-fine-id:\s*\d+\]/i', '', (string)$message);
