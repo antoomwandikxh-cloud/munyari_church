@@ -1735,7 +1735,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
         $conn->query("UPDATE members SET pending_church_village = '$cv', pending_desired_role_pref = $drp_sql WHERE id = $member_id");
         $requested_role_label = $drp !== '' ? $drp : 'No desired role';
         $change_summary = $preference_action === 'change_village'
-            ? "requested to change their church village to $cv (desired role: $requested_role_label)"
+            ? "requested to change their church village to $cv"
             : ($preference_action === 'change_role'
                 ? "requested to change their desired role to $requested_role_label (church village: $cv)"
                 : "requested to change their church village to $cv and desired role to $requested_role_label");
@@ -10814,7 +10814,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             window.alert('You already chose ' + savedVillage + ' village. You can change the village you selected earlier if you want to update it.');
                                             return;
                                         }
-                                        confirmMessage = 'You selected ' + villageInput.value + ' village and ' + (savedRole || 'No desired role') + ' role. Send this village change request to the Pastor for approval?';
+                                        confirmMessage = 'You selected ' + villageInput.value + ' village. Send this church village change request to the Pastor for approval?';
                                     } else if (action === 'change_role') {
                                         if (normalize(selectedRole) === normalize(savedRole)) {
                                             event.preventDefault();

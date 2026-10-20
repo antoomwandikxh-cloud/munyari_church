@@ -3521,7 +3521,7 @@ w.document.write('</div>');
                 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['handle_village_update'])) {
                     $update_id = (int)$_POST['member_id'];
                     $action = $_POST['action'];
-                    $mem = $conn->query("SELECT first_name, last_name, church_village, pending_church_village, pending_desired_role_pref FROM members WHERE id = $update_id")->fetch_assoc();
+                    $mem = $conn->query("SELECT first_name, last_name, church_village, desired_role_pref, pending_church_village, pending_desired_role_pref FROM members WHERE id = $update_id")->fetch_assoc();
                     if ($mem && $mem['pending_church_village']) {
                         if ($action === 'approve') {
                             $new_v_raw = trim((string)$mem['pending_church_village']);
@@ -3536,7 +3536,8 @@ w.document.write('</div>');
                             $msg = $conn->real_escape_string("Your request to update your church village to $new_v has been approved.");
                             $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($update_id, 'member', '$msg')");
                             
-                            if ($new_drp_val === 'Worshipper') {
+                            $old_drp_val = trim((string)($mem['desired_role_pref'] ?? ''));
+                            if (strcasecmp(trim((string)$new_drp_val), 'Worshipper') === 0 && strcasecmp($old_drp_val, 'Worshipper') !== 0) {
                                 $wl_name  = $conn->real_escape_string($mem['first_name'] . ' ' . $mem['last_name']);
                                 $wc_res = $conn->query("SELECT COUNT(*) as c FROM members WHERE is_approved=1 AND (LOWER(TRIM(church_role)) LIKE '%worshipper%' OR LOWER(TRIM(department)) LIKE '%worship%' OR desired_role_pref='Worshipper')");
                                 $wc = $wc_res ? $wc_res->fetch_assoc()['c'] : 0;
@@ -3677,8 +3678,19 @@ w.document.write('</div>');
                                         <span style="font-size:0.75rem;color:var(--text-muted);"><?= htmlspecialchars($pu['desired_role_pref'] ?? 'No role') ?></span>
                                     </td>
                                     <td>
-                                        <span style="display:block;font-size:0.9rem;font-weight:600;color:var(--primary);">&rarr; <?= htmlspecialchars($pu['pending_church_village']) ?></span>
-                                        <span style="font-size:0.75rem;color:var(--text-muted);">&rarr; <?= htmlspecialchars($pu['pending_desired_role_pref'] ?? 'No role') ?></span>
+                                        <?php
+                                        $pending_village_changed = strcasecmp(trim((string)($pu['pending_church_village'] ?? '')), trim((string)($pu['church_village'] ?? ''))) !== 0;
+                                        $pending_role_changed = strcasecmp(trim((string)($pu['pending_desired_role_pref'] ?? '')), trim((string)($pu['desired_role_pref'] ?? ''))) !== 0;
+                                        ?>
+                                        <?php if ($pending_village_changed): ?>
+                                            <span style="display:block;font-size:0.9rem;font-weight:600;color:var(--primary);">Church village &rarr; <?= htmlspecialchars($pu['pending_church_village']) ?></span>
+                                        <?php endif; ?>
+                                        <?php if ($pending_role_changed): ?>
+                                            <span style="display:block;font-size:0.75rem;color:var(--text-muted);">Desired role &rarr; <?= htmlspecialchars($pu['pending_desired_role_pref'] ?? 'No role') ?></span>
+                                        <?php endif; ?>
+                                        <?php if (!$pending_village_changed && !$pending_role_changed): ?>
+                                            <span style="font-size:0.85rem;color:var(--text-muted);">No preference changes detected</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <form method="POST" action="?tab=desired_roles" style="display:inline-flex; gap:8px;">

@@ -21,7 +21,7 @@ expect_same('womens_ministry', notification_target_group($routed_message, 'membe
 expect_same('department-member-42', notification_route_metadata($routed_message)['row'], 'exact row focus survives routing');
 expect_same('A new member was approved.', notification_display_message($routed_message, 'member'), 'routing metadata is hidden from the visible message');
 $village_update_notification = notification_with_route(
-    'Member Rose requested to change their church village to Philadelphia and desired role to Worshipper.',
+    'Member Rose requested to change their church village to Philadelphia.',
     'desired_roles',
     '',
     'member-village-update-42'
@@ -30,7 +30,7 @@ expect_same(['desired_roles'], notification_badge_tabs($village_update_notificat
 expect_same('desired_roles', notification_target_tab($village_update_notification, 'pastor'), 'village preference request opens Pastor Desired Roles');
 expect_same('member-village-update-42', notification_route_metadata($village_update_notification)['row'], 'village preference request targets the exact pending member row');
 expect_same(
-    'Member Rose requested to change their church village to Philadelphia and desired role to Worshipper.',
+    'Member Rose requested to change their church village to Philadelphia.',
     notification_display_message($village_update_notification, 'pastor'),
     'village preference route metadata stays hidden from the Pastor notification text'
 );

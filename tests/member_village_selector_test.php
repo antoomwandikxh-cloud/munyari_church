@@ -1,7 +1,8 @@
 <?php
 $member_dashboard = file_get_contents(__DIR__ . '/../member_dashboard.php');
-if ($member_dashboard === false) {
-    fwrite(STDERR, "FAIL: member dashboard source could not be read.\n");
+$pastor_dashboard = file_get_contents(__DIR__ . '/../pastor_dashboard.php');
+if ($member_dashboard === false || $pastor_dashboard === false) {
+    fwrite(STDERR, "FAIL: member or Pastor dashboard source could not be read.\n");
     exit(1);
 }
 
@@ -19,7 +20,8 @@ $required_markers = [
     'role can be changed independently' => 'name="preference_action" value="change_role" class="btn-primary" style="margin-top:10px;padding:9px 16px;">Change Role',
     'same village prompts member to change earlier choice' => "You already chose ' + savedVillage + ' village. You can change the village you selected earlier",
     'same role is rejected with the requested message' => 'You cannot choose the same role you picked earlier. Go back and choose a different one.',
-    'village change asks Pastor approval' => 'Send this village change request to the Pastor for approval?',
+    'village change confirmation names only the selected village' => "confirmMessage = 'You selected ' + villageInput.value + ' village. Send this church village change request to the Pastor for approval?'",
+    'village request message omits the unchanged role' => '"requested to change their church village to $cv"',
     'role change asks Pastor approval' => 'Send this role change request to the Pastor for approval?',
     'village request preserves the saved role' => '$requested_role = $current_role;',
     'role request preserves the saved village' => '$requested_village = $current_village;',
@@ -53,6 +55,12 @@ foreach ($required_markers as $label => $marker) {
         fwrite(STDERR, "FAIL: $label is missing from the member Church Village form.\n");
         exit(1);
     }
+}
+if (strpos($pastor_dashboard, '$pending_village_changed = strcasecmp(trim((string)($pu[\'pending_church_village\'] ?? \'\')), trim((string)($pu[\'church_village\'] ?? \'\'))) !== 0;') === false
+    || strpos($pastor_dashboard, '$pending_role_changed = strcasecmp(trim((string)($pu[\'pending_desired_role_pref\'] ?? \'\')), trim((string)($pu[\'desired_role_pref\'] ?? \'\'))) !== 0;') === false
+    || strpos($pastor_dashboard, '<?php if ($pending_role_changed): ?>') === false) {
+    fwrite(STDERR, "FAIL: Pastor pending update list must only show the role when it changed.\n");
+    exit(1);
 }
 if (strpos($member_dashboard, '<select name="church_village"') !== false) {
     fwrite(STDERR, "FAIL: the member Church Village form should not render the old village dropdown.\n");
