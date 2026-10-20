@@ -7453,7 +7453,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <div class="content-card" style="margin-top: 30px;">
                     <h2 style="margin-bottom: 15px;">Recent Financial Records (<?= htmlspecialchars($active_treasurer_dept) ?>)</h2>
                     <?php
-                    $dept_records = $conn->query("SELECT fr.*, m.first_name, m.last_name FROM financial_records fr JOIN members m ON fr.recorded_by = m.id WHERE fr.department='$esc_dept' AND COALESCE(fr.description, '') NOT LIKE 'Disciplinary Fine:%' ORDER BY fr.record_date DESC, fr.recorded_at DESC LIMIT 50");
+                    $dept_records = $conn->query("SELECT fr.*, COALESCE(NULLIF(fr.recorded_by_name, ''), NULLIF(CONCAT_WS(' ', m.first_name, m.last_name), ''), 'Unknown Treasurer') AS poster_name, COALESCE(NULLIF(m.profile_picture, ''), 'default_avatar.png') AS poster_pic FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE fr.department='$esc_dept' AND COALESCE(fr.description, '') NOT LIKE 'Disciplinary Fine:%' ORDER BY fr.record_date DESC, fr.recorded_at DESC LIMIT 50");
                     if ($dept_records && $dept_records->num_rows > 0):
                     ?>
                     <div class="table-responsive">
@@ -7474,7 +7474,12 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     <td><?= date('M j, Y', strtotime($rec['record_date'])) ?></td>
                                     <td><?= htmlspecialchars($rec['description'] ?: 'No description') ?></td>
                                     <td style="font-weight: 600; color: #10b981;">KSh <?= number_format($rec['amount'], 2) ?></td>
-                                    <td><?= htmlspecialchars($rec['first_name'] . ' ' . $rec['last_name']) ?></td>
+                                    <td>
+                                        <div style="display:flex;align-items:center;gap:9px;min-width:150px;">
+                                            <img src="uploads/<?= htmlspecialchars(basename((string)($rec['poster_pic'] ?? 'default_avatar.png')), ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($rec['poster_name'] ?: 'Unknown Treasurer', ENT_QUOTES, 'UTF-8') ?>" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);cursor:zoom-in;flex-shrink:0;" onclick="viewProfileImage(this.src)" onerror="this.onerror=null;this.src='uploads/default_avatar.png';">
+                                            <span style="font-weight:600;"><?= htmlspecialchars($rec['poster_name'] ?: 'Unknown Treasurer') ?></span>
+                                        </div>
+                                    </td>
                                     <td style="font-size: 0.85em; color: var(--text-muted);"><?= !empty($rec['edit_reason']) ? htmlspecialchars($rec['edit_reason']) : '<span style="color:var(--border-color);">—</span>' ?></td>
                                     <td style="display: flex; gap: 8px;">
                                         <button class="btn-submit" style="background: var(--primary); padding: 5px 10px; font-size: 0.85em; border: none; cursor: pointer; margin: 0;" onclick="openEditFinanceModal(<?= $rec['id'] ?>, <?= htmlspecialchars(json_encode($rec['amount'])) ?>, '<?= htmlspecialchars(addslashes($rec['description'])) ?>', '<?= htmlspecialchars($rec['record_date']) ?>', <?= !empty($rec['is_sent_to_chair']) ? 1 : 0 ?>)">Edit / Change</button>
