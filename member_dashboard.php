@@ -1719,7 +1719,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
         $same_role = strcasecmp($requested_role, $current_role) === 0;
         $unchanged_message = '';
         if ($preference_action === 'change_village' && $same_village) {
-            $unchanged_message = "You cannot choose the village you chose earlier ($current_village). Go back and choose a different village.";
+            $unchanged_message = "You cannot choose the village you picked earlier ($current_village). Go back and choose a different one.";
         } elseif ($preference_action === 'change_role' && $same_role) {
             $unchanged_message = 'You cannot choose the same role you picked earlier. Go back and choose a different one.';
         } elseif ($preference_action === 'change_both' && $same_village && $same_role) {
@@ -10811,7 +10811,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     if (action === 'change_village') {
                                         if (normalize(villageInput.value) === normalize(savedVillage)) {
                                             event.preventDefault();
-                                            window.alert('You cannot choose the village you chose earlier (' + savedVillage + '). Go back and choose a different village.');
+                                            window.alert('You cannot choose the village you picked earlier (' + savedVillage + '). Go back and choose a different one.');
                                             return;
                                         }
                                         confirmMessage = 'You selected ' + villageInput.value + ' village. Send this church village change request to the Pastor for approval?';
