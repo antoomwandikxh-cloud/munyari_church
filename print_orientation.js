@@ -21,7 +21,7 @@
 
         const style = document.createElement('style');
         style.textContent = `
-            .print-orientation-dialog{width:min(92vw,360px);padding:0;border:1px solid #cbd5e1;border-radius:8px;color:var(--text-main,#172033);background:var(--card-bg,#fff);box-shadow:0 18px 50px rgba(15,23,42,.28)}
+            .print-orientation-dialog{position:fixed!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;transform:translate(-50%,-50%)!important;margin:0!important;box-sizing:border-box;width:min(92vw,360px);max-width:calc(100vw - 24px);max-height:calc(100dvh - 32px);overflow:auto;padding:0;border:1px solid #cbd5e1;border-radius:8px;color:var(--text-main,#172033);background:var(--card-bg,#fff);box-shadow:0 18px 50px rgba(15,23,42,.28)}
             .print-orientation-dialog::backdrop{background:rgba(15,23,42,.55)}
             .print-orientation-panel{padding:20px;font-family:Arial,Helvetica,sans-serif}
             .print-orientation-panel h2{margin:0;font-size:18px;color:inherit}
@@ -106,6 +106,51 @@
             const printWindow = window.open(url.href, '_blank');
             if (!printWindow) window.alert('Allow pop-ups for this site to print or save the report as PDF.');
         });
+    };
+
+    function closePrintWindowAfterDialog() {
+        if (!window.opener || window.opener.closed) return;
+        window.addEventListener('afterprint', function () {
+            window.setTimeout(function () {
+                if (!window.closed) window.close();
+            }, 0);
+        }, { once: true });
+    }
+
+    closePrintWindowAfterDialog();
+
+    // Dashboard print routines build reports in blank popup windows. Close those
+    // only after the native print dialog finishes so focus returns to the dashboard.
+    const nativeOpen = window.open.bind(window);
+    window.open = function (url, target, features) {
+        const child = nativeOpen(url, target, features);
+        if (child && (!url || url === 'about:blank')) {
+            try {
+                const closeAfterPrint = function () {
+                    child.addEventListener('afterprint', function () {
+                        window.setTimeout(function () {
+                            try {
+                                if (!child.closed) child.close();
+                            } catch (error) {
+                                // The browser may already have closed the print window.
+                            }
+                        }, 0);
+                    }, { once: true });
+                };
+                closeAfterPrint();
+
+                const childDocument = child.document;
+                const nativeDocumentClose = childDocument.close.bind(childDocument);
+                childDocument.close = function () {
+                    const result = nativeDocumentClose();
+                    closeAfterPrint();
+                    return result;
+                };
+            } catch (error) {
+                // Keep printing available if a browser blocks popup window access.
+            }
+        }
+        return child;
     };
 
     function cleanPrintLabel(element) {

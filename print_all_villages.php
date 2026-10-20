@@ -451,7 +451,7 @@ $ph_name = !empty($leaders['Philadelphia']) ? strtoupper($leaders['Philadelphia'
 <div class="footer"><div class="footer">
     Generated from E.A.P.C Munyari Church Portal &nbsp;|&nbsp; Printed on: <?= $print_date ?>
 </div>
-<script src="print_orientation.js?v=20261020"></script>
+<script src="print_orientation.js?v=20261020-print-center-return"></script>
 <script>
 window.onload = function() { setTimeout(function() { window.print(); }, 700); };
 </script>
