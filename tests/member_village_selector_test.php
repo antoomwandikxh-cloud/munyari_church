@@ -77,7 +77,8 @@ if (strpos($pastor_dashboard, '$pending_village_changed = strcasecmp(trim((strin
     || strpos($pastor_dashboard, 'data-open-decline') !== false
     || strpos($pastor_dashboard, 'data-confirm-decline hidden') !== false
     || strpos($pastor_dashboard, 'Decline &amp; Notify') === false
-    || strpos($pastor_dashboard, 'Enter a reason of 1,000 characters or fewer before declining this request.') === false
+    || strpos($pastor_dashboard, '$decline_reason !== \'\' && $decline_reason_length <= 1000') === false
+    || strpos($pastor_dashboard, 'Enter a reason of 1,000 characters or fewer before declining this request.') !== false
     || strpos($pastor_dashboard, "pending_preference_reason'] ??") === false
     || strpos($pastor_dashboard, "'. Reason: ' . \$decline_reason") === false) {
     fwrite(STDERR, "FAIL: Pastor pending update list must only show the role when it changed.\n");

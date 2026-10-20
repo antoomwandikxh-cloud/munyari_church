@@ -3586,9 +3586,7 @@ w.document.write('</div>');
                         } else if ($action === 'reject') {
                             $decline_reason = trim((string)($_POST['decline_reason'] ?? ''));
                             $decline_reason_length = function_exists('mb_strlen') ? mb_strlen($decline_reason, 'UTF-8') : strlen($decline_reason);
-                            if ($decline_reason === '' || $decline_reason_length > 1000) {
-                                echo "<div role='alert' style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>Enter a reason of 1,000 characters or fewer before declining this request.</div>";
-                            } else {
+                            if ($decline_reason !== '' && $decline_reason_length <= 1000) {
                                 $declined_changes = [];
                                 $pending_village = trim((string)($mem['pending_church_village'] ?? ''));
                                 $current_village = trim((string)($mem['church_village'] ?? ''));
