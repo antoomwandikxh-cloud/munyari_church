@@ -111,11 +111,11 @@ if ($member_dashboard_source === false
     exit(1);
 }
 if (strpos($member_dashboard_source, 'data-attendance-member-search-input') === false
+    || strpos($member_dashboard_source, 'oninput="filterAttendanceRegisterMembers(this)"') === false
     || strpos($member_dashboard_source, 'onclick="filterAttendanceRegisterMembers(this)"') === false
     || strpos($member_dashboard_source, 'window.filterAttendanceRegisterMembers = function(control)') === false
-    || strpos($member_dashboard_source, 'window.filterAttendanceRegisterMembers(event.target)') === false
     || strpos($member_dashboard_source, 'name.includes(term)') === false) {
-    fwrite(STDERR, "FAIL: Organizing Secretary attendance registers must search attendee names live and from the search button.\n");
+    fwrite(STDERR, "FAIL: Organizing Secretary attendance registers must search attendee names on the first input and from the magnifying-glass button.\n");
     exit(1);
 }
 $glow_script = render_notification_tab_glow_script('manage_department', 'manage_department', $routed_message);

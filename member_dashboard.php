@@ -8264,7 +8264,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 </div>
                                             </div>
                                             <div data-attendance-member-search style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;">
-                                                <input type="search" class="form-control" data-attendance-member-search-input placeholder="Search members in this register" aria-label="Search members in Register #<?= $register_id ?>" style="width:min(100%,320px);">
+                                                <input type="search" class="form-control" data-attendance-member-search-input oninput="filterAttendanceRegisterMembers(this)" placeholder="Search members in this register" aria-label="Search members in Register #<?= $register_id ?>" style="width:min(100%,320px);">
                                                 <button type="button" class="btn-sm" onclick="filterAttendanceRegisterMembers(this)" aria-label="Search attendance register members" title="Search members" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;">
                                                     <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
                                                     <span>Search</span>
@@ -8707,7 +8707,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         }
                         form.addEventListener('input', function(event) {
                             if (event.target.matches('[data-attendance-member-search-input]')) {
-                                window.filterAttendanceRegisterMembers(event.target);
                                 return;
                             } else if (event.target.matches('[data-manual-attendee-name]')) {
                                 var name = event.target;
