@@ -2920,6 +2920,12 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <?php if (!empty($tab_badges['received_financials'])): ?><span class="tab-notif-badge"><?= $tab_badges['received_financials'] > 99 ? '99+' : $tab_badges['received_financials'] ?></span><?php endif; ?>
                 </a>
                 <?php endif; ?>
+                <?php if ($ctx_is_treasurer && !$ctx_is_organizing_secretary): ?>
+                <a href="?tab=treasurer_records&treasurer_dept=<?= urlencode($active_treasurer_dept) ?>" class="sidebar-link <?= $tab == 'treasurer_records' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></rect><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10h10M7 14h6"></path></svg>
+                    Financial Records
+                </a>
+                <?php endif; ?>
                 <?php if ((department_allows_graduation_and_sport($member['department'] ?? '') || $is_youth_advisor_scope) && !$is_sport_secretary): ?>
                     <a href="?tab=dept_sport" class="sidebar-link <?= $tab == 'dept_sport' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -3017,6 +3023,12 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></rect><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10h10M7 14h6"></path></svg>
                         Financial Records
                         <?php if (!empty($tab_badges['received_financials'])): ?><span class="tab-notif-badge"><?= $tab_badges['received_financials'] > 99 ? '99+' : $tab_badges['received_financials'] ?></span><?php endif; ?>
+                    </a>
+                    <?php endif; ?>
+                    <?php if ($ctx_is_treasurer): ?>
+                    <a href="?tab=treasurer_records&treasurer_dept=<?= urlencode($active_treasurer_dept) ?>" class="sidebar-link <?= $tab == 'treasurer_records' ? 'active' : '' ?>">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></rect><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10h10M7 14h6"></path></svg>
+                        Financial Records
                     </a>
                     <?php endif; ?>
                     <?php if (!$ctx_is_leader && !$ctx_is_secretary): ?>
@@ -7156,6 +7168,89 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <button type="submit" class="btn-submit">Request Transfer</button>
                             </form>
                         <?php endif; ?>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($tab == 'treasurer_records' && $is_treasurer): ?>
+                <?php
+                $active_treasurer_records_dept = $treasurer_depts[0] ?? '';
+                $requested_treasurer_records_dept = trim($_GET['treasurer_dept'] ?? '');
+                if ($requested_treasurer_records_dept !== '' && in_array($requested_treasurer_records_dept, $treasurer_depts, true)) {
+                    $active_treasurer_records_dept = $requested_treasurer_records_dept;
+                } elseif (in_array($active_dashboard_dept, $treasurer_depts, true)) {
+                    $active_treasurer_records_dept = $active_dashboard_dept;
+                }
+                ?>
+                <div class="page-header">
+                    <h1>Financial Records</h1>
+                    <p>Transactions recorded by you for <strong><?= htmlspecialchars($active_treasurer_records_dept) ?></strong>, including their chairperson review status.</p>
+                </div>
+
+                <?php if (count($treasurer_depts) > 1): ?>
+                <div class="content-card" style="margin-bottom:20px;">
+                    <form method="GET" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <input type="hidden" name="tab" value="treasurer_records">
+                        <label style="font-weight:600;margin:0;">Viewing Financial Records For:</label>
+                        <select name="treasurer_dept" class="form-control" style="max-width:300px;margin:0;" onchange="this.form.submit()">
+                            <?php foreach ($treasurer_depts as $dept): ?>
+                                <option value="<?= htmlspecialchars($dept) ?>" <?= $dept === $active_treasurer_records_dept ? 'selected' : '' ?>><?= htmlspecialchars($dept) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
+                </div>
+                <?php endif; ?>
+
+                <div class="content-card">
+                    <h2 style="margin-bottom:15px;">Your Posted Transactions</h2>
+                    <?php
+                    $treasurer_records_department_sql = department_match_sql($conn, 'fr.department', $active_treasurer_records_dept);
+                    $treasurer_records = $conn->query("SELECT fr.*, cb.first_name AS confirmed_first, cb.last_name AS confirmed_last
+                        FROM financial_records fr
+                        LEFT JOIN members cb ON fr.chair_confirmed_by = cb.id
+                        WHERE fr.recorded_by = $member_id
+                          AND $treasurer_records_department_sql
+                          AND COALESCE(fr.description, '') NOT LIKE 'Disciplinary Fine:%'
+                        ORDER BY fr.recorded_at DESC, fr.id DESC");
+                    if ($treasurer_records && $treasurer_records->num_rows > 0):
+                    ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount (KSh)</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php while ($record = $treasurer_records->fetch_assoc()): ?>
+                                <tr data-notification-row="financial-record-<?= (int)$record['id'] ?>">
+                                    <td><?= date('M j, Y', strtotime($record['record_date'])) ?></td>
+                                    <td><?= htmlspecialchars($record['description'] ?: 'No description') ?></td>
+                                    <td style="font-weight:700;color:#10b981;">KSh <?= number_format((float)$record['amount'], 2) ?></td>
+                                    <td>
+                                        <?php if (!empty($record['is_chair_confirmed'])): ?>
+                                            <span class="badge" style="background:rgba(16,185,129,0.12);color:#10b981;">Confirmed &amp; Disbursed</span>
+                                            <?php if (!empty($record['chair_confirmed_at'])): ?>
+                                                <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">
+                                                    By <?= htmlspecialchars(trim(($record['confirmed_first'] ?? '') . ' ' . ($record['confirmed_last'] ?? ''))) ?> on <?= date('M j, Y', strtotime($record['chair_confirmed_at'])) ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        <?php elseif (!empty($record['is_sent_to_chair'])): ?>
+                                            <span class="badge" style="background:rgba(245,158,11,0.12);color:#d97706;">Awaiting Chairperson Review</span>
+                                        <?php else: ?>
+                                            <span class="badge" style="background:rgba(100,100,100,0.1);color:var(--text-muted);">Saved, Not Yet Submitted</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                        <p style="color:var(--text-muted);">You have not posted any financial records for this department yet.</p>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
