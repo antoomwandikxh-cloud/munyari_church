@@ -39,7 +39,9 @@ $worshipper_announcement = notification_with_route(
 expect_same('my_worship_tasks', notification_target_tab($worshipper_announcement, 'member'), 'worshipper announcement opens My Tasks');
 $worship_glow_script = render_notification_tab_glow_script('manage_worshippers', 'manage_worshippers', $worship_announcement);
 if (strpos($worship_glow_script, 'notification-row:worship-announcement-73') === false
-    || strpos($worship_glow_script, 'notification-row-glow') === false) {
+    || strpos($worship_glow_script, 'notification-row-glow') === false
+    || strpos($worship_glow_script, 'data-notification-row-panel') === false
+    || strpos($worship_glow_script, 'rowPanel.hidden = false') === false) {
     fwrite(STDERR, "FAIL: worship announcement notification reaches the exact gold-glow row handler.\n");
     exit(1);
 }
@@ -48,6 +50,19 @@ foreach (['pastor_dashboard.php', 'admin_dashboard.php', 'member_dashboard.php']
     if ($worship_dashboard_source === false
         || strpos($worship_dashboard_source, 'data-notification-row="worship-announcement-') === false) {
         fwrite(STDERR, "FAIL: $worship_dashboard must render the exact worship-announcement focus row.\n");
+        exit(1);
+    }
+}
+foreach ([
+    'pastor_dashboard.php' => 'pastorWorshipAnnouncementPanel',
+    'admin_dashboard.php' => 'adminWorshipAnnouncementPanel',
+] as $dashboard_file => $announcement_panel_id) {
+    $dashboard_source = file_get_contents(__DIR__ . '/../' . $dashboard_file);
+    if ($dashboard_source === false
+        || strpos($dashboard_source, 'id="' . $announcement_panel_id . '" data-notification-row-panel') === false
+        || strpos($dashboard_source, "aria-controls=\"" . $announcement_panel_id . "\"") === false
+        || strpos($dashboard_source, 'toggleWorshipAnnouncementPanel(' . "'" . $announcement_panel_id . "'") === false) {
+        fwrite(STDERR, "FAIL: $dashboard_file must provide a collapsible worship-announcement panel that can be opened by notification focus.\n");
         exit(1);
     }
 }
@@ -64,6 +79,10 @@ foreach ([
     'worship voice recorder' => "render_voice_note_recorder('approved worshippers')",
     'worship announcement editor' => 'beginWorshipAnnouncementEdit(this)',
     'shared leader edit permission' => 'isset($_POST[\'edit_worship_announcement\']) && ($is_worship_leader || $is_vice_worship_leader)',
+    'shared leader delete permission' => 'isset($_POST[\'delete_worship_announcement\']) && ($is_worship_leader || $is_vice_worship_leader)',
+    'announcement delete clears exact stale notification routes' => "'[notification-row:worship-announcement-' . \$announcement_id . ']'",
+    'announcement delete removes attached media' => 'remove_worship_announcement_media($existing[\'audio_path\'] ?? null)',
+    'announcement delete button' => 'name="delete_worship_announcement"',
     'announcement update notifications use the route helper' => 'notification_with_route($notice_text, $target_tab',
     'voice-only announcements are accepted' => '($ann_msg !== \'\' || $audio_path)',
 ] as $worship_feature => $worship_source_marker) {

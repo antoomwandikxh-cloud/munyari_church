@@ -4547,7 +4547,11 @@ w.document.write('</div>');
                 </div>
 
                 <div class="content-card" style="margin-bottom:20px;">
-                    <h2>Worship Announcements</h2>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+                        <h2 style="margin:0;">Worship Announcements</h2>
+                        <button type="button" aria-controls="adminWorshipAnnouncementPanel" aria-expanded="false" data-open-label="Hide Worship Announcements" data-closed-label="Show Worship Announcements" onclick="toggleWorshipAnnouncementPanel('adminWorshipAnnouncementPanel', this)" style="border:1px solid var(--border-color);border-radius:7px;padding:8px 12px;background:var(--bg-lighter);color:var(--text-main);font-weight:700;cursor:pointer;">Show Worship Announcements</button>
+                    </div>
+                    <div id="adminWorshipAnnouncementPanel" data-notification-row-panel hidden style="display:none;">
                     <?php
                     $worship_announcement_rows = $conn->query("SELECT wa.*, m.first_name, m.last_name, m.profile_picture
                         FROM worship_announcements wa
@@ -4582,7 +4586,19 @@ w.document.write('</div>');
                     <?php else: ?>
                         <p style="margin:0;color:var(--text-muted);">No worship announcements have been posted yet.</p>
                     <?php endif; ?>
+                    </div>
                 </div>
+                <script>
+                function toggleWorshipAnnouncementPanel(panelId, button) {
+                    var panel = document.getElementById(panelId);
+                    if (!panel) return;
+                    var open = panel.hidden || panel.style.display === 'none';
+                    panel.hidden = !open;
+                    panel.style.display = open ? '' : 'none';
+                    button.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    button.textContent = open ? button.dataset.openLabel : button.dataset.closedLabel;
+                }
+                </script>
 
                 <div class="content-card">
                     <h2>Worshipper Tasks</h2>

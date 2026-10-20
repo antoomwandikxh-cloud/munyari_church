@@ -1036,6 +1036,18 @@ document.addEventListener("DOMContentLoaded", function () {
         if (explicitRowMatch) {
             var explicitRow = main.querySelector('[data-notification-row="' + explicitRowMatch[1].toLowerCase() + '"]');
             if (explicitRow) {
+                var rowPanel = explicitRow.closest("[data-notification-row-panel]");
+                if (rowPanel) {
+                    rowPanel.hidden = false;
+                    rowPanel.style.display = "";
+                    if (rowPanel.id) {
+                        var panelToggle = document.querySelector('[aria-controls="' + rowPanel.id + '"]');
+                        if (panelToggle) {
+                            panelToggle.setAttribute("aria-expanded", "true");
+                            if (panelToggle.dataset.openLabel) panelToggle.textContent = panelToggle.dataset.openLabel;
+                        }
+                    }
+                }
                 addHighlightedRow(explicitRow);
                 return;
             }

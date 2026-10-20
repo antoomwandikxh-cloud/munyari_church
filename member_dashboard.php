@@ -2155,6 +2155,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_worship_announce
     exit();
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_worship_announcement']) && ($is_worship_leader || $is_vice_worship_leader)) {
+    $announcement_id = (int)($_POST['announcement_id'] ?? 0);
+    $lookup = $conn->prepare("SELECT image_path, audio_path FROM worship_announcements WHERE id = ? LIMIT 1");
+    $existing = null;
+    if ($lookup && $announcement_id > 0) {
+        $lookup->bind_param('i', $announcement_id);
+        if ($lookup->execute()) $existing = $lookup->get_result()->fetch_assoc();
+        $lookup->close();
+    }
+
+    $deleted = false;
+    if ($existing) {
+        $delete = $conn->prepare("DELETE FROM worship_announcements WHERE id = ? LIMIT 1");
+        if ($delete) {
+            $delete->bind_param('i', $announcement_id);
+            $deleted = $delete->execute() && $delete->affected_rows === 1;
+            $delete->close();
+        }
+    }
+
+    if ($deleted) {
+        $row_marker = '[notification-row:worship-announcement-' . $announcement_id . ']';
+        $stale_notifications = $conn->prepare("DELETE FROM notifications WHERE LOCATE(?, message) > 0");
+        if ($stale_notifications) {
+            $stale_notifications->bind_param('s', $row_marker);
+            $stale_notifications->execute();
+            $stale_notifications->close();
+        }
+        remove_worship_announcement_media($existing['image_path'] ?? null);
+        remove_worship_announcement_media($existing['audio_path'] ?? null);
+        header("Location: member_dashboard.php?tab=manage_worshippers&success=" . urlencode('Worship announcement deleted'));
+        exit();
+    }
+
+    header("Location: member_dashboard.php?tab=manage_worshippers&error=" . urlencode('That worship announcement could not be deleted.'));
+    exit();
+}
+
 // Worship Announcement Query: Send to General Church Secretary
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query_worship_announcement']) && ($is_worship_leader || $is_vice_worship_leader)) {
     $query_msg = $conn->real_escape_string(trim($_POST['query_message']));
@@ -6395,7 +6433,14 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <?php if (!empty($ann['audio_path'])): ?>
                                 <?= render_whatsapp_voice_player($ann['audio_path'], trim($ann['first_name'] . ' ' . $ann['last_name']), $ann_photo, $ann['created_at']) ?>
                             <?php endif; ?>
-                            <button type="button" onclick="beginWorshipAnnouncementEdit(this)" data-announcement-id="<?= (int)$ann['id'] ?>" data-announcement-message="<?= htmlspecialchars($ann['message'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-announcement-audio="<?= !empty($ann['audio_path']) ? '1' : '0' ?>" data-announcement-image="<?= htmlspecialchars($ann['image_path'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="margin-top:10px;background:var(--primary);color:#fff;border:0;border-radius:6px;padding:7px 12px;cursor:pointer;">Edit Announcement</button>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                                <button type="button" onclick="beginWorshipAnnouncementEdit(this)" data-announcement-id="<?= (int)$ann['id'] ?>" data-announcement-message="<?= htmlspecialchars($ann['message'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-announcement-audio="<?= !empty($ann['audio_path']) ? '1' : '0' ?>" data-announcement-image="<?= htmlspecialchars($ann['image_path'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="background:var(--primary);color:#fff;border:0;border-radius:6px;padding:7px 12px;cursor:pointer;">Edit Announcement</button>
+                                <form method="post" onsubmit="return confirm('Delete this worship announcement?');" style="margin:0;">
+                                    <input type="hidden" name="delete_worship_announcement" value="1">
+                                    <input type="hidden" name="announcement_id" value="<?= (int)$ann['id'] ?>">
+                                    <button type="submit" style="background:var(--danger);color:#fff;border:0;border-radius:6px;padding:7px 12px;cursor:pointer;">Delete Announcement</button>
+                                </form>
+                            </div>
                         </div>
                         <?php endwhile; ?>
                     </div>
