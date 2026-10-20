@@ -8,6 +8,7 @@ function notification_display_message($message, $user_type = null) {
     $message = preg_replace('/\s*\[focus-fine-rule-id:\s*\d+\]/i', '', (string)$message);
     $message = preg_replace('/\s*\[focus-fine-id:\s*\d+\]/i', '', (string)$message);
     $message = preg_replace('/\s*Fine record\s*#\s*\d+\.?/i', '', $message);
+    $message = preg_replace('/\s*\[village-announcement-id:\s*\d+\]/i', '', $message);
     return trim($message);
 }
 
@@ -176,11 +177,9 @@ function notification_badge_tabs($message, $user_type, $is_treasurer = false) {
     }
 
 
-        // Village announcement notification -> desired_roles tab (where members see their village)
+    // Route village announcements to the shared village view for members and staff.
     if (strpos($msg, 'new village announcement') !== false && strpos($msg, 'village leader') !== false) {
-        if ($user_type === 'member') {
-            $tabs[] = 'desired_roles';
-        }
+        return ['desired_roles'];
     }
 
     if (strpos($msg, 'sunday school class change request') !== false || strpos($msg, 'sunday school class approval') !== false) {
@@ -945,6 +944,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 addHighlightedRow(focusRow);
                 return;
             }
+        }
+        var villageAnnouncementMatch = notificationMessage.match(/\[village-announcement-id:\s*(\d+)\]/i);
+        if (villageAnnouncementMatch) {
+            var villageAnnouncementRow = main.querySelector('[data-notification-row="village-announcement-' + villageAnnouncementMatch[1] + '"]');
+            if (villageAnnouncementRow) addHighlightedRow(villageAnnouncementRow);
+            return;
         }
         var financialRecordMatch = notificationMessage.match(/\[financial-record-id:\s*(\d+)\]/i);
         if (financialRecordMatch) {

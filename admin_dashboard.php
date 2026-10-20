@@ -4079,6 +4079,26 @@ w.document.write('</div>');
                     <p>View all members categorized by their church village and preferred roles.</p>
                 </div>
                 <?php
+                $village_announcement_updates = $conn->query("SELECT va.id, va.village, va.message, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id ORDER BY va.created_at DESC");
+                if ($village_announcement_updates && $village_announcement_updates->num_rows > 0):
+                ?>
+                <div class="content-card" style="margin-bottom:24px;">
+                    <h2 style="margin:0 0 16px; font-size:1.05rem;">Village Announcements</h2>
+                    <?php while ($village_announcement = $village_announcement_updates->fetch_assoc()): ?>
+                    <article class="announcement-card" data-notification-row="village-announcement-<?= (int)$village_announcement['id'] ?>" style="padding:14px; margin-bottom:12px; border:1px solid var(--border-color); border-left:3px solid #10b981; border-radius:8px; background:var(--bg-main);">
+                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                            <img src="uploads/<?= htmlspecialchars($village_announcement['profile_picture'] ?? 'default_avatar.png') ?>" alt="Village leader profile" onerror="this.src='uploads/default_avatar.png'" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">
+                            <div>
+                                <strong><?= htmlspecialchars(trim(($village_announcement['first_name'] ?? '') . ' ' . ($village_announcement['last_name'] ?? ''))) ?></strong>
+                                <div style="font-size:0.82rem;color:var(--text-muted);"><?= htmlspecialchars($village_announcement['village']) ?> Village &middot; <?= date('M j, Y g:i A', strtotime($village_announcement['created_at'])) ?></div>
+                            </div>
+                        </div>
+                        <p style="margin:0;line-height:1.55;white-space:normal;"><?= nl2br(htmlspecialchars($village_announcement['message'])) ?></p>
+                    </article>
+                    <?php endwhile; ?>
+                </div>
+                <?php endif; ?>
+                <?php
 
                 ?>
                 <div class="content-card" id="assignVillageLeaderForm" style="margin-bottom:30px; border-left:4px solid var(--primary);">
