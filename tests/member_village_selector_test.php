@@ -13,9 +13,8 @@ $required_markers = [
     'village cards have individual accent colors' => '--choice-accent:<?= htmlspecialchars($choice_palette[\'accent\']',
     'village cards have tinted backgrounds' => '--choice-tint:<?= htmlspecialchars($choice_palette[\'tint\']',
     'village hover uses its accent color' => 'border-color:var(--choice-accent)',
-    'selected options get a gold attention pulse' => '@keyframes member-choice-selection-pulse',
-    'selection pulse respects reduced motion' => '@media(prefers-reduced-motion:reduce)',
-    'village click replays selection pulse' => 'selectVillage(choice.dataset.villageOption, true)',
+    'selected options keep a continuous gold glow' => 'animation:member-choice-selected-glow 1.8s ease-in-out infinite',
+    'gold glow has a reduced-motion fallback' => '.church-village-choice[aria-pressed="true"],.desired-role-choice[aria-pressed="true"]{animation:none;box-shadow:0 0 0 3px rgba(212,160,23,.84)',
     'empty selection prevented on submit' => 'Select a church village before saving.',
     'village selection updates button state' => "choice.setAttribute('aria-pressed', selected ? 'true' : 'false')",
     'horizontal desired role options' => 'class="desired-role-choice-row"',
@@ -25,7 +24,6 @@ $required_markers = [
     'desired role cards use a multi-color palette' => "['accent' => '#0f766e'",
     'desired role cards have tinted backgrounds' => 'background:var(--choice-tint)',
     'selected cards retain readable contrast' => 'background:var(--choice-accent);color:#fff',
-    'role click replays selection pulse' => 'selectRole(choice.dataset.desiredRoleOption, true)',
     'desired role selection updates submitted value' => 'roleInput.value = value',
 ];
 foreach ($required_markers as $label => $marker) {
