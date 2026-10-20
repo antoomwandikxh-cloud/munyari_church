@@ -7451,7 +7451,18 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
                 <!-- Recent Financial Records -->
                 <div class="content-card" style="margin-top: 30px;">
-                    <h2 style="margin-bottom: 15px;">Recent Financial Records (<?= htmlspecialchars($active_treasurer_dept) ?>)</h2>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:15px;">
+                        <h2 style="margin:0;">Recent Financial Records (<?= htmlspecialchars($active_treasurer_dept) ?>)</h2>
+                        <form action="print_dept_financials.php" method="GET" target="_blank" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0;">
+                            <input type="hidden" name="dept" value="<?= htmlspecialchars($active_treasurer_dept, ENT_QUOTES, 'UTF-8') ?>">
+                            <label for="treasurerFinancePrintDate" style="font-size:.9rem;font-weight:600;">Transactions through</label>
+                            <input id="treasurerFinancePrintDate" type="date" name="date" class="form-control" value="<?= date('Y-m-d') ?>" max="<?= date('Y-m-d') ?>" required style="width:auto;min-width:145px;padding:6px 9px;">
+                            <button type="submit" class="btn-submit" style="display:inline-flex;align-items:center;gap:7px;padding:7px 11px;margin:0;">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H9v4zm6-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                Print / Save PDF
+                            </button>
+                        </form>
+                    </div>
                     <?php
                     $dept_records = $conn->query("SELECT fr.*, COALESCE(NULLIF(fr.recorded_by_name, ''), NULLIF(CONCAT_WS(' ', m.first_name, m.last_name), ''), 'Unknown Treasurer') AS poster_name, COALESCE(NULLIF(m.profile_picture, ''), 'default_avatar.png') AS poster_pic FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE fr.department='$esc_dept' AND COALESCE(fr.description, '') NOT LIKE 'Disciplinary Fine:%' ORDER BY fr.record_date DESC, fr.recorded_at DESC LIMIT 50");
                     if ($dept_records && $dept_records->num_rows > 0):

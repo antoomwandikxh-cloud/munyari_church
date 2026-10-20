@@ -1,20 +1,69 @@
 <?php
 session_start();
 require_once 'db_connect.php';
-
-if (!isset($_SESSION['pastor_id']) && !isset($_SESSION['admin_id'])) {
-    die("Unauthorized access.");
-}
+require_once 'role_departments.php';
 
 $dept = $_GET['dept'] ?? '';
 $as_at_date = $_GET['date'] ?? date('Y-m-d');
+
+if (!is_string($dept) || trim($dept) === '') {
+    http_response_code(400);
+    die("Department is required.");
+}
+
+if (!is_string($as_at_date)) {
+    http_response_code(400);
+    die("A valid report date is required.");
+}
+
+$date_value = DateTime::createFromFormat('!Y-m-d', $as_at_date);
+if (!$date_value || $date_value->format('Y-m-d') !== $as_at_date) {
+    http_response_code(400);
+    die("A valid report date is required.");
+}
+
+$has_staff_access = isset($_SESSION['pastor_id']) || isset($_SESSION['admin_id']);
+if (!$has_staff_access && isset($_SESSION['member_id'])) {
+    $member_id = (int)$_SESSION['member_id'];
+    $member_stmt = $conn->prepare("SELECT church_role, is_approved FROM members WHERE id = ? LIMIT 1");
+    if ($member_stmt) {
+        $member_stmt->bind_param('i', $member_id);
+        $member_stmt->execute();
+        $print_member = $member_stmt->get_result()->fetch_assoc();
+        $member_stmt->close();
+
+        if ($print_member && (int)$print_member['is_approved'] === 1) {
+            $treasurer_departments = [
+                'treasurer' => 'General Church',
+                'youth treasurer' => 'Youths',
+                'women treasurer' => 'Womens Ministry',
+                'elder treasurer' => 'Elders',
+                'sunday school treasurer' => 'Sunday School',
+                'building treasurer' => 'Building & Construction',
+            ];
+            $member_roles = array_filter(array_map('trim', explode(',', str_replace('&', ',', $print_member['church_role'] ?? ''))));
+            foreach ($member_roles as $role) {
+                $normalized_role = normalize_role_name($role);
+                if (isset($treasurer_departments[$normalized_role]) && department_matches($treasurer_departments[$normalized_role], $dept)) {
+                    $has_staff_access = true;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+if (!$has_staff_access) {
+    http_response_code(403);
+    die("Unauthorized access.");
+}
+
 $safe_date = $conn->real_escape_string($as_at_date);
 $safe_dept = $conn->real_escape_string($dept);
-
-if (empty($dept)) { die("Department is required."); }
+$is_building_dept = stripos($dept, 'building') !== false;
 
 // Fetch treasurer of the department
-if (strtolower($safe_dept) === 'building') {
+if ($is_building_dept) {
     $treasurer_q = $conn->query("SELECT * FROM members WHERE LOWER(church_role) LIKE '%building treasurer%' AND is_approved = 1 LIMIT 1");
 } else {
     $treasurer_q = $conn->query("SELECT * FROM members WHERE department = '$safe_dept' AND LOWER(church_role) LIKE '%treasurer%' AND is_approved = 1 LIMIT 1");
@@ -27,7 +76,7 @@ $chairman = null;
 $chairman_title = 'Chairman';
 
 // 1. Try exact chairman / chairlady / patron (not vice)
-if (strtolower($safe_dept) === 'building') {
+if ($is_building_dept) {
     $chairman_q = $conn->query("SELECT * FROM members WHERE LOWER(church_role) REGEXP 'building chair' AND LOWER(church_role) NOT REGEXP 'vice' AND is_approved = 1 LIMIT 1");
 } else {
     $chairman_q = $conn->query("SELECT * FROM members WHERE department = '$safe_dept'
@@ -39,7 +88,7 @@ if ($chairman_q) $chairman = $chairman_q->fetch_assoc();
 
 // 2. Fall back to Vice Chairman / Vice Chairlady if no main chairman found
 if (!$chairman) {
-    if (strtolower($safe_dept) === 'building') {
+    if ($is_building_dept) {
         $vice_q = $conn->query("SELECT * FROM members WHERE LOWER(church_role) REGEXP 'vice building chair' AND is_approved = 1 LIMIT 1");
     } else {
         $vice_q = $conn->query("SELECT * FROM members WHERE department = '$safe_dept'
