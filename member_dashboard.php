@@ -10303,6 +10303,100 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             </div>
             
             <?php
+            $village_name = trim((string)($member['church_village'] ?? ''));
+            $remove_village_audio = static function ($audio_path) {
+                $audio_path = str_replace('\\', '/', trim((string)$audio_path));
+                if (!preg_match('~^uploads/voice_notes/[A-Za-z0-9_.-]+$~', $audio_path)) return;
+                $absolute_path = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $audio_path);
+                if (is_file($absolute_path)) @unlink($absolute_path);
+            };
+
+            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_village_announcement'])) {
+                $announcement_id = (int)($_POST['announcement_id'] ?? 0);
+                $lookup = $conn->prepare("SELECT audio_path FROM village_announcements WHERE id = ? AND LOWER(TRIM(village)) = LOWER(TRIM(?)) LIMIT 1");
+                $announcement = null;
+                if ($lookup) {
+                    $lookup->bind_param('is', $announcement_id, $village_name);
+                    if ($lookup->execute()) $announcement = $lookup->get_result()->fetch_assoc();
+                    $lookup->close();
+                }
+
+                if ($announcement) {
+                    $delete = $conn->prepare("DELETE FROM village_announcements WHERE id = ? AND LOWER(TRIM(village)) = LOWER(TRIM(?))");
+                    $deleted = false;
+                    if ($delete) {
+                        $delete->bind_param('is', $announcement_id, $village_name);
+                        $deleted = $delete->execute() && $delete->affected_rows > 0;
+                        $delete->close();
+                    }
+                    if ($deleted) {
+                        $remove_village_audio($announcement['audio_path'] ?? '');
+                        $notification_marker = '%[village-announcement-id:' . $announcement_id . ']%';
+                        $notification_delete = $conn->prepare("DELETE FROM notifications WHERE message LIKE ?");
+                        if ($notification_delete) {
+                            $notification_delete->bind_param('s', $notification_marker);
+                            $notification_delete->execute();
+                            $notification_delete->close();
+                        }
+                        $_SESSION['village_announcement_flash'] = 'Announcement deleted.';
+                        $_SESSION['village_announcement_flash_type'] = 'success';
+                    } else {
+                        $_SESSION['village_announcement_flash'] = 'The announcement could not be deleted. Please try again.';
+                        $_SESSION['village_announcement_flash_type'] = 'error';
+                    }
+                } else {
+                    $_SESSION['village_announcement_flash'] = 'That announcement is not in your village.';
+                    $_SESSION['village_announcement_flash_type'] = 'error';
+                }
+                echo "<script>window.location.replace('?tab=manage_church_village');</script>";
+            }
+
+            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_village_announcement'])) {
+                $announcement_id = (int)($_POST['announcement_id'] ?? 0);
+                $updated_text = trim((string)($_POST['message'] ?? ''));
+                $updated_length = function_exists('mb_strlen') ? mb_strlen($updated_text, 'UTF-8') : strlen($updated_text);
+                $lookup = $conn->prepare("SELECT audio_path FROM village_announcements WHERE id = ? AND LOWER(TRIM(village)) = LOWER(TRIM(?)) LIMIT 1");
+                $announcement = null;
+                if ($lookup) {
+                    $lookup->bind_param('is', $announcement_id, $village_name);
+                    if ($lookup->execute()) $announcement = $lookup->get_result()->fetch_assoc();
+                    $lookup->close();
+                }
+
+                if ($announcement && $updated_length <= 4000 && ($updated_text !== '' || !empty($announcement['audio_path']))) {
+                    $update = $conn->prepare("UPDATE village_announcements SET message = ? WHERE id = ? AND LOWER(TRIM(village)) = LOWER(TRIM(?))");
+                    $updated = false;
+                    if ($update) {
+                        $update->bind_param('sis', $updated_text, $announcement_id, $village_name);
+                        $updated = $update->execute();
+                        $update->close();
+                    }
+                    if ($updated) {
+                        $leader_name = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
+                        $summary = $updated_text !== '' ? $updated_text : 'A voice announcement is available.';
+                        $updated_notice = "New village announcement from Village Leader $leader_name in $village_name village (updated): $summary [village-announcement-id:$announcement_id]";
+                        $notification_marker = '%[village-announcement-id:' . $announcement_id . ']%';
+                        $notification_update = $conn->prepare("UPDATE notifications SET message = ? WHERE message LIKE ?");
+                        if ($notification_update) {
+                            $notification_update->bind_param('ss', $updated_notice, $notification_marker);
+                            $notification_update->execute();
+                            $notification_update->close();
+                        }
+                        $_SESSION['village_announcement_flash'] = 'Announcement updated.';
+                        $_SESSION['village_announcement_flash_type'] = 'success';
+                    } else {
+                        $_SESSION['village_announcement_flash'] = 'The announcement could not be updated. Please try again.';
+                        $_SESSION['village_announcement_flash_type'] = 'error';
+                    }
+                } else {
+                    $_SESSION['village_announcement_flash'] = !$announcement
+                        ? 'That announcement is not in your village.'
+                        : ($updated_length > 4000 ? 'Announcements must be 4,000 characters or less.' : 'An announcement must contain text or audio.');
+                    $_SESSION['village_announcement_flash_type'] = 'error';
+                }
+                echo "<script>window.location.replace('?tab=manage_church_village');</script>";
+            }
+
             // Handle Posting Announcement
             if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_village_announcement'])) {
                 $announcement_text = trim((string)($_POST['message'] ?? ''));
@@ -10381,6 +10475,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         $delivery_message = 'Announcement posted. No other approved village members or staff were available to notify.';
                     }
                     $_SESSION['village_announcement_flash'] = $delivery_message;
+                    $_SESSION['village_announcement_flash_type'] = 'success';
                     echo "<script>window.location.replace('?tab=manage_church_village');</script>";
                 } else {
                     $announcement_error = $announcement_text_length > 4000
@@ -10392,8 +10487,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             ?>
 
             <?php if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !empty($_SESSION['village_announcement_flash'])): ?>
-                <div role="status" style="background:rgba(16,185,129,0.1);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;"><?= htmlspecialchars($_SESSION['village_announcement_flash']) ?></div>
+                <?php $announcement_flash_error = ($_SESSION['village_announcement_flash_type'] ?? '') === 'error'; ?>
+                <div role="<?= $announcement_flash_error ? 'alert' : 'status' ?>" style="background:<?= $announcement_flash_error ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)' ?>;color:<?= $announcement_flash_error ? 'var(--danger)' : 'var(--success)' ?>;padding:12px 16px;border-radius:8px;margin-bottom:16px;"><?= htmlspecialchars($_SESSION['village_announcement_flash']) ?></div>
                 <?php unset($_SESSION['village_announcement_flash']); ?>
+                <?php unset($_SESSION['village_announcement_flash_type']); ?>
             <?php endif; ?>
             
             <!-- Post Announcement Form -->
@@ -10411,7 +10508,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <h2 style="margin:0 0 14px; color:var(--text-main); font-size:1.05rem;">Recent Village Announcements</h2>
                 <?php
                 $village_name = trim((string)($member['church_village'] ?? ''));
-                $announcement_list_stmt = $conn->prepare("SELECT va.id, va.message, va.audio_path, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id WHERE LOWER(TRIM(va.village)) = LOWER(?) ORDER BY va.created_at DESC LIMIT 20");
+                $announcement_list_stmt = $conn->prepare("SELECT va.id, va.message, va.audio_path, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id WHERE LOWER(TRIM(va.village)) = LOWER(?) ORDER BY va.created_at DESC");
                 $announcement_list = false;
                 if ($announcement_list_stmt) {
                     $announcement_list_stmt->bind_param('s', $village_name);
@@ -10429,6 +10526,25 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <?= render_whatsapp_voice_player($announcement['audio_path'], trim(($announcement['first_name'] ?? '') . ' ' . ($announcement['last_name'] ?? '')) ?: 'Village Leader', $announcement_photo, $announcement['created_at']) ?>
                         <?php endif; ?>
                         <small style="color:var(--text-muted); font-size:0.8rem;">Posted by <?= htmlspecialchars(trim(($announcement['first_name'] ?? '') . ' ' . ($announcement['last_name'] ?? '')) ?: 'Village Leader') ?> · <?= htmlspecialchars(date('M j, Y g:i A', strtotime($announcement['created_at']))) ?></small>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                            <button type="button" class="btn-sm" aria-controls="edit-village-announcement-<?= (int)$announcement['id'] ?>" aria-expanded="false" onclick="var form=document.getElementById('edit-village-announcement-<?= (int)$announcement['id'] ?>'); var opening=form.hidden; form.hidden=!opening; this.setAttribute('aria-expanded', opening ? 'true' : 'false'); if(opening) form.querySelector('textarea').focus();" style="background:var(--primary);color:#fff;border:0;border-radius:6px;padding:6px 11px;cursor:pointer;">Edit</button>
+                            <form method="POST" action="?tab=manage_church_village" onsubmit="return confirm('Delete this announcement? This cannot be undone.');" style="margin:0;">
+                                <input type="hidden" name="delete_village_announcement" value="1">
+                                <input type="hidden" name="announcement_id" value="<?= (int)$announcement['id'] ?>">
+                                <button type="submit" class="btn-sm" style="background:#b42318;color:#fff;border:0;border-radius:6px;padding:6px 11px;cursor:pointer;">Delete</button>
+                            </form>
+                        </div>
+                        <form id="edit-village-announcement-<?= (int)$announcement['id'] ?>" method="POST" action="?tab=manage_church_village" hidden style="margin-top:12px;padding:12px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-main);">
+                            <input type="hidden" name="edit_village_announcement" value="1">
+                            <input type="hidden" name="announcement_id" value="<?= (int)$announcement['id'] ?>">
+                            <label for="edit-village-announcement-text-<?= (int)$announcement['id'] ?>" style="display:block;margin-bottom:6px;color:var(--text-main);font-weight:600;">Edit announcement text</label>
+                            <textarea id="edit-village-announcement-text-<?= (int)$announcement['id'] ?>" name="message" maxlength="4000" rows="3" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-lighter);color:var(--text-main);font:inherit;resize:vertical;"><?= htmlspecialchars($announcement['message'] ?? '') ?></textarea>
+                            <?php if (!empty($announcement['audio_path'])): ?><small style="display:block;margin-top:6px;color:var(--text-muted);">The attached voice announcement will be kept.</small><?php endif; ?>
+                            <div style="display:flex;gap:8px;margin-top:10px;">
+                                <button type="submit" class="btn-sm" style="background:var(--primary);color:#fff;border:0;border-radius:6px;padding:7px 12px;cursor:pointer;">Save Changes</button>
+                                <button type="button" class="btn-sm" onclick="var form=document.getElementById('edit-village-announcement-<?= (int)$announcement['id'] ?>'); form.hidden=true; var trigger=this.closest('article').querySelector('button[aria-controls]'); if(trigger) trigger.setAttribute('aria-expanded','false');" style="background:var(--bg-lighter);color:var(--text-main);border:1px solid var(--border-color);border-radius:6px;padding:7px 12px;cursor:pointer;">Cancel</button>
+                            </div>
+                        </form>
                     </article>
                 <?php
                     endwhile;
