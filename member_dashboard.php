@@ -10631,11 +10631,19 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     }
                     ?>
                     <input type="hidden" name="church_village" id="churchVillageSelection" value="<?= htmlspecialchars($selected_village, ENT_QUOTES, 'UTF-8') ?>">
+                    <?php
+                    $village_choice_palette = [
+                        'Akoritho' => ['accent' => '#0f766e', 'tint' => 'rgba(15, 118, 110, 0.14)'],
+                        'Philadelphia' => ['accent' => '#2563eb', 'tint' => 'rgba(37, 99, 235, 0.14)'],
+                        'Bethsaida' => ['accent' => '#b45309', 'tint' => 'rgba(180, 83, 9, 0.15)'],
+                    ];
+                    ?>
                     <div class="church-village-choice-row" role="group" aria-label="Choose your church village">
                         <?php foreach ($villages as $village_option):
                             $village_selected = $selected_village === $village_option;
+                            $choice_palette = $village_choice_palette[$village_option] ?? ['accent' => '#64748b', 'tint' => 'rgba(100, 116, 139, 0.15)'];
                         ?>
-                            <button type="button" class="church-village-choice" data-village-option="<?= htmlspecialchars($village_option, ENT_QUOTES, 'UTF-8') ?>" aria-pressed="<?= $village_selected ? 'true' : 'false' ?>">
+                            <button type="button" class="church-village-choice" style="--choice-accent:<?= htmlspecialchars($choice_palette['accent'], ENT_QUOTES, 'UTF-8') ?>;--choice-tint:<?= htmlspecialchars($choice_palette['tint'], ENT_QUOTES, 'UTF-8') ?>" data-village-option="<?= htmlspecialchars($village_option, ENT_QUOTES, 'UTF-8') ?>" aria-pressed="<?= $village_selected ? 'true' : 'false' ?>">
                                 <span class="church-village-choice-name"><?= htmlspecialchars($village_option) ?></span>
                                 <span class="church-village-choice-selected" <?= $village_selected ? '' : 'hidden' ?>>Selected</span>
                             </button>
@@ -10646,17 +10654,17 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </p>
                     <style>
                         .church-village-choice-row{display:flex;gap:12px;overflow-x:auto;padding:3px 2px 10px;scroll-snap-type:x mandatory}
-                        .church-village-choice{flex:1 0 165px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;padding:12px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-lighter);color:var(--text-main);text-align:left;font:inherit;cursor:pointer;scroll-snap-align:start;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}
-                        .church-village-choice:hover{transform:translateY(-2px);border-color:var(--primary);box-shadow:0 6px 16px rgba(15,23,42,.16)}
-                        .church-village-choice[aria-pressed="true"]{border-color:var(--primary);background:var(--primary);color:#fff;box-shadow:0 0 0 2px rgba(212,160,23,.3)}
+                        .church-village-choice{flex:1 0 165px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;padding:12px 14px;border:1px solid var(--choice-accent);border-left:4px solid var(--choice-accent);border-radius:8px;background:var(--choice-tint);color:var(--text-main);text-align:left;font:inherit;cursor:pointer;scroll-snap-align:start;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}
+                        .church-village-choice:hover{transform:translateY(-2px);border-color:var(--choice-accent);box-shadow:0 6px 16px rgba(15,23,42,.2)}
+                        .church-village-choice[aria-pressed="true"]{border-color:var(--choice-accent);background:var(--choice-accent);color:#fff;box-shadow:0 0 0 2px rgba(212,160,23,.32),0 6px 16px rgba(15,23,42,.18)}
                         .church-village-choice:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
                         .church-village-choice-name{font-weight:750}
                         .church-village-choice-selected{font-size:.74rem;font-weight:700;opacity:.9}
                         .church-village-choice-selected[hidden]{display:none}
                         .desired-role-choice-row{display:flex;gap:12px;overflow-x:auto;padding:3px 2px 10px;scroll-snap-type:x mandatory}
-                        .desired-role-choice{flex:1 0 165px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;padding:12px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-lighter);color:var(--text-main);text-align:left;font:inherit;cursor:pointer;scroll-snap-align:start;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}
-                        .desired-role-choice:hover{transform:translateY(-2px);border-color:var(--primary);box-shadow:0 6px 16px rgba(15,23,42,.16)}
-                        .desired-role-choice[aria-pressed="true"]{border-color:var(--primary);background:var(--primary);color:#fff;box-shadow:0 0 0 2px rgba(212,160,23,.3)}
+                        .desired-role-choice{flex:1 0 165px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;padding:12px 14px;border:1px solid var(--choice-accent);border-left:4px solid var(--choice-accent);border-radius:8px;background:var(--choice-tint);color:var(--text-main);text-align:left;font:inherit;cursor:pointer;scroll-snap-align:start;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}
+                        .desired-role-choice:hover{transform:translateY(-2px);border-color:var(--choice-accent);box-shadow:0 6px 16px rgba(15,23,42,.2)}
+                        .desired-role-choice[aria-pressed="true"]{border-color:var(--choice-accent);background:var(--choice-accent);color:#fff;box-shadow:0 0 0 2px rgba(212,160,23,.32),0 6px 16px rgba(15,23,42,.18)}
                         .desired-role-choice:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
                         .desired-role-choice-name{font-weight:750;overflow-wrap:anywhere}
                         .desired-role-choice-selected{font-size:.74rem;font-weight:700;opacity:.9}
@@ -10715,11 +10723,22 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <div class="desired-role-choice-row" role="group" aria-label="Choose an optional desired role">
                         <?php
                         $role_options = array_merge([''], $roles);
-                        foreach ($role_options as $role_option):
+                        $role_choice_palette = [
+                            ['accent' => '#64748b', 'tint' => 'rgba(100, 116, 139, 0.15)'],
+                            ['accent' => '#0f766e', 'tint' => 'rgba(15, 118, 110, 0.14)'],
+                            ['accent' => '#2563eb', 'tint' => 'rgba(37, 99, 235, 0.14)'],
+                            ['accent' => '#b45309', 'tint' => 'rgba(180, 83, 9, 0.15)'],
+                            ['accent' => '#be123c', 'tint' => 'rgba(190, 18, 60, 0.14)'],
+                            ['accent' => '#4d7c0f', 'tint' => 'rgba(77, 124, 15, 0.15)'],
+                            ['accent' => '#0e7490', 'tint' => 'rgba(14, 116, 144, 0.14)'],
+                            ['accent' => '#6d28d9', 'tint' => 'rgba(109, 40, 217, 0.14)'],
+                        ];
+                        foreach ($role_options as $role_index => $role_option):
                             $role_selected = $selected_role === $role_option;
                             $role_label = $role_option !== '' ? $role_option : 'No role';
+                            $choice_palette = $role_choice_palette[$role_index % count($role_choice_palette)];
                         ?>
-                            <button type="button" class="desired-role-choice" data-desired-role-option="<?= htmlspecialchars($role_option, ENT_QUOTES, 'UTF-8') ?>" aria-pressed="<?= $role_selected ? 'true' : 'false' ?>">
+                            <button type="button" class="desired-role-choice" style="--choice-accent:<?= htmlspecialchars($choice_palette['accent'], ENT_QUOTES, 'UTF-8') ?>;--choice-tint:<?= htmlspecialchars($choice_palette['tint'], ENT_QUOTES, 'UTF-8') ?>" data-desired-role-option="<?= htmlspecialchars($role_option, ENT_QUOTES, 'UTF-8') ?>" aria-pressed="<?= $role_selected ? 'true' : 'false' ?>">
                                 <span class="desired-role-choice-name"><?= htmlspecialchars($role_label) ?></span>
                                 <span class="desired-role-choice-selected" <?= $role_selected ? '' : 'hidden' ?>>Selected</span>
                             </button>
