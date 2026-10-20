@@ -65,6 +65,15 @@ $conn->query("
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
 ");
+$conn->query("
+    CREATE TABLE IF NOT EXISTS village_leader_messages (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        sender_id INT NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_village_leader_messages_created (created_at)
+    )
+");
 @$conn->query("ALTER TABLE worship_tasks MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'Pending'");
 
 // Handle Sunday School member registration (Sunday School Patron and Vice)
@@ -1633,6 +1642,57 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
     }
 }
 $has_church_village = !empty($member['church_village']);
+
+// Shared chat for the approved leaders of Akoritho, Philadelphia, and Bethsaida.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_village_leader_chat'])) {
+    $village_chat_member_is_authorized = (int)($member['is_village_leader'] ?? 0) === 1
+        && (int)($member['is_approved'] ?? 0) === 1
+        && in_array(strtolower(trim((string)($member['church_village'] ?? ''))), ['akoritho', 'philadelphia', 'bethsaida'], true);
+    if (!$village_chat_member_is_authorized) {
+        http_response_code(403);
+        exit('Village leaders only.');
+    }
+
+    $village_chat_message = trim((string)($_POST['village_leader_message'] ?? ''));
+    $village_chat_message_length = function_exists('mb_strlen') ? mb_strlen($village_chat_message, 'UTF-8') : strlen($village_chat_message);
+    if ($village_chat_message === '' || $village_chat_message_length > 4000) {
+        header('Location: ?tab=village_leader_chat&error=' . urlencode('Enter a message up to 4,000 characters.'));
+        exit();
+    }
+
+    $village_chat_insert = $conn->prepare('INSERT INTO village_leader_messages (sender_id, message) VALUES (?, ?)');
+    if (!$village_chat_insert) {
+        error_log('Village leaders chat could not prepare message insert: ' . $conn->error);
+        header('Location: ?tab=village_leader_chat&error=' . urlencode('Your message could not be sent. Please try again.'));
+        exit();
+    }
+    $village_chat_insert->bind_param('is', $member_id, $village_chat_message);
+    if (!$village_chat_insert->execute()) {
+        error_log('Village leaders chat message insert failed: ' . $village_chat_insert->error);
+        $village_chat_insert->close();
+        header('Location: ?tab=village_leader_chat&error=' . urlencode('Your message could not be sent. Please try again.'));
+        exit();
+    }
+    $village_chat_message_id = (int)$conn->insert_id;
+    $village_chat_insert->close();
+
+    $village_chat_sender = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
+    $village_chat_village = trim((string)($member['church_village'] ?? ''));
+    $village_chat_notice = "Village leaders chat message from $village_chat_sender ($village_chat_village): A new message was posted in the shared village leaders chat. [village-leader-chat-id:$village_chat_message_id]";
+    try {
+        $village_chat_notice_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) SELECT id, 'member', ? FROM members WHERE is_village_leader = 1 AND is_approved = 1 AND id <> ? AND LOWER(TRIM(COALESCE(church_village, ''))) IN (LOWER(?), LOWER(?), LOWER(?))");
+        if (!$village_chat_notice_stmt) throw new RuntimeException($conn->error);
+        $village_names = ['Akoritho', 'Philadelphia', 'Bethsaida'];
+        $village_chat_notice_stmt->bind_param('sisss', $village_chat_notice, $member_id, $village_names[0], $village_names[1], $village_names[2]);
+        $village_chat_notice_stmt->execute();
+        $village_chat_notice_stmt->close();
+    } catch (Throwable $error) {
+        error_log('Village leaders chat notifications failed: ' . $error->getMessage());
+    }
+
+    header('Location: ?tab=village_leader_chat&sent=1');
+    exit();
+}
 
 // Handle sending leadership chat message
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_leader_msg']) && $can_use_department_leader_chat && !empty($dept_key)) {
@@ -3208,12 +3268,17 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 <?php endif; ?>
 
                 <!-- Village Panel -->
-                <?php if ($member['is_village_leader'] == 1): ?>
+                <?php if ((int)$member['is_village_leader'] === 1 && (int)$member['is_approved'] === 1): ?>
                 <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: #f59e0b; margin-top: 10px;">Church Village Panel</div>
                 <a href="?tab=manage_church_village" class="sidebar-link <?= $tab == 'manage_church_village' ? 'active' : '' ?>" style="position:relative;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                     Manage Church Village
                     <?php if (!empty($tab_badges['manage_church_village'])): ?><span class="tab-notif-badge"><?= $tab_badges['manage_church_village'] ?></span><?php endif; ?>
+                </a>
+                <a href="?tab=village_leader_chat" class="sidebar-link <?= $tab == 'village_leader_chat' ? 'active' : '' ?>" style="position:relative;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h8M8 14h5m-9 6 1.7-3.4A8 8 0 1 1 20 17H8a8 8 0 0 1-4-1.1L4 20z"></path></svg>
+                    Village Leaders Chat
+                    <?= render_tab_notification_badge($tab_badges, 'village_leader_chat') ?>
                 </a>
                 <?php endif; ?>
 
@@ -10212,7 +10277,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <button type="submit" class="btn-primary" style="padding:12px 24px;">Save Preferences</button>
             </form>
 
-        <?php elseif ($tab == 'manage_church_village' && $member['is_village_leader'] == 1): ?>
+        <?php elseif ($tab == 'manage_church_village' && (int)$member['is_village_leader'] === 1 && (int)$member['is_approved'] === 1): ?>
             <div class="page-header">
                 <h1>Manage Church Village</h1>
                 <p>Welcome, <?= htmlspecialchars($member['first_name']) ?>! As the leader of <strong><?= htmlspecialchars($member['church_village']) ?></strong> village, you can manage your members and post announcements.</p>
@@ -10455,6 +10520,87 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 }
             </style>
             </div>
+        <?php elseif ($tab == 'village_leader_chat' && (int)$member['is_village_leader'] === 1 && (int)$member['is_approved'] === 1): ?>
+            <?php
+            $village_chat_leaders = [];
+            $village_chat_leaders_result = $conn->query("SELECT id, first_name, last_name, church_village, profile_picture FROM members WHERE is_village_leader = 1 AND is_approved = 1 AND LOWER(TRIM(COALESCE(church_village, ''))) IN ('akoritho', 'philadelphia', 'bethsaida') ORDER BY FIELD(LOWER(TRIM(church_village)), 'akoritho', 'philadelphia', 'bethsaida'), first_name, last_name");
+            if ($village_chat_leaders_result) {
+                while ($village_chat_leader = $village_chat_leaders_result->fetch_assoc()) {
+                    $village_chat_leaders[] = $village_chat_leader;
+                }
+            }
+            $village_chat_messages = $conn->query("SELECT chat_messages.id, chat_messages.sender_id, chat_messages.message, chat_messages.created_at, chat_messages.first_name, chat_messages.last_name, chat_messages.church_village, chat_messages.profile_picture FROM (SELECT vlm.id, vlm.sender_id, vlm.message, vlm.created_at, m.first_name, m.last_name, m.church_village, m.profile_picture FROM village_leader_messages vlm JOIN members m ON m.id = vlm.sender_id WHERE m.is_village_leader = 1 AND m.is_approved = 1 ORDER BY vlm.id DESC LIMIT 200) AS chat_messages ORDER BY chat_messages.id ASC");
+            ?>
+            <div class="page-header">
+                <h1>Village Leaders Chat</h1>
+                <p>Shared conversation for the approved leaders of Akoritho, Philadelphia, and Bethsaida.</p>
+            </div>
+
+            <?php if (isset($_GET['sent'])): ?>
+                <div role="status" style="margin-bottom:14px;padding:11px 14px;border-radius:8px;border:1px solid rgba(16,185,129,.35);background:rgba(16,185,129,.1);color:var(--text-main);">Message sent.</div>
+            <?php elseif (!empty($_GET['error'])): ?>
+                <div role="alert" style="margin-bottom:14px;padding:11px 14px;border-radius:8px;border:1px solid rgba(239,68,68,.4);background:rgba(239,68,68,.1);color:var(--text-main);"><?= htmlspecialchars((string)$_GET['error']) ?></div>
+            <?php endif; ?>
+
+            <section class="content-card" style="margin-bottom:16px;">
+                <h2 style="margin:0 0 12px;font-size:1rem;color:var(--text-main);">Village Leaders</h2>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <?php foreach ($village_chat_leaders as $chat_leader):
+                        $chat_leader_photo = trim((string)($chat_leader['profile_picture'] ?? ''));
+                        $chat_leader_photo = $chat_leader_photo !== '' ? 'uploads/' . rawurlencode(basename($chat_leader_photo)) : 'uploads/default_avatar.png';
+                    ?>
+                        <div style="display:flex;align-items:center;gap:9px;padding:8px 11px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-lighter);min-width:190px;">
+                            <img src="<?= htmlspecialchars($chat_leader_photo) ?>" alt="" onerror="this.src='uploads/default_avatar.png'" style="width:40px;height:40px;flex:0 0 40px;border-radius:50%;object-fit:cover;border:2px solid #d6a832;">
+                            <div style="min-width:0;">
+                                <div style="font-weight:700;color:var(--text-main);overflow-wrap:anywhere;"><?= htmlspecialchars(trim($chat_leader['first_name'] . ' ' . $chat_leader['last_name'])) ?></div>
+                                <div style="font-size:.82rem;color:var(--text-muted);overflow-wrap:anywhere;"><?= htmlspecialchars($chat_leader['church_village'] ?? '') ?> Village</div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                    <?php if (!$village_chat_leaders): ?><p style="margin:0;color:var(--text-muted);">No approved village leaders are available yet.</p><?php endif; ?>
+                </div>
+            </section>
+
+            <section class="content-card" style="padding:0;overflow:hidden;">
+                <div style="padding:14px 16px;border-bottom:1px solid var(--border-color);font-weight:700;color:var(--text-main);">Shared Messages</div>
+                <div id="villageLeadersChatMessages" style="display:flex;flex-direction:column;gap:12px;padding:16px;max-height:55vh;min-height:220px;overflow:auto;background:var(--bg-main);">
+                    <?php if ($village_chat_messages && $village_chat_messages->num_rows > 0): ?>
+                        <?php while ($chat_message = $village_chat_messages->fetch_assoc()):
+                            $chat_message_is_own = (int)$chat_message['sender_id'] === (int)$member_id;
+                            $chat_message_photo = trim((string)($chat_message['profile_picture'] ?? ''));
+                            $chat_message_photo = $chat_message_photo !== '' ? 'uploads/' . rawurlencode(basename($chat_message_photo)) : 'uploads/default_avatar.png';
+                            $chat_message_sender = trim($chat_message['first_name'] . ' ' . $chat_message['last_name']);
+                        ?>
+                            <article data-notification-row="village-leader-chat-<?= (int)$chat_message['id'] ?>" style="display:flex;align-items:flex-end;gap:9px;max-width:min(760px,100%);align-self:<?= $chat_message_is_own ? 'flex-end' : 'flex-start' ?>;flex-direction:<?= $chat_message_is_own ? 'row-reverse' : 'row' ?>;">
+                                <img src="<?= htmlspecialchars($chat_message_photo) ?>" alt="<?= htmlspecialchars($chat_message_sender) ?>" onerror="this.src='uploads/default_avatar.png'" style="width:38px;height:38px;flex:0 0 38px;border-radius:50%;object-fit:cover;border:1px solid var(--border-color);">
+                                <div style="min-width:100px;padding:10px 13px;border:1px solid var(--border-color);border-radius:12px;background:<?= $chat_message_is_own ? 'rgba(16,185,129,.13)' : 'var(--bg-lighter)' ?>;color:var(--text-main);">
+                                    <div style="display:flex;gap:12px;justify-content:space-between;align-items:baseline;flex-wrap:wrap;margin-bottom:5px;">
+                                        <strong style="font-size:.86rem;"><?= htmlspecialchars($chat_message_sender) ?></strong>
+                                        <span style="font-size:.76rem;color:var(--text-muted);"><?= htmlspecialchars($chat_message['church_village'] ?? '') ?> Village</span>
+                                    </div>
+                                    <div style="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45;"><?= htmlspecialchars($chat_message['message']) ?></div>
+                                    <time datetime="<?= htmlspecialchars($chat_message['created_at']) ?>" style="display:block;margin-top:6px;text-align:right;font-size:.72rem;color:var(--text-muted);">
+                                        <?= htmlspecialchars(date('M j, Y g:i A', strtotime($chat_message['created_at']))) ?>
+                                    </time>
+                                </div>
+                            </article>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <p style="margin:auto;color:var(--text-muted);text-align:center;">No messages yet. Start the conversation with the other village leaders.</p>
+                    <?php endif; ?>
+                </div>
+                <form method="POST" action="?tab=village_leader_chat" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:12px;border-top:1px solid var(--border-color);background:var(--bg-lighter);">
+                    <input type="hidden" name="send_village_leader_chat" value="1">
+                    <textarea name="village_leader_message" required maxlength="4000" rows="2" placeholder="Write a message to all village leaders..." aria-label="Message to all village leaders" style="flex:1 1 180px;min-width:0;resize:vertical;padding:11px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-main);color:var(--text-main);font:inherit;"></textarea>
+                    <button type="submit" class="btn-primary" style="flex:0 0 auto;padding:10px 16px;">Send</button>
+                </form>
+            </section>
+            <script>
+            (function () {
+                var thread = document.getElementById('villageLeadersChatMessages');
+                if (thread) thread.scrollTop = thread.scrollHeight;
+            })();
+            </script>
         <?php elseif ($tab == 'my_worship_tasks'): ?>
             <div class="page-header">
                 <h1>🎵 My Tasks</h1>

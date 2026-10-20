@@ -9,12 +9,17 @@ function notification_display_message($message, $user_type = null) {
     $message = preg_replace('/\s*\[focus-fine-id:\s*\d+\]/i', '', (string)$message);
     $message = preg_replace('/\s*Fine record\s*#\s*\d+\.?/i', '', $message);
     $message = preg_replace('/\s*\[village-announcement-id:\s*\d+\]/i', '', $message);
+    $message = preg_replace('/\s*\[village-leader-chat-id:\s*\d+\]/i', '', $message);
     return trim($message);
 }
 
 function notification_badge_tabs($message, $user_type, $is_treasurer = false) {
     $msg  = strtolower($message);
     $tabs = [];
+
+    if (strpos($msg, 'village leaders chat message from ') !== false) {
+        return $user_type === 'member' ? ['village_leader_chat'] : ['general_leadership'];
+    }
 
     // Village announcements may contain words used by other notification categories (for example, "fine").
     // Route them first so each audience gets the correct announcements tab and exact post focus.
@@ -950,6 +955,12 @@ document.addEventListener("DOMContentLoaded", function () {
         if (villageAnnouncementMatch) {
             var villageAnnouncementRow = main.querySelector('[data-notification-row="village-announcement-' + villageAnnouncementMatch[1] + '"]');
             if (villageAnnouncementRow) addHighlightedRow(villageAnnouncementRow);
+            return;
+        }
+        var villageLeaderChatMatch = notificationMessage.match(/\[village-leader-chat-id:\s*(\d+)\]/i);
+        if (villageLeaderChatMatch) {
+            var villageLeaderChatRow = main.querySelector('[data-notification-row="village-leader-chat-' + villageLeaderChatMatch[1] + '"]');
+            if (villageLeaderChatRow) addHighlightedRow(villageLeaderChatRow);
             return;
         }
         var financialRecordMatch = notificationMessage.match(/\[financial-record-id:\s*(\d+)\]/i);
