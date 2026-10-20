@@ -8869,6 +8869,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <div style="flex:1 1 280px;max-width:420px;">
                                 <input type="search" id="disciplineUnpaidFineSearch" class="form-control" data-fine-target="disciplineUnpaidFineRows" data-fine-count="disciplineUnpaidFineCount" oninput="filterFineMemberRows(this)" placeholder="Search member name" autocomplete="off" aria-label="Search unpaid fines by member name" style="width:100%;padding:9px 12px;">
                             </div>
+                            <button type="button" class="btn-sm" onclick="filterFineMemberRows(document.getElementById('disciplineUnpaidFineSearch'))" aria-label="Search unpaid fine records" style="display:inline-flex;align-items:center;gap:6px;">
+                                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke-width="2"></circle><path d="m20 20-4-4" stroke-width="2" stroke-linecap="round"></path></svg>
+                                Search
+                            </button>
                             <span id="disciplineUnpaidFineCount" aria-live="polite" style="font-size:.85rem;color:var(--text-muted);">Showing <?= (int)$unpaid->num_rows ?> fines</span>
                         </div>
                         <div class="table-responsive">
@@ -8945,6 +8949,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <div style="flex:1 1 280px;max-width:420px;">
                                 <input type="search" id="disciplineFineHistorySearch" class="form-control" data-fine-target="disciplineFineHistoryRows" data-fine-count="disciplineFineHistoryCount" oninput="filterFineMemberRows(this)" placeholder="Search member name" autocomplete="off" aria-label="Search fines history by member name" style="width:100%;padding:9px 12px;">
                             </div>
+                            <button type="button" class="btn-sm" onclick="filterFineMemberRows(document.getElementById('disciplineFineHistorySearch'))" aria-label="Search paid and unpaid fine history" style="display:inline-flex;align-items:center;gap:6px;">
+                                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke-width="2"></circle><path d="m20 20-4-4" stroke-width="2" stroke-linecap="round"></path></svg>
+                                Search
+                            </button>
                             <span id="disciplineFineHistoryCount" aria-live="polite" style="font-size:.85rem;color:var(--text-muted);">Showing <?= (int)$all_fines->num_rows ?> fines</span>
                         </div>
                         <div class="table-responsive">
