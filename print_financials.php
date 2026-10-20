@@ -204,7 +204,7 @@ function fmt_amount($n) {
             🖨 Landscape Mode
         </button>
     </div>
-    <script src="print_orientation.js?v=20261020-print-window"></script>
+    <script src="print_orientation.js?v=20261020-printer-icons"></script>
     <script>
     function setOriAndPrint(ori) {
         let st = document.getElementById('printOriStyle');

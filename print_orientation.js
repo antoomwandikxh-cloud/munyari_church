@@ -187,6 +187,32 @@
         if (!originalText.trim()) element.textContent = 'Print';
     }
 
+    function addPrinterIcon(element) {
+        if (!(element instanceof HTMLElement) || element.querySelector('.print-action-icon')) return;
+
+        const actionText = [
+            element.textContent || '',
+            element.getAttribute('aria-label') || '',
+            element.getAttribute('title') || '',
+            element.getAttribute('onclick') || '',
+            element.getAttribute('href') || ''
+        ].join(' ');
+        if (!/\bprint[a-z0-9_-]*\b/i.test(actionText)) return;
+        if (/^\s*🖨(?:️)?/u.test(element.textContent || '')) return;
+
+        const icon = document.createElement('span');
+        icon.className = 'print-action-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = '🖨️';
+        icon.style.cssText = 'display:inline-flex;align-items:center;vertical-align:middle;line-height:1;margin-right:.38em;font-family:"Segoe UI Emoji","Apple Color Emoji",sans-serif';
+        element.insertBefore(icon, element.firstChild);
+    }
+
+    function scanForPrintActions(root) {
+        if (root instanceof HTMLElement && root.matches('button,a')) addPrinterIcon(root);
+        if (root.querySelectorAll) root.querySelectorAll('button,a').forEach(addPrinterIcon);
+    }
+
     function normalizeOrientationButtons() {
         document.querySelectorAll('button[onclick], a[onclick]').forEach(element => {
             if (/\b(?:window\.)?print\s*\(\s*\)/i.test(element.getAttribute('onclick') || '')) {
@@ -254,6 +280,16 @@
                 cleanPrintLabel(item.element);
             });
         }));
+
+        scanForPrintActions(document);
+        if (!document.documentElement.dataset.printIconObserver) {
+            document.documentElement.dataset.printIconObserver = 'ready';
+            new MutationObserver(records => records.forEach(record => {
+                record.addedNodes.forEach(node => {
+                    if (node.nodeType === Node.ELEMENT_NODE) scanForPrintActions(node);
+                });
+            })).observe(document.documentElement, { childList: true, subtree: true });
+        }
     }
 
     if (document.readyState === 'loading') {

@@ -399,7 +399,7 @@ if (file_exists($logo_path)) {
         Generated from Munyari Church &nbsp;|&nbsp; <?= date('Y-m-d H:i') ?>
     </div>
 
-    <script src="print_orientation.js?v=20261020-print-window"></script>
+    <script src="print_orientation.js?v=20261020-printer-icons"></script>
     <script>
         window.onload = function () {
             setTimeout(function () { window.print(); }, 700);

@@ -1476,7 +1476,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
     <title>Pastor Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css?v=20261020-search-icons-1">
     <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_messages) ?>
-    <script src="print_orientation.js?v=20261020-print-window"></script>
+    <script src="print_orientation.js?v=20261020-printer-icons"></script>
     <script src="script.js?v=20261019-all-leader-print-photos-20"></script>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}

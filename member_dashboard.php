@@ -11086,7 +11086,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
-    <script src="print_orientation.js?v=20261020-print-window"></script>
+    <script src="print_orientation.js?v=20261020-printer-icons"></script>
     <script src="script.js?v=20261019-all-leader-print-photos-20"></script>
 <!-- Image Viewer Modal -->
 <div id="imageViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; flex-direction:column;">
