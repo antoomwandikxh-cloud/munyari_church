@@ -72,6 +72,9 @@
             }
             pageStyle.textContent = `@media print{@page{size:A4 ${orientation};}}`;
             window.__printOrientationSelected = true;
+            window.addEventListener('afterprint', function () {
+                window.focus();
+            }, { once: true });
             window.print();
         });
     };
@@ -91,6 +94,9 @@
             }
             pageStyle.textContent = `@media print{@page{size:A4 ${orientation};}}`;
             window.__printOrientationSelected = true;
+            window.addEventListener('afterprint', function () {
+                window.focus();
+            }, { once: true });
             nativePrint();
         };
 
@@ -111,9 +117,13 @@
     function closePrintWindowAfterDialog() {
         if (!window.opener || window.opener.closed) return;
         window.addEventListener('afterprint', function () {
-            window.setTimeout(function () {
-                if (!window.closed) window.close();
-            }, 0);
+            const opener = window.opener;
+            try {
+                if (opener && !opener.closed) opener.focus();
+            } catch (error) {
+                // Focus can be restricted by the browser, but closing still returns to the opener.
+            }
+            if (!window.closed) window.close();
         }, { once: true });
     }
 
@@ -128,13 +138,12 @@
             try {
                 const closeAfterPrint = function () {
                     child.addEventListener('afterprint', function () {
-                        window.setTimeout(function () {
-                            try {
-                                if (!child.closed) child.close();
-                            } catch (error) {
-                                // The browser may already have closed the print window.
-                            }
-                        }, 0);
+                        try {
+                            if (!child.closed) child.close();
+                        } catch (error) {
+                            // The browser may already have closed the print window.
+                        }
+                        window.focus();
                     }, { once: true });
                 };
                 closeAfterPrint();

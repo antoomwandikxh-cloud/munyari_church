@@ -265,7 +265,7 @@ foreach ($role_data as $role => $people):
 <div class="footer">
     Generated from E.A.P.C Munyari Church Portal &nbsp;|&nbsp; Printed on: <?= $print_date ?>
 </div>
-<script src="print_orientation.js?v=20261020-print-center-return"></script>
+<script src="print_orientation.js?v=20261020-print-focus-return"></script>
 <script>
 window.onload = function() { setTimeout(function() { window.print(); }, 700); };
 </script>
