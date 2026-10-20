@@ -10247,9 +10247,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
                     // Bulk inserts avoid executing another statement while a recipient result is still being fetched.
                     try {
-                        $member_notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) SELECT id, 'member', ? FROM members WHERE is_approved = 1 AND id <> ? AND LOWER(TRIM(church_village)) = LOWER(TRIM(?))");
+                        $member_notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) SELECT id, 'member', ? FROM members WHERE is_approved = 1 AND LOWER(TRIM(church_village)) = LOWER(TRIM(?))");
                         if (!$member_notice) throw new RuntimeException($conn->error);
-                        $member_notice->bind_param('sis', $notice, $member_id, $village_name);
+                        $member_notice->bind_param('ss', $notice, $village_name);
                         $member_notice->execute();
                         $notifications_sent += max(0, $member_notice->affected_rows);
                         $member_notice->close();
@@ -10289,12 +10289,18 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     } else {
                         $delivery_message = 'Announcement posted. No other approved village members or staff were available to notify.';
                     }
-                    echo "<div role='status' style='background:rgba(16,185,129,0.1);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>" . htmlspecialchars($delivery_message) . "</div>";
+                    $_SESSION['village_announcement_flash'] = $delivery_message;
+                    echo "<script>window.location.replace('?tab=manage_church_village');</script>";
                 } else {
                     echo "<div role='alert' style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>The announcement could not be posted. Please try again.</div>";
                 }
             }
             ?>
+
+            <?php if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !empty($_SESSION['village_announcement_flash'])): ?>
+                <div role="status" style="background:rgba(16,185,129,0.1);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;"><?= htmlspecialchars($_SESSION['village_announcement_flash']) ?></div>
+                <?php unset($_SESSION['village_announcement_flash']); ?>
+            <?php endif; ?>
             
             <!-- Post Announcement Form -->
             <div class="content-card" style="margin-bottom:18px;">
