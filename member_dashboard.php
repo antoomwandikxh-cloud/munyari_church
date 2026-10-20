@@ -7686,12 +7686,16 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     $pending_fines = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture FROM member_fines mf JOIN members m ON mf.member_id = m.id WHERE mf.department='$esc_dept' AND mf.status = 'Pending Verification' ORDER BY mf.issued_at ASC");
                     if ($pending_fines && $pending_fines->num_rows > 0):
                     ?>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
+                            <input type="search" id="treasurerPendingFineSearch" class="form-control" data-fine-target="treasurerPendingFineRows" data-fine-count="treasurerPendingFineCount" oninput="filterFineMemberRows(this)" placeholder="Search member name" autocomplete="off" aria-label="Search pending fine payments by member name" style="width:min(100%,340px);padding:9px 12px;">
+                            <span id="treasurerPendingFineCount" aria-live="polite" style="font-size:.85rem;color:var(--text-muted);">Showing <?= (int)$pending_fines->num_rows ?> fines</span>
+                        </div>
                         <div class="table-responsive">
                             <table>
                                 <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Action</th><th>Date</th></tr></thead>
-                                <tbody>
+                                <tbody id="treasurerPendingFineRows">
                                     <?php while($pf = $pending_fines->fetch_assoc()): ?>
-                                        <tr data-notification-row="pending-fine-<?= (int)$pf['id'] ?>">
+                                        <tr data-notification-row="pending-fine-<?= (int)$pf['id'] ?>" data-fine-member-name="<?= htmlspecialchars(trim($pf['first_name'] . ' ' . $pf['last_name']), ENT_QUOTES, 'UTF-8') ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($pf['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($pf['first_name'] . ' ' . $pf['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($pf['first_name'] . ' ' . $pf['last_name']) ?></td>
                                             <td><?= htmlspecialchars($pf['fine_reason']) ?></td>
@@ -7707,6 +7711,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
+                            <div class="fine-member-no-match" style="display:none;text-align:center;color:var(--text-muted);padding:16px;">No fine payments match that member name.</div>
                         </div>
                     <?php else: ?>
                         <p style="color: var(--text-muted);">No pending fine payments to verify.</p>
@@ -7775,14 +7780,19 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </div>
                     <p style="color:var(--text-muted);margin-bottom:15px;">Verified fines remain here for your department records.</p>
                     <?php if ($recent_paid_fines && $recent_paid_fines->num_rows > 0): ?>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
+                            <input type="search" id="treasurerPaidFineSearch" class="form-control" data-fine-target="treasurerPaidFineRows" data-fine-count="treasurerPaidFineCount" oninput="filterFineMemberRows(this)" placeholder="Search member name" autocomplete="off" aria-label="Search verified fine payments by member name" style="width:min(100%,340px);padding:9px 12px;">
+                            <span id="treasurerPaidFineCount" aria-live="polite" style="font-size:.85rem;color:var(--text-muted);">Showing <?= (int)$recent_paid_fines->num_rows ?> fines</span>
+                        </div>
                         <div class="table-responsive">
                             <table>
                                 <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Paid On</th></tr></thead>
-                                <tbody>
+                                <tbody id="treasurerPaidFineRows">
                                     <?php while ($paid_fine = $recent_paid_fines->fetch_assoc()): ?>
                                         <?php $paid_fine_id = (int)$paid_fine['id']; ?>
                                         <tr id="paid-fine-<?= $paid_fine_id ?>"
                                             data-notification-row="paid-fine-<?= $paid_fine_id ?>"
+                                            data-fine-member-name="<?= htmlspecialchars(trim($paid_fine['first_name'] . ' ' . $paid_fine['last_name']), ENT_QUOTES, 'UTF-8') ?>"
                                             class="<?= $just_verified_fine_id === $paid_fine_id ? 'notification-row-glow' : '' ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($paid_fine['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($paid_fine['first_name'] . ' ' . $paid_fine['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight:500;"><?= htmlspecialchars($paid_fine['first_name'] . ' ' . $paid_fine['last_name']) ?></td>
@@ -7794,6 +7804,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
+                            <div class="fine-member-no-match" style="display:none;text-align:center;color:var(--text-muted);padding:16px;">No fine payments match that member name.</div>
                         </div>
                     <?php else: ?>
                         <p style="color:var(--text-muted);">No fine payments have been verified yet.</p>
@@ -7818,12 +7829,16 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php
                     if ($unpaid_fines && $unpaid_fines->num_rows > 0):
                     ?>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
+                            <input type="search" id="treasurerUnpaidFineSearch" class="form-control" data-fine-target="treasurerUnpaidFineRows" data-fine-count="treasurerUnpaidFineCount" oninput="filterFineMemberRows(this)" placeholder="Search member name" autocomplete="off" aria-label="Search unpaid fines by member name" style="width:min(100%,340px);padding:9px 12px;">
+                            <span id="treasurerUnpaidFineCount" aria-live="polite" style="font-size:.85rem;color:var(--text-muted);">Showing <?= (int)$unpaid_fines->num_rows ?> fines</span>
+                        </div>
                         <div class="table-responsive">
                             <table>
                                 <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-                                <tbody>
+                                <tbody id="treasurerUnpaidFineRows">
                                     <?php while($uf = $unpaid_fines->fetch_assoc()): ?>
-                                        <tr>
+                                        <tr data-fine-member-name="<?= htmlspecialchars(trim($uf['first_name'] . ' ' . $uf['last_name']), ENT_QUOTES, 'UTF-8') ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($uf['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?></td>
                                             <td><?= htmlspecialchars($uf['fine_reason']) ?></td>
@@ -7834,6 +7849,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
+                            <div class="fine-member-no-match" style="display:none;text-align:center;color:var(--text-muted);padding:16px;">No unpaid fines match that member name.</div>
                         </div>
                     <?php else: ?>
                         <p style="color: var(--text-muted);">No unpaid fines in this department.</p>
@@ -8843,12 +8859,16 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </div>
                     </div>
                     <?php if ($unpaid && $unpaid->num_rows > 0): ?>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
+                            <input type="search" id="disciplineUnpaidFineSearch" class="form-control" data-fine-target="disciplineUnpaidFineRows" data-fine-count="disciplineUnpaidFineCount" oninput="filterFineMemberRows(this)" placeholder="Search member name" autocomplete="off" aria-label="Search unpaid fines by member name" style="width:min(100%,340px);padding:9px 12px;">
+                            <span id="disciplineUnpaidFineCount" aria-live="polite" style="font-size:.85rem;color:var(--text-muted);">Showing <?= (int)$unpaid->num_rows ?> fines</span>
+                        </div>
                         <div class="table-responsive">
                             <table>
                                 <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Action</th><th>Date</th></tr></thead>
-                                <tbody>
+                                <tbody id="disciplineUnpaidFineRows">
                                     <?php while($uf = $unpaid->fetch_assoc()): ?>
-                                        <tr data-notification-row="discipline-fine-<?= (int)$uf['id'] ?>" data-fine-status="<?= htmlspecialchars($uf['status'] === 'Pending Verification' ? 'Pending Treasurer Verification' : 'Unpaid', ENT_QUOTES) ?>">
+                                        <tr data-notification-row="discipline-fine-<?= (int)$uf['id'] ?>" data-fine-status="<?= htmlspecialchars($uf['status'] === 'Pending Verification' ? 'Pending Treasurer Verification' : 'Unpaid', ENT_QUOTES) ?>" data-fine-member-name="<?= htmlspecialchars(trim($uf['first_name'] . ' ' . $uf['last_name']), ENT_QUOTES, 'UTF-8') ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($uf['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($uf['first_name'] . ' ' . $uf['last_name']) ?></td>
                                             <td>
@@ -8883,6 +8903,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
+                            <div class="fine-member-no-match" style="display:none;text-align:center;color:var(--text-muted);padding:16px;">No fines match that member name.</div>
                         </div>
                     <?php else: ?>
                         <p style="color: var(--text-muted);">No unpaid fines at this time.</p>
@@ -8912,12 +8933,16 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php
                     if ($all_fines && $all_fines->num_rows > 0):
                     ?>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
+                            <input type="search" id="disciplineFineHistorySearch" class="form-control" data-fine-target="disciplineFineHistoryRows" data-fine-count="disciplineFineHistoryCount" oninput="filterFineMemberRows(this)" placeholder="Search member name" autocomplete="off" aria-label="Search fines history by member name" style="width:min(100%,340px);padding:9px 12px;">
+                            <span id="disciplineFineHistoryCount" aria-live="polite" style="font-size:.85rem;color:var(--text-muted);">Showing <?= (int)$all_fines->num_rows ?> fines</span>
+                        </div>
                         <div class="table-responsive">
                             <table>
                                 <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-                                <tbody>
+                                <tbody id="disciplineFineHistoryRows">
                                     <?php while($af = $all_fines->fetch_assoc()): ?>
-                                        <tr data-notification-row="discipline-fine-<?= (int)$af['id'] ?>" data-fine-status="<?= htmlspecialchars(strtolower(trim($af['status'] ?? '')), ENT_QUOTES) ?>">
+                                        <tr data-notification-row="discipline-fine-<?= (int)$af['id'] ?>" data-fine-status="<?= htmlspecialchars(strtolower(trim($af['status'] ?? '')), ENT_QUOTES) ?>" data-fine-member-name="<?= htmlspecialchars(trim($af['first_name'] . ' ' . $af['last_name']), ENT_QUOTES, 'UTF-8') ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($af['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?></td>
                                             <td>
@@ -8944,6 +8969,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
+                            <div class="fine-member-no-match" style="display:none;text-align:center;color:var(--text-muted);padding:16px;">No fines match that member name.</div>
                         </div>
                     <?php else: ?>
                         <p style="color: var(--text-muted);">No fines have been issued yet.</p>
@@ -10666,6 +10692,28 @@ if (imgModal) {
         }
     });
 }
+
+window.filterFineMemberRows = function(input) {
+    var tbody = document.getElementById(input.dataset.fineTarget || '');
+    if (!tbody) return;
+
+    var rows = Array.from(tbody.querySelectorAll('tr[data-fine-member-name]'));
+    var terms = input.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    var visible = 0;
+    rows.forEach(function(row) {
+        var memberName = (row.dataset.fineMemberName || '').toLocaleLowerCase();
+        var matches = terms.every(function(term) { return memberName.includes(term); });
+        row.style.display = matches ? '' : 'none';
+        if (matches) visible++;
+    });
+
+    var tableContainer = tbody.closest('.table-responsive');
+    var emptyMessage = tableContainer ? tableContainer.querySelector('.fine-member-no-match') : null;
+    if (emptyMessage) emptyMessage.style.display = visible ? 'none' : 'block';
+
+    var count = document.getElementById(input.dataset.fineCount || '');
+    if (count) count.textContent = 'Showing ' + visible + ' of ' + rows.length + ' fines';
+};
 
 if (typeof filterWTeam !== 'function') {
     window.filterWTeam = function() {
