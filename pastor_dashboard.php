@@ -3363,6 +3363,7 @@ w.document.write('</div>');
                     <h1>Village & Desired Roles</h1>
                     <p>Members categorized by church village, department, and chosen service roles.</p>
                 </div>
+                <?php
                 // Handle Approval/Rejection of Village Updates
                 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['handle_village_update'])) {
                     $update_id = (int)$_POST['member_id'];
