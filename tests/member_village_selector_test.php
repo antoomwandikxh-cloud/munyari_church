@@ -14,7 +14,7 @@ $required_markers = [
     'village can be changed independently' => 'name="preference_action" value="change_village" class="btn-primary" style="margin-top:10px;padding:9px 16px;">Change Village',
     'role can be changed independently' => 'name="preference_action" value="change_role" class="btn-primary" style="margin-top:10px;padding:9px 16px;">Change Role',
     'same village prompts member to change earlier choice' => "You already chose ' + savedVillage + ' village. You can change the village you selected earlier",
-    'same role prompts member to change earlier choice' => "You already chose ' + (savedRole || 'No desired role') + '. You can change the role you selected earlier",
+    'same role is rejected with the requested message' => 'You cannot choose the same role you picked earlier. Go back and choose a different one.',
     'village change asks Pastor approval' => 'Send this village change request to the Pastor for approval?',
     'role change asks Pastor approval' => 'Send this role change request to the Pastor for approval?',
     'village request preserves the saved role' => '$requested_role = $current_role;',

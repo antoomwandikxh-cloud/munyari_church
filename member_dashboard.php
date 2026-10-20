@@ -1714,8 +1714,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
         if ($preference_action === 'change_village' && $same_village) {
             $unchanged_message = "You already chose the $current_village village. You can change the village you selected earlier if you want to update it.";
         } elseif ($preference_action === 'change_role' && $same_role) {
-            $current_role_label = $current_role !== '' ? $current_role : 'No desired role';
-            $unchanged_message = "You already chose the $current_role_label role. You can change the role you selected earlier if you want to update it.";
+            $unchanged_message = 'You cannot choose the same role you picked earlier. Go back and choose a different one.';
         } elseif ($preference_action === 'change_both' && $same_village && $same_role) {
             $current_role_label = $current_role !== '' ? $current_role : 'No desired role';
             $unchanged_message = "You already chose $current_village village and $current_role_label role. You can change your earlier choices if you want to update them.";
@@ -10790,7 +10789,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     } else if (action === 'change_role') {
                                         if (normalize(selectedRole) === normalize(savedRole)) {
                                             event.preventDefault();
-                                            window.alert('You already chose ' + (savedRole || 'No desired role') + '. You can change the role you selected earlier if you want to update it.');
+                                            window.alert('You cannot choose the same role you picked earlier. Go back and choose a different one.');
                                             return;
                                         }
                                         confirmMessage = 'You selected ' + savedVillage + ' village and ' + (selectedRole || 'No desired role') + ' role. Send this role change request to the Pastor for approval?';
