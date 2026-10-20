@@ -2043,7 +2043,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     if ($ann_queries && $ann_queries->num_rows > 0):
                         while ($q = $ann_queries->fetch_assoc()):
                     ?>
-                        <div data-announcement-department="announcement_queries" style="padding:12px 0 12px 12px;border-bottom:1px solid var(--border-color);border-left:4px solid #0f766e;">
+                        <div data-announcement-department="announcement_queries" data-notification-row="worship-query-<?= (int)$q['id'] ?>" style="padding:12px 0 12px 12px;border-bottom:1px solid var(--border-color);border-left:4px solid #0f766e;">
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
                                 <div>
                                     <strong style="color:var(--text-main);"><?= htmlspecialchars($q['first_name'] . ' ' . $q['last_name']) ?></strong>
@@ -2224,6 +2224,13 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         if (hasVillageAnnouncementFocus) {
                             const villageButton = filterButtons.find(button => button.dataset.announcementFilter === 'village_leaders');
                             if (villageButton) villageButton.click();
+                        }
+                        const worshipQueryFocus = notificationFocusMessages.some(message =>
+                            /\[notification-row:worship-query-\d+\]/i.test(message)
+                        );
+                        if (worshipQueryFocus) {
+                            const queryButton = filterButtons.find(button => button.dataset.announcementFilter === 'announcement_queries');
+                            if (queryButton) queryButton.click();
                         }
                     })();
                 </script>

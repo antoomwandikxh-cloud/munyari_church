@@ -37,6 +37,58 @@ $worshipper_announcement = notification_with_route(
     'worship-announcement-73'
 );
 expect_same('my_worship_tasks', notification_target_tab($worshipper_announcement, 'member'), 'worshipper announcement opens My Tasks');
+$worship_query_secretary = notification_with_route(
+    'Worship announcement query from Amina Kageni in Worship Ministry.',
+    'query_announcements',
+    '',
+    'announcement-query-73'
+);
+expect_same(['query_announcements'], notification_badge_tabs($worship_query_secretary, 'member'), 'worship query badges the General Secretary query tab');
+expect_same('announcement-query-73', notification_route_metadata($worship_query_secretary)['row'], 'secretary query notification targets the exact received query');
+$worship_query_oversight = notification_with_route(
+    'Worship announcement query from Amina Kageni in Worship Ministry.',
+    'general_announcements',
+    'announcement_queries',
+    'worship-query-73'
+);
+expect_same(['general_announcements'], notification_badge_tabs($worship_query_oversight, 'pastor'), 'worship query badges Pastor General Announcements');
+expect_same(['general_announcements'], notification_badge_tabs($worship_query_oversight, 'admin'), 'worship query badges Admin General Announcements');
+expect_same(
+    'Worship announcement query from Amina Kageni in Worship Ministry.',
+    notification_display_message($worship_query_oversight, 'pastor'),
+    'worship query route metadata stays out of the visible notification text'
+);
+expect_same('announcement_queries', notification_target_group($worship_query_oversight, 'pastor'), 'worship query keeps the queried-announcement filter group');
+expect_same('worship-query-73', notification_route_metadata($worship_query_oversight)['row'], 'oversight query alert targets the exact query row');
+$worship_query_glow = render_notification_tab_glow_script('general_announcements', 'general_announcements', $worship_query_oversight);
+if (strpos($worship_query_glow, 'notification-row:worship-query-73') === false
+    || strpos($worship_query_glow, 'notification-row-glow') === false) {
+    fwrite(STDERR, "FAIL: worship query notification reaches the exact queried-announcement glow row.\n");
+    exit(1);
+}
+$worship_query_member_glow = render_notification_tab_glow_script('query_announcements', 'query_announcements', $worship_query_secretary);
+if (strpos($worship_query_member_glow, 'notification-row:announcement-query-73') === false
+    || strpos($worship_query_member_glow, 'notification-row-glow') === false) {
+    fwrite(STDERR, "FAIL: Secretary worship query notification reaches the exact received query row.\n");
+    exit(1);
+}
+foreach (['pastor_dashboard.php', 'admin_dashboard.php'] as $oversight_dashboard) {
+    $oversight_source = file_get_contents(__DIR__ . '/../' . $oversight_dashboard);
+    if ($oversight_source === false
+        || strpos($oversight_source, 'data-notification-row="worship-query-') === false
+        || strpos($oversight_source, "=== 'announcement_queries'") === false) {
+        fwrite(STDERR, "FAIL: $oversight_dashboard must reveal and render exact worship announcement queries.\n");
+        exit(1);
+    }
+}
+$worship_query_member_source = file_get_contents(__DIR__ . '/../member_dashboard.php');
+if ($worship_query_member_source === false
+    || strpos($worship_query_member_source, 'notification_with_route($notice_text, \'query_announcements\'') === false
+    || strpos($worship_query_member_source, 'notification_with_route($notice_text, \'general_announcements\', \'announcement_queries\'') === false
+    || strpos($worship_query_member_source, 'data-notification-row="announcement-query-') === false) {
+    fwrite(STDERR, "FAIL: worship announcement queries must route Secretary and oversight notifications to the exact rendered query.\n");
+    exit(1);
+}
 $worship_glow_script = render_notification_tab_glow_script('manage_worshippers', 'manage_worshippers', $worship_announcement);
 if (strpos($worship_glow_script, 'notification-row:worship-announcement-73') === false
     || strpos($worship_glow_script, 'notification-row-glow') === false

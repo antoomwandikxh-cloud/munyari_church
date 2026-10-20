@@ -2211,27 +2211,54 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query_worship_announce
     }
     if (!empty($query_msg)) {
         $dept = $conn->real_escape_string($member['department'] ?? 'Worship Ministry');
-        $conn->query("INSERT INTO secretary_announcement_queries (secretary_id, department, message) VALUES ($member_id, '$dept', '$query_msg')");
-        // Notify general church secretaries
-        $sender_name = $conn->real_escape_string($member['first_name'] . ' ' . $member['last_name']);
-        $notif = $conn->real_escape_string("Worship Leader $sender_name submitted an announcement query to the General Church Secretary");
+        $query_saved = $conn->query("INSERT INTO secretary_announcement_queries (secretary_id, department, message) VALUES ($member_id, '$dept', '$query_msg')");
+        $query_id = $query_saved ? (int)$conn->insert_id : 0;
+        if ($query_id < 1) {
+            header("Location: member_dashboard.php?tab=manage_worshippers&error=" . urlencode('Your announcement query could not be submitted. Please try again.'));
+            exit();
+        }
+
+        $sender_name = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
+        $department_name = trim((string)($member['department'] ?? 'Worship Ministry'));
+        $notice_text = "Worship announcement query from $sender_name in $department_name.";
+        $query_row = 'announcement-query-' . $query_id;
+        $notification_insert = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
+
+        // General Church Secretary and Vice Secretary receive the actionable query.
         $secs = $conn->query("SELECT id FROM members WHERE is_approved=1 AND LOWER(TRIM(church_role)) IN ('general church secretary','vice church secretary')");
-        while ($s = $secs->fetch_assoc()) {
-            $sid = $s['id'];
-            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($sid, 'member', '$notif')");
+        if ($notification_insert && $secs) {
+            while ($s = $secs->fetch_assoc()) {
+                $recipient_id = (int)$s['id'];
+                $recipient_type = 'member';
+                $routed_notice = notification_with_route($notice_text, 'query_announcements', '', $query_row);
+                $notification_insert->bind_param('iss', $recipient_id, $recipient_type, $routed_notice);
+                $notification_insert->execute();
+            }
         }
-        // Notify pastors too
+
+        // Pastor and Admin oversight opens the General Announcements query filter.
         $pastors_n = $conn->query("SELECT id FROM pastors WHERE is_approved=1");
-        while ($pn = $pastors_n->fetch_assoc()) {
-            $pid = $pn['id'];
-            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pid, 'pastor', '$notif')");
+        if ($notification_insert && $pastors_n) {
+            while ($pn = $pastors_n->fetch_assoc()) {
+                $recipient_id = (int)$pn['id'];
+                $recipient_type = 'pastor';
+                $routed_notice = notification_with_route($notice_text, 'general_announcements', 'announcement_queries', 'worship-query-' . $query_id);
+                $notification_insert->bind_param('iss', $recipient_id, $recipient_type, $routed_notice);
+                $notification_insert->execute();
+            }
         }
-        // Notify admins too
+
         $admins_n = $conn->query("SELECT id FROM admins");
-        while ($an = $admins_n->fetch_assoc()) {
-            $aid = $an['id'];
-            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($aid, 'admin', '$notif')");
+        if ($notification_insert && $admins_n) {
+            while ($an = $admins_n->fetch_assoc()) {
+                $recipient_id = (int)$an['id'];
+                $recipient_type = 'admin';
+                $routed_notice = notification_with_route($notice_text, 'general_announcements', 'announcement_queries', 'worship-query-' . $query_id);
+                $notification_insert->bind_param('iss', $recipient_id, $recipient_type, $routed_notice);
+                $notification_insert->execute();
+            }
         }
+        if ($notification_insert) $notification_insert->close();
         header("Location: member_dashboard.php?tab=manage_worshippers&success=Query submitted to General Church Secretary");
         exit();
     }
@@ -4843,7 +4870,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         ?>
                         <?php if ($queries && $queries->num_rows > 0): ?>
                             <?php while ($q = $queries->fetch_assoc()): ?>
-                                <div style="padding: 14px 0; border-bottom: 1px solid var(--border-color);">
+                                <div data-notification-row="announcement-query-<?= (int)$q['id'] ?>" style="padding: 14px 0; border-bottom: 1px solid var(--border-color);">
                                     <strong><?= htmlspecialchars($q['first_name'] . ' ' . $q['last_name']) ?></strong>
                                     <span style="color: var(--text-muted); font-size: 0.85rem;"> - <?= htmlspecialchars($q['department']) ?> - <?= htmlspecialchars($q['status']) ?> - <?= date('M j, Y g:i A', strtotime($q['created_at'])) ?></span>
                                     <p style="margin: 8px 0 0; white-space: pre-wrap;"><?= htmlspecialchars($q['message']) ?></p>
