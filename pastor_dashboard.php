@@ -1849,7 +1849,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                 </style>
 
                 <!-- Pastor Post Announcement Form -->
-                <div class="content-card" style="margin-bottom:28px;border-left:4px solid var(--primary);">
+                <div class="content-card" id="pastor-announcement-compose" style="margin-bottom:28px;border-left:4px solid var(--primary);">
                     <h2 style="font-size:1.1rem;margin-top:0;color:var(--primary);">📢 Post Announcement to Entire Church</h2>
                     <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:15px;">This will be sent to every member's Announcements tab and they will receive a notification.</p>
                     <form method="POST" action="pastor_dashboard.php?tab=general_announcements" enctype="multipart/form-data" id="pastor_ann_form" onsubmit="handlePastorAnnFormSubmit(this, event);">
@@ -2133,6 +2133,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         if (!filterRoot) return;
                         const results = document.getElementById('announcement-department-results');
                         const emptyMessage = document.getElementById('announcement-department-empty');
+                        const composePanel = document.getElementById('pastor-announcement-compose');
                         const archivePanels = Array.from(document.querySelectorAll('[data-announcement-panel]'));
                         const announcementRows = archivePanels.flatMap(panel => Array.from(panel.querySelectorAll('[data-announcement-department]')));
                         const filterButtons = Array.from(filterRoot.querySelectorAll('[data-announcement-filter]'));
@@ -2156,12 +2157,14 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                                     filterButtons.forEach(item => item.setAttribute('aria-pressed', 'false'));
                                     announcementRows.forEach(row => { row.style.display = 'none'; });
                                     archivePanels.forEach(panel => { panel.style.display = 'none'; });
+                                    if (composePanel) composePanel.style.display = '';
                                     emptyMessage.style.display = 'block';
                                     emptyMessage.textContent = 'Choose a department to view its announcements.';
                                     return;
                                 }
                                 const selected = this.dataset.announcementFilter;
                                 filterButtons.forEach(item => item.setAttribute('aria-pressed', item === this ? 'true' : 'false'));
+                                if (composePanel) composePanel.style.display = 'none';
                                 let visibleCount = 0;
                                 announcementRows.forEach(row => {
                                     const visible = row.dataset.announcementDepartment === selected;
