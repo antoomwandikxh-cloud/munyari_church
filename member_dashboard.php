@@ -7369,15 +7369,82 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             </div>
                         </div>
                         <div style="margin-top:20px;">
-                            <h3 style="margin:0 0 10px; font-size:1rem;">Calendar-Year Totals</h3>
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+                                <h3 style="margin:0; font-size:1rem;">Calendar-Year Totals</h3>
+                                <button type="button" onclick="printTreasurerYearTotals()" title="Print calendar-year collection totals" aria-label="Print calendar-year collection totals" style="display:inline-flex; align-items:center; gap:6px; padding:6px 9px; border:1px solid var(--border-color); border-radius:6px; background:var(--card-bg); color:var(--text-color); cursor:pointer; font-size:0.8rem; font-weight:600; flex-shrink:0;">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+                                    <span>Print</span>
+                                </button>
+                            </div>
                             <div style="display:grid; gap:8px;">
                                 <?php foreach ($yearly_totals as $year => $year_total): ?>
-                                    <div style="display:flex; justify-content:space-between; gap:12px; padding:10px 12px; border:1px solid var(--border-color); border-radius:8px;">
+                                    <div class="calendar-year-total-row" data-year="<?= (int)$year ?>" data-total="<?= number_format((float)$year_total, 2, '.', '') ?>" style="display:flex; justify-content:space-between; gap:12px; padding:10px 12px; border:1px solid var(--border-color); border-radius:8px;">
                                         <span><?= (int)$year ?> (Jan-Dec)</span>
                                         <strong>KSh <?= number_format($year_total, 2) ?></strong>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
+                            <script>
+                            function printTreasurerYearTotals() {
+                                var printWindow = window.open('', '_blank', 'width=900,height=700');
+                                if (!printWindow) {
+                                    alert('Allow pop-ups to print the yearly collection totals.');
+                                    return;
+                                }
+
+                                var escapePrintText = function(value) {
+                                    return String(value || '').replace(/[&<>"']/g, function(char) {
+                                        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char];
+                                    });
+                                };
+                                var yearRows = Array.from(document.querySelectorAll('.calendar-year-total-row'));
+                                var rowsHtml = yearRows.map(function(row, index) {
+                                    var year = parseInt(row.dataset.year, 10) || 0;
+                                    var amount = parseFloat(row.dataset.total) || 0;
+                                    return '<tr><td class="number">' + (index + 1) + '</td><td>' + year + '</td><td>January-December</td><td class="amount">KSh ' + amount.toLocaleString('en-KE', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td></tr>';
+                                }).join('');
+                                var listedTotal = yearRows.reduce(function(sum, row) {
+                                    return sum + (parseFloat(row.dataset.total) || 0);
+                                }, 0);
+                                var generatedAt = new Date().toLocaleString();
+                                var department = <?= json_encode($active_treasurer_dept, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+                                var treasurerName = <?= json_encode(strtoupper(trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''))), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+                                var profilePath = <?= json_encode('uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+                                var logoUrl = new URL('church_logo.jpg', window.location.href).href;
+                                var profileUrl = new URL(profilePath, window.location.href).href;
+                                var reportHtml = '<!doctype html><html><head><meta charset="utf-8"><title>Annual Collection Totals - E.A.P.C Munyari Church</title><style>' +
+                                    '@page{size:A4 portrait;margin:12mm 12mm 25mm}*{box-sizing:border-box}body{position:relative;margin:0;padding:8px 4px 28px;font:12px Arial,sans-serif;color:#17202a}' +
+                                    '.watermark{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:42px;color:rgba(14,116,144,.16);font-weight:900;white-space:nowrap;z-index:0;pointer-events:none}' +
+                                    '.report-content{position:relative;z-index:1}.treasurer{text-align:center;margin:0 auto 12px}.treasurer img{width:62px;height:62px;object-fit:cover;border-radius:50%;border:2px solid #0e7490}.treasurer-name{font-size:12px;font-weight:800;color:#0e7490;margin-top:4px;text-transform:uppercase}.treasurer-role{font-size:10px;color:#555;margin-top:2px}' +
+                                    '.brand{display:grid;grid-template-columns:58px 1fr 58px;align-items:center;gap:12px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 10px;margin-bottom:14px}.brand-logo{width:58px;height:58px;object-fit:contain}.brand h1{font-size:17px;line-height:1.3;color:#0e7490;text-transform:uppercase;margin:0}.brand p{font-size:11px;color:#555;margin:4px 0 0}.report-title{text-align:center;font-size:15px;font-weight:800;text-transform:uppercase;margin:0 0 5px}.report-meta{text-align:center;color:#444;margin:0 0 16px}' +
+                                    'table{width:100%;border-collapse:collapse;page-break-inside:auto}thead{display:table-header-group}tr{page-break-inside:avoid;break-inside:avoid}th,td{border:1px solid #888;padding:8px;text-align:left}th{background:#0e7490;color:#fff;text-transform:uppercase;font-size:10px}.number{text-align:center;width:42px}.amount{text-align:right;font-weight:700;white-space:nowrap}.total-row td{font-weight:800;background:#eef6f7}.total-row .amount{color:#0e7490}' +
+                                    '.approval{display:grid;grid-template-columns:1fr 150px;align-items:end;gap:24px;margin-top:34px;page-break-inside:avoid;break-inside:avoid}.approval-fields{display:grid;gap:18px;max-width:330px}.approval-line{display:flex;align-items:flex-end;gap:8px}.approval-line span{font-size:10px;font-weight:700;white-space:nowrap}.line{height:22px;border-bottom:1px solid #333;flex:1}.stamp{width:120px;height:120px;border:2px dashed #999;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#999;font-size:10px;text-transform:uppercase;line-height:1.6;justify-self:end}' +
+                                    '.footer{position:fixed;bottom:-17mm;left:0;right:0;z-index:2;border-top:1px solid #0e7490;padding-top:5px;text-align:center;font-size:9px;color:#53606b;background:#fff}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}thead{display:table-header-group}}' +
+                                    '</style></head><body><div class="watermark">E.A.P.C MUNYARI CHURCH</div><main class="report-content">' +
+                                    '<div class="treasurer"><img src="' + escapePrintText(profileUrl) + '" alt="Treasurer profile" onerror="this.src=\'uploads/default_avatar.png\'"><div class="treasurer-name">' + escapePrintText(treasurerName) + '</div><div class="treasurer-role">Department Treasurer</div></div>' +
+                                    '<header class="brand"><img class="brand-logo" src="' + escapePrintText(logoUrl) + '" alt="Church logo"><div><h1>E.A.P.C Munyari Church</h1><p>' + escapePrintText(department) + ' Department</p></div><img class="brand-logo" src="' + escapePrintText(logoUrl) + '" alt="Church logo"></header>' +
+                                    '<h2 class="report-title">Calendar-Year Collection Totals</h2><p class="report-meta">Collection period: January-December | Generated: ' + escapePrintText(generatedAt) + '</p>' +
+                                    '<table><thead><tr><th class="number">No.</th><th>Year</th><th>Collection Period</th><th class="amount">Total Collected (KSh)</th></tr></thead><tbody>' + rowsHtml +
+                                    '<tr class="total-row"><td colspan="3" style="text-align:right">TOTAL OF LISTED YEARS</td><td class="amount">KSh ' + listedTotal.toLocaleString('en-KE', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td></tr></tbody></table>' +
+                                    '<section class="approval"><div class="approval-fields"><div class="approval-line"><span>Signature:</span><div class="line"></div></div><div class="approval-line"><span>Date:</span><div class="line" style="border-bottom-style:dashed"></div></div></div><div class="stamp">Official<br>Church Stamp</div></section>' +
+                                    '</main><footer class="footer">E.A.P.C Munyari Church | ' + escapePrintText(department) + ' Department | Annual Collection Totals | Generated: ' + escapePrintText(generatedAt) + '</footer></body></html>';
+                                printWindow.document.open();
+                                printWindow.document.write(reportHtml);
+                                printWindow.document.close();
+                                setTimeout(function() {
+                                    var images = Array.from(printWindow.document.images);
+                                    Promise.all(images.map(function(image) {
+                                        if (image.complete) return Promise.resolve();
+                                        return new Promise(function(resolve) {
+                                            image.onload = image.onerror = resolve;
+                                        });
+                                    })).then(function() {
+                                        printWindow.focus();
+                                        setTimeout(function() { printWindow.print(); }, 250);
+                                    });
+                                }, 100);
+                            }
+                            </script>
                         </div>
                     </div>
                 </div>
