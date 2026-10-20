@@ -9,6 +9,57 @@ require_once 'voice_note_helper.php';
 require_once 'organized_event_helper.php';
 if (!isset($_SESSION['member_id'])) { header("Location: login.php"); exit(); }
 
+if (!function_exists('remove_worship_announcement_media')) {
+    function remove_worship_announcement_media($relative_path) {
+        $relative_path = str_replace('\\', '/', trim((string)$relative_path));
+        if (!preg_match('~^uploads/(?:voice_notes|announcements)/[A-Za-z0-9_.-]+$~', $relative_path)) return;
+        $absolute_path = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative_path);
+        if (is_file($absolute_path)) @unlink($absolute_path);
+    }
+}
+
+if (!function_exists('notify_worship_announcement_audience')) {
+    function notify_worship_announcement_audience($conn, $announcement_id, $notice_text, $exclude_member_id = 0) {
+        $announcement_row = 'worship-announcement-' . (int)$announcement_id;
+        $recipients = [];
+        $members = $conn->query("SELECT id, church_role FROM members
+            WHERE is_approved = 1 AND id <> " . (int)$exclude_member_id . " AND (
+                LOWER(TRIM(COALESCE(church_role, ''))) LIKE '%worshipper%'
+                OR LOWER(TRIM(COALESCE(department, ''))) LIKE '%worship%'
+                OR LOWER(TRIM(COALESCE(desired_role_pref, ''))) = 'worshipper'
+                OR LOWER(TRIM(COALESCE(church_role, ''))) LIKE '%worship leader%'
+            )");
+        if ($members) {
+            while ($recipient = $members->fetch_assoc()) {
+                $recipient_id = (int)$recipient['id'];
+                $role = strtolower((string)($recipient['church_role'] ?? ''));
+                $target_tab = strpos($role, 'worship leader') !== false ? 'manage_worshippers' : 'my_worship_tasks';
+                $recipients['member:' . $recipient_id] = [$recipient_id, 'member', $target_tab];
+            }
+        }
+
+        foreach (['pastor' => 'pastors', 'admin' => 'admins'] as $recipient_type => $table) {
+            $staff = $conn->query("SELECT id FROM $table");
+            if (!$staff) continue;
+            while ($recipient = $staff->fetch_assoc()) {
+                $recipient_id = (int)$recipient['id'];
+                $recipients[$recipient_type . ':' . $recipient_id] = [$recipient_id, $recipient_type, 'manage_worshippers'];
+            }
+        }
+
+        $statement = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
+        if (!$statement) return 0;
+        $sent = 0;
+        foreach ($recipients as [$recipient_id, $recipient_type, $target_tab]) {
+            $routed_message = notification_with_route($notice_text, $target_tab, '', $announcement_row);
+            $statement->bind_param('iss', $recipient_id, $recipient_type, $routed_message);
+            if ($statement->execute()) $sent++;
+        }
+        $statement->close();
+        return $sent;
+    }
+}
+
 $member_id = $_SESSION['member_id'];
 cleanup_expired_church_highlights($conn);
 ensure_village_leader_chat_schema($conn);
@@ -966,6 +1017,10 @@ if ($elder_announcement_image_col && $elder_announcement_image_col->num_rows == 
 $usher_announcement_image_col = $conn->query("SHOW COLUMNS FROM usher_announcements LIKE 'image_path'");
 if ($usher_announcement_image_col && $usher_announcement_image_col->num_rows == 0) {
     $conn->query("ALTER TABLE usher_announcements ADD COLUMN image_path VARCHAR(255) NULL AFTER message");
+}
+$worship_announcement_audio_col = $conn->query("SHOW COLUMNS FROM worship_announcements LIKE 'audio_path'");
+if ($worship_announcement_audio_col && $worship_announcement_audio_col->num_rows == 0) {
+    $conn->query("ALTER TABLE worship_announcements ADD COLUMN audio_path VARCHAR(255) NULL AFTER image_path");
 }
 $building_post_image_col = $conn->query("SHOW COLUMNS FROM building_posts LIKE 'image_path'");
 if ($building_post_image_col && $building_post_image_col->num_rows == 0) {
@@ -1998,84 +2053,106 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['accept_self_worship_ta
 
 // Worship Announcement: Post to worshippers
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_worship_announcement']) && ($is_worship_leader || $is_vice_worship_leader)) {
-    $ann_msg = $conn->real_escape_string(trim($_POST['announcement_message']));
-    $image_path = null;
-    if (!empty($_FILES['announcement_image']['name'])) {
-        $upload_dir = __DIR__ . '/uploads/announcements/';
-        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
-        $ext = strtolower(pathinfo($_FILES['announcement_image']['name'], PATHINFO_EXTENSION));
-        $allowed_exts = ['jpg','jpeg','png','gif','webp'];
-        if (in_array($ext, $allowed_exts) && $_FILES['announcement_image']['size'] < 5242880) {
-            $filename = 'worship_ann_' . $member_id . '_' . time() . '.' . $ext;
-            if (move_uploaded_file($_FILES['announcement_image']['tmp_name'], $upload_dir . $filename)) {
-                $image_path = $conn->real_escape_string('uploads/announcements/' . $filename);
-            }
+    $ann_msg = trim((string)($_POST['announcement_message'] ?? ''));
+    $message_length = function_exists('mb_strlen') ? mb_strlen($ann_msg, 'UTF-8') : strlen($ann_msg);
+    $audio_input = trim((string)($_POST['pastor_voice_note_blob'] ?? '')) !== ''
+        || (isset($_FILES['pastor_voice_note']['error']) && (int)$_FILES['pastor_voice_note']['error'] !== UPLOAD_ERR_NO_FILE);
+    $image_input = false;
+    foreach (['ann_gallery_image', 'ann_camera_image'] as $image_field) {
+        if (isset($_FILES[$image_field]['error']) && (int)$_FILES[$image_field]['error'] !== UPLOAD_ERR_NO_FILE) $image_input = true;
+    }
+    $audio_path = save_voice_note($_POST['pastor_voice_note_blob'] ?? null, $_FILES['pastor_voice_note'] ?? null);
+    $image_path = save_announcement_image(['ann_gallery_image', 'ann_camera_image']);
+    $saved = false;
+
+    if ($message_length <= 4000 && ($ann_msg !== '' || $audio_path) && (!$audio_input || $audio_path) && (!$image_input || $image_path)) {
+        $insert = $conn->prepare("INSERT INTO worship_announcements (leader_id, message, image_path, audio_path) VALUES (?, ?, ?, ?)");
+        if ($insert) {
+            $insert->bind_param('isss', $member_id, $ann_msg, $image_path, $audio_path);
+            $saved = $insert->execute();
+            $announcement_id = $saved ? (int)$conn->insert_id : 0;
+            $insert->close();
         }
     }
-    if (!empty($ann_msg)) {
-        $img_sql = $image_path ? "'$image_path'" : "NULL";
-        $announcement_saved = $conn->query("INSERT INTO worship_announcements (leader_id, message, image_path) VALUES ($member_id, '$ann_msg', $img_sql)");
-        if ($announcement_saved) {
-            $announcement_id = (int)$conn->insert_id;
-            $sender_name = trim($member['first_name'] . ' ' . $member['last_name']);
-            $notif_text = "Worship announcement posted by $sender_name for worshippers.";
-            $announcement_row = 'worship-announcement-' . $announcement_id;
-            $notification_recipients = [];
 
-            $worshippers = $conn->query("SELECT id, church_role FROM members
-                WHERE is_approved = 1 AND id <> $member_id AND (
-                    LOWER(TRIM(COALESCE(church_role, ''))) LIKE '%worshipper%'
-                    OR LOWER(TRIM(COALESCE(department, ''))) LIKE '%worship%'
-                    OR LOWER(TRIM(COALESCE(desired_role_pref, ''))) = 'worshipper'
-                )");
-            if ($worshippers) {
-                while ($worshipper = $worshippers->fetch_assoc()) {
-                    $role = strtolower((string)($worshipper['church_role'] ?? ''));
-                    $target_tab = strpos($role, 'worship leader') !== false ? 'manage_worshippers' : 'my_worship_tasks';
-                    $recipient_id = (int)$worshipper['id'];
-                    $notification_recipients['member:' . $recipient_id] = [$recipient_id, 'member', $target_tab];
-                }
-            }
-
-            $worship_leaders = $conn->query("SELECT id FROM members
-                WHERE is_approved = 1 AND id <> $member_id
-                  AND LOWER(TRIM(COALESCE(church_role, ''))) LIKE '%worship leader%'");
-            if ($worship_leaders) {
-                while ($worship_leader = $worship_leaders->fetch_assoc()) {
-                    $recipient_id = (int)$worship_leader['id'];
-                    $notification_recipients['member:' . $recipient_id] = [$recipient_id, 'member', 'manage_worshippers'];
-                }
-            }
-
-            $pastors = $conn->query("SELECT id FROM pastors");
-            if ($pastors) {
-                while ($pastor_recipient = $pastors->fetch_assoc()) {
-                    $recipient_id = (int)$pastor_recipient['id'];
-                    $notification_recipients['pastor:' . $recipient_id] = [$recipient_id, 'pastor', 'manage_worshippers'];
-                }
-            }
-
-            $admins = $conn->query("SELECT id FROM admins");
-            if ($admins) {
-                while ($admin_recipient = $admins->fetch_assoc()) {
-                    $recipient_id = (int)$admin_recipient['id'];
-                    $notification_recipients['admin:' . $recipient_id] = [$recipient_id, 'admin', 'manage_worshippers'];
-                }
-            }
-
-            $notification_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
-            if ($notification_stmt) {
-                foreach ($notification_recipients as [$recipient_id, $recipient_type, $target_tab]) {
-                    $routed_message = notification_with_route($notif_text, $target_tab, '', $announcement_row);
-                    $notification_stmt->bind_param('iss', $recipient_id, $recipient_type, $routed_message);
-                    $notification_stmt->execute();
-                }
-                $notification_stmt->close();
-            }
-        }
-        header("Location: member_dashboard.php?tab=manage_worshippers&success=Announcement posted to worshippers");
+    if ($saved && $announcement_id > 0) {
+        $sender_name = trim($member['first_name'] . ' ' . $member['last_name']);
+        $notice = "Worship announcement posted by $sender_name for worshippers.";
+        notify_worship_announcement_audience($conn, $announcement_id, $notice, $member_id);
+        header("Location: member_dashboard.php?tab=manage_worshippers&success=" . urlencode('Announcement posted to worshippers'));
         exit();
     }
+
+    if ($audio_path) remove_worship_announcement_media($audio_path);
+    if ($image_path) remove_worship_announcement_media($image_path);
+    $error = $message_length > 4000
+        ? 'Announcement text must be 4,000 characters or less.'
+        : (($audio_input && !$audio_path) || ($image_input && !$image_path)
+            ? 'The selected audio or image could not be uploaded. Please try again.'
+            : 'Write an announcement or record a voice note before posting.');
+    header("Location: member_dashboard.php?tab=manage_worshippers&error=" . urlencode($error));
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_worship_announcement']) && ($is_worship_leader || $is_vice_worship_leader)) {
+    $announcement_id = (int)($_POST['announcement_id'] ?? 0);
+    $ann_msg = trim((string)($_POST['announcement_message'] ?? ''));
+    $message_length = function_exists('mb_strlen') ? mb_strlen($ann_msg, 'UTF-8') : strlen($ann_msg);
+    $audio_input = trim((string)($_POST['pastor_voice_note_blob'] ?? '')) !== ''
+        || (isset($_FILES['pastor_voice_note']['error']) && (int)$_FILES['pastor_voice_note']['error'] !== UPLOAD_ERR_NO_FILE);
+    $image_input = false;
+    foreach (['ann_gallery_image', 'ann_camera_image'] as $image_field) {
+        if (isset($_FILES[$image_field]['error']) && (int)$_FILES[$image_field]['error'] !== UPLOAD_ERR_NO_FILE) $image_input = true;
+    }
+    $replacement_audio = save_voice_note($_POST['pastor_voice_note_blob'] ?? null, $_FILES['pastor_voice_note'] ?? null);
+    $replacement_image = save_announcement_image(['ann_gallery_image', 'ann_camera_image']);
+    $remove_audio = !empty($_POST['remove_announcement_audio']);
+    $remove_image = !empty($_POST['remove_announcement_image']);
+
+    $lookup = $conn->prepare("SELECT image_path, audio_path FROM worship_announcements WHERE id = ? LIMIT 1");
+    $existing = null;
+    if ($lookup) {
+        $lookup->bind_param('i', $announcement_id);
+        if ($lookup->execute()) $existing = $lookup->get_result()->fetch_assoc();
+        $lookup->close();
+    }
+    $old_image = $existing['image_path'] ?? null;
+    $old_audio = $existing['audio_path'] ?? null;
+    $updated_image = $replacement_image ?: ($remove_image ? null : $old_image);
+    $updated_audio = $replacement_audio ?: ($remove_audio ? null : $old_audio);
+    $updated = false;
+
+    if ($existing && $message_length <= 4000 && (!$audio_input || $replacement_audio) && (!$image_input || $replacement_image)
+        && ($ann_msg !== '' || !empty($updated_audio))) {
+        $update = $conn->prepare("UPDATE worship_announcements SET message = ?, image_path = ?, audio_path = ? WHERE id = ?");
+        if ($update) {
+            $update->bind_param('sssi', $ann_msg, $updated_image, $updated_audio, $announcement_id);
+            $updated = $update->execute();
+            $update->close();
+        }
+    }
+
+    if ($updated) {
+        if ($old_image && $old_image !== $updated_image) remove_worship_announcement_media($old_image);
+        if ($old_audio && $old_audio !== $updated_audio) remove_worship_announcement_media($old_audio);
+        $editor_name = trim($member['first_name'] . ' ' . $member['last_name']);
+        $notice = "Worship announcement updated by $editor_name for worshippers.";
+        notify_worship_announcement_audience($conn, $announcement_id, $notice, $member_id);
+        header("Location: member_dashboard.php?tab=manage_worshippers&success=" . urlencode('Announcement updated and worshippers notified'));
+        exit();
+    }
+
+    if ($replacement_audio) remove_worship_announcement_media($replacement_audio);
+    if ($replacement_image) remove_worship_announcement_media($replacement_image);
+    $error = !$existing
+        ? 'That worship announcement could not be found.'
+        : ($message_length > 4000
+            ? 'Announcement text must be 4,000 characters or less.'
+            : ((($audio_input && !$replacement_audio) || ($image_input && !$replacement_image))
+                ? 'The selected audio or image could not be uploaded. Please try again.'
+                : 'An announcement must contain text or an audio recording.'));
+    header("Location: member_dashboard.php?tab=manage_worshippers&error=" . urlencode($error));
+    exit();
 }
 
 // Worship Announcement Query: Send to General Church Secretary
@@ -6239,7 +6316,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
                         </div>
                         <div>
-                            <h2 style="margin:0;">Post Announcement to Worshippers</h2>
+                            <h2 id="worshipAnnouncementEditorTitle" style="margin:0;">Post Announcement to Worshippers</h2>
                             <p style="margin:0; font-size:0.85rem; color:var(--text-muted);">This will notify all registered worshippers in your department.</p>
                         </div>
                     </div>
@@ -6248,10 +6325,18 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             ✅ <?= htmlspecialchars($_GET['success']) ?>
                         </div>
                     <?php endif; ?>
-                    <form method="POST" enctype="multipart/form-data">
+                    <?php if (!empty($_GET['error'])): ?>
+                        <div role="alert" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);padding:12px 16px;border-radius:10px;margin-bottom:16px;">
+                            <?= htmlspecialchars($_GET['error']) ?>
+                        </div>
+                    <?php endif; ?>
+                    <form id="worshipAnnouncementForm" method="POST" enctype="multipart/form-data" onsubmit="return handlePastorAnnFormSubmit(this,event);" data-sending-label="Posting announcement...">
+                        <input type="hidden" name="post_worship_announcement" id="worshipAnnouncementPostAction" value="1">
+                        <input type="hidden" name="edit_worship_announcement" id="worshipAnnouncementEditAction" value="1" disabled>
+                        <input type="hidden" name="announcement_id" id="worshipAnnouncementEditId" value="" disabled>
                         <div class="form-group">
                             <label>Announcement Message</label>
-                            <textarea name="announcement_message" class="form-input" rows="4" placeholder="Type your announcement to worshippers..." required style="resize:vertical;"></textarea>
+                            <textarea id="worshipAnnouncementMessage" name="announcement_message" class="form-input" rows="4" maxlength="4000" placeholder="Type an announcement, record a voice note, or do both..." style="resize:vertical;"></textarea>
                         </div>
                         <div class="form-group">
                             <label>Attach Photo (optional)</label>
@@ -6260,45 +6345,140 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                     Choose from Gallery
                                 </label>
-                                <input type="file" id="ann_file_upload" name="announcement_image" accept="image/*" style="display:none;" onchange="previewAnnImage(this)">
+                                <input type="file" id="ann_file_upload" name="ann_gallery_image" accept="image/*" style="display:none;" onchange="previewWorshipAnnouncementImage(this)">
                                 <label for="ann_camera_upload" style="cursor:pointer; display:flex; align-items:center; gap:8px; background:var(--bg-lighter); border:1px dashed var(--border-color); border-radius:10px; padding:10px 16px; font-size:0.9rem; color:var(--text-main); flex:1; min-width:180px;">
                                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                                     Take a Photo
                                 </label>
-                                <input type="file" id="ann_camera_upload" name="announcement_image" accept="image/*" capture="environment" style="display:none;" onchange="previewAnnImage(this)">
+                                <input type="file" id="ann_camera_upload" name="ann_camera_image" accept="image/*" capture="environment" style="display:none;" onchange="previewWorshipAnnouncementImage(this)">
                             </div>
                             <div id="ann_image_preview" style="margin-top:10px; display:none;">
                                 <img id="ann_preview_img" src="" style="max-width:100%; max-height:200px; border-radius:10px; border:1px solid var(--border-color);">
-                                <button type="button" onclick="clearAnnImage()" style="display:block; margin-top:6px; background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.85rem;">✕ Remove image</button>
+                                <button type="button" onclick="clearWorshipAnnouncementImage()" style="display:block; margin-top:6px; background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.85rem;">✕ Remove selected image</button>
                             </div>
+                            <label id="worship_ann_remove_image_label" hidden style="display:none;align-items:center;gap:8px;margin-top:10px;color:var(--text-main);">
+                                <input type="checkbox" name="remove_announcement_image" id="worship_ann_remove_image" value="1" disabled> Remove the current image
+                            </label>
                         </div>
-                        <button type="submit" name="post_worship_announcement" class="btn-submit" style="background:linear-gradient(135deg,#d946ef,#a21caf);">
+                        <div id="worship_ann_audio_hint" hidden style="margin-bottom:10px;padding:9px 12px;border-left:3px solid #25d366;background:var(--bg-main);color:var(--text-muted);border-radius:5px;">The current voice note will be kept unless you record/upload a replacement or choose to remove it.</div>
+                        <label id="worship_ann_remove_audio_label" hidden style="display:none;align-items:center;gap:8px;margin-bottom:14px;color:var(--text-main);">
+                            <input type="checkbox" name="remove_announcement_audio" id="worship_ann_remove_audio" value="1" disabled> Remove the current voice note
+                        </label>
+                        <?= render_voice_note_recorder('approved worshippers') ?>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+                        <button type="submit" id="pastor_ann_submit_btn" class="btn-submit" style="background:linear-gradient(135deg,#d946ef,#a21caf);">
                             📢 Post Announcement
                         </button>
+                        <button type="button" id="worship_ann_cancel_edit" onclick="cancelWorshipAnnouncementEdit()" hidden style="display:none;padding:10px 16px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-lighter);color:var(--text-main);cursor:pointer;">Cancel Edit</button>
+                        </div>
                     </form>
 
                     <!-- Previous Announcements -->
                     <?php
-                    $prev_anns = $conn->query("SELECT wa.*, m.first_name, m.last_name FROM worship_announcements wa JOIN members m ON wa.leader_id = m.id ORDER BY wa.created_at DESC");
+                    $prev_anns = $conn->query("SELECT wa.*, m.first_name, m.last_name, m.profile_picture FROM worship_announcements wa JOIN members m ON wa.leader_id = m.id ORDER BY wa.created_at DESC");
                     if ($prev_anns && $prev_anns->num_rows > 0): ?>
                     <hr style="margin:24px 0; border-color:var(--border-color);">
                     <h3 style="margin-bottom:14px;">Recent Announcements</h3>
                     <div style="display:flex; flex-direction:column; gap:14px;">
-                        <?php while($ann = $prev_anns->fetch_assoc()): ?>
+                        <?php while($ann = $prev_anns->fetch_assoc()):
+                            $ann_photo = !empty($ann['profile_picture']) ? 'uploads/' . rawurlencode(basename($ann['profile_picture'])) : 'uploads/default_avatar.png';
+                        ?>
                         <div data-notification-row="worship-announcement-<?= (int)$ann['id'] ?>" style="background:var(--bg-lighter); border-radius:12px; padding:16px;">
                             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                                 <strong style="color:var(--primary);"><?= htmlspecialchars($ann['first_name'] . ' ' . $ann['last_name']) ?></strong>
                                 <span style="font-size:0.78rem; color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($ann['created_at'])) ?></span>
                             </div>
-                            <p style="margin:0; line-height:1.6;"><?= nl2br(htmlspecialchars($ann['message'])) ?></p>
+                            <?php if (!empty($ann['message'])): ?><p style="margin:0; line-height:1.6;white-space:pre-wrap;"><?= nl2br(htmlspecialchars($ann['message'])) ?></p><?php endif; ?>
                             <?php if (!empty($ann['image_path'])): ?>
                             <img src="<?= htmlspecialchars($ann['image_path']) ?>" style="margin-top:10px; max-width:100%; max-height:250px; border-radius:8px; display:block;" alt="Announcement image">
                             <?php endif; ?>
+                            <?php if (!empty($ann['audio_path'])): ?>
+                                <?= render_whatsapp_voice_player($ann['audio_path'], trim($ann['first_name'] . ' ' . $ann['last_name']), $ann_photo, $ann['created_at']) ?>
+                            <?php endif; ?>
+                            <button type="button" onclick="beginWorshipAnnouncementEdit(this)" data-announcement-id="<?= (int)$ann['id'] ?>" data-announcement-message="<?= htmlspecialchars($ann['message'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-announcement-audio="<?= !empty($ann['audio_path']) ? '1' : '0' ?>" data-announcement-image="<?= htmlspecialchars($ann['image_path'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="margin-top:10px;background:var(--primary);color:#fff;border:0;border-radius:6px;padding:7px 12px;cursor:pointer;">Edit Announcement</button>
                         </div>
                         <?php endwhile; ?>
                     </div>
                     <?php endif; ?>
                 </div>
+                <script>
+                function previewWorshipAnnouncementImage(input) {
+                    if (!input.files || !input.files[0]) return;
+                    var reader = new FileReader();
+                    reader.onload = function (event) {
+                        document.getElementById('ann_preview_img').src = event.target.result;
+                        document.getElementById('ann_image_preview').style.display = 'block';
+                    };
+                    reader.readAsDataURL(input.files[0]);
+                    var removeImage = document.getElementById('worship_ann_remove_image');
+                    if (removeImage) removeImage.checked = false;
+                }
+                function clearWorshipAnnouncementImage() {
+                    document.getElementById('ann_file_upload').value = '';
+                    document.getElementById('ann_camera_upload').value = '';
+                    document.getElementById('ann_image_preview').style.display = 'none';
+                    document.getElementById('ann_preview_img').src = '';
+                }
+                function beginWorshipAnnouncementEdit(button) {
+                    var form = document.getElementById('worshipAnnouncementForm');
+                    if (typeof discardVoiceRecording === 'function') discardVoiceRecording();
+                    document.getElementById('worshipAnnouncementPostAction').disabled = true;
+                    document.getElementById('worshipAnnouncementEditAction').disabled = false;
+                    document.getElementById('worshipAnnouncementEditId').disabled = false;
+                    document.getElementById('worshipAnnouncementEditId').value = button.dataset.announcementId;
+                    document.getElementById('worshipAnnouncementMessage').value = button.dataset.announcementMessage || '';
+                    clearWorshipAnnouncementImage();
+
+                    var hasAudio = button.dataset.announcementAudio === '1';
+                    var hasImage = !!button.dataset.announcementImage;
+                    document.getElementById('worship_ann_audio_hint').hidden = !hasAudio;
+                    document.getElementById('worship_ann_remove_audio_label').hidden = !hasAudio;
+                    document.getElementById('worship_ann_remove_audio_label').style.display = hasAudio ? 'flex' : 'none';
+                    document.getElementById('worship_ann_remove_audio').disabled = !hasAudio;
+                    document.getElementById('worship_ann_remove_audio').checked = false;
+                    document.getElementById('worship_ann_remove_image_label').hidden = !hasImage;
+                    document.getElementById('worship_ann_remove_image_label').style.display = hasImage ? 'flex' : 'none';
+                    document.getElementById('worship_ann_remove_image').disabled = !hasImage;
+                    document.getElementById('worship_ann_remove_image').checked = false;
+                    if (hasImage) {
+                        document.getElementById('ann_preview_img').src = button.dataset.announcementImage;
+                        document.getElementById('ann_image_preview').style.display = 'block';
+                    }
+
+                    document.getElementById('worshipAnnouncementEditorTitle').textContent = 'Edit Worship Announcement';
+                    document.getElementById('pastor_ann_submit_btn').textContent = 'Save Changes';
+                    form.dataset.sendingLabel = 'Saving announcement...';
+                    var cancel = document.getElementById('worship_ann_cancel_edit');
+                    cancel.hidden = false;
+                    cancel.style.display = 'inline-flex';
+                    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    window.setTimeout(function () { document.getElementById('worshipAnnouncementMessage').focus(); }, 250);
+                }
+                function cancelWorshipAnnouncementEdit() {
+                    if (typeof discardVoiceRecording === 'function') discardVoiceRecording();
+                    document.getElementById('worshipAnnouncementPostAction').disabled = false;
+                    document.getElementById('worshipAnnouncementEditAction').disabled = true;
+                    document.getElementById('worshipAnnouncementEditId').disabled = true;
+                    document.getElementById('worshipAnnouncementEditId').value = '';
+                    document.getElementById('worshipAnnouncementMessage').value = '';
+                    document.getElementById('worship_ann_audio_hint').hidden = true;
+                    document.getElementById('worship_ann_remove_audio_label').hidden = true;
+                    document.getElementById('worship_ann_remove_audio_label').style.display = 'none';
+                    document.getElementById('worship_ann_remove_audio').disabled = true;
+                    document.getElementById('worship_ann_remove_audio').checked = false;
+                    document.getElementById('worship_ann_remove_image_label').hidden = true;
+                    document.getElementById('worship_ann_remove_image_label').style.display = 'none';
+                    document.getElementById('worship_ann_remove_image').disabled = true;
+                    document.getElementById('worship_ann_remove_image').checked = false;
+                    clearWorshipAnnouncementImage();
+                    document.getElementById('worshipAnnouncementEditorTitle').textContent = 'Post Announcement to Worshippers';
+                    document.getElementById('pastor_ann_submit_btn').textContent = '📢 Post Announcement';
+                    document.getElementById('worshipAnnouncementForm').dataset.sendingLabel = 'Posting announcement...';
+                    var cancel = document.getElementById('worship_ann_cancel_edit');
+                    cancel.hidden = true;
+                    cancel.style.display = 'none';
+                }
+                </script>
 
                 <!-- ===== QUERY ANNOUNCEMENT TO GENERAL SECRETARY ===== -->
                 <div class="content-card" style="margin-bottom:20px;">
@@ -11049,6 +11229,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <p style="margin:0;white-space:pre-wrap;line-height:1.6;"><?= htmlspecialchars($announcement['message']) ?></p>
                                 <?php if (!empty($announcement['image_path'])): ?>
                                     <img src="<?= htmlspecialchars($announcement['image_path'], ENT_QUOTES) ?>" alt="Worship announcement" style="display:block;margin-top:10px;max-width:100%;max-height:280px;border-radius:8px;">
+                                <?php endif; ?>
+                                <?php if (!empty($announcement['audio_path'])): ?>
+                                    <?= render_whatsapp_voice_player($announcement['audio_path'], trim($announcement['first_name'] . ' ' . $announcement['last_name']), $announcement_photo, $announcement['created_at']) ?>
                                 <?php endif; ?>
                             </article>
                         <?php endwhile; ?>

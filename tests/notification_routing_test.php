@@ -53,11 +53,31 @@ foreach (['pastor_dashboard.php', 'admin_dashboard.php', 'member_dashboard.php']
 }
 $worship_member_source = file_get_contents(__DIR__ . '/../member_dashboard.php');
 if ($worship_member_source === false
-    || strpos($worship_member_source, 'notification_with_route($notif_text, $target_tab') === false
-    || strpos($worship_member_source, "'pastor', 'manage_worshippers'") === false
-    || strpos($worship_member_source, "'admin', 'manage_worshippers'") === false) {
+    || strpos($worship_member_source, 'notify_worship_announcement_audience($conn, $announcement_id, $notice, $member_id)') === false
+    || strpos($worship_member_source, "['pastor' => 'pastors', 'admin' => 'admins']") === false
+    || strpos($worship_member_source, 'notification_with_route($notice_text, $target_tab') === false) {
     fwrite(STDERR, "FAIL: worship announcements must send explicitly routed notifications to church oversight.\n");
     exit(1);
+}
+foreach ([
+    'worship announcement audio column migration' => '$worship_announcement_audio_col',
+    'worship voice recorder' => "render_voice_note_recorder('approved worshippers')",
+    'worship announcement editor' => 'beginWorshipAnnouncementEdit(this)',
+    'shared leader edit permission' => 'isset($_POST[\'edit_worship_announcement\']) && ($is_worship_leader || $is_vice_worship_leader)',
+    'announcement update notifications use the route helper' => 'notification_with_route($notice_text, $target_tab',
+    'voice-only announcements are accepted' => '($ann_msg !== \'\' || $audio_path)',
+] as $worship_feature => $worship_source_marker) {
+    if (strpos($worship_member_source, $worship_source_marker) === false) {
+        fwrite(STDERR, "FAIL: $worship_feature must be supported in the worship announcement flow.\n");
+        exit(1);
+    }
+}
+foreach (['pastor_dashboard.php', 'admin_dashboard.php', 'member_dashboard.php'] as $audio_dashboard) {
+    $audio_dashboard_source = file_get_contents(__DIR__ . '/../' . $audio_dashboard);
+    if ($audio_dashboard_source === false || strpos($audio_dashboard_source, 'render_whatsapp_voice_player($announcement[\'audio_path\']') === false) {
+        fwrite(STDERR, "FAIL: $audio_dashboard must render posted worship voice announcements.\n");
+        exit(1);
+    }
 }
 $event_notification = notification_with_route(
     'New department announcement from Organising Secretary Amina Kageni: Weekly Meeting',

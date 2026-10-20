@@ -3991,6 +3991,9 @@ w.document.write('</div>');
                                     <?php if (!empty($announcement['image_path'])): ?>
                                         <img src="<?= htmlspecialchars($announcement['image_path'], ENT_QUOTES) ?>" alt="Worship announcement" style="display:block;margin-top:10px;max-width:100%;max-height:280px;border-radius:8px;">
                                     <?php endif; ?>
+                                    <?php if (!empty($announcement['audio_path'])): ?>
+                                        <?= render_whatsapp_voice_player($announcement['audio_path'], trim($announcement['first_name'] . ' ' . $announcement['last_name']), $announcement_photo, $announcement['created_at']) ?>
+                                    <?php endif; ?>
                                 </article>
                             <?php endwhile; ?>
                         </div>
