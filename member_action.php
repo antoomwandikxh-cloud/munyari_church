@@ -795,7 +795,8 @@ if (isset($_GET['action'])) {
                 $event_row_key = 'organized-event-' . $event_id;
                 $department_group = notification_department_group_key($requested_department);
                 $member_notification = notification_with_route($notification_text, 'organized_events', '', $event_row_key);
-                $leader_notification = notification_with_route($notification_text, 'general_announcements', $department_group, $event_row_key);
+                $pastor_notification = notification_with_route($notification_text, 'organized_events', '', $event_row_key);
+                $admin_notification = notification_with_route($notification_text, 'general_announcements', $department_group, $event_row_key);
 
                 $member_department_filter = department_match_sql($conn, 'department', $requested_department);
                 $dept_members = $conn->query("SELECT id FROM members WHERE $member_department_filter AND is_approved = 1 AND id != $member_id");
@@ -811,6 +812,7 @@ if (isset($_GET['action'])) {
                     if ($leaders) {
                         while ($leader = $leaders->fetch_assoc()) {
                             $leader_id = (int)$leader['id'];
+                            $leader_notification = $user_type === 'pastor' ? $pastor_notification : $admin_notification;
                             member_action_insert_notification($conn, $leader_id, $user_type, $leader_notification);
                         }
                     }
