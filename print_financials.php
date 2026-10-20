@@ -341,6 +341,7 @@ function fmt_amount($n) {
             setTimeout(function () { window.print(); }, 600);
         };
     </script>
+    <script src="church_print_layout.js?v=1" data-direct-print="true"></script>
 </body>
 </html>
 

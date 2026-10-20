@@ -376,6 +376,7 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
             }, 600);
         };
     </script>
+    <script src="church_print_layout.js?v=1" data-direct-print="true"></script>
 </body>
 </html>
 

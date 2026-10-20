@@ -7,3 +7,12 @@ These requirements apply to every dashboard and department feature in this proje
 - Keep routing and focus metadata out of user-visible notification text by using `notification_display_message()` when rendering notifications.
 - When a new destination or row type is added, update its dashboard rendering and add a regression case to `tests/notification_routing_test.php`. Do not rely on ambiguous keyword matching for new notifications.
 - Legacy notifications without explicit route metadata must still map through `notification_badge_tabs()`. Unrecognized legacy messages remain visible on the Dashboard as a fallback instead of losing their unread badge.
+
+# Print Layout Requirements
+
+- All print windows opened from dashboards inherit `church_print_layout.js`; every standalone print page must include it with `data-direct-print="true"`.
+- Keep printable table headers repeating and each individual row together, but allow the table itself to flow across pages. Do not make a whole table, department group, or oversized card unbreakable.
+- Avoid `rowspan` in printable table bodies. When the screen table groups rows with rowspans, the shared print helper repeats the leading department cell in the print document so remaining rows can fill the page before a page break.
+- Reserve a modest 16 mm bottom page margin for the footer. Preserve the report's orientation and top/side margins; do not add large bottom padding that leaves unused page space.
+- For new print features, verify portrait and landscape pagination with enough rows to cross a page boundary and confirm the footer remains at the bottom of each page.
+- If the shared pagination helper changes, run `node tests/church_print_layout_test.js` to protect row-group splitting and repeated preparation.

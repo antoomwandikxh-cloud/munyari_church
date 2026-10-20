@@ -328,6 +328,7 @@ if (file_exists($vl_pic)) {
     <?php endif; ?>
     <div class="print-footer">Generated from Munyari Church</div>
 
+    <script src="church_print_layout.js?v=1" data-direct-print="true"></script>
     <script src="print_orientation.js?v=20261020-compact-orientation"></script>
     <script>
         window.onload = function() {

@@ -399,6 +399,7 @@ if (file_exists($logo_path)) {
         Generated from Munyari Church &nbsp;|&nbsp; <?= date('Y-m-d H:i') ?>
     </div>
 
+    <script src="church_print_layout.js?v=1" data-direct-print="true"></script>
     <script src="print_orientation.js?v=20261020-compact-orientation"></script>
     <script>
         window.onload = function () {

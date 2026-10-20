@@ -328,6 +328,7 @@ $signer_title = 'Head of Worship';
 <div class="footer">
     Generated from E.A.P.C Munyari Church Portal &nbsp;|&nbsp; Printed on: <?= $print_date ?>
 </div>
+<script src="church_print_layout.js?v=1" data-direct-print="true"></script>
 <script src="print_orientation.js?v=20261020-compact-orientation"></script>
 <script>window.onload = function() { setTimeout(function() { window.print(); }, 700); };</script>
 </body>
