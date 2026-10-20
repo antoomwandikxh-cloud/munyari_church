@@ -74,11 +74,14 @@ if ($user_type === 'member') {
     ];
     if (isset($department_by_group[$redirect_group])) {
         $department = $department_by_group[$redirect_group];
-        if ($redirect_tab === 'leader_chat' || $redirect_tab === 'manage_department' || $redirect_tab === 'financials') {
+        if ($redirect_tab === 'leader_chat' || $redirect_tab === 'manage_department' || $redirect_tab === 'financials' || $redirect_tab === 'received_financials') {
             $_SESSION['dashboard_dept'] = $department;
         }
         if ($redirect_tab === 'financials') {
             $destination .= '&treasurer_dept=' . urlencode($department);
+        }
+        if ($redirect_tab === 'received_financials') {
+            $destination .= '&leader_dept=' . urlencode($department);
         }
         if ($redirect_tab === 'discipline') {
             $destination .= '&disc_dept=' . urlencode($department);

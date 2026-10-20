@@ -4083,11 +4083,14 @@ w.document.write('</div>');
                         <span id="financeSearchCount" style="font-size:0.82rem;color:var(--text-muted);"></span>
                     </div>
                     <?php
-                    $target_depts = ['General Church', 'Elders', 'Womens Ministry', 'Youths', 'Sunday School', 'Building'];
+                    $target_depts = ['General Church', 'Elders', 'Womens Ministry', 'Youths', 'Sunday School', 'Building & Construction'];
                     $has_any_records = false;
                     foreach ($target_depts as $d):
                         $d_esc = $conn->real_escape_string($d);
-                        $fin_records = $conn->query("SELECT fr.*, COALESCE(fr.recorded_by_name, CONCAT(m.first_name, ' ', m.last_name)) AS poster_name, COALESCE(m.profile_picture, 'default_avatar.png') AS poster_pic FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE fr.department = '$d_esc' ORDER BY fr.recorded_at DESC LIMIT 30");
+                        $finance_department_filter = $d === 'Building & Construction'
+                            ? "(fr.department = 'Building & Construction' OR fr.department = 'Building')"
+                            : "fr.department = '$d_esc'";
+                        $fin_records = $conn->query("SELECT fr.*, COALESCE(fr.recorded_by_name, CONCAT(m.first_name, ' ', m.last_name)) AS poster_name, COALESCE(m.profile_picture, 'default_avatar.png') AS poster_pic FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE $finance_department_filter ORDER BY fr.recorded_at DESC LIMIT 30");
                         if ($fin_records && $fin_records->num_rows > 0):
                             $has_any_records = true;
                     ?>
@@ -4096,7 +4099,7 @@ w.document.write('</div>');
                         <thead><tr><th>Posted By</th><th>Amount (KSh)</th><th>Description</th><th>Date</th><th>Change Reason</th><th>Status</th></tr></thead>
                         <tbody>
                             <?php while($fr = $fin_records->fetch_assoc()): ?>
-                            <tr class="fin-record-row" data-dept="<?= htmlspecialchars($d) ?>" data-poster="<?= htmlspecialchars($fr['poster_name'] ?? '') ?>" data-desc="<?= htmlspecialchars($fr['description'] ?? '') ?>" data-amount="<?= htmlspecialchars($fr['amount'] ?? '') ?>">
+                            <tr class="fin-record-row" data-notification-row="financial-record-<?= (int)$fr['id'] ?>" data-dept="<?= htmlspecialchars($d) ?>" data-poster="<?= htmlspecialchars($fr['poster_name'] ?? '') ?>" data-desc="<?= htmlspecialchars($fr['description'] ?? '') ?>" data-amount="<?= htmlspecialchars($fr['amount'] ?? '') ?>">
                                 <td>
                                     <div style="display:flex;align-items:center;gap:9px;">
                                         <img src="uploads/<?= htmlspecialchars($fr['poster_pic'] ?? 'default_avatar.png') ?>"

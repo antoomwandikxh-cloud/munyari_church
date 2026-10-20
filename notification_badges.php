@@ -1,5 +1,6 @@
 <?php
 function notification_display_message($message) {
+    $message = preg_replace('/\s*\[financial-record-id:\s*\d+\]/i', '', (string)$message);
     $message = preg_replace('/\s*\[focus-fine-rule-id:\s*\d+\]/i', '', (string)$message);
     $message = preg_replace('/\s*\[focus-fine-id:\s*\d+\]/i', '', (string)$message);
     $message = preg_replace('/\s*Fine record\s*#\s*\d+\.?/i', '', $message);
@@ -36,6 +37,10 @@ function notification_badge_tabs($message, $user_type) {
             return ['financials'];
         }
         return [$user_type === 'member' ? 'my_fines' : 'discipline_reports'];
+    }
+
+    if (strpos($msg, 'financial record submitted for chairperson review in ') === 0) {
+        return $user_type === 'member' ? ['received_financials'] : ['financials'];
     }
 
     if (strpos($msg, 'department event') !== false && strpos($msg, 'organising secretary') !== false) {
@@ -873,6 +878,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
         }
+        var financialRecordMatch = notificationMessage.match(/\[financial-record-id:\s*(\d+)\]/i);
+        if (financialRecordMatch) {
+            var financialRecordRow = main.querySelector('[data-notification-row="financial-record-' + financialRecordMatch[1] + '"]');
+            if (financialRecordRow) {
+                addHighlightedRow(financialRecordRow);
+                return;
+            }
+        }
         var dailyQuoteMatch = notificationMessage.match(/\bdaily quote\s*#\s*(\d+)/i);
         if (dailyQuoteMatch) {
             var dailyQuoteRow = main.querySelector('[data-notification-row="daily-quote-' + dailyQuoteMatch[1] + '"]');
@@ -1032,6 +1045,10 @@ function notification_target_group($message, $user_type) {
     $msg = strtolower($message);
     $fine_department = '';
     if ($user_type === 'member'
+        && preg_match('/^financial record submitted for chairperson review in\s+(.+?)\.\s*KSh/i', $message, $finance_department_match)) {
+        $fine_department = trim($finance_department_match[1]);
+    }
+    if ($user_type === 'member'
         && strpos($msg, 'fine payment awaiting treasurer verification:') !== false
         && preg_match('/fine payment awaiting treasurer verification:.*?\bin\s+(.+?)\s+is paid/i', $message, $fine_department_match)) {
         $fine_department = trim($fine_department_match[1]);
@@ -1057,6 +1074,7 @@ function notification_target_group($message, $user_type) {
             'elder ministry' => 'elders',
             'elder' => 'elders',
             'sunday school' => 'sunday_school',
+            'building' => 'building_construction',
             'building & construction' => 'building_construction',
             'building and construction' => 'building_construction',
         ];

@@ -3928,7 +3928,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 </thead>
                                 <tbody>
                                     <?php while($rr = $received_records->fetch_assoc()): ?>
-                                    <tr>
+                                    <tr data-notification-row="financial-record-<?= (int)$rr['financial_record_id'] ?>">
                                         <td><?= date('M j, Y', strtotime($rr['created_at'])) ?></td>
                                         <td><?= htmlspecialchars($rr['first_name'] . ' ' . $rr['last_name']) ?></td>
                                         <td>
