@@ -3964,6 +3964,41 @@ w.document.write('</div>');
                     </div>
                 </div>
 
+                <div class="content-card" style="margin-bottom:20px;">
+                    <h2>Worship Announcements</h2>
+                    <?php
+                    $worship_announcement_rows = $conn->query("SELECT wa.*, m.first_name, m.last_name, m.profile_picture
+                        FROM worship_announcements wa
+                        JOIN members m ON m.id = wa.leader_id
+                        ORDER BY wa.created_at DESC");
+                    ?>
+                    <?php if ($worship_announcement_rows && $worship_announcement_rows->num_rows > 0): ?>
+                        <div style="display:flex;flex-direction:column;gap:12px;">
+                            <?php while ($announcement = $worship_announcement_rows->fetch_assoc()):
+                                $announcement_photo = !empty($announcement['profile_picture'])
+                                    ? 'uploads/' . rawurlencode(basename($announcement['profile_picture']))
+                                    : 'uploads/default_avatar.png';
+                            ?>
+                                <article data-notification-row="worship-announcement-<?= (int)$announcement['id'] ?>" style="padding:16px;border:1px solid var(--border-color);border-left:4px solid #d4a017;border-radius:8px;background:var(--bg-main);">
+                                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                                        <img src="<?= htmlspecialchars($announcement_photo, ENT_QUOTES) ?>" alt="Worship leader profile" style="width:38px;height:38px;object-fit:cover;border-radius:50%;" onerror="this.onerror=null;this.src='uploads/default_avatar.png';">
+                                        <div>
+                                            <strong><?= htmlspecialchars(trim($announcement['first_name'] . ' ' . $announcement['last_name'])) ?></strong>
+                                            <div style="font-size:.8rem;color:var(--text-muted);">Worship Leader · <?= htmlspecialchars(date('M j, Y g:i A', strtotime($announcement['created_at']))) ?></div>
+                                        </div>
+                                    </div>
+                                    <p style="margin:0;white-space:pre-wrap;line-height:1.6;"><?= htmlspecialchars($announcement['message']) ?></p>
+                                    <?php if (!empty($announcement['image_path'])): ?>
+                                        <img src="<?= htmlspecialchars($announcement['image_path'], ENT_QUOTES) ?>" alt="Worship announcement" style="display:block;margin-top:10px;max-width:100%;max-height:280px;border-radius:8px;">
+                                    <?php endif; ?>
+                                </article>
+                            <?php endwhile; ?>
+                        </div>
+                    <?php else: ?>
+                        <p style="margin:0;color:var(--text-muted);">No worship announcements have been posted yet.</p>
+                    <?php endif; ?>
+                </div>
+
                 <div class="content-card">
                     <h2>Worshipper Tasks</h2>
                     <?php

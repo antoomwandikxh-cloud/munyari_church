@@ -520,7 +520,9 @@ function notification_badge_tabs($message, $user_type, $is_treasurer = false) {
 
     // ─── 18. WORSHIP ANNOUNCEMENTS (worship leader posts to worshippers) ────
     if (strpos($msg, 'worship') !== false && strpos($msg, 'announcement') !== false && strpos($msg, 'worshipper') !== false) {
-        $tabs[] = $user_type === 'member' ? 'manage_worshippers' : 'general_leadership';
+        $tabs[] = $user_type === 'member'
+            ? (strpos($msg, 'worship leader') !== false ? 'manage_worshippers' : 'my_worship_tasks')
+            : 'manage_worshippers';
     }
 
     // Keep messages that predate explicit routing visible instead of silently

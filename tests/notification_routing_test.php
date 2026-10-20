@@ -20,6 +20,45 @@ expect_same('manage_department', notification_target_tab($routed_message, 'membe
 expect_same('womens_ministry', notification_target_group($routed_message, 'member'), 'click routing preserves the department group');
 expect_same('department-member-42', notification_route_metadata($routed_message)['row'], 'exact row focus survives routing');
 expect_same('A new member was approved.', notification_display_message($routed_message, 'member'), 'routing metadata is hidden from the visible message');
+$worship_announcement = notification_with_route(
+    'Worship announcement posted by Amina Kageni for worshippers.',
+    'manage_worshippers',
+    '',
+    'worship-announcement-73'
+);
+expect_same(['manage_worshippers'], notification_badge_tabs($worship_announcement, 'pastor'), 'worship announcements badge the Pastor Manage Worshippers tab');
+expect_same('manage_worshippers', notification_target_tab($worship_announcement, 'pastor'), 'worship announcement opens Pastor Manage Worshippers');
+expect_same('worship-announcement-73', notification_route_metadata($worship_announcement)['row'], 'worship announcement routing identifies its exact post');
+expect_same('Worship announcement posted by Amina Kageni for worshippers.', notification_display_message($worship_announcement, 'pastor'), 'worship announcement route metadata stays hidden from the visible notification');
+$worshipper_announcement = notification_with_route(
+    'Worship announcement posted by Amina Kageni for worshippers.',
+    'my_worship_tasks',
+    '',
+    'worship-announcement-73'
+);
+expect_same('my_worship_tasks', notification_target_tab($worshipper_announcement, 'member'), 'worshipper announcement opens My Tasks');
+$worship_glow_script = render_notification_tab_glow_script('manage_worshippers', 'manage_worshippers', $worship_announcement);
+if (strpos($worship_glow_script, 'notification-row:worship-announcement-73') === false
+    || strpos($worship_glow_script, 'notification-row-glow') === false) {
+    fwrite(STDERR, "FAIL: worship announcement notification reaches the exact gold-glow row handler.\n");
+    exit(1);
+}
+foreach (['pastor_dashboard.php', 'admin_dashboard.php', 'member_dashboard.php'] as $worship_dashboard) {
+    $worship_dashboard_source = file_get_contents(__DIR__ . '/../' . $worship_dashboard);
+    if ($worship_dashboard_source === false
+        || strpos($worship_dashboard_source, 'data-notification-row="worship-announcement-') === false) {
+        fwrite(STDERR, "FAIL: $worship_dashboard must render the exact worship-announcement focus row.\n");
+        exit(1);
+    }
+}
+$worship_member_source = file_get_contents(__DIR__ . '/../member_dashboard.php');
+if ($worship_member_source === false
+    || strpos($worship_member_source, 'notification_with_route($notif_text, $target_tab') === false
+    || strpos($worship_member_source, "'pastor', 'manage_worshippers'") === false
+    || strpos($worship_member_source, "'admin', 'manage_worshippers'") === false) {
+    fwrite(STDERR, "FAIL: worship announcements must send explicitly routed notifications to church oversight.\n");
+    exit(1);
+}
 $event_notification = notification_with_route(
     'New department announcement from Organising Secretary Amina Kageni: Weekly Meeting',
     'organized_events',

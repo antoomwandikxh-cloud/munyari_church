@@ -2014,14 +2014,64 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_worship_announcem
     }
     if (!empty($ann_msg)) {
         $img_sql = $image_path ? "'$image_path'" : "NULL";
-        $conn->query("INSERT INTO worship_announcements (leader_id, message, image_path) VALUES ($member_id, '$ann_msg', $img_sql)");
-        // Notify all worshippers in the department
-        $sender_name = $conn->real_escape_string($member['first_name'] . ' ' . $member['last_name']);
-        $notif_msg = $conn->real_escape_string("Worship Leader $sender_name posted an announcement to worshippers");
-        $w_members = $conn->query("SELECT id FROM members WHERE is_approved=1 AND LOWER(department) LIKE '%worship%' AND id != $member_id");
-        while ($wm = $w_members->fetch_assoc()) {
-            $wid = $wm['id'];
-            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($wid, 'member', '$notif_msg')");
+        $announcement_saved = $conn->query("INSERT INTO worship_announcements (leader_id, message, image_path) VALUES ($member_id, '$ann_msg', $img_sql)");
+        if ($announcement_saved) {
+            $announcement_id = (int)$conn->insert_id;
+            $sender_name = trim($member['first_name'] . ' ' . $member['last_name']);
+            $notif_text = "Worship announcement posted by $sender_name for worshippers.";
+            $announcement_row = 'worship-announcement-' . $announcement_id;
+            $notification_recipients = [];
+
+            $worshippers = $conn->query("SELECT id, church_role FROM members
+                WHERE is_approved = 1 AND id <> $member_id AND (
+                    LOWER(TRIM(COALESCE(church_role, ''))) LIKE '%worshipper%'
+                    OR LOWER(TRIM(COALESCE(department, ''))) LIKE '%worship%'
+                    OR LOWER(TRIM(COALESCE(desired_role_pref, ''))) = 'worshipper'
+                )");
+            if ($worshippers) {
+                while ($worshipper = $worshippers->fetch_assoc()) {
+                    $role = strtolower((string)($worshipper['church_role'] ?? ''));
+                    $target_tab = strpos($role, 'worship leader') !== false ? 'manage_worshippers' : 'my_worship_tasks';
+                    $recipient_id = (int)$worshipper['id'];
+                    $notification_recipients['member:' . $recipient_id] = [$recipient_id, 'member', $target_tab];
+                }
+            }
+
+            $worship_leaders = $conn->query("SELECT id FROM members
+                WHERE is_approved = 1 AND id <> $member_id
+                  AND LOWER(TRIM(COALESCE(church_role, ''))) LIKE '%worship leader%'");
+            if ($worship_leaders) {
+                while ($worship_leader = $worship_leaders->fetch_assoc()) {
+                    $recipient_id = (int)$worship_leader['id'];
+                    $notification_recipients['member:' . $recipient_id] = [$recipient_id, 'member', 'manage_worshippers'];
+                }
+            }
+
+            $pastors = $conn->query("SELECT id FROM pastors");
+            if ($pastors) {
+                while ($pastor_recipient = $pastors->fetch_assoc()) {
+                    $recipient_id = (int)$pastor_recipient['id'];
+                    $notification_recipients['pastor:' . $recipient_id] = [$recipient_id, 'pastor', 'manage_worshippers'];
+                }
+            }
+
+            $admins = $conn->query("SELECT id FROM admins");
+            if ($admins) {
+                while ($admin_recipient = $admins->fetch_assoc()) {
+                    $recipient_id = (int)$admin_recipient['id'];
+                    $notification_recipients['admin:' . $recipient_id] = [$recipient_id, 'admin', 'manage_worshippers'];
+                }
+            }
+
+            $notification_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
+            if ($notification_stmt) {
+                foreach ($notification_recipients as [$recipient_id, $recipient_type, $target_tab]) {
+                    $routed_message = notification_with_route($notif_text, $target_tab, '', $announcement_row);
+                    $notification_stmt->bind_param('iss', $recipient_id, $recipient_type, $routed_message);
+                    $notification_stmt->execute();
+                }
+                $notification_stmt->close();
+            }
         }
         header("Location: member_dashboard.php?tab=manage_worshippers&success=Announcement posted to worshippers");
         exit();
@@ -6229,13 +6279,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
                     <!-- Previous Announcements -->
                     <?php
-                    $prev_anns = $conn->query("SELECT wa.*, m.first_name, m.last_name FROM worship_announcements wa JOIN members m ON wa.leader_id = m.id ORDER BY wa.created_at DESC LIMIT 10");
+                    $prev_anns = $conn->query("SELECT wa.*, m.first_name, m.last_name FROM worship_announcements wa JOIN members m ON wa.leader_id = m.id ORDER BY wa.created_at DESC");
                     if ($prev_anns && $prev_anns->num_rows > 0): ?>
                     <hr style="margin:24px 0; border-color:var(--border-color);">
                     <h3 style="margin-bottom:14px;">Recent Announcements</h3>
                     <div style="display:flex; flex-direction:column; gap:14px;">
                         <?php while($ann = $prev_anns->fetch_assoc()): ?>
-                        <div style="background:var(--bg-lighter); border-radius:12px; padding:16px;">
+                        <div data-notification-row="worship-announcement-<?= (int)$ann['id'] ?>" style="background:var(--bg-lighter); border-radius:12px; padding:16px;">
                             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                                 <strong style="color:var(--primary);"><?= htmlspecialchars($ann['first_name'] . ' ' . $ann['last_name']) ?></strong>
                                 <span style="font-size:0.78rem; color:var(--text-muted);"><?= date('M j, Y g:i A', strtotime($ann['created_at'])) ?></span>
@@ -10971,6 +11021,41 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <h3>Completed Tasks</h3>
                     <div class="value" style="color:var(--success);"><?= $wt_done ?></div>
                 </div>
+            </div>
+
+            <div class="content-card" style="margin-bottom:24px;">
+                <h2>Worship Announcements</h2>
+                <?php
+                $my_worship_announcements = $conn->query("SELECT wa.*, m.first_name, m.last_name, m.profile_picture
+                    FROM worship_announcements wa
+                    JOIN members m ON m.id = wa.leader_id
+                    ORDER BY wa.created_at DESC");
+                ?>
+                <?php if ($my_worship_announcements && $my_worship_announcements->num_rows > 0): ?>
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <?php while ($announcement = $my_worship_announcements->fetch_assoc()):
+                            $announcement_photo = !empty($announcement['profile_picture'])
+                                ? 'uploads/' . rawurlencode(basename($announcement['profile_picture']))
+                                : 'uploads/default_avatar.png';
+                        ?>
+                            <article data-notification-row="worship-announcement-<?= (int)$announcement['id'] ?>" class="content-card" style="padding:16px;border-left:4px solid #d4a017;">
+                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                                    <img src="<?= htmlspecialchars($announcement_photo, ENT_QUOTES) ?>" alt="Worship leader profile" style="width:38px;height:38px;object-fit:cover;border-radius:50%;" onerror="this.onerror=null;this.src='uploads/default_avatar.png';">
+                                    <div style="min-width:0;">
+                                        <strong><?= htmlspecialchars(trim($announcement['first_name'] . ' ' . $announcement['last_name'])) ?></strong>
+                                        <div style="font-size:.8rem;color:var(--text-muted);">Worship Leader · <?= htmlspecialchars(date('M j, Y g:i A', strtotime($announcement['created_at']))) ?></div>
+                                    </div>
+                                </div>
+                                <p style="margin:0;white-space:pre-wrap;line-height:1.6;"><?= htmlspecialchars($announcement['message']) ?></p>
+                                <?php if (!empty($announcement['image_path'])): ?>
+                                    <img src="<?= htmlspecialchars($announcement['image_path'], ENT_QUOTES) ?>" alt="Worship announcement" style="display:block;margin-top:10px;max-width:100%;max-height:280px;border-radius:8px;">
+                                <?php endif; ?>
+                            </article>
+                        <?php endwhile; ?>
+                    </div>
+                <?php else: ?>
+                    <p style="margin:0;color:var(--text-muted);">No worship announcements have been posted yet.</p>
+                <?php endif; ?>
             </div>
 
             <!-- Pending Tasks -->
