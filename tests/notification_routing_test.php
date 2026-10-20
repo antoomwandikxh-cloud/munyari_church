@@ -113,8 +113,10 @@ foreach ([
     if ($dashboard_source === false
         || strpos($dashboard_source, 'id="' . $announcement_panel_id . '" data-notification-row-panel') === false
         || strpos($dashboard_source, "aria-controls=\"" . $announcement_panel_id . "\"") === false
+        || strpos($dashboard_source, 'SELECT COUNT(*) AS c FROM worship_announcements') === false
+        || strpos($dashboard_source, 'Show Worship Announcements (<?= $worship_announcement_count ?>)') === false
         || strpos($dashboard_source, 'toggleWorshipAnnouncementPanel(' . "'" . $announcement_panel_id . "'") === false) {
-        fwrite(STDERR, "FAIL: $dashboard_file must provide a collapsible worship-announcement panel that can be opened by notification focus.\n");
+        fwrite(STDERR, "FAIL: $dashboard_file must provide a collapsible, counted worship-announcement panel that can be opened by notification focus.\n");
         exit(1);
     }
 }
@@ -132,9 +134,11 @@ foreach ([
     'worship announcement editor' => 'beginWorshipAnnouncementEdit(this)',
     'shared leader edit permission' => 'isset($_POST[\'edit_worship_announcement\']) && ($is_worship_leader || $is_vice_worship_leader)',
     'shared leader delete permission' => 'isset($_POST[\'delete_worship_announcement\']) && ($is_worship_leader || $is_vice_worship_leader)',
+    'worship leader management panel is shared by leader and vice' => "elseif (\$tab == 'manage_worshippers' && (\$is_worship_leader || \$is_vice_worship_leader))",
     'announcement delete clears exact stale notification routes' => "'[notification-row:worship-announcement-' . \$announcement_id . ']'",
     'announcement delete removes attached media' => 'remove_worship_announcement_media($existing[\'audio_path\'] ?? null)',
     'announcement delete button' => 'name="delete_worship_announcement"',
+    'announcement delete button label' => 'Delete Announcement',
     'announcement update notifications use the route helper' => 'notification_with_route($notice_text, $target_tab',
     'voice-only announcements are accepted' => '($ann_msg !== \'\' || $audio_path)',
 ] as $worship_feature => $worship_source_marker) {

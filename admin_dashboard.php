@@ -4531,6 +4531,8 @@ w.document.write('</div>');
                     $worshippers_count = $conn->query("SELECT COUNT(*) as c FROM members WHERE LOWER(church_role) LIKE '%worshipper%' OR LOWER(department) LIKE '%worship%' OR desired_role_pref = 'Worshipper'")->fetch_assoc()['c'];
                     $total_tasks = $conn->query("SELECT COUNT(*) as c FROM worship_tasks")->fetch_assoc()['c'];
                     $pending_tasks = $conn->query("SELECT COUNT(*) as c FROM worship_tasks WHERE status='Pending'")->fetch_assoc()['c'];
+                    $worship_announcement_count_result = $conn->query("SELECT COUNT(*) AS c FROM worship_announcements");
+                    $worship_announcement_count = $worship_announcement_count_result ? (int)$worship_announcement_count_result->fetch_assoc()['c'] : 0;
                     ?>
                     <div class="stat-card">
                         <h3>Total Worshippers</h3>
@@ -4545,7 +4547,7 @@ w.document.write('</div>');
                         <div class="value" style="color:var(--warning);"><?= $pending_tasks ?></div>
                     </div>
                     <div style="display:flex;align-items:center;">
-                        <button type="button" aria-controls="adminWorshipAnnouncementPanel" aria-expanded="false" data-open-label="Hide Worship Announcements" data-closed-label="Show Worship Announcements" onclick="toggleWorshipAnnouncementPanel('adminWorshipAnnouncementPanel', this)" style="border:1px solid #a77b08;border-radius:7px;padding:11px 15px;background:#d4a017;color:#1b1b1b;font-weight:700;cursor:pointer;box-shadow:0 0 0 2px rgba(212,160,23,.2);">Show Worship Announcements</button>
+                        <button type="button" aria-controls="adminWorshipAnnouncementPanel" aria-expanded="false" data-open-label="Hide Worship Announcements (<?= $worship_announcement_count ?>)" data-closed-label="Show Worship Announcements (<?= $worship_announcement_count ?>)" onclick="toggleWorshipAnnouncementPanel('adminWorshipAnnouncementPanel', this)" style="border:1px solid #a77b08;border-radius:7px;padding:11px 15px;background:#d4a017;color:#1b1b1b;font-weight:700;cursor:pointer;box-shadow:0 0 0 2px rgba(212,160,23,.2);">Show Worship Announcements (<?= $worship_announcement_count ?>)</button>
                     </div>
                 </div>
 
