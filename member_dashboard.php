@@ -9051,12 +9051,19 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <div style="padding: 14px; border: 1px solid var(--border-color); border-radius: 8px;"><span style="display:block;color:var(--text-muted);font-size:.82rem;">Resolved</span><strong><?= (int)($dm_report_stats['resolved_with_member'] ?? 0) ?></strong></div>
                     </div>
                     <?php if ($dm_report_history && $dm_report_history->num_rows > 0): ?>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
+                            <div style="position:relative;flex:1 1 280px;max-width:420px;">
+                                <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"><circle cx="11" cy="11" r="7" stroke-width="2"></circle><path d="m20 20-4-4" stroke-width="2" stroke-linecap="round"></path></svg>
+                                <input type="search" id="disciplinaryReportMemberSearch" class="form-control" data-fine-target="disciplinaryReportRows" data-fine-count="disciplinaryReportCount" data-fine-count-label="cases" placeholder="Search reported member name" autocomplete="off" aria-label="Search cases sent to chairperson by reported member name" style="width:100%;padding:9px 12px 9px 36px;">
+                            </div>
+                            <span id="disciplinaryReportCount" aria-live="polite" style="font-size:.85rem;color:var(--text-muted);">Showing <?= (int)$dm_report_history->num_rows ?> cases</span>
+                        </div>
                         <div class="table-responsive">
                             <table>
                                 <thead><tr><th>No.</th><th>Profile</th><th>Member</th><th>Department</th><th>Reason</th><th>Status</th><th>Date</th></tr></thead>
-                                <tbody>
+                                <tbody id="disciplinaryReportRows">
                                     <?php $dm_report_number = 0; while ($dm_report = $dm_report_history->fetch_assoc()): $dm_report_number++; ?>
-                                        <tr data-notification-row="disciplinary-report-<?= (int)$dm_report['id'] ?>">
+                                        <tr data-notification-row="disciplinary-report-<?= (int)$dm_report['id'] ?>" data-fine-member-name="<?= htmlspecialchars(trim($dm_report['first_name'] . ' ' . $dm_report['last_name']), ENT_QUOTES, 'UTF-8') ?>">
                                             <td style="text-align:center;font-weight:700;"><?= $dm_report_number ?></td>
                                             <td><img src="uploads/<?= htmlspecialchars(basename($dm_report['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($dm_report['first_name'] . ' ' . $dm_report['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View reported member photo"></td>
                                             <td><?= htmlspecialchars($dm_report['first_name'] . ' ' . $dm_report['last_name']) ?></td>
@@ -9078,6 +9085,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
+                            <div class="fine-member-no-match" style="display:none;text-align:center;color:var(--text-muted);padding:16px;">No reported cases match that member name.</div>
                         </div>
                     <?php else: ?>
                         <p style="color:var(--text-muted);margin:0;">You have not sent any disciplinary reports yet.</p>
@@ -10731,7 +10739,7 @@ window.filterFineMemberRows = function(input) {
     if (emptyMessage) emptyMessage.style.display = visible ? 'none' : 'block';
 
     var count = document.getElementById(input.dataset.fineCount || '');
-    if (count) count.textContent = 'Showing ' + visible + ' of ' + rows.length + ' fines';
+    if (count) count.textContent = 'Showing ' + visible + ' of ' + rows.length + ' ' + (input.dataset.fineCountLabel || 'fines');
 };
 document.querySelectorAll('input[data-fine-target]').forEach(function(input) {
     input.addEventListener('input', function() {
