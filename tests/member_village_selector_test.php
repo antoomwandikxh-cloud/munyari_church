@@ -20,6 +20,10 @@ $required_markers = [
     'village request preserves the saved role' => '$requested_role = $current_role;',
     'role request preserves the saved village' => '$requested_village = $current_village;',
     'unchanged preferences are blocked server side' => 'if ($unchanged_message !== \'\')',
+    'pending message distinguishes changed village from role' => '$pending_request_message = $pending_changes',
+    'pending village is compared with saved village' => 'strcasecmp($pending_village_value, $saved_village_value)',
+    'pending role is compared with saved role' => 'strcasecmp($pending_role_value, $saved_role_value)',
+    'pending banner uses readable theme-aware status styling' => 'role="status" style="display:flex;align-items:flex-start;',
     'canceling update confirmation prevents submission' => 'if (!window.confirm(confirmMessage)) event.preventDefault();',
     'selected village reflected visually' => '.church-village-choice[aria-pressed="true"]',
     'village cards have individual accent colors' => '--choice-accent:<?= htmlspecialchars($choice_palette[\'accent\']',
@@ -48,6 +52,10 @@ foreach ($required_markers as $label => $marker) {
 }
 if (strpos($member_dashboard, '<select name="church_village"') !== false) {
     fwrite(STDERR, "FAIL: the member Church Village form should not render the old village dropdown.\n");
+    exit(1);
+}
+if (strpos($member_dashboard, '?3 Your request to update your church village') !== false) {
+    fwrite(STDERR, "FAIL: the pending preference banner must not contain the stray ?3 text.\n");
     exit(1);
 }
 if (strpos($member_dashboard, '<select name="desired_role_pref"') !== false) {

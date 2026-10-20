@@ -10638,9 +10638,26 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             </div>
             <?php endif; ?>
 
-            <?php if (!empty($member['pending_church_village'])): ?>
-                <div style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#b45309;padding:12px 16px;border-radius:10px;margin-bottom:18px;">
-                    ?3 Your request to update your church village to <strong><?= htmlspecialchars($member['pending_church_village']) ?></strong> is pending Pastor approval.
+            <?php
+            $pending_village_value = trim((string)($member['pending_church_village'] ?? ''));
+            $pending_role_value = trim((string)($member['pending_desired_role_pref'] ?? ''));
+            $saved_village_value = trim((string)($member['church_village'] ?? ''));
+            $saved_role_value = trim((string)($member['desired_role_pref'] ?? ''));
+            $pending_changes = [];
+            if ($pending_village_value !== '' && strcasecmp($pending_village_value, $saved_village_value) !== 0) {
+                $pending_changes[] = 'your church village to ' . $pending_village_value;
+            }
+            if (strcasecmp($pending_role_value, $saved_role_value) !== 0) {
+                $pending_changes[] = 'your desired role to ' . ($pending_role_value !== '' ? $pending_role_value : 'No desired role');
+            }
+            $pending_request_message = $pending_changes
+                ? 'Your request to change ' . implode(' and ', $pending_changes) . ' is pending Pastor approval.'
+                : 'Your preference update request is pending Pastor approval.';
+            ?>
+            <?php if ($pending_village_value !== ''): ?>
+                <div role="status" style="display:flex;align-items:flex-start;gap:10px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-left:4px solid var(--warning);color:var(--text-main);padding:12px 16px;border-radius:8px;margin-bottom:18px;">
+                    <svg width="19" height="19" fill="none" stroke="var(--warning)" viewBox="0 0 24 24" aria-hidden="true" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9" stroke-width="2"></circle><path d="M12 7v5l3 2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span><?= htmlspecialchars($pending_request_message, ENT_QUOTES, 'UTF-8') ?></span>
                 </div>
             <?php endif; ?>
             <?php if (isset($_GET['success'])): ?>
