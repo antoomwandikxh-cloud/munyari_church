@@ -18,7 +18,7 @@ $required_markers = [
     'first-time setup has one save action' => 'name="preference_action" value="initial_setup" class="btn-primary" style="padding:12px 24px;">Save Preferences',
     'village can be changed independently' => 'name="preference_action" value="change_village" class="btn-primary" style="margin-top:10px;padding:9px 16px;">Change Village',
     'role can be changed independently' => 'name="preference_action" value="change_role" class="btn-primary" style="margin-top:10px;padding:9px 16px;">Change Role',
-    'same village prompts member to change earlier choice' => "You already chose ' + savedVillage + ' village. You can change the village you selected earlier",
+    'same village warns member to select a different village' => "You cannot choose the village you chose earlier (' + savedVillage + '). Go back and choose a different village.",
     'same role is rejected with the requested message' => 'You cannot choose the same role you picked earlier. Go back and choose a different one.',
     'village change confirmation names only the selected village' => "confirmMessage = 'You selected ' + villageInput.value + ' village. Send this church village change request to the Pastor for approval?'",
     'village request message omits the unchanged role' => '"requested to change their church village to $cv"',
