@@ -10536,6 +10536,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             }
             $village_chat_messages = village_leader_chat_message_result($conn, $notification_focus_messages);
             ?>
+            <?php village_leader_chat_styles(); ?>
             <div class="page-header">
                 <h1>Village Leaders Chat</h1>
                 <p>Shared conversation for the approved leaders of Akoritho, Philadelphia, and Bethsaida.</p>
@@ -10547,28 +10548,27 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <div role="alert" style="margin-bottom:14px;padding:11px 14px;border-radius:8px;border:1px solid rgba(239,68,68,.4);background:rgba(239,68,68,.1);color:var(--text-main);"><?= htmlspecialchars((string)$_GET['error']) ?></div>
             <?php endif; ?>
 
-            <section class="content-card" style="margin-bottom:16px;">
-                <h2 style="margin:0 0 12px;font-size:1rem;color:var(--text-main);">Village Leaders</h2>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <section class="content-card village-chat-panel">
+                <header class="village-chat-header">
+                    <div>
+                        <h2 style="margin:0;color:var(--text-main);font-size:1.05rem;">Village Leaders</h2>
+                        <p style="margin:4px 0 0;color:var(--text-muted);font-size:.82rem;">Akoritho · Philadelphia · Bethsaida</p>
+                    </div>
+                    <span style="font-size:.8rem;color:var(--text-muted);">Group chat</span>
+                </header>
+                <div class="village-chat-member-list">
                     <?php foreach ($village_chat_leaders as $chat_leader):
                         $chat_leader_photo = trim((string)($chat_leader['profile_picture'] ?? ''));
                         $chat_leader_photo = $chat_leader_photo !== '' ? 'uploads/' . rawurlencode(basename($chat_leader_photo)) : 'uploads/default_avatar.png';
                     ?>
-                        <div style="display:flex;align-items:center;gap:9px;padding:8px 11px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-lighter);min-width:190px;">
-                            <img src="<?= htmlspecialchars($chat_leader_photo) ?>" alt="View <?= htmlspecialchars(trim($chat_leader['first_name'] . ' ' . $chat_leader['last_name']), ENT_QUOTES) ?> profile photo" title="Click to view profile photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;flex:0 0 40px;border-radius:50%;object-fit:cover;border:2px solid #d6a832;cursor:zoom-in;">
-                            <div style="min-width:0;">
-                                <div style="font-weight:700;color:var(--text-main);overflow-wrap:anywhere;"><?= htmlspecialchars(trim($chat_leader['first_name'] . ' ' . $chat_leader['last_name'])) ?></div>
-                                <div style="font-size:.82rem;color:var(--text-muted);overflow-wrap:anywhere;"><?= htmlspecialchars($chat_leader['church_village'] ?? '') ?> Village</div>
-                            </div>
+                        <div class="village-chat-member">
+                            <img class="village-chat-avatar" src="<?= htmlspecialchars($chat_leader_photo) ?>" alt="View <?= htmlspecialchars(trim($chat_leader['first_name'] . ' ' . $chat_leader['last_name']), ENT_QUOTES) ?> profile photo" title="Click to view profile photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="border:2px solid #d6a832;">
+                            <span style="min-width:0;color:var(--text-main);font-size:.82rem;"><strong><?= htmlspecialchars(trim($chat_leader['first_name'] . ' ' . $chat_leader['last_name'])) ?></strong><br><span style="color:var(--text-muted);font-size:.76rem;"><?= htmlspecialchars($chat_leader['church_village'] ?? '') ?></span></span>
                         </div>
                     <?php endforeach; ?>
                     <?php if (!$village_chat_leaders): ?><p style="margin:0;color:var(--text-muted);">No approved village leaders are available yet.</p><?php endif; ?>
                 </div>
-            </section>
-
-            <section class="content-card" style="padding:0;overflow:hidden;">
-                <div style="padding:14px 16px;border-bottom:1px solid var(--border-color);font-weight:700;color:var(--text-main);">Shared Messages</div>
-                <div id="villageLeadersChatMessages" style="display:flex;flex-direction:column;gap:12px;padding:16px;max-height:55vh;min-height:220px;overflow:auto;background:var(--bg-main);">
+                <div id="villageLeadersChatMessages" class="village-chat-thread">
                     <?php if ($village_chat_messages && $village_chat_messages->num_rows > 0): ?>
                         <?php while ($chat_message = $village_chat_messages->fetch_assoc()):
                             $chat_message_is_own = (int)$chat_message['sender_id'] === (int)$member_id;
@@ -10576,15 +10576,15 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             $chat_message_photo = $chat_message_photo !== '' ? 'uploads/' . rawurlencode(basename($chat_message_photo)) : 'uploads/default_avatar.png';
                             $chat_message_sender = trim($chat_message['first_name'] . ' ' . $chat_message['last_name']);
                         ?>
-                            <article data-notification-row="village-leader-chat-<?= (int)$chat_message['id'] ?>" style="display:flex;align-items:flex-end;gap:9px;max-width:min(760px,100%);align-self:<?= $chat_message_is_own ? 'flex-end' : 'flex-start' ?>;flex-direction:<?= $chat_message_is_own ? 'row-reverse' : 'row' ?>;">
-                                <img src="<?= htmlspecialchars($chat_message_photo) ?>" alt="View <?= htmlspecialchars($chat_message_sender, ENT_QUOTES) ?> profile photo" title="Click to view profile photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:38px;height:38px;flex:0 0 38px;border-radius:50%;object-fit:cover;border:1px solid var(--border-color);cursor:zoom-in;">
-                                <div style="min-width:100px;padding:10px 13px;border:1px solid var(--border-color);border-radius:12px;background:<?= $chat_message_is_own ? 'rgba(16,185,129,.13)' : 'var(--bg-lighter)' ?>;color:var(--text-main);">
-                                    <div style="display:flex;gap:12px;justify-content:space-between;align-items:baseline;flex-wrap:wrap;margin-bottom:5px;">
-                                        <strong style="font-size:.86rem;"><?= htmlspecialchars($chat_message_sender) ?></strong>
-                                        <span style="font-size:.76rem;color:var(--text-muted);"><?= htmlspecialchars($chat_message['church_village'] ?? '') ?> Village</span>
+                            <article class="village-chat-message <?= $chat_message_is_own ? 'is-own' : '' ?>" data-notification-row="village-leader-chat-<?= (int)$chat_message['id'] ?>">
+                                <img class="village-chat-avatar" src="<?= htmlspecialchars($chat_message_photo) ?>" alt="View <?= htmlspecialchars($chat_message_sender, ENT_QUOTES) ?> profile photo" title="Click to view profile photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';">
+                                <div class="village-chat-bubble">
+                                    <div class="village-chat-bubble-head">
+                                        <strong style="font-size:.84rem;"><?= htmlspecialchars($chat_message_sender) ?></strong>
+                                        <span style="font-size:.74rem;color:var(--text-muted);"><?= htmlspecialchars($chat_message['church_village'] ?? '') ?> Village</span>
                                     </div>
-                                    <div style="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45;"><?= htmlspecialchars($chat_message['message']) ?></div>
-                                    <time datetime="<?= htmlspecialchars($chat_message['created_at']) ?>" style="display:block;margin-top:6px;text-align:right;font-size:.72rem;color:var(--text-muted);">
+                                    <div class="village-chat-text"><?= htmlspecialchars($chat_message['message']) ?></div>
+                                    <time class="village-chat-time" datetime="<?= htmlspecialchars($chat_message['created_at']) ?>">
                                         <?= htmlspecialchars(date('M j, Y g:i A', strtotime($chat_message['created_at']))) ?>
                                     </time>
                                 </div>
@@ -10594,10 +10594,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <p style="margin:auto;color:var(--text-muted);text-align:center;">No messages yet. Start the conversation with the other village leaders.</p>
                     <?php endif; ?>
                 </div>
-                <form method="POST" action="?tab=village_leader_chat" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:12px;border-top:1px solid var(--border-color);background:var(--bg-lighter);">
+                <form method="POST" action="?tab=village_leader_chat" class="village-chat-composer">
                     <input type="hidden" name="send_village_leader_chat" value="1">
-                    <textarea name="village_leader_message" required maxlength="4000" rows="2" placeholder="Write a message to all village leaders..." aria-label="Message to all village leaders" style="flex:1 1 180px;min-width:0;resize:vertical;padding:11px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-main);color:var(--text-main);font:inherit;"></textarea>
-                    <button type="submit" class="btn-primary" style="flex:0 0 auto;padding:10px 16px;">Send</button>
+                    <textarea name="village_leader_message" required maxlength="4000" rows="2" placeholder="Write a message..." aria-label="Message to all village leaders"></textarea>
+                    <button type="submit" class="village-chat-send">Send</button>
                 </form>
             </section>
             <script>
