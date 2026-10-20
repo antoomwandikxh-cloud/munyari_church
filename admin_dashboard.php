@@ -4730,6 +4730,7 @@ w.document.write('</div>');
                     'building_construction' => ['label' => 'Building Announcements', 'color' => '#ef4444'],
                     'worship_leaders' => ['label' => 'Worship Announcements', 'color' => '#d946ef'],
                     'village_leaders' => ['label' => 'Church Village Announcements', 'color' => '#d6a832'],
+                    'announcement_queries' => ['label' => 'Announcement Queries', 'color' => '#0f766e'],
                 ];
                 ?>
                 <div class="content-card" id="announcement-department-filter" style="margin:0 0 12px;padding:14px 16px;">
@@ -4767,8 +4768,8 @@ w.document.write('</div>');
                 </div>
 
                 <!-- Announcement Queries from Secretaries -->
-                <div class="content-card" style="margin-bottom:24px;border-left:4px solid #f59e0b;">
-                    <h2 style="font-size:1.05rem;margin-top:0;color:#f59e0b;">📬 Announcement Queries (from Secretaries)</h2>
+                <div class="content-card" data-announcement-panel style="display:none;margin-bottom:24px;border-left:4px solid #0f766e;">
+                    <h2 style="font-size:1.05rem;margin-top:0;color:#0f766e;">📬 Announcement Queries (from Secretaries)</h2>
                     <?php
                     $ann_queries = $conn->query("
                         SELECT q.*, m.first_name, m.last_name, m.church_role
@@ -4779,7 +4780,7 @@ w.document.write('</div>');
                     if ($ann_queries && $ann_queries->num_rows > 0):
                         while ($q = $ann_queries->fetch_assoc()):
                     ?>
-                        <div style="padding:12px 0;border-bottom:1px solid var(--border-color);">
+                        <div data-announcement-department="announcement_queries" style="padding:12px 0 12px 12px;border-bottom:1px solid var(--border-color);border-left:4px solid #0f766e;">
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
                                 <div>
                                     <strong style="color:var(--text-main);"><?= htmlspecialchars($q['first_name'] . ' ' . $q['last_name']) ?></strong>
