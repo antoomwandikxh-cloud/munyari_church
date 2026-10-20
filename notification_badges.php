@@ -46,6 +46,10 @@ function notification_badge_tabs($message, $user_type, $is_treasurer = false) {
     if (strpos($msg, 'financial record submitted for chairperson review in ') === 0) {
         return $user_type === 'member' ? ['received_financials'] : ['financials'];
     }
+    if (($user_type === 'pastor' || $user_type === 'admin')
+        && preg_match('/^.+?\s+treasurer\s+\(.+\)\s+recorded a collection of ksh\b/i', trim((string)$message))) {
+        return ['financials'];
+    }
     if (strpos($msg, 'treasurer submitted a financial record of ksh ') === 0) {
         return ['financials'];
     }
@@ -639,6 +643,13 @@ function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab
                         (string)($notification['created_at'] ?? ''),
                         (int)($notification['related_member_id'] ?? 0)
                     );
+                    $last_message_index = count($current_tab_messages) - 1;
+                    $current_tab_messages[$last_message_index] = notification_focus_message_with_financial_record_id(
+                        $conn,
+                        $current_tab_messages[$last_message_index],
+                        (string)($notification['created_at'] ?? ''),
+                        $user_type
+                    );
                 }
             }
         }
@@ -736,6 +747,45 @@ function notification_focus_message_with_member_id($conn, $message, $created_at 
 function notification_target_tab($message, $user_type, $fallback_tab = 'dashboard', $is_treasurer = false) {
     $tabs = notification_badge_tabs($message, $user_type, $is_treasurer);
     return $tabs[0] ?? $fallback_tab;
+}
+
+function notification_focus_message_with_financial_record_id($conn, $message, $notification_created_at, $user_type) {
+    $message = (string)$message;
+    if (!in_array($user_type, ['pastor', 'admin'], true)
+        || preg_match('/\[financial-record-id:\s*\d+\]/i', $message)
+        || !preg_match('/^(.+?)\s+Treasurer\s+\((.+?)\)\s+recorded a collection of KSh\s+([\d,]+(?:\.\d{1,2})?)/i', trim($message), $match)) {
+        return $message;
+    }
+
+    $department = trim($match[1]);
+    $poster_name = trim($match[2]);
+    $amount = (float)str_replace(',', '', $match[3]);
+    $created_at = trim((string)$notification_created_at);
+    if ($department === '' || $poster_name === '' || $amount <= 0 || $created_at === '') {
+        return $message;
+    }
+
+    $statement = $conn->prepare("SELECT fr.id
+        FROM financial_records fr
+        LEFT JOIN members m ON m.id = fr.recorded_by
+        WHERE fr.department = ?
+          AND fr.amount = ?
+          AND LOWER(TRIM(COALESCE(NULLIF(fr.recorded_by_name, ''), CONCAT_WS(' ', m.first_name, m.last_name)))) = LOWER(TRIM(?))
+          AND fr.recorded_at IS NOT NULL
+          AND ABS(TIMESTAMPDIFF(SECOND, fr.recorded_at, ?)) <= 600
+        ORDER BY ABS(TIMESTAMPDIFF(SECOND, fr.recorded_at, ?)) ASC, fr.id DESC
+        LIMIT 1");
+    if (!$statement) return $message;
+
+    $statement->bind_param('sdsss', $department, $amount, $poster_name, $created_at, $created_at);
+    $statement->execute();
+    $statement->bind_result($record_id);
+    $found = $statement->fetch();
+    $statement->close();
+
+    return $found && (int)$record_id > 0
+        ? $message . ' [financial-record-id:' . (int)$record_id . ']'
+        : $message;
 }
 
 function notification_focus_message_with_media_id($conn, $message, $notification_created_at) {

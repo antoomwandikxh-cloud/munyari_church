@@ -55,6 +55,7 @@ if ($notification_found) {
     $redirect_tab = notification_target_tab($notification_message, $user_type, 'dashboard', $is_treasurer_member);
     $notification_focus_message = notification_focus_message_with_media_id($conn, $notification_message, $notification_created_at);
     $notification_focus_message = notification_focus_message_with_member_id($conn, $notification_focus_message, $notification_created_at, $notification_related_member_id);
+    $notification_focus_message = notification_focus_message_with_financial_record_id($conn, $notification_focus_message, $notification_created_at, $user_type);
     $_SESSION['notification_tab_glow'] = $redirect_tab;
     $_SESSION['notification_row_focus'] = [
         'tab' => $redirect_tab,

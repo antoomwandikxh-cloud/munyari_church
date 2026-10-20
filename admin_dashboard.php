@@ -4973,7 +4973,7 @@ w.document.write('</div>');
                         <thead><tr><th>Posted By</th><th>Amount (KSh)</th><th>Description</th><th>Date</th><th>Change Reason</th><th>Status</th></tr></thead>
                         <tbody>
                             <?php while($fr = $fin_records->fetch_assoc()): ?>
-                            <tr class="fin-record-row" data-dept="<?= htmlspecialchars($d) ?>" data-poster="<?= htmlspecialchars($fr['poster_name'] ?? '') ?>" data-desc="<?= htmlspecialchars($fr['description'] ?? '') ?>" data-amount="<?= htmlspecialchars($fr['amount'] ?? '') ?>">
+                            <tr class="fin-record-row" data-notification-row="financial-record-<?= (int)$fr['id'] ?>" data-dept="<?= htmlspecialchars($d) ?>" data-poster="<?= htmlspecialchars($fr['poster_name'] ?? '') ?>" data-desc="<?= htmlspecialchars($fr['description'] ?? '') ?>" data-amount="<?= htmlspecialchars($fr['amount'] ?? '') ?>">
                                 <td>
                                     <div style="display:flex;align-items:center;gap:9px;">
                                         <img src="uploads/<?= htmlspecialchars($fr['poster_pic'] ?? 'default_avatar.png') ?>"

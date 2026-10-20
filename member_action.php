@@ -341,11 +341,15 @@ if (isset($_GET['action'])) {
             $record_date = $conn->real_escape_string($_POST['record_date']);
             $esc_dept = $conn->real_escape_string($submitted_dept);
             $recorder_name = $conn->real_escape_string($member_query['first_name'] . ' ' . $member_query['last_name']);
-            $conn->query("INSERT INTO financial_records (pastor_id, department, amount, description, record_date, recorded_by, recorded_by_name) VALUES (0, '$esc_dept', $amount, '$description', '$record_date', $member_id, '$recorder_name')");
+            if (!$conn->query("INSERT INTO financial_records (pastor_id, department, amount, description, record_date, recorded_by, recorded_by_name) VALUES (0, '$esc_dept', $amount, '$description', '$record_date', $member_id, '$recorder_name')")) {
+                header("Location: member_dashboard.php?tab=financials&treasurer_dept=" . urlencode($submitted_dept) . "&error=" . urlencode('The financial record could not be saved. Please try again.'));
+                exit();
+            }
+            $financial_record_id = (int)$conn->insert_id;
             
             // Notify pastors and admins
             $member_name = $conn->real_escape_string($member_query['first_name'] . ' ' . $member_query['last_name']);
-            $notif_text = "$submitted_dept Treasurer ($member_name) recorded a collection of KSh " . number_format($amount, 2);
+            $notif_text = "$submitted_dept Treasurer ($member_name) recorded a collection of KSh " . number_format($amount, 2) . " [financial-record-id:$financial_record_id]";
             $notif_msg = $conn->real_escape_string($notif_text);
             $pastors_q = $conn->query("SELECT id FROM pastors");
             while($p = $pastors_q->fetch_assoc()) {
