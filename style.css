@@ -1646,3 +1646,116 @@ button {
 /* ================================================ */
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
+
+.topbar-quick-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex: 0 0 auto;
+    position: relative;
+}
+
+@media (max-width: 980px) and (orientation: portrait) {
+    .topbar {
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    .topbar-profile-cluster {
+        flex: 0 1 auto;
+        flex-wrap: nowrap !important;
+        gap: 0 !important;
+        min-width: 0 !important;
+        margin-left: 0 !important;
+    }
+
+    .topbar-profile {
+        flex: 0 1 auto;
+        flex-wrap: nowrap !important;
+        min-width: 0 !important;
+        gap: 8px !important;
+    }
+
+    .topbar-profile-meta {
+        min-width: 0;
+        max-width: 90px;
+        overflow: hidden;
+    }
+
+    .topbar-profile-meta > span {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .topbar-action-divider {
+        display: none !important;
+    }
+
+    .topbar-quick-actions {
+        flex-wrap: nowrap !important;
+        gap: 6px;
+        margin-left: auto;
+        min-width: max-content;
+    }
+
+    .topbar-quick-actions .icon-btn {
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+    }
+
+    .topbar-quick-actions .notif-bell-btn {
+        flex-basis: 46px;
+        width: 46px;
+        height: 46px;
+    }
+
+    .topbar-quick-actions .notif-bell-btn svg {
+        width: 24px !important;
+        height: 24px !important;
+    }
+
+    #notifDropdown {
+        right: 0 !important;
+        width: min(320px, calc(100vw - 24px)) !important;
+        max-width: calc(100vw - 24px) !important;
+        max-height: min(540px, calc(100vh - 112px)) !important;
+        max-height: min(540px, calc(100dvh - 112px)) !important;
+    }
+
+    #notifDropdown > div:nth-child(2) {
+        max-height: min(420px, calc(100vh - 230px)) !important;
+        max-height: min(420px, calc(100dvh - 230px)) !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+@media (max-width: 380px) and (orientation: portrait) {
+    .topbar {
+        gap: 6px !important;
+        padding-right: 12px !important;
+        padding-left: 12px !important;
+    }
+
+    .mobile-menu-btn {
+        margin-right: 0 !important;
+    }
+
+    .topbar-profile-meta {
+        display: none !important;
+    }
+
+    .topbar-profile img[alt="Profile"] {
+        width: 40px !important;
+        height: 40px !important;
+    }
+
+    .topbar-quick-actions {
+        gap: 4px;
+    }
+}
