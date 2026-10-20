@@ -7334,20 +7334,24 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             message.style.display = 'block';
                         }
                     }
-                    function rejectNegativeCollectionAmount(input) {
+                    function rejectCollectionAmount(input, messageText) {
                         input.value = '';
-                        input.dataset.negativeRejected = 'true';
-                        showCollectionAmountError(input, 'Negative amounts are not allowed. Enter a value greater than zero.');
+                        input.dataset.amountRejected = 'true';
+                        showCollectionAmountError(input, messageText);
                     }
                     function validateCollectionAmount(input) {
                         var rawValue = input.value.trim();
                         var amount = input.valueAsNumber;
                         if (rawValue !== '' && Number.isFinite(amount) && amount < 0) {
-                            rejectNegativeCollectionAmount(input);
+                            rejectCollectionAmount(input, 'Negative amounts are not allowed. Enter a value greater than zero.');
                             return false;
                         }
-                        if (input.dataset.negativeRejected === 'true' && rawValue === '') return false;
-                        if (input.dataset.negativeRejected === 'true') delete input.dataset.negativeRejected;
+                        if (rawValue !== '' && Number.isFinite(amount) && amount === 0) {
+                            rejectCollectionAmount(input, 'Zero is not allowed. Enter an amount greater than zero.');
+                            return false;
+                        }
+                        if (input.dataset.amountRejected === 'true' && rawValue === '') return false;
+                        if (input.dataset.amountRejected === 'true') delete input.dataset.amountRejected;
                         var invalid = input.validity.badInput || (rawValue !== '' && (!Number.isFinite(amount) || amount <= 0));
                         var errorText = 'Enter an amount greater than zero.';
                         input.setCustomValidity(invalid ? errorText : '');
@@ -7364,9 +7368,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         input.addEventListener('keydown', function(event) {
                             if (event.key === '-' || event.code === 'Minus' || event.code === 'NumpadSubtract') {
                                 event.preventDefault();
-                                rejectNegativeCollectionAmount(input);
-                            } else if (input.dataset.negativeRejected === 'true') {
-                                delete input.dataset.negativeRejected;
+                                rejectCollectionAmount(input, 'Negative amounts are not allowed. Enter a value greater than zero.');
+                            } else if (input.dataset.amountRejected === 'true') {
+                                delete input.dataset.amountRejected;
                                 input.setCustomValidity('');
                                 var message = input.parentElement.querySelector('.collection-amount-error');
                                 if (message) message.style.display = 'none';
@@ -7375,9 +7379,12 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         });
                         input.addEventListener('paste', function(event) {
                             var pastedValue = event.clipboardData ? event.clipboardData.getData('text') : '';
-                            if (pastedValue.trim() !== '' && Number.isFinite(Number(pastedValue)) && Number(pastedValue) < 0) {
+                            var pastedAmount = Number(pastedValue);
+                            if (pastedValue.trim() !== '' && Number.isFinite(pastedAmount) && pastedAmount <= 0) {
                                 event.preventDefault();
-                                rejectNegativeCollectionAmount(input);
+                                rejectCollectionAmount(input, pastedAmount < 0
+                                    ? 'Negative amounts are not allowed. Enter a value greater than zero.'
+                                    : 'Zero is not allowed. Enter an amount greater than zero.');
                             }
                         });
                     });
