@@ -4903,7 +4903,6 @@ w.document.write('</div>');
                     'worship_leaders' => ['label' => 'Worship Announcements', 'color' => '#d946ef'],
                     'village_leaders' => ['label' => 'Church Village Announcements', 'color' => '#d6a832'],
                     'announcement_queries' => ['label' => 'Announcement Queries', 'color' => '#0f766e'],
-                    'other' => ['label' => 'Other Department Announcements', 'color' => '#64748b'],
                 ];
                 ?>
                 <div class="content-card" id="announcement-department-filter" style="margin:0 0 12px;padding:14px 16px;">
