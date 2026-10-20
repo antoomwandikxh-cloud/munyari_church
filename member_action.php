@@ -1778,7 +1778,6 @@ if (isset($_GET['action'])) {
             }
             if ($verified) {
                 $department = trim((string)$fine['department']);
-                $department_sql = $conn->real_escape_string($department);
                 $fine_reason = trim((string)$fine['fine_reason']);
                 $fine_amount = number_format((float)$fine['amount'], 2);
                 $fine_focus_tag = "[focus-fine-id:$fine_id]";
@@ -1803,15 +1802,9 @@ if (isset($_GET['action'])) {
                 $discipline_message = "Discipline Master fine payment update: $member_name's fine for '$fine_reason' (KSh $fine_amount) in $department department was marked Paid by the Treasurer. $fine_focus_tag";
                 member_action_notify_discipline_masters_for_department($conn, $department, $discipline_message);
 
-                // Add the verified fine payment to the department's financial records.
-                $description = $conn->real_escape_string("Disciplinary Fine: " . $fine_reason);
-                $amount = (float)$fine['amount'];
-                $fine_verifier = $conn->query("SELECT first_name, last_name FROM members WHERE id = $member_id")->fetch_assoc();
-                $fine_recorder_name = $conn->real_escape_string($fine_verifier ? ($fine_verifier['first_name'] . ' ' . $fine_verifier['last_name']) : 'System');
-                $conn->query("INSERT INTO financial_records (department, amount, record_date, description, recorded_by, recorded_by_name) VALUES ('$department_sql', $amount, CURRENT_DATE(), '$description', $member_id, '$fine_recorder_name')");
             }
             $result_message = $verified
-                ? 'Fine payment verified and added to records'
+                ? 'Fine payment verified successfully'
                 : 'This fine is no longer awaiting verification';
             $redirect_department = $verified ? $department : '';
             $redirect = 'member_dashboard.php?tab=financials';

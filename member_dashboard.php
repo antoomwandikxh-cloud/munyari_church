@@ -7196,9 +7196,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <h2 style="margin-bottom: 15px;">Collection Summary</h2>
                         <?php
                         $esc_dept = $conn->real_escape_string($active_treasurer_dept);
-                        $total_all = $conn->query("SELECT COALESCE(SUM(amount),0) as total FROM financial_records WHERE department='$esc_dept'")->fetch_assoc()['total'];
-                        $total_month = $conn->query("SELECT COALESCE(SUM(amount),0) as total FROM financial_records WHERE department='$esc_dept' AND MONTH(record_date)=MONTH(NOW()) AND YEAR(record_date)=YEAR(NOW())")->fetch_assoc()['total'];
-                        $total_week = $conn->query("SELECT COALESCE(SUM(amount),0) as total FROM financial_records WHERE department='$esc_dept' AND YEARWEEK(record_date,1)=YEARWEEK(NOW(),1)")->fetch_assoc()['total'];
+                        $non_fine_records = "COALESCE(description, '') NOT LIKE 'Disciplinary Fine:%'";
+                        $total_all = $conn->query("SELECT COALESCE(SUM(amount),0) as total FROM financial_records WHERE department='$esc_dept' AND $non_fine_records")->fetch_assoc()['total'];
+                        $total_month = $conn->query("SELECT COALESCE(SUM(amount),0) as total FROM financial_records WHERE department='$esc_dept' AND $non_fine_records AND MONTH(record_date)=MONTH(NOW()) AND YEAR(record_date)=YEAR(NOW())")->fetch_assoc()['total'];
+                        $total_week = $conn->query("SELECT COALESCE(SUM(amount),0) as total FROM financial_records WHERE department='$esc_dept' AND $non_fine_records AND YEARWEEK(record_date,1)=YEARWEEK(NOW(),1)")->fetch_assoc()['total'];
                         ?>
                         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
                             <div style="background: linear-gradient(135deg, #10b981, #059669); color:white; padding:20px; border-radius:12px; grid-column: span 2;">
@@ -7221,7 +7222,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <div class="content-card" style="margin-top: 30px;">
                     <h2 style="margin-bottom: 15px;">Recent Financial Records (<?= htmlspecialchars($active_treasurer_dept) ?>)</h2>
                     <?php
-                    $dept_records = $conn->query("SELECT fr.*, m.first_name, m.last_name FROM financial_records fr JOIN members m ON fr.recorded_by = m.id WHERE fr.department='$esc_dept' ORDER BY fr.record_date DESC, fr.recorded_at DESC LIMIT 50");
+                    $dept_records = $conn->query("SELECT fr.*, m.first_name, m.last_name FROM financial_records fr JOIN members m ON fr.recorded_by = m.id WHERE fr.department='$esc_dept' AND COALESCE(fr.description, '') NOT LIKE 'Disciplinary Fine:%' ORDER BY fr.record_date DESC, fr.recorded_at DESC LIMIT 50");
                     if ($dept_records && $dept_records->num_rows > 0):
                     ?>
                     <div class="table-responsive">
@@ -7492,7 +7493,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <div class="content-card" style="margin-top: 30px;">
                     <h2 style="margin-bottom: 15px;">Past Records</h2>
                     <?php
-                    $my_records = $conn->query("SELECT * FROM financial_records WHERE department='$esc_dept' ORDER BY record_date DESC, recorded_at DESC LIMIT 50");
+                    $my_records = $conn->query("SELECT * FROM financial_records WHERE department='$esc_dept' AND COALESCE(description, '') NOT LIKE 'Disciplinary Fine:%' ORDER BY record_date DESC, recorded_at DESC LIMIT 50");
                     ?>
                     <?php if ($my_records->num_rows > 0): ?>
                         <div class="table-responsive">
