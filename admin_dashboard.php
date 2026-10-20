@@ -4087,7 +4087,7 @@ w.document.write('</div>');
                     ?>
                         <div role="alert" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);color:var(--text-main);padding:12px 14px;border-radius:8px;margin-bottom:16px;">
                             <span><strong><?= htmlspecialchars($occupied_village) ?> village is already taken</strong><?= $occupied_leader ? ' by ' . htmlspecialchars($occupied_leader['first_name'] . ' ' . $occupied_leader['last_name']) : '' ?>.</span>
-                            <?php if ($occupied_leader_id): ?><a class="btn-sm" style="background:var(--primary);color:#fff;text-decoration:none;" href="admin_dashboard.php?tab=assign_roles&amp;view_village_leader=<?= $occupied_leader_id ?>">View current leader</a><?php endif; ?>
+                            <?php if ($occupied_leader_id): ?><a class="btn-sm" title="Open Assign Role to remove this leader and choose another" style="background:var(--primary);color:#fff;text-decoration:none;" href="admin_dashboard.php?tab=assign_roles&amp;view_village_leader=<?= $occupied_leader_id ?>">View current leader to remove or replace</a><?php endif; ?>
                         </div>
                     <?php elseif (in_array($_GET['error'] ?? '', ['invalid_village', 'invalid_village_member'], true)): ?>
                         <div role="alert" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);color:var(--danger);padding:12px 14px;border-radius:8px;margin-bottom:16px;">Please select a valid village and an approved member registered in that village.</div>
