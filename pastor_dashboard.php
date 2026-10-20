@@ -6548,6 +6548,26 @@ w.document.write('</div>');
                     <p>View all meetings, announcements, and events scheduled by Organizing Secretaries across all departments.</p>
                 </div>
 
+                <?php
+                $organised_event_filters = [
+                    'youths' => ['label' => 'Youths', 'color' => '#3b82f6'],
+                    'womens_ministry' => ['label' => 'Women Ministry', 'color' => '#ec4899'],
+                    'elders' => ['label' => 'Elders', 'color' => '#8b5cf6'],
+                    'sunday_school' => ['label' => 'Sunday School', 'color' => '#f59e0b'],
+                ];
+                ?>
+                <div class="content-card" id="organized-event-department-filter" style="margin-bottom:14px;padding:14px 16px;">
+                    <strong style="display:block;margin-bottom:10px;color:var(--text-main);">Filter events by department</strong>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                        <button type="button" data-organized-event-filter="all" aria-pressed="true" style="border:1px solid #64748b;border-radius:20px;padding:7px 12px;background:#64748b;color:#fff;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer;">All Events <span data-organized-event-count="all" style="margin-left:4px;opacity:.85;">0</span></button>
+                        <?php foreach ($organised_event_filters as $filter_key => $filter): ?>
+                            <button type="button" data-organized-event-filter="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" aria-pressed="false" style="border:1px solid <?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;border-radius:20px;padding:7px 12px;background:<?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;color:#fff;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer;">
+                                <?= htmlspecialchars($filter['label']) ?> <span data-organized-event-count="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" style="margin-left:4px;opacity:.85;">0</span>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
                 <div class="content-card">
                     <h2>Recent Events</h2>
                     <?php
@@ -6556,7 +6576,7 @@ w.document.write('</div>');
                     if ($events && $events->num_rows > 0):
                         while($ev = $events->fetch_assoc()):
                     ?>
-                        <div data-notification-row="organized-event-<?= (int)$ev['id'] ?>" style="padding: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 20px; background: rgba(255,255,255,0.02); position: relative;">
+                        <div data-organized-event-department="<?= htmlspecialchars(notification_department_group_key($ev['department'] ?? ''), ENT_QUOTES) ?>" data-notification-row="organized-event-<?= (int)$ev['id'] ?>" style="padding: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 20px; background: rgba(255,255,255,0.02); position: relative;">
                             <span class="badge" style="position: absolute; top: 20px; right: 20px; background: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 0.8rem;"><?= htmlspecialchars($ev['department']) ?></span>
                             
                             <h3 style="margin-top: 0; color: var(--primary); padding-right: 120px;"><?= htmlspecialchars($ev['title']) ?></h3>
@@ -6597,6 +6617,44 @@ w.document.write('</div>');
                         <p style="color: var(--text-muted);">No departmental events have been posted by Organizing Secretaries yet.</p>
                     <?php endif; ?>
                 </div>
+                <script>
+                    (function () {
+                        const filterRoot = document.getElementById('organized-event-department-filter');
+                        if (!filterRoot) return;
+                        const eventRows = Array.from(document.querySelectorAll('[data-organized-event-department]'));
+                        const filterButtons = Array.from(filterRoot.querySelectorAll('[data-organized-event-filter]'));
+                        const notificationFocusMessages = <?= json_encode(array_values($notification_focus_messages ?? []), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
+                        const counts = { all: eventRows.length };
+                        eventRows.forEach(row => {
+                            const key = row.dataset.organizedEventDepartment || 'other';
+                            counts[key] = (counts[key] || 0) + 1;
+                        });
+                        filterButtons.forEach(button => {
+                            const key = button.dataset.organizedEventFilter;
+                            const count = filterRoot.querySelector('[data-organized-event-count="' + key + '"]');
+                            if (count) count.textContent = String(counts[key] || 0);
+                            button.addEventListener('click', function () {
+                                const selected = this.dataset.organizedEventFilter;
+                                const wasSelected = this.getAttribute('aria-pressed') === 'true';
+                                const nextFilter = selected === 'all' || wasSelected ? 'all' : selected;
+                                filterButtons.forEach(item => item.setAttribute('aria-pressed', item.dataset.organizedEventFilter === nextFilter ? 'true' : 'false'));
+                                eventRows.forEach(row => {
+                                    row.style.display = nextFilter === 'all' || row.dataset.organizedEventDepartment === nextFilter ? '' : 'none';
+                                });
+                            });
+                        });
+
+                        const eventFocusMessage = notificationFocusMessages.find(message => /\[notification-row:organized-event-\d+\]/i.test(message));
+                        if (eventFocusMessage) {
+                            const groupMatch = eventFocusMessage.match(/\[notification-group:([a-z0-9_-]+)\]/i);
+                            const rowMatch = eventFocusMessage.match(/\[notification-row:(organized-event-\d+)\]/i);
+                            const focusedRow = rowMatch && eventRows.find(row => row.dataset.notificationRow === rowMatch[1].toLowerCase());
+                            const selectedDepartment = groupMatch ? groupMatch[1].toLowerCase() : (focusedRow ? focusedRow.dataset.organizedEventDepartment : '');
+                            const departmentButton = selectedDepartment && filterButtons.find(button => button.dataset.organizedEventFilter === selectedDepartment);
+                            if (departmentButton) departmentButton.click();
+                        }
+                    })();
+                </script>
 
             <?php elseif ($tab == 'discipline_reports'): ?>
                 <div class="page-header">

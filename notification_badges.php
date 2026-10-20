@@ -1203,7 +1203,7 @@ HTML;
 
 function notification_target_group($message, $user_type) {
     if (notification_is_pastor_organized_event($message, $user_type)) {
-        return '';
+        return notification_route_metadata($message)['group'];
     }
     $route = notification_route_metadata($message);
     if ($route['group'] !== '') {

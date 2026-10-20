@@ -795,7 +795,7 @@ if (isset($_GET['action'])) {
                 $event_row_key = 'organized-event-' . $event_id;
                 $department_group = notification_department_group_key($requested_department);
                 $member_notification = notification_with_route($notification_text, 'organized_events', '', $event_row_key);
-                $pastor_notification = notification_with_route($notification_text, 'organized_events', '', $event_row_key);
+                $pastor_notification = notification_with_route($notification_text, 'organized_events', $department_group, $event_row_key);
                 $admin_notification = notification_with_route($notification_text, 'general_announcements', $department_group, $event_row_key);
 
                 $member_department_filter = department_match_sql($conn, 'department', $requested_department);

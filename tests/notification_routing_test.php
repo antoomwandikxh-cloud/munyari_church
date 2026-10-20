@@ -23,11 +23,11 @@ expect_same('A new member was approved.', notification_display_message($routed_m
 $event_notification = notification_with_route(
     'New department announcement from Organising Secretary Amina Kageni: Weekly Meeting',
     'organized_events',
-    '',
+    notification_department_group_key('Youths'),
     'organized-event-73'
 );
 expect_same('organized_events', notification_target_tab($event_notification, 'pastor'), 'organizing secretary announcements route pastor to Organised Events');
-expect_same('', notification_target_group($event_notification, 'pastor'), 'pastor event feed is a cross-department destination');
+expect_same('youths', notification_target_group($event_notification, 'pastor'), 'pastor event notice keeps its department ribbon filter');
 expect_same('organized-event-73', notification_route_metadata($event_notification)['row'], 'organizing secretary announcement focuses its exact event row');
 expect_same('New department announcement from Organising Secretary Amina Kageni: Weekly Meeting', notification_display_message($event_notification, 'pastor'), 'organizing secretary route metadata stays hidden from pastor message');
 $stale_event_notification = notification_with_route(
@@ -38,7 +38,7 @@ $stale_event_notification = notification_with_route(
 );
 expect_same(['organized_events'], notification_badge_tabs($stale_event_notification, 'pastor'), 'older pastor event notices move their unread badge to Organised Events');
 expect_same('organized_events', notification_target_tab($stale_event_notification, 'pastor'), 'stale announcement-tab metadata cannot override pastor event routing');
-expect_same('', notification_target_group($stale_event_notification, 'pastor'), 'stale department filter is ignored for the cross-department pastor event feed');
+expect_same('youths', notification_target_group($stale_event_notification, 'pastor'), 'older pastor event notices retain their department ribbon filter');
 $admin_event_notification = notification_with_route(
     'New department announcement from Organising Secretary Amina Kageni: Weekly Meeting',
     'general_announcements',
@@ -62,6 +62,20 @@ foreach (['pastor_dashboard.php', 'admin_dashboard.php'] as $announcement_dashbo
         fwrite(STDERR, "FAIL: $announcement_dashboard must render organized-event notification row keys.\n");
         exit(1);
     }
+}
+$pastor_dashboard_source = file_get_contents(__DIR__ . '/../pastor_dashboard.php');
+foreach (['youths', 'womens_ministry', 'elders', 'sunday_school'] as $event_department_filter) {
+    if ($pastor_dashboard_source === false
+        || strpos($pastor_dashboard_source, "'" . $event_department_filter . "' => ['label'") === false) {
+        fwrite(STDERR, "FAIL: pastor Organised Events must provide the $event_department_filter department ribbon.\n");
+        exit(1);
+    }
+}
+if (strpos($pastor_dashboard_source, 'data-organized-event-filter="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>"') === false
+    || strpos($pastor_dashboard_source, 'data-organized-event-department=') === false
+    || strpos($pastor_dashboard_source, 'notification-group:([a-z0-9_-]+)') === false) {
+    fwrite(STDERR, "FAIL: pastor Organised Events must filter and auto-select the department from a routed notification.\n");
+    exit(1);
 }
 $glow_script = render_notification_tab_glow_script('manage_department', 'manage_department', $routed_message);
 if (strpos($glow_script, 'notification-row:department-member-42') === false
