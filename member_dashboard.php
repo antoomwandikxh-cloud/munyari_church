@@ -7325,18 +7325,61 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     function closeEditFinanceModal() {
                         document.getElementById('editFinanceModal').style.display = 'none';
                     }
+                    function showCollectionAmountError(input, messageText) {
+                        input.setCustomValidity(messageText);
+                        input.setAttribute('aria-invalid', 'true');
+                        var message = input.parentElement.querySelector('.collection-amount-error');
+                        if (message) {
+                            message.textContent = messageText;
+                            message.style.display = 'block';
+                        }
+                    }
+                    function rejectNegativeCollectionAmount(input) {
+                        input.value = '';
+                        input.dataset.negativeRejected = 'true';
+                        showCollectionAmountError(input, 'Negative amounts are not allowed. Enter a value greater than zero.');
+                    }
                     function validateCollectionAmount(input) {
                         var rawValue = input.value.trim();
                         var amount = input.valueAsNumber;
+                        if (rawValue !== '' && Number.isFinite(amount) && amount < 0) {
+                            rejectNegativeCollectionAmount(input);
+                            return false;
+                        }
+                        if (input.dataset.negativeRejected === 'true' && rawValue === '') return false;
+                        if (input.dataset.negativeRejected === 'true') delete input.dataset.negativeRejected;
                         var invalid = input.validity.badInput || (rawValue !== '' && (!Number.isFinite(amount) || amount <= 0));
-                        input.setCustomValidity(invalid ? 'Enter an amount greater than zero.' : '');
+                        var errorText = 'Enter an amount greater than zero.';
+                        input.setCustomValidity(invalid ? errorText : '');
                         input.setAttribute('aria-invalid', invalid ? 'true' : 'false');
                         var message = input.parentElement.querySelector('.collection-amount-error');
-                        if (message) message.style.display = invalid ? 'block' : 'none';
+                        if (message) {
+                            message.textContent = errorText;
+                            message.style.display = invalid ? 'block' : 'none';
+                        }
                         return !invalid && rawValue !== '';
                     }
                     document.querySelectorAll('.collection-amount-input').forEach(function(input) {
                         input.addEventListener('input', function() { validateCollectionAmount(input); });
+                        input.addEventListener('keydown', function(event) {
+                            if (event.key === '-' || event.code === 'Minus' || event.code === 'NumpadSubtract') {
+                                event.preventDefault();
+                                rejectNegativeCollectionAmount(input);
+                            } else if (input.dataset.negativeRejected === 'true') {
+                                delete input.dataset.negativeRejected;
+                                input.setCustomValidity('');
+                                var message = input.parentElement.querySelector('.collection-amount-error');
+                                if (message) message.style.display = 'none';
+                                input.setAttribute('aria-invalid', 'false');
+                            }
+                        });
+                        input.addEventListener('paste', function(event) {
+                            var pastedValue = event.clipboardData ? event.clipboardData.getData('text') : '';
+                            if (pastedValue.trim() !== '' && Number.isFinite(Number(pastedValue)) && Number(pastedValue) < 0) {
+                                event.preventDefault();
+                                rejectNegativeCollectionAmount(input);
+                            }
+                        });
                     });
                     document.querySelectorAll('.collection-finance-form').forEach(function(form) {
                         form.addEventListener('submit', function(event) {
