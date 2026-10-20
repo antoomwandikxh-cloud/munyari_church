@@ -3363,31 +3363,6 @@ w.document.write('</div>');
                     <h1>Village & Desired Roles</h1>
                     <p>Members categorized by church village, department, and chosen service roles.</p>
                 </div>
-                <?php
-                $village_announcement_updates = $conn->query("SELECT va.id, va.village, va.message, va.audio_path, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id ORDER BY va.created_at DESC");
-                if ($village_announcement_updates && $village_announcement_updates->num_rows > 0):
-                ?>
-                <div class="content-card" style="margin-bottom:24px;">
-                    <h2 style="margin:0 0 16px; font-size:1.05rem;">Village Announcements</h2>
-                    <?php while ($village_announcement = $village_announcement_updates->fetch_assoc()): ?>
-                    <article class="announcement-card" data-notification-row="village-announcement-<?= (int)$village_announcement['id'] ?>" style="padding:14px; margin-bottom:12px; border:1px solid var(--border-color); border-left:3px solid #10b981; border-radius:8px; background:var(--bg-main);">
-                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                            <img src="uploads/<?= htmlspecialchars($village_announcement['profile_picture'] ?? 'default_avatar.png') ?>" alt="Village leader profile" onerror="this.src='uploads/default_avatar.png'" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">
-                            <div>
-                                <strong><?= htmlspecialchars(trim(($village_announcement['first_name'] ?? '') . ' ' . ($village_announcement['last_name'] ?? ''))) ?></strong>
-                                <div style="font-size:0.82rem;color:var(--text-muted);"><?= htmlspecialchars($village_announcement['village']) ?> Village &middot; <?= date('M j, Y g:i A', strtotime($village_announcement['created_at'])) ?></div>
-                            </div>
-                        </div>
-                        <?php if (trim((string)$village_announcement['message']) !== ''): ?><p style="margin:0;line-height:1.55;white-space:normal;"><?= nl2br(htmlspecialchars($village_announcement['message'])) ?></p><?php endif; ?>
-                        <?php if (!empty($village_announcement['audio_path'])): ?>
-                            <?= render_whatsapp_voice_player($village_announcement['audio_path'], trim(($village_announcement['first_name'] ?? '') . ' ' . ($village_announcement['last_name'] ?? '')) ?: 'Village Leader', !empty($village_announcement['profile_picture']) ? 'uploads/' . basename($village_announcement['profile_picture']) : 'uploads/default_avatar.png', $village_announcement['created_at']) ?>
-                        <?php endif; ?>
-                    </article>
-                    <?php endwhile; ?>
-                </div>
-                <?php endif; ?>
-                
-                <?php
                 // Handle Approval/Rejection of Village Updates
                 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['handle_village_update'])) {
                     $update_id = (int)$_POST['member_id'];
