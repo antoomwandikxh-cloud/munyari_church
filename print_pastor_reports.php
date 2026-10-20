@@ -328,7 +328,7 @@ if (file_exists($vl_pic)) {
     <?php endif; ?>
     <div class="print-footer">Generated from Munyari Church</div>
 
-    <script src="print_orientation.js?v=20261020-print-focus-return"></script>
+    <script src="print_orientation.js?v=20261020-print-window"></script>
     <script>
         window.onload = function() {
             setTimeout(function() { window.print(); }, 800);

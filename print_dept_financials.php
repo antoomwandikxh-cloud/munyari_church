@@ -243,7 +243,7 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
             🖨 Landscape Mode
         </button>
     </div>
-    <script src="print_orientation.js?v=20261020-print-focus-return"></script>
+    <script src="print_orientation.js?v=20261020-print-window"></script>
     <script>
     function setOriAndPrint(ori) {
         let st = document.getElementById('printOriStyle');

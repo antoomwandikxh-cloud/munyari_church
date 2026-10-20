@@ -10,10 +10,16 @@
         orientationDialog.innerHTML = `
             <form method="dialog" class="print-orientation-panel">
                 <h2 id="printOrientationTitle">Choose print orientation</h2>
-                <p>Select the page layout for this printout.</p>
+                <p>Choose the paper shape that matches how you want the page printed.</p>
                 <div class="print-orientation-options">
-                    <button type="button" data-orientation="portrait">Portrait</button>
-                    <button type="button" data-orientation="landscape">Landscape</button>
+                    <button type="button" data-orientation="portrait" aria-label="Portrait, vertical page">
+                        <span class="print-orientation-paper portrait" aria-hidden="true"></span>
+                        <span>Portrait</span>
+                    </button>
+                    <button type="button" data-orientation="landscape" aria-label="Landscape, horizontal page">
+                        <span class="print-orientation-paper landscape" aria-hidden="true"></span>
+                        <span>Landscape</span>
+                    </button>
                 </div>
                 <button type="button" class="print-orientation-cancel">Cancel</button>
             </form>`;
@@ -25,9 +31,13 @@
             .print-orientation-dialog::backdrop{background:rgba(15,23,42,.55)}
             .print-orientation-panel{padding:20px;font-family:Arial,Helvetica,sans-serif}
             .print-orientation-panel h2{margin:0;font-size:18px;color:inherit}
-            .print-orientation-panel p{margin:7px 0 18px;color:var(--text-muted,#64748b);font-size:14px}
+            .print-orientation-panel p{margin:7px 0 18px;color:var(--text-muted,#64748b);font-size:14px;line-height:1.45}
             .print-orientation-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-            .print-orientation-options button,.print-orientation-cancel{min-height:40px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;background:var(--bg-main,#f8fafc);color:var(--text-main,#172033);font:600 14px Arial,Helvetica,sans-serif;cursor:pointer}
+            .print-orientation-options button,.print-orientation-cancel{min-height:82px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;background:var(--bg-main,#f8fafc);color:var(--text-main,#172033);font:600 14px Arial,Helvetica,sans-serif;cursor:pointer}
+            .print-orientation-options button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px}
+            .print-orientation-paper{display:block;background:#fff;border:1px solid #64748b;border-radius:2px;box-shadow:0 1px 3px rgba(15,23,42,.18)}
+            .print-orientation-paper.portrait{width:27px;height:39px}
+            .print-orientation-paper.landscape{width:43px;height:29px}
             .print-orientation-options button:hover{border-color:#1e3a8a;background:#eff6ff;color:#1e3a8a}
             .print-orientation-cancel{display:block;margin:12px 0 0 auto;background:transparent}
         `;
@@ -109,7 +119,7 @@
             const url = new URL(pageUrl, window.location.href);
             url.searchParams.set(parameterName || 'orientation', orientation);
             url.searchParams.set('print_now', '1');
-            const printWindow = window.open(url.href, '_blank');
+            const printWindow = window.open(url.href, '_blank', 'popup=yes,width=1100,height=850,resizable=yes,scrollbars=yes');
             if (!printWindow) window.alert('Allow pop-ups for this site to print or save the report as PDF.');
         });
     };
@@ -133,8 +143,12 @@
     // only after the native print dialog finishes so focus returns to the dashboard.
     const nativeOpen = window.open.bind(window);
     window.open = function (url, target, features) {
-        const child = nativeOpen(url, target, features);
-        if (child && (!url || url === 'about:blank')) {
+        const isBlankPrintWindow = (!url || url === 'about:blank') && (!target || target === '_blank');
+        const popupFeatures = isBlankPrintWindow
+            ? (features ? `${features},popup=yes` : 'popup=yes,width=1100,height=850,resizable=yes,scrollbars=yes')
+            : features;
+        const child = nativeOpen(url, target, popupFeatures);
+        if (child && isBlankPrintWindow) {
             try {
                 const closeAfterPrint = function () {
                     child.addEventListener('afterprint', function () {
