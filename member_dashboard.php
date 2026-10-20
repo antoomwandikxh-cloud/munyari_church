@@ -2869,7 +2869,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 
                 <a href="?tab=desired_roles" class="sidebar-link <?= $tab == 'desired_roles' ? 'active' : '' ?>" style="position:relative; <?= !$has_church_village ? 'background:linear-gradient(135deg,rgba(99,102,241,0.18),rgba(37,99,235,0.1)); border-left:3px solid #6366f1;' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    Church Village & Role
+                    Church Village
                     <?php if (!$has_church_village): ?><span style="background:var(--danger);color:white;font-size:0.6rem;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:6px;animation:pulse 1.5s infinite;">NEW</span><?php endif; ?>
                     <?= render_tab_notification_badge($tab_badges, 'desired_roles') ?>
                 </a>

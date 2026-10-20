@@ -16,6 +16,12 @@ function notification_badge_tabs($message, $user_type, $is_treasurer = false) {
     $msg  = strtolower($message);
     $tabs = [];
 
+    // Village announcements may contain words used by other notification categories (for example, "fine").
+    // Route them first so every recipient gets the Church Village badge and exact announcement focus.
+    if (strpos($msg, 'new village announcement') !== false && strpos($msg, 'village leader') !== false) {
+        return ['desired_roles'];
+    }
+
     if (strpos($msg, 'disciplinary report outcome:') !== false) {
         return $user_type === 'member' ? ['discipline'] : ['discipline_reports'];
     }
@@ -176,11 +182,6 @@ function notification_badge_tabs($message, $user_type, $is_treasurer = false) {
         }
     }
 
-
-    // Route village announcements to the shared village view for members and staff.
-    if (strpos($msg, 'new village announcement') !== false && strpos($msg, 'village leader') !== false) {
-        return ['desired_roles'];
-    }
 
     if (strpos($msg, 'sunday school class change request') !== false || strpos($msg, 'sunday school class approval') !== false) {
         if ($user_type === 'member') {
