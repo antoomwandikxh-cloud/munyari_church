@@ -1,36 +1,68 @@
 (function () {
-    function rememberSidebarPosition() {
-        var sidebar = document.querySelector('.sidebar');
-        var nav = sidebar && sidebar.querySelector('.sidebar-nav');
-        if (!sidebar || !nav) return;
-
+    function saveSidebarTarget(link) {
         try {
-            sessionStorage.setItem('dashboardSidebarPosition:' + window.location.pathname, JSON.stringify({
-                sidebarTop: sidebar.scrollTop,
-                navTop: nav.scrollTop
-            }));
+            sessionStorage.setItem('dashboardSidebarTarget:' + window.location.pathname, link.href);
         } catch (e) {}
     }
 
-    function restoreSidebarPosition() {
-        var key = 'dashboardSidebarPosition:' + window.location.pathname;
-        var saved;
+    function animateToActiveSidebarTab() {
+        var key = 'dashboardSidebarTarget:' + window.location.pathname;
+        var targetHref;
         try {
-            saved = sessionStorage.getItem(key);
-            if (saved === null) return;
+            targetHref = sessionStorage.getItem(key);
+            if (targetHref === null) return;
             sessionStorage.removeItem(key);
-            saved = JSON.parse(saved);
         } catch (e) {
             return;
         }
 
         var sidebar = document.querySelector('.sidebar');
         var nav = sidebar && sidebar.querySelector('.sidebar-nav');
-        if (!sidebar || !nav || !saved) return;
+        if (!sidebar || !nav) return;
+
+        var links = Array.prototype.slice.call(sidebar.querySelectorAll('.sidebar-link'));
+        var activeLink = links.find(function (link) {
+            return link.classList.contains('active') && link.href === targetHref;
+        }) || links.find(function (link) { return link.classList.contains('active'); });
+        if (!activeLink) return;
+
+        sidebar.scrollTop = 0;
+        nav.scrollTop = 0;
+
+        function scrollActiveTab() {
+            var scroller = activeLink.parentElement;
+            while (scroller && scroller !== sidebar) {
+                var overflowY = window.getComputedStyle(scroller).overflowY;
+                if ((overflowY === 'auto' || overflowY === 'scroll') && scroller.scrollHeight > scroller.clientHeight + 1) break;
+                scroller = scroller.parentElement;
+            }
+            if (!scroller || scroller === sidebar) {
+                scroller = sidebar.scrollHeight > sidebar.clientHeight + 1 ? sidebar : nav;
+            }
+
+            var box = scroller.getBoundingClientRect();
+            var linkBox = activeLink.getBoundingClientRect();
+            var targetTop = scroller.scrollTop + linkBox.top - box.top - Math.max(12, (scroller.clientHeight - linkBox.height) / 3);
+            targetTop = Math.max(0, Math.min(targetTop, scroller.scrollHeight - scroller.clientHeight));
+
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                scroller.scrollTop = targetTop;
+                return;
+            }
+
+            var startedAt = performance.now();
+            var duration = 650;
+            function step(now) {
+                var progress = Math.min(1, (now - startedAt) / duration);
+                var eased = 1 - Math.pow(1 - progress, 3);
+                scroller.scrollTop = targetTop * eased;
+                if (progress < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
 
         requestAnimationFrame(function () {
-            sidebar.scrollTop = Number(saved.sidebarTop) || 0;
-            nav.scrollTop = Number(saved.navTop) || 0;
+            requestAnimationFrame(scrollActiveTab);
         });
     }
 
@@ -38,10 +70,10 @@
         if (!(event.target instanceof Element)) return;
         var link = event.target.closest('.sidebar-link[href*="tab="]');
         if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-        rememberSidebarPosition();
+        saveSidebarTarget(link);
     }, true);
 
-    restoreSidebarPosition();
+    animateToActiveSidebarTab();
 
     function groupTopbarControls() {
         var topbar = document.querySelector('.topbar');
