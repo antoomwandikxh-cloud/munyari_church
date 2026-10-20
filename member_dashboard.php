@@ -1618,6 +1618,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
     $current_role = trim((string)($member['desired_role_pref'] ?? ''));
     $preference_action = trim((string)($_POST['preference_action'] ?? ''));
 
+    $has_pending_preference = trim((string)($member['pending_church_village'] ?? '')) !== ''
+        || trim((string)($member['pending_desired_role_pref'] ?? '')) !== '';
+    if ($current_village !== '' && $has_pending_preference) {
+        header("Location: member_dashboard.php?tab=desired_roles&error=" . urlencode('You already have a pending preference request. Please wait until the Pastor approves or rejects it before making another change.'));
+        exit();
+    }
+
     if ($current_village === '') {
         if ($preference_action !== '' && $preference_action !== 'initial_setup') {
             header("Location: member_dashboard.php?tab=desired_roles&error=" . urlencode('Save your initial church village and role choices first.'));
@@ -10651,8 +10658,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 $pending_changes[] = 'your desired role to ' . ($pending_role_value !== '' ? $pending_role_value : 'No desired role');
             }
             $pending_request_message = $pending_changes
-                ? 'Your request to change ' . implode(' and ', $pending_changes) . ' is pending Pastor approval.'
-                : 'Your preference update request is pending Pastor approval.';
+                ? 'Your request to change ' . implode(' and ', $pending_changes) . ' is pending Pastor approval. Please wait for the Pastor to approve or reject it before requesting another change.'
+                : 'Your preference update request is pending Pastor approval. Please wait for the Pastor to approve or reject it before requesting another change.';
             ?>
             <?php if ($pending_village_value !== ''): ?>
                 <div role="status" style="display:flex;align-items:flex-start;gap:10px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-left:4px solid var(--warning);color:var(--text-main);padding:12px 16px;border-radius:8px;margin-bottom:18px;">
@@ -10697,7 +10704,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             }
             ?>
 
-            <form id="churchVillagePreferencesForm" method="POST" action="?tab=desired_roles" class="content-card" data-has-saved-village="<?= $has_church_village ? 'true' : 'false' ?>" data-saved-village="<?= htmlspecialchars((string)($member['church_village'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-saved-role="<?= htmlspecialchars((string)($member['desired_role_pref'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" style="max-width:800px;">
+            <form id="churchVillagePreferencesForm" method="POST" action="?tab=desired_roles" class="content-card" data-has-saved-village="<?= $has_church_village ? 'true' : 'false' ?>" data-has-pending-request="<?= (!empty($member['pending_church_village']) || !empty($member['pending_desired_role_pref'])) ? 'true' : 'false' ?>" data-saved-village="<?= htmlspecialchars((string)($member['church_village'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-saved-role="<?= htmlspecialchars((string)($member['desired_role_pref'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" style="max-width:800px;">
                 <input type="hidden" name="save_church_village" value="1">
                 
                 <div style="margin-bottom:30px;">
@@ -10785,6 +10792,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     event.preventDefault();
                                     status.textContent = 'Select a church village before saving.';
                                     choices[0] && choices[0].focus();
+                                    return;
+                                }
+                                if (form.dataset.hasPendingRequest === 'true') {
+                                    event.preventDefault();
+                                    window.alert('You already have a pending preference request. Please wait until the Pastor approves or rejects it before making another change.');
                                     return;
                                 }
                                 if (form.dataset.hasSavedVillage === 'true') {
