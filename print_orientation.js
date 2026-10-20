@@ -27,19 +27,19 @@
 
         const style = document.createElement('style');
         style.textContent = `
-            .print-orientation-dialog{position:fixed!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;transform:translate(-50%,-50%)!important;margin:0!important;box-sizing:border-box;width:min(92vw,360px);max-width:calc(100vw - 24px);max-height:calc(100dvh - 32px);overflow:auto;padding:0;border:1px solid #cbd5e1;border-radius:8px;color:var(--text-main,#172033);background:var(--card-bg,#fff);box-shadow:0 18px 50px rgba(15,23,42,.28)}
+            .print-orientation-dialog{position:fixed!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;transform:translate(-50%,-50%)!important;margin:0!important;box-sizing:border-box;width:min(90vw,320px);max-width:calc(100vw - 24px);max-height:calc(100dvh - 32px);overflow:auto;padding:0;border:1px solid #cbd5e1;border-radius:8px;color:var(--text-main,#172033);background:var(--card-bg,#fff);box-shadow:0 18px 50px rgba(15,23,42,.28)}
             .print-orientation-dialog::backdrop{background:rgba(15,23,42,.55)}
-            .print-orientation-panel{padding:20px;font-family:Arial,Helvetica,sans-serif}
-            .print-orientation-panel h2{margin:0;font-size:18px;color:inherit}
-            .print-orientation-panel p{margin:7px 0 18px;color:var(--text-muted,#64748b);font-size:14px;line-height:1.45}
-            .print-orientation-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-            .print-orientation-options button,.print-orientation-cancel{min-height:82px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;background:var(--bg-main,#f8fafc);color:var(--text-main,#172033);font:600 14px Arial,Helvetica,sans-serif;cursor:pointer}
-            .print-orientation-options button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px}
+            .print-orientation-panel{padding:15px;font-family:Arial,Helvetica,sans-serif}
+            .print-orientation-panel h2{margin:0;font-size:17px;color:inherit}
+            .print-orientation-panel p{margin:6px 0 13px;color:var(--text-muted,#64748b);font-size:13px;line-height:1.4}
+            .print-orientation-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+            .print-orientation-options button,.print-orientation-cancel{min-height:70px;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;background:var(--bg-main,#f8fafc);color:var(--text-main,#172033);font:600 13px Arial,Helvetica,sans-serif;cursor:pointer}
+            .print-orientation-options button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
             .print-orientation-paper{display:block;background:#fff;border:1px solid #64748b;border-radius:2px;box-shadow:0 1px 3px rgba(15,23,42,.18)}
-            .print-orientation-paper.portrait{width:27px;height:39px}
-            .print-orientation-paper.landscape{width:43px;height:29px}
+            .print-orientation-paper.portrait{width:24px;height:34px}
+            .print-orientation-paper.landscape{width:38px;height:25px}
             .print-orientation-options button:hover{border-color:#1e3a8a;background:#eff6ff;color:#1e3a8a}
-            .print-orientation-cancel{display:block;margin:12px 0 0 auto;background:transparent}
+            .print-orientation-cancel{display:block;min-height:36px;margin:9px 0 0 auto;padding:6px 10px;background:transparent}
         `;
         document.head.appendChild(style);
 

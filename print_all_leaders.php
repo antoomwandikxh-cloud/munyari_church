@@ -383,7 +383,7 @@ foreach($leader_sections as $sk => $section):
 
 <div class="footer">Generated from E.A.P.C Munyari Portal | Printed on: <?=htmlspecialchars($print_date)?></div>
 
-<script src="print_orientation.js?v=20261020-printer-icons"></script>
+<script src="print_orientation.js?v=20261020-compact-orientation"></script>
 <script>
 window.addEventListener('load', function(){ window.print(); });
 </script>
