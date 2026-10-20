@@ -3110,7 +3110,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: var(--primary); margin-top: 10px;">Organising Secretary</div>
                     <a href="?tab=organized_events" class="sidebar-link <?= $tab == 'organized_events' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        Organised Events
+                        Manage Organised Events
                         <?= render_tab_notification_badge($tab_badges, 'organized_events') ?>
                     </a>
                     <?php if ($ctx_is_chairperson): ?>
@@ -8121,7 +8121,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 }
                 ?>
                 <div class="page-header">
-                    <h1><?= $is_youth_advisor_scope ? 'Youth & ' . htmlspecialchars($active_org_dept) . ' Organised Events' : htmlspecialchars($active_org_dept) . ' Organised Events' ?></h1>
+                    <h1><?= $is_organizing_secretary ? 'Manage ' . htmlspecialchars($active_org_dept) . ' Organised Events' : ($is_youth_advisor_scope ? 'Youth & ' . htmlspecialchars($active_org_dept) . ' Organised Events' : htmlspecialchars($active_org_dept) . ' Organised Events') ?></h1>
                     <?php if (count($organizing_secretary_depts) > 1): ?>
                     <p>You serve as Organizing Secretary in multiple departments. Select one to manage:</p>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;margin-bottom:15px;">
@@ -8424,70 +8424,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </div>
                 <?php endforeach; ?>
                 <?php if ($is_organizing_secretary): ?>
-                    <?php
-                    $organizer_fine_department_filter = department_match_sql($conn, 'mf.department', $active_org_dept);
-                    $organizer_fines_result = $conn->query("SELECT mf.*, m.first_name, m.last_name, m.profile_picture, dm.first_name AS dm_first, dm.last_name AS dm_last
-                        FROM member_fines mf
-                        JOIN members m ON mf.member_id = m.id
-                        LEFT JOIN members dm ON mf.discipline_master_id = dm.id
-                        WHERE ($organizer_fine_department_filter)
-                        ORDER BY mf.issued_at DESC");
-                    $organizer_fines = [];
-                    if ($organizer_fines_result) {
-                        while ($organizer_fine = $organizer_fines_result->fetch_assoc()) {
-                            $organizer_fines[] = $organizer_fine;
-                        }
-                    }
-                    $organizer_unpaid_fines = array_values(array_filter($organizer_fines, function ($fine) {
-                        return strtolower(trim((string)($fine['status'] ?? ''))) !== 'paid';
-                    }));
-                    $organizer_fine_reports = [
-                        ['title' => 'Unpaid Fines', 'rows' => $organizer_unpaid_fines],
-                        ['title' => 'Fines History', 'rows' => $organizer_fines]
-                    ];
-                    ?>
-                    <?php foreach ($organizer_fine_reports as $fine_report): ?>
-                        <div class="content-card" style="margin:24px 0;">
-                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                                <h2 style="margin:0;"><?= htmlspecialchars($fine_report['title']) ?> - <?= htmlspecialchars($active_org_dept) ?></h2>
-                            </div>
-                            <p style="color:var(--text-muted);margin:10px 0 16px;">
-                                <?= $fine_report['title'] === 'Unpaid Fines' ? 'Outstanding fines awaiting payment or verification.' : 'Complete fine history for the selected department.' ?>
-                            </p>
-                            <?php if (!empty($fine_report['rows'])): ?>
-                                <div class="table-responsive">
-                                    <table>
-                                        <thead><tr><th>Profile</th><th>Member</th><th>Offense</th><th>Amount</th><th>Issued By</th><th>Status</th><th>Date</th></tr></thead>
-                                        <tbody>
-                                            <?php foreach ($fine_report['rows'] as $fine): ?>
-                                                <tr>
-                                                    <td>
-                                                        <img src="uploads/<?= htmlspecialchars(basename($fine['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>"
-                                                             alt="<?= htmlspecialchars($fine['first_name'] . ' ' . $fine['last_name']) ?> profile photo"
-                                                             onerror="this.onerror=null;this.src='uploads/default_avatar.png';"
-                                                             style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"
-                                                             onclick="viewProfileImage(this.src);" title="View member photo">
-                                                    </td>
-                                                    <td style="font-weight:500;"><?= htmlspecialchars($fine['first_name'] . ' ' . $fine['last_name']) ?></td>
-                                                    <td><?= htmlspecialchars($fine['fine_reason']) ?></td>
-                                                    <td style="font-weight:600;">KSh <?= number_format((float)$fine['amount'], 2) ?></td>
-                                                    <td><?= htmlspecialchars(trim(($fine['dm_first'] ?? '') . ' ' . ($fine['dm_last'] ?? '')) ?: 'Discipline Master') ?></td>
-                                                    <td><?= htmlspecialchars($fine['status']) ?></td>
-                                                    <td style="white-space:nowrap;font-size:.85em;color:var(--text-muted);">
-                                                        <?= !empty($fine['issued_at']) ? date('M j, Y g:i A', strtotime($fine['issued_at'])) : '-' ?>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            <?php else: ?>
-                                <p style="color:var(--text-muted);margin:0;">
-                                    <?= $fine_report['title'] === 'Unpaid Fines' ? 'There are no unpaid fines for this department.' : 'No fines have been recorded for this department.' ?>
-                                </p>
-                            <?php endif; ?>
-                        </div>
-                    <?php endforeach; ?>
                     <script>
                     function printOrganizedAttendance(registerId, orientation, attendanceStatus) {
                         if (!orientation) return choosePrintOrientation(selected => printOrganizedAttendance(registerId, selected, attendanceStatus));
