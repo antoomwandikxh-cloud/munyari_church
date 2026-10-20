@@ -271,12 +271,14 @@ if (!$t_pic_b64 && file_exists($default_pic)) {
         <?php endif; ?>
     </div>
 
-    <div class="treasurer-profile">
+    <div class="treasurer-profile print-leader-header">
+        <div class="print-leader-person">
         <?php if($t_pic_b64): ?>
-        <img src="<?= $t_pic_b64 ?>" alt="Treasurer">
+        <img class="print-leader-avatar" src="<?= $t_pic_b64 ?>" alt="Treasurer">
         <?php endif; ?>
         <div class="name"><?= $treasurer ? htmlspecialchars(ucfirst($treasurer['first_name']) . ' ' . ucfirst($treasurer['last_name'])) : 'NOT ASSIGNED' ?></div>
         <div class="role"><?= htmlspecialchars($dept) ?> Treasurer</div>
+        </div>
     </div>
 
     <table>

@@ -2911,6 +2911,8 @@ function printAllLeaders(orientation) {
     var logoUrl  = document.getElementById('deptPrintLogo')   ? document.getElementById('deptPrintLogo').getAttribute('data-src')    : 'church_logo.jpg';
     var pastorEl = document.getElementById('deptPrintPastorName');
     var pastorName = pastorEl ? pastorEl.innerText.trim() : '';
+    var pastorPicEl = document.getElementById('deptPrintPastorPic');
+    var pastorPic = pastorPicEl ? pastorPicEl.getAttribute('data-src') : 'uploads/default_avatar.png';
     var printDate  = document.getElementById('deptPrintDate') ? document.getElementById('deptPrintDate').innerText.trim() : new Date().toLocaleDateString();
 
     // Collect all leader cards from the "Church Leaders Overview" section
@@ -2940,6 +2942,7 @@ function printAllLeaders(orientation) {
     w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
 
     // Header
+    w.document.write('<div class="print-leader-header"><div class="print-leader-person"><img class="print-leader-avatar" src="' + pastorPic + '" alt="Church Pastor"><div style="font-size:0.75rem;color:#555;text-transform:uppercase;">Church Pastor</div><div style="font-size:1rem;font-weight:800;color:#1e3a8a;text-transform:uppercase;">' + pastorName + '</div></div></div>');
     w.document.write('<div style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:10px;position:relative;margin-bottom:16px;min-height:85px;">');
     w.document.write('<img src="' + logoUrl + '" style="position:absolute;left:20px;top:0;width:70px;height:70px;object-fit:contain;">');
     w.document.write('<img src="' + logoUrl + '" style="position:absolute;right:20px;top:0;width:70px;height:70px;object-fit:contain;">');
@@ -3042,18 +3045,18 @@ function printDepartment(deptName, containerId, leaderSpanId, orientation) {
     w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
 
     // Leader photo row
-    w.document.write('<div style="display:flex;align-items:center;justify-content:center;gap:40px;margin-bottom:10px;">');
+    w.document.write('<div class="print-leader-header" style="display:flex;align-items:center;justify-content:center;gap:40px;margin-bottom:10px;">');
     
     // Main Leader
-    w.document.write('<div style="display:flex;align-items:center;gap:15px;">');
-    w.document.write('<img src="' + leaderPic + '" alt="Leader" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid #1e3a8a;">');
+    w.document.write('<div class="print-leader-person" style="display:flex;align-items:center;gap:15px;">');
+    w.document.write('<img class="print-leader-avatar" src="' + leaderPic + '" alt="Leader" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid #1e3a8a;">');
     w.document.write('<div><div style="font-size:0.75rem;color:#555;text-transform:uppercase;">' + leaderRole + '</div>');
     w.document.write('<div style="font-size:1.2rem;font-weight:700;color:#1e3a8a;">' + leaderName + '</div></div></div>');
     
     // Vice Leader (if present and not N/A)
     if (viceName && viceName !== 'N/A') {
-        w.document.write('<div style="display:flex;align-items:center;gap:15px;">');
-        w.document.write('<img src="' + vicePic + '" alt="Vice Leader" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid #6366f1;">');
+        w.document.write('<div class="print-leader-person" style="display:flex;align-items:center;gap:15px;">');
+        w.document.write('<img class="print-leader-avatar" src="' + vicePic + '" alt="Vice Leader" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid #6366f1;">');
         w.document.write('<div><div style="font-size:0.75rem;color:#555;text-transform:uppercase;">' + viceRole + '</div>');
         w.document.write('<div style="font-size:1.2rem;font-weight:700;color:#1e3a8a;">' + viceName + '</div></div></div>');
     }
@@ -3655,14 +3658,14 @@ w.document.write('</div>');
                     
                     <?php if ($v_total > 0): ?>
                     <div class="table-responsive" id="village_table_<?= str_replace(' ', '_', $v) ?>">
-                        <div class="print-leader-profile" style="display:none; text-align:center; margin:0 auto 10px; background:#f8fafc; padding:6px 12px; border-radius:6px; border:1px solid #e2e8f0; width:fit-content; min-width:200px;">
+                        <div class="print-leader-profile" style="display:none; text-align:center;">
                             <?php if (!empty($v_leaders[0])): ?>
-                                <img src="uploads/<?= htmlspecialchars($v_leaders[0]['profile_picture'] ?? 'default_avatar.png') ?>" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid <?= $v_color ?>; margin-bottom:4px;">
+                                <img class="print-leader-avatar" src="uploads/<?= htmlspecialchars($v_leaders[0]['profile_picture'] ?? 'default_avatar.png') ?>" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid <?= $v_color ?>; margin-bottom:4px;">
                                 <div style="font-size:1.1rem; font-weight:800; color:#1e3a8a; text-transform:uppercase; margin-bottom:2px;"><?= htmlspecialchars($v_leaders[0]['first_name'] . ' ' . $v_leaders[0]['last_name']) ?></div>
                                 <div style="font-size:0.85rem; font-weight:600; color:<?= $v_color ?>; margin-bottom:4px;"><?= $v ?> Village Leader</div>
                                 <div style="font-size:0.75rem; color:#64748b; font-weight:600;"><?= htmlspecialchars($v_leaders[0]['phone']) ?></div>
                             <?php else: ?>
-                                <img src="uploads/default_avatar.png" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #cbd5e1; margin-bottom:4px; opacity:0.7; filter:grayscale(100%);">
+                                <img class="print-leader-avatar" src="uploads/default_avatar.png" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #cbd5e1; margin-bottom:4px; opacity:0.7; filter:grayscale(100%);">
                                 <div style="font-size:1.1rem; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:2px;">(Not Assigned)</div>
                                 <div style="font-size:0.85rem; font-weight:600; color:#64748b; margin-bottom:4px;"><?= $v ?> Village Leader</div>
                             <?php endif; ?>
@@ -7503,6 +7506,12 @@ document.addEventListener("DOMContentLoaded", function () {
                             const pageStyle = win.document.createElement('style');
                             pageStyle.textContent = '@page{size:A4 ' + orientation + ';}';
                             win.document.head.appendChild(pageStyle);
+                            const teacherProfile = win.document.querySelector('.teacher-block');
+                            if (teacherProfile) {
+                                teacherProfile.classList.add('print-leader-header', 'print-leader-person');
+                                const teacherAvatar = teacherProfile.querySelector('img');
+                                if (teacherAvatar) teacherAvatar.classList.add('print-leader-avatar');
+                            }
                             win.document.close();
                             win.focus();
                             win.print();
@@ -7776,6 +7785,10 @@ function printRequiredLeadersTable(orientation) {
     if (document.getElementById('deptPrintLogo')) {
         logoUrl = document.getElementById('deptPrintLogo').getAttribute('data-src');
     }
+    var pastorProfile = document.getElementById('deptPrintPastorPic');
+    var pastorProfileUrl = pastorProfile ? pastorProfile.getAttribute('data-src') : 'uploads/default_avatar.png';
+    var pastorNameNode = document.getElementById('deptPrintPastorName');
+    var pastorProfileName = pastorNameNode ? pastorNameNode.innerText.trim() : '';
     var printDate = new Date().toLocaleString();
     
     var theadRow = card.querySelector('thead') ? card.querySelector('thead').innerHTML : '';
@@ -7826,6 +7839,7 @@ function printRequiredLeadersTable(orientation) {
     w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
 
     // Church header with dual logos
+    w.document.write('<div class="print-leader-header"><div class="print-leader-person"><img class="print-leader-avatar" src="' + pastorProfileUrl + '" alt="Church Pastor"><div style="font-size:0.72rem;color:#555;text-transform:uppercase;">Church Pastor</div><div style="font-weight:800;color:#1e3a8a;text-transform:uppercase;">' + pastorProfileName + '</div></div></div>');
     w.document.write('<div style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:10px;position:relative;margin-bottom:14px;min-height:85px;">');
     w.document.write('<img src="' + logoUrl + '" style="position:absolute;left:20px;top:0;width:70px;height:70px;object-fit:contain;">');
     w.document.write('<img src="' + logoUrl + '" style="position:absolute;right:20px;top:0;width:70px;height:70px;object-fit:contain;">');
@@ -7862,6 +7876,10 @@ function printRequiredTable(orientation) {
     }
     var w = window.open('', '_blank', 'width=1100,height=800');
     if (!w) return;
+    var pastorProfile = document.getElementById('deptPrintPastorPic');
+    var pastorProfileUrl = pastorProfile ? pastorProfile.getAttribute('data-src') : 'uploads/default_avatar.png';
+    var pastorNameNode = document.getElementById('deptPrintPastorName');
+    var pastorProfileName = pastorNameNode ? pastorNameNode.innerText.trim() : '';
     w.document.write('<!DOCTYPE html><html><head><title>Required Church Leaders Table</title>');
     w.document.write('<style>');
     w.document.write('@page { margin: 15mm; size: A4 ' + orientation + '; }');
@@ -7878,6 +7896,7 @@ function printRequiredTable(orientation) {
     w.document.write('img { width:32px; height:32px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:8px; border:1px solid #ccc; }');
     w.document.write('.btn-sm { display:none; }');
     w.document.write('<style>.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}</style></head><body>');
+    w.document.write('<div class="print-leader-header"><div class="print-leader-person"><img class="print-leader-avatar" src="' + pastorProfileUrl + '" alt="Church Pastor"><div style="font-size:0.72rem;color:#555;text-transform:uppercase;">Church Pastor</div><div style="font-weight:800;color:#1e3a8a;text-transform:uppercase;">' + pastorProfileName + '</div></div></div>');
     w.document.write('<h2 style="text-align:center; border-bottom:2px solid #1e3a8a; padding-bottom:8px;">E.A.P.C MUNYARI CHURCH &mdash; Currently Assigned Leaders</h2>');
     w.document.write('<p style="text-align:center;color:#555;margin-bottom:16px;">Printed on: ' + new Date().toLocaleDateString('en-GB', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) + '</p>');
     w.document.write(card.innerHTML);
@@ -8084,7 +8103,7 @@ function openDeclineModal(id, name) {
         var leaderNode = container.querySelector('.print-leader-profile');
         var leaderHTML = '';
         if (leaderNode) {
-            leaderHTML = '<div style="text-align:center; margin:0 auto 10px; background:#f8fafc; padding:6px 12px; border-radius:6px; border:1px solid #e2e8f0; width:fit-content; min-width:200px;">' + leaderNode.innerHTML + '</div>';
+            leaderHTML = '<div class="print-leader-header"><div class="print-leader-person">' + leaderNode.innerHTML + '</div></div>';
         }
         var wmSize = orientation === 'landscape' ? '3.2rem' : '2.0rem';
         var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
@@ -8102,7 +8121,8 @@ function openDeclineModal(id, name) {
         w.document.write('.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#777;font-style:italic;background:rgba(255,255,255,0.9);padding:5px 0;z-index:10;}');
         w.document.write('<style>.role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}.role-pill{display:inline-flex;align-items:center;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;line-height:1.5;letter-spacing:0.2px;border:1px solid transparent;}.rp-leader{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}.rp-chair{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}.rp-vice{background:#fdf4ff;color:#9333ea;border-color:#f0abfc;}.rp-secretary{background:#ecfdf5;color:#059669;border-color:#6ee7b7;}.rp-treasurer{background:#fff7ed;color:#c2410c;border-color:#fdba74;}.rp-elder{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}.rp-worship{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}.rp-usher{background:#fefce8;color:#a16207;border-color:#fde047;}.rp-pastor{background:#fef3c7;color:#92400e;border-color:#f59e0b;}.rp-member{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}.rp-other{background:#f8fafc;color:#475569;border-color:#e2e8f0;}</style></head><body>');
         w.document.write('<div class="watermark">E.A.P.C MUNYARI CHURCH</div>');
-        w.document.write('<div style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:10px;position:relative;margin-bottom:18px;min-height:85px;">');
+        w.document.write(leaderHTML);
+        w.document.write('<div class="report-header" style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:10px;position:relative;margin-bottom:18px;min-height:85px;">');
         w.document.write('<img src="church_logo.jpg" style="position:absolute;left:20px;top:0;width:70px;height:70px;object-fit:contain;">');
         w.document.write('<img src="church_logo.jpg" style="position:absolute;right:20px;top:0;width:70px;height:70px;object-fit:contain;">');
         w.document.write('<h2 style="margin:0;color:#1e3a8a;padding-top:8px;">E.A.P.C MUNYARI CHURCH</h2>');

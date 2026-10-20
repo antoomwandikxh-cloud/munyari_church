@@ -33,9 +33,10 @@ function img_b64(string $filename): string {
 $logo_b64 = img_b64('church_logo.jpg');
 
 /* Fetch active pastor */
-$pastor_q    = $conn->query("SELECT first_name, last_name FROM pastors WHERE is_approved = 1 ORDER BY id ASC LIMIT 1");
+$pastor_q    = $conn->query("SELECT first_name, last_name, profile_picture FROM pastors WHERE is_approved = 1 ORDER BY id ASC LIMIT 1");
 $pastor_row  = $pastor_q ? $pastor_q->fetch_assoc() : null;
 $pastor_name = $pastor_row ? strtoupper($pastor_row['first_name'] . ' ' . $pastor_row['last_name']) : 'Not Assigned';
+$pastor_pic  = $pastor_row ? img_b64($pastor_row['profile_picture'] ?? '') : '';
 
 /* ── Fetch ALL roles from DB (excludes Worshipper — managed separately under Manage Worshippers tab) ── */
 $all_roles = [];
@@ -186,7 +187,16 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
     <button onclick="window.close()" style="background:#dc2626;">✕ Close</button>
 </div>
 
-<
+<?php if ($pastor_row): ?>
+<div class="print-leader-header">
+    <div class="print-leader-person">
+        <?php if ($pastor_pic): ?><img class="print-leader-avatar" src="<?= $pastor_pic ?>" alt="Church Pastor"><?php endif; ?>
+        <div style="font-weight:800;color:#1e3a8a;text-transform:uppercase;"><?= htmlspecialchars($pastor_name) ?></div>
+        <div style="font-size:0.72rem;color:#555;text-transform:uppercase;">Church Pastor</div>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- ═══ COMBINED header ═══ -->
 <div class="main-header" style="margin-top:0;">
     <?php if ($logo_b64): ?><img class="logo" src="<?= $logo_b64 ?>" alt="Logo"><?php endif; ?>

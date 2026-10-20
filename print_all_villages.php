@@ -156,11 +156,11 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 14px; color: #111; fo
 /* Village leaders bar */
 .leaders-bar {
     display: flex; justify-content: center; gap: 24px;
-    margin-bottom: 16px; padding: 10px 16px;
-    background: #f0f4ff; border-radius: 10px;
-    border: 1px solid #c7d2fe;
+    margin-bottom: 10px; padding: 0;
+    background: transparent; border-radius: 0;
+    border: 0; box-shadow: none;
 }
-.lcard { text-align: center; }
+.lcard { text-align: center; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .lcard img, .lcard .avatar-ph {
     width: 90px; height: 90px; border-radius: 50%; object-fit: cover;
     border: 3px solid #1e3a8a; display: block; margin: 0 auto 6px;
@@ -268,24 +268,24 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
 </div>
 
 <!-- ═══ VILLAGE LEADERS PROFILE BAR ═══ -->
-<div class="leaders-bar">
+<div class="leaders-bar print-leader-header">
     <?php foreach ($villages as $v):
         $l  = $leaders[$v];
         $vc = $village_colors[$v];
     ?>
-    <div class="lcard">
+    <div class="lcard print-leader-person">
         <?php if ($l):
             $pb = img_b64($l['profile_picture'] ?? '');
         ?>
         <?php if ($pb): ?>
-            <img src="<?= $pb ?>" alt="">
+            <img class="print-leader-avatar" src="<?= $pb ?>" alt="">
         <?php else: ?>
-            <img src="<?= img_b64('default_avatar.png') ?>" alt="" style="opacity:0.8; filter: grayscale(50%);">
+            <img class="print-leader-avatar" src="<?= img_b64('default_avatar.png') ?>" alt="" style="opacity:0.8; filter: grayscale(50%);">
         <?php endif; ?>
         <div class="ln"><?= htmlspecialchars($l['first_name'] . ' ' . $l['last_name']) ?></div>
         <div class="lv" style="color:<?= $vc ?>;"><?= $v ?> — Village Leader</div>
         <?php else: ?>
-        <img src="<?= img_b64('default_avatar.png') ?>" alt="" style="opacity:0.8; filter: grayscale(50%);">
+        <img class="print-leader-avatar" src="<?= img_b64('default_avatar.png') ?>" alt="" style="opacity:0.8; filter: grayscale(50%);">
         <div class="ln" style="color:#aaa;">No Leader Yet</div>
         <div class="lv" style="color:<?= $vc ?>;"><?= $v ?> Village</div>
         <?php endif; ?>

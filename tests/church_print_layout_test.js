@@ -71,4 +71,39 @@ assert.match(printDocument.head.style.textContent, /margin-bottom:16mm/);
 
 windowMock.prepareChurchPrintLayout(printDocument);
 assert.equal(tbody.rows.every(row => row.cells.length === 4), true, 'preparation can run more than once without duplicating cells');
+
+const header = { parentNode: null, nextElementSibling: null };
+const profile = { parentNode: header, nextElementSibling: null };
+const body = {
+    children: [header],
+    insertBefore(node, reference) {
+        if (node.parentNode && node.parentNode.children) {
+            node.parentNode.children = node.parentNode.children.filter(child => child !== node);
+        }
+        const index = this.children.indexOf(reference);
+        this.children.splice(index, 0, node);
+        node.parentNode = this;
+        this.children.forEach((child, childIndex) => {
+            child.nextElementSibling = this.children[childIndex + 1] || null;
+        });
+    }
+};
+header.parentNode = body;
+header.children = [profile];
+const profileDocument = {
+    documentElement: {},
+    head: { appendChild(node) { this.style = node; } },
+    querySelectorAll() { return []; },
+    querySelector(selector) {
+        if (selector === '.print-leader-header') return profile;
+        if (selector === '.main-header, .header, .report-header, [data-print-report-title]') return header;
+        return null;
+    },
+    createElement() { return { setAttribute(name, value) { this[name] = value; } }; }
+};
+windowMock.prepareChurchPrintLayout(profileDocument);
+assert.equal(body.children[0], profile, 'leader portrait is moved above the report title header');
+assert.equal(body.children[1], header);
+assert.match(profileDocument.head.style.textContent, /border-radius:50%/);
+assert.match(profileDocument.head.style.textContent, /box-shadow:none/);
 console.log('Church print layout tests passed.');

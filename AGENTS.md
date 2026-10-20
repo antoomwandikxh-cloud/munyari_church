@@ -10,6 +10,7 @@ These requirements apply to every dashboard and department feature in this proje
 
 # Print Layout Requirements
 
+- Put each report's responsible leader profile first, above the church/report title, using `.print-leader-header` and `.print-leader-person`; mark the portrait `.print-leader-avatar`. The shared print helper moves this header before the report heading and renders the photo as a clean circle with no rectangular frame/card. Keep logos separate and do not apply this rule to member-photo columns.
 - All print windows opened from dashboards inherit `church_print_layout.js`; every standalone print page must include it with `data-direct-print="true"`.
 - Keep printable table headers repeating and each individual row together, but allow the table itself to flow across pages. Do not make a whole table, department group, or oversized card unbreakable.
 - Avoid `rowspan` in printable table bodies. When the screen table groups rows with rowspans, the shared print helper repeats the leading department cell in the print document so remaining rows can fill the page before a page break.

@@ -218,6 +218,29 @@ function fmt_amount($n) {
     }
     </script>
 
+    <!-- Treasurers Profile Bar -->
+    <div class="print-leader-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:12px; gap:10px;">
+        <?php foreach ($depts as $dk => $label): 
+            $t = $treasurers_info[$dk];
+            $t_pic = file_exists($t['pic']) ? $t['pic'] : 'uploads/default_avatar.png';
+            // Convert to base64 so it prints reliably
+            if (file_exists($t_pic)) {
+                $ext = strtolower(pathinfo($t_pic, PATHINFO_EXTENSION));
+                $mime = ($ext === 'png') ? 'image/png' : (($ext === 'gif') ? 'image/gif' : 'image/jpeg');
+                $t_pic_b64 = "data:$mime;base64," . base64_encode(file_get_contents($t_pic));
+            } else {
+                $t_pic_b64 = '';
+            }
+        ?>
+        <div class="print-leader-person" style="text-align:center; flex:1; min-width:90px;">
+            <img class="print-leader-avatar" src="<?= $t_pic_b64 ?>" alt="<?= htmlspecialchars($label) ?> Treasurer">
+            <div style="font-size:10px; color:#555; text-transform:uppercase; font-weight:bold;"><?= str_replace(' Department', '', $label) ?></div>
+            <div style="font-size: 9px; font-weight:800; color:#111; text-transform:uppercase; margin-top:2px;"><?= htmlspecialchars($t['name']) ?></div>
+            <div style="font-size:10px; color:#888; font-style:italic;">Treasurer</div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
     <!-- Header: logo | title | logo -->
     <div class="header">
         <?php if ($logo_b64): ?>
@@ -233,29 +256,6 @@ function fmt_amount($n) {
         <?php if ($logo_b64): ?>
         <img src="<?= $logo_b64 ?>" alt="Logo">
         <?php endif; ?>
-    </div>
-
-    <!-- Treasurers Profile Bar -->
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:30px; gap:10px;">
-        <?php foreach ($depts as $dk => $label): 
-            $t = $treasurers_info[$dk];
-            $t_pic = file_exists($t['pic']) ? $t['pic'] : 'uploads/default_avatar.png';
-            // Convert to base64 so it prints reliably
-            if (file_exists($t_pic)) {
-                $ext = strtolower(pathinfo($t_pic, PATHINFO_EXTENSION));
-                $mime = ($ext === 'png') ? 'image/png' : (($ext === 'gif') ? 'image/gif' : 'image/jpeg');
-                $t_pic_b64 = "data:$mime;base64," . base64_encode(file_get_contents($t_pic));
-            } else {
-                $t_pic_b64 = '';
-            }
-        ?>
-        <div style="text-align:center; flex:1; min-width:90px;">
-            <img src="<?= $t_pic_b64 ?>" style="width:64px; height:64px; border-radius:50%; object-fit:cover; border:2px solid #1e3a8a; margin-bottom:5px;">
-            <div style="font-size:10px; color:#555; text-transform:uppercase; font-weight:bold;"><?= str_replace(' Department', '', $label) ?></div>
-            <div style="font-size: 9px; font-weight:800; color:#111; text-transform:uppercase; margin-top:2px;"><?= htmlspecialchars($t['name']) ?></div>
-            <div style="font-size:10px; color:#888; font-style:italic;">Treasurer</div>
-        </div>
-        <?php endforeach; ?>
     </div>
 
     <!-- Financial Table -->

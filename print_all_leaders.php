@@ -182,8 +182,7 @@ font-style:italic;background:rgba(255,255,255,0.95);padding:4px 0;z-index:10;bor
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 6px;
-    margin-bottom: 2px;
+    margin: 0 0 6px;
 }
 .pastor-profile img, .pastor-profile .avatar-placeholder {
     width: 90px; height: 90px; border-radius: 50%;
@@ -252,12 +251,9 @@ tbody td{padding:6px 7px;border-bottom:1px solid #e5e7eb;vertical-align:middle;}
 
   <!-- Centre -->
   <div class="hdr-center">
-    <h2>E.A.P.C MUNYARI CHURCH</h2>
-    <h3>CHURCH LEADERS REGISTER</h3>
-    
-    <div class="pastor-profile">
+    <div class="pastor-profile print-leader-header">
         <?php if($pastor_pic): ?>
-          <img src="<?=$pastor_pic?>" alt="Pastor">
+          <img class="print-leader-avatar" src="<?=$pastor_pic?>" alt="Pastor">
         <?php else: ?>
           <div class="avatar-placeholder">👤</div>
         <?php endif; ?>
@@ -269,7 +265,8 @@ tbody td{padding:6px 7px;border-bottom:1px solid #e5e7eb;vertical-align:middle;}
           <?php if($pastor_address):?>📍 <?=htmlspecialchars($pastor_address)?><?php endif;?>
         </div>
     </div>
-    
+    <h2>E.A.P.C MUNYARI CHURCH</h2>
+    <h3>CHURCH LEADERS REGISTER</h3>
     <p style="margin-top:4px;">Printed on: <?=htmlspecialchars($print_date)?></p>
   </div>
 

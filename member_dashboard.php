@@ -6820,6 +6820,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </body></html>`;
                         printWindow.document.write(html);
                         printWindow.document.close();
+                        const leaderProfile = printWindow.document.querySelector('thead th > div');
+                        if (leaderProfile) {
+                            leaderProfile.classList.add('print-leader-header', 'print-leader-person');
+                            const leaderAvatar = leaderProfile.querySelector('img');
+                            if (leaderAvatar) leaderAvatar.classList.add('print-leader-avatar');
+                            if (leaderProfile.nextElementSibling) leaderProfile.nextElementSibling.classList.add('report-header');
+                        }
                         printWindow.focus();
                         setTimeout(() => printWindow.print(), 600);
                     }
@@ -6913,6 +6920,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </body></html>`;
                         printWindow.document.write(html);
                         printWindow.document.close();
+                        const leaderProfile = printWindow.document.querySelector('thead th > div');
+                        if (leaderProfile) {
+                            leaderProfile.classList.add('print-leader-header', 'print-leader-person');
+                            const leaderAvatar = leaderProfile.querySelector('img');
+                            if (leaderAvatar) leaderAvatar.classList.add('print-leader-avatar');
+                            if (leaderProfile.nextElementSibling) leaderProfile.nextElementSibling.classList.add('report-header');
+                        }
                         printWindow.focus();
                         setTimeout(() => printWindow.print(), 600);
                     }
@@ -7513,6 +7527,14 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 printWindow.document.open();
                                 printWindow.document.write(reportHtml);
                                 printWindow.document.close();
+                                var treasurerProfile = printWindow.document.querySelector('.treasurer');
+                                var financialBrand = printWindow.document.querySelector('.brand');
+                                if (treasurerProfile) {
+                                    treasurerProfile.classList.add('print-leader-header', 'print-leader-person');
+                                    var treasurerAvatar = treasurerProfile.querySelector('img');
+                                    if (treasurerAvatar) treasurerAvatar.classList.add('print-leader-avatar');
+                                }
+                                if (financialBrand) financialBrand.classList.add('report-header');
                                 setTimeout(function() {
                                     var images = Array.from(printWindow.document.images);
                                     Promise.all(images.map(function(image) {
@@ -8583,6 +8605,14 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </body></html>`;
                         printWindow.document.write(printHtml);
                         printWindow.document.close();
+                        var leaderProfile = printWindow.document.querySelector('.leader');
+                        var villageBrand = printWindow.document.querySelector('.brand');
+                        if (leaderProfile) {
+                            leaderProfile.classList.add('print-leader-header', 'print-leader-person');
+                            var leaderAvatar = leaderProfile.querySelector('img');
+                            if (leaderAvatar) leaderAvatar.classList.add('print-leader-avatar');
+                        }
+                        if (villageBrand) villageBrand.classList.add('report-header');
                         printWindow.focus();
                         setTimeout(function() { printWindow.print(); }, 650);
                     }

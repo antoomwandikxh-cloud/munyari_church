@@ -190,7 +190,7 @@ if (file_exists($logo_path)) {
             margin-bottom: 8px;
             margin-top: 4px;
         }
-        .header img { height: 60px; border-radius: 50%; }
+        .header > img { height: 60px; border-radius: 0; }
         .header-text { text-align: center; flex: 1; padding: 0 8px; }
         .header-text h1 { margin: 0 0 1px; color: #1e3a8a; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; }
         .header-text h2 { margin: 0 0 1px; color: #333; font-size: 12px; font-weight: 700; text-transform: uppercase; }
@@ -281,13 +281,18 @@ if (file_exists($logo_path)) {
         <button class="print-action" type="button" onclick="printCurrentPageWithOrientation()">Print / Save PDF</button>
     </div>
 
+<div class="print-leader-header">
+    <div class="print-leader-person">
+        <img class="print-leader-avatar" src="<?= $l_pic_b64 ?: $default_pic_b64 ?>" alt="Village Leader" style="<?= empty($l_pic_b64) ? 'filter:grayscale(60%);' : '' ?>">
+        <div style="font-size:10px; font-weight:800; color:#1e3a8a; text-transform:uppercase; line-height:1.2;"><?= $leader ? htmlspecialchars(strtoupper($leader['first_name'] . ' ' . $leader['last_name'])) : 'LEADER NOT ASSIGNED' ?></div>
+        <div style="font-size:9px; color:#64748b; font-weight:600;"><?= htmlspecialchars($village) ?> Village Leader</div>
+    </div>
+</div>
+
 <!-- Header with logos -->
     <div class="header">
         <?php if ($logo_b64): ?><img src="<?= $logo_b64 ?>" alt="Church Logo"><?php endif; ?>
         <div class="header-text">
-            <img src="<?= $l_pic_b64 ?: $default_pic_b64 ?>" alt="Village Leader" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #1e3a8a; display:inline-block; margin-bottom:2px; <?= empty($l_pic_b64) ? 'filter:grayscale(60%);' : '' ?>">
-            <div style="font-size:10px; font-weight:800; color:#1e3a8a; text-transform:uppercase; line-height:1.2; margin-bottom:1px;"><?= $leader ? htmlspecialchars(strtoupper($leader['first_name'] . ' ' . $leader['last_name'])) : 'LEADER NOT ASSIGNED' ?></div>
-            <div style="font-size:9px; color:#64748b; font-weight:600; margin-bottom:3px;"><?= htmlspecialchars($village) ?> Village Leader</div>
             <h1>E.A.P.C Munyari Church</h1>
             <h2><?= strtoupper(htmlspecialchars($village)) ?> Village – Members Directory</h2>
             <h3>Printed on: <?= date('l, F j, Y') ?></h3>

@@ -206,54 +206,44 @@ if ($report === 'all_villages') {
         </button>
     </div>
 
+    <div class="print-leader-header">
+        <?php if ($pastor):
+            $pastor_path = 'uploads/' . basename($pastor['profile_picture'] ?? 'default_avatar.png');
+            $pastor_photo = '';
+            if (file_exists($pastor_path)) {
+                $pastor_mime = strtolower(pathinfo($pastor_path, PATHINFO_EXTENSION)) === 'png' ? 'image/png' : 'image/jpeg';
+                $pastor_photo = 'data:' . $pastor_mime . ';base64,' . base64_encode(file_get_contents($pastor_path));
+            }
+        ?>
+        <div class="print-leader-person">
+            <?php if ($pastor_photo): ?><img class="print-leader-avatar" src="<?= $pastor_photo ?>" alt="Pastor"><?php endif; ?>
+            <div style="font-weight:800;color:#1e3a8a;text-transform:uppercase;"><?= htmlspecialchars($pastor['first_name'] . ' ' . $pastor['last_name']) ?></div>
+            <div style="font-size:0.75rem;color:#555;text-transform:uppercase;font-weight:700;">Senior Pastor</div>
+        </div>
+        <?php endif; ?>
+        <?php foreach ($v_leaders as $vl):
+            if ($report === 'single_village' && strcasecmp(trim($vl['church_village'] ?? ''), trim($param)) !== 0) continue;
+            if (!in_array($report, ['all_villages', 'single_village'], true)) continue;
+            $village_leader_path = 'uploads/' . basename($vl['profile_picture'] ?? 'default_avatar.png');
+            $village_leader_photo = '';
+            if (file_exists($village_leader_path)) {
+                $leader_mime = strtolower(pathinfo($village_leader_path, PATHINFO_EXTENSION)) === 'png' ? 'image/png' : 'image/jpeg';
+                $village_leader_photo = 'data:' . $leader_mime . ';base64,' . base64_encode(file_get_contents($village_leader_path));
+            }
+        ?>
+        <div class="print-leader-person">
+            <?php if ($village_leader_photo): ?><img class="print-leader-avatar" src="<?= $village_leader_photo ?>" alt="Village leader"><?php endif; ?>
+            <div style="font-weight:800;text-transform:uppercase;"><?= htmlspecialchars($vl['first_name'] . ' ' . $vl['last_name']) ?></div>
+            <div style="font-size:0.75rem;color:#555;"><?= htmlspecialchars($vl['church_village']) ?> Village Leader</div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
     <div class="report-header" style="<?= $report === 'all_villages' ? 'border-bottom:none; margin-bottom:10px;' : '' ?>">
         <?php if ($logo_b64): ?><img src="<?= $logo_b64 ?>" alt="Logo" style="position:<?= $report === 'all_villages' ? 'relative; display:block; margin:0 auto 10px auto;' : 'absolute' ?>"><?php endif; ?>
         <h2>E.A.P.C MUNYARI CHURCH &mdash; <?= htmlspecialchars($title) ?></h2>
         <p>Printed on: <?= date('F j, Y g:i A') ?></p>
         
-        <?php if ($report === 'all_villages'): ?>
-        <div style="margin-top:20px; display:flex; flex-direction:column; align-items:center; gap:15px; border-bottom:2px solid #1e3a8a; padding-bottom:15px;">
-            <!-- Pastor -->
-            <?php if ($pastor): ?>
-            <div style="text-align:center;">
-                <?php 
-$p_pic = 'uploads/' . basename($pastor['profile_picture'] ?? 'default_avatar.png');
-$p_b64 = '';
-if (file_exists($p_pic)) {
-    $ext = strtolower(pathinfo($p_pic, PATHINFO_EXTENSION));
-    $mime = ($ext === 'png') ? 'image/png' : 'image/jpeg';
-    $p_b64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($p_pic));
-}
-?>
-<img src="<?= $p_b64 ?>" style="width:70px; height:70px; border-radius:50%; object-fit:cover; border:3px solid #1e3a8a; position:static;">
-                <div style="font-weight:bold; color:#1e3a8a; font-size:1rem; text-transform:uppercase; margin-top:5px;"><?= htmlspecialchars($pastor['first_name'] . ' ' . $pastor['last_name']) ?></div>
-                <div style="font-size:0.8rem; color:#555; text-transform:uppercase; font-weight:bold;">Senior Pastor</div>
-            </div>
-            <?php endif; ?>
-            
-            <!-- Village Leaders -->
-            <?php if (!empty($v_leaders)): ?>
-            <div style="display:flex; justify-content:center; gap:30px; margin-top:10px; flex-wrap:wrap;">
-                <?php foreach ($v_leaders as $vl): ?>
-                <div style="text-align:center;">
-                    <?php 
-$vl_pic = 'uploads/' . basename($vl['profile_picture'] ?? 'default_avatar.png');
-$vl_b64 = '';
-if (file_exists($vl_pic)) {
-    $ext = strtolower(pathinfo($vl_pic, PATHINFO_EXTENSION));
-    $mime = ($ext === 'png') ? 'image/png' : 'image/jpeg';
-    $vl_b64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($vl_pic));
-}
-?>
-<img src="<?= $vl_b64 ?>" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #3b82f6; position:static;">
-                    <div style="font-weight:bold; color:#111; font-size:0.85rem; text-transform:uppercase; margin-top:5px;"><?= htmlspecialchars($vl['first_name'] . ' ' . $vl['last_name']) ?></div>
-                    <div style="font-size:0.75rem; color:#555;"><?= htmlspecialchars($vl['church_village']) ?> Leader</div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-            <?php endif; ?>
-        </div>
-        <?php endif; ?>
     </div>
 
     <table>

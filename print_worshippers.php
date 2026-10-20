@@ -106,7 +106,7 @@ body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background:
 /* Leadership banner */
 .leaders-bar {
     display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;
-    margin-bottom: 14px; padding: 10px 16px;
+    margin-bottom: 10px; padding: 0;
     background: transparent;
     border: none;
 }
@@ -213,16 +213,16 @@ if (!$vwl_pic) $vwl_pic = $default_b64;
 $wl_name  = $worship_leader      ? ucfirst($worship_leader['first_name'])      . ' ' . ucfirst($worship_leader['last_name'])      : 'Not Assigned';
 $vwl_name = $vice_worship_leader ? ucfirst($vice_worship_leader['first_name']) . ' ' . ucfirst($vice_worship_leader['last_name']) : 'Not Assigned';
 ?>
-<div class="leaders-bar">
-    <div class="leader-card">
-        <?php if ($wl_pic): ?><div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:none;flex-shrink:0;"><img src="<?= $wl_pic ?>" alt="" style="width:100%;height:100%;object-fit:cover;border:none;"></div><?php else: ?><div class="ph">&#127925;</div><?php endif; ?>
+<div class="leaders-bar print-leader-header">
+    <div class="leader-card print-leader-person">
+        <?php if ($wl_pic): ?><img class="print-leader-avatar" src="<?= $wl_pic ?>" alt=""><?php else: ?><div class="ph">&#127925;</div><?php endif; ?>
         <div>
             <div class="lrole">Worship Leader</div>
             <div class="lname"><?= htmlspecialchars($wl_name) ?></div>
         </div>
     </div>
-    <div class="leader-card">
-        <?php if ($vwl_pic): ?><div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:none;flex-shrink:0;"><img src="<?= $vwl_pic ?>" alt="" style="width:100%;height:100%;object-fit:cover;border:none;"></div><?php else: ?><div class="ph">&#127926;</div><?php endif; ?>
+    <div class="leader-card print-leader-person">
+        <?php if ($vwl_pic): ?><img class="print-leader-avatar" src="<?= $vwl_pic ?>" alt=""><?php else: ?><div class="ph">&#127926;</div><?php endif; ?>
         <div>
             <div class="lrole">Vice Worship Leader</div>
             <div class="lname"><?= htmlspecialchars($vwl_name) ?></div>
