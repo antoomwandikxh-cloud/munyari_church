@@ -8263,6 +8263,14 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                     <input id="register-type-<?= $register_id ?>" type="text" name="meeting_type" class="form-control" value="<?= htmlspecialchars($attendance_register['meeting_type']) ?>" maxlength="100" placeholder="Online, Physical, or another heading" required>
                                                 </div>
                                             </div>
+                                            <div data-attendance-member-search style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;">
+                                                <input type="search" class="form-control" data-attendance-member-search-input placeholder="Search members in this register" aria-label="Search members in Register #<?= $register_id ?>" style="width:min(100%,320px);">
+                                                <button type="button" class="btn-sm" onclick="filterAttendanceRegisterMembers(this)" aria-label="Search attendance register members" title="Search members" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+                                                    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+                                                    <span>Search</span>
+                                                </button>
+                                                <small data-attendance-member-search-count role="status" aria-live="polite" style="color:var(--text-muted);"></small>
+                                            </div>
                                             <div style="overflow-x:auto;border:1px solid var(--border-color);border-radius:8px;">
                                                 <table style="width:100%;border-collapse:collapse;min-width:1280px;">
                                                     <thead><tr style="background:var(--bg-main);text-align:left;">
@@ -8292,7 +8300,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                                 <td style="padding:7px;"><button type="button" class="btn-sm" data-attendee-type="member" data-register-id="<?= $register_id ?>" data-member-id="<?= (int)$register_member['id'] ?>" data-member-name="<?= htmlspecialchars($register_member_name, ENT_QUOTES) ?>" data-phone="<?= htmlspecialchars($register_phone, ENT_QUOTES) ?>" data-photo="<?= htmlspecialchars($register_photo, ENT_QUOTES) ?>" onclick="openAttendanceMemberEditor(this)">Edit</button></td>
                                                             </tr>
                                                         <?php endwhile; else: ?>
-                                                            <tr><td colspan="9" style="padding:12px;color:var(--text-muted);">No approved members are registered in this department.</td></tr>
+                                                            <tr data-attendee-empty="1"><td colspan="9" style="padding:12px;color:var(--text-muted);">No approved members are registered in this department.</td></tr>
                                                         <?php endif; ?>
                                                         <?php if ($register_manual_members): while ($manual_member = $register_manual_members->fetch_assoc()): if ((int)$manual_member['is_present'] === 1) $register_present_count++; ?>
                                                             <?php
@@ -8631,6 +8639,36 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         form.dataset.attendanceDirty = 'true';
                         form.querySelectorAll('[data-print-attendance]').forEach(function(button) { button.disabled = true; });
                     }
+                    window.filterAttendanceRegisterMembers = function(control) {
+                        var search = control && control.matches('[data-attendance-member-search-input]')
+                            ? control
+                            : control && control.closest('[data-attendance-member-search]')
+                                ? control.closest('[data-attendance-member-search]').querySelector('[data-attendance-member-search-input]')
+                                : null;
+                        var register = search && search.closest('[id^="attendance-register-"]');
+                        var form = register && register.querySelector('form[data-organized-attendance-form]');
+                        var body = form && form.querySelector('tbody');
+                        if (!search || !body) return;
+
+                        var rows = Array.from(body.querySelectorAll('tr[data-attendee-row]'));
+                        var terms = search.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+                        var visible = 0;
+                        rows.forEach(function(row) {
+                            var name = (row.dataset.name || '').toLocaleLowerCase();
+                            var matches = terms.every(function(term) { return name.includes(term); });
+                            row.style.display = matches ? '' : 'none';
+                            if (matches) visible++;
+                        });
+
+                        var emptyRow = body.querySelector('tr[data-attendee-empty]');
+                        if (emptyRow) emptyRow.style.display = terms.length === 0 && rows.length === 0 ? '' : 'none';
+                        var count = search.closest('[data-attendance-member-search]').querySelector('[data-attendance-member-search-count]');
+                        if (count) {
+                            count.textContent = terms.length > 0 && visible === 0
+                                ? 'No members match your search.'
+                                : 'Showing ' + visible + ' of ' + rows.length + ' members';
+                        }
+                    };
                     function addManualRegisterAttendee(button) {
                         var form = button.closest('form');
                         var list = form.querySelector('[data-manual-register-attendee-list]');
@@ -8657,8 +8695,21 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     }
                     document.querySelectorAll('form[data-organized-attendance-form]').forEach(function(form) {
                         sortOrganizedAttendanceRows(form);
+                        var registerSearch = form.querySelector('[data-attendance-member-search-input]');
+                        if (registerSearch) {
+                            window.filterAttendanceRegisterMembers(registerSearch);
+                            registerSearch.addEventListener('keydown', function(event) {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    window.filterAttendanceRegisterMembers(registerSearch);
+                                }
+                            });
+                        }
                         form.addEventListener('input', function(event) {
-                            if (event.target.matches('[data-manual-attendee-name]')) {
+                            if (event.target.matches('[data-attendance-member-search-input]')) {
+                                window.filterAttendanceRegisterMembers(event.target);
+                                return;
+                            } else if (event.target.matches('[data-manual-attendee-name]')) {
                                 var name = event.target;
                                 var cleanedName = name.value.replace(/[^A-Za-z ]/g, '');
                                 var nameFeedback = name.parentNode.querySelector('[data-manual-name-feedback]');

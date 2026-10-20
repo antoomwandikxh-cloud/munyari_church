@@ -110,6 +110,14 @@ if ($member_dashboard_source === false
     fwrite(STDERR, "FAIL: Discipline Masters must see department ribbons limited to their assigned departments.\n");
     exit(1);
 }
+if (strpos($member_dashboard_source, 'data-attendance-member-search-input') === false
+    || strpos($member_dashboard_source, 'onclick="filterAttendanceRegisterMembers(this)"') === false
+    || strpos($member_dashboard_source, 'window.filterAttendanceRegisterMembers = function(control)') === false
+    || strpos($member_dashboard_source, 'window.filterAttendanceRegisterMembers(event.target)') === false
+    || strpos($member_dashboard_source, 'name.includes(term)') === false) {
+    fwrite(STDERR, "FAIL: Organizing Secretary attendance registers must search attendee names live and from the search button.\n");
+    exit(1);
+}
 $glow_script = render_notification_tab_glow_script('manage_department', 'manage_department', $routed_message);
 if (strpos($glow_script, 'notification-row:department-member-42') === false
     || strpos($glow_script, 'notification-row-glow') === false) {
