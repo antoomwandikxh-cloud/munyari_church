@@ -7793,11 +7793,11 @@ function printRequiredLeadersTable(orientation) {
     w.document.write('<base href="' + window.location.href + '">');
     w.document.write('<style>');
     w.document.write('*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}');
-    w.document.write('@media print{@page{size:' + pageSize + '; margin: 12mm 10mm 24mm 10mm !important;} body{margin:0 !important; padding:0 !important;} thead{display:table-header-group !important;} tfoot{display:table-footer-group !important;} table{page-break-inside:auto;} tr,td,th,.card{page-break-inside:avoid !important; break-inside:avoid !important;}}');
+    w.document.write('@media print{@page{size:' + pageSize + '; margin: 12mm 10mm 16mm 10mm !important;} body{margin:0 !important; padding:0 !important;} thead{display:table-header-group !important;} tfoot{display:table-footer-group !important;} table{page-break-inside:auto;} tr,td,th{page-break-inside:avoid !important; break-inside:avoid !important;}}');
     w.document.write('body{font-family:Arial,sans-serif;margin:0;padding:10px;padding-bottom:60px;}');
-    w.document.write('table{width:100%;border-collapse:collapse;margin-top:20px;}');
-    w.document.write('th{background:#1e3a8a;color:white;padding:10px 14px;font-size:0.85rem;text-align:left;}');
-    w.document.write('td{padding:9px 14px;border:1px solid #ccc;font-size:0.85rem;vertical-align:middle;}');
+    w.document.write('table{width:100%;border-collapse:collapse;margin-top:10px;}');
+    w.document.write('th{background:#1e3a8a;color:white;padding:7px 10px!important;font-size:0.82rem;text-align:left;}');
+    w.document.write('td{padding:7px 10px!important;border:1px solid #ccc;font-size:0.82rem;vertical-align:middle;}');
     w.document.write('.badge{display:inline-block;padding:4px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;}');
     w.document.write('.no-print{display:none!important;}');
     w.document.write('.screen-name{display:none!important;}');
@@ -7819,15 +7819,15 @@ function printRequiredLeadersTable(orientation) {
     w.document.write('</div>');
 
     // Table
-    w.document.write('<table><thead><tr>' + theadRow + '</tr></thead><tbody>' + tbody + '</tbody></table>');
+    w.document.write('<table><thead>' + theadRow + '</thead><tbody>' + tbody + '</tbody></table>');
     
     // Signature block
-    w.document.write('<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:60px;padding:0 20px;page-break-inside:avoid;">');
+    w.document.write('<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:24px;padding:0 20px;page-break-inside:avoid;break-inside:avoid;">');
     w.document.write('<div style="text-align:center;"><div style="font-size:0.82rem;font-weight:700;text-transform:uppercase;color:#1e3a8a;">Church Pastor</div>');
-    w.document.write('<div style="display:flex;align-items:flex-end;gap:8px;margin-top:20px;"><span style="font-style:italic;">Sign:</span><span style="display:inline-block;border-bottom:1px solid #000;width:200px;height:14px;"></span></div>');
-    w.document.write('<div style="display:flex;align-items:flex-end;gap:8px;margin-top:10px;"><span>Date:</span><span style="display:inline-block;border-bottom:1px dotted #000;width:200px;height:14px;"></span></div></div>');
+    w.document.write('<div style="display:flex;align-items:flex-end;gap:8px;margin-top:10px;"><span style="font-style:italic;">Sign:</span><span style="display:inline-block;border-bottom:1px solid #000;width:200px;height:14px;"></span></div>');
+    w.document.write('<div style="display:flex;align-items:flex-end;gap:8px;margin-top:6px;"><span>Date:</span><span style="display:inline-block;border-bottom:1px dotted #000;width:200px;height:14px;"></span></div></div>');
     
-    w.document.write('<div style="text-align:center;"><div style="border:2px dashed #aaa;width:100px;height:100px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:0.7rem;text-transform:uppercase;line-height:1.4;text-align:center;">Official<br>Stamp</div></div>');
+    w.document.write('<div style="text-align:center;"><div style="border:2px dashed #aaa;width:78px;height:78px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:0.7rem;text-transform:uppercase;line-height:1.4;text-align:center;">Official<br>Stamp</div></div>');
     w.document.write('</div>');
 
     w.document.write('<div class="footer">Generated from E.A.P.C Munyari Portal &nbsp;|&nbsp; Printed on: ' + printDate + '</div>');
