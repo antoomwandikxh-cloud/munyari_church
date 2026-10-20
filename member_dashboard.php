@@ -7338,11 +7338,26 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         $total_all = $conn->query("SELECT COALESCE(SUM(amount),0) as total FROM financial_records WHERE department='$esc_dept' AND $non_fine_records")->fetch_assoc()['total'];
                         $total_month = $conn->query("SELECT COALESCE(SUM(amount),0) as total FROM financial_records WHERE department='$esc_dept' AND $non_fine_records AND MONTH(record_date)=MONTH(NOW()) AND YEAR(record_date)=YEAR(NOW())")->fetch_assoc()['total'];
                         $total_week = $conn->query("SELECT COALESCE(SUM(amount),0) as total FROM financial_records WHERE department='$esc_dept' AND $non_fine_records AND YEARWEEK(record_date,1)=YEARWEEK(NOW(),1)")->fetch_assoc()['total'];
+                        $yearly_totals = [];
+                        $yearly_result = $conn->query("SELECT YEAR(record_date) AS collection_year, COALESCE(SUM(amount),0) AS total FROM financial_records WHERE department='$esc_dept' AND $non_fine_records AND record_date IS NOT NULL GROUP BY YEAR(record_date) ORDER BY collection_year DESC");
+                        if ($yearly_result) {
+                            while ($yearly_row = $yearly_result->fetch_assoc()) {
+                                $yearly_totals[(int)$yearly_row['collection_year']] = (float)$yearly_row['total'];
+                            }
+                        }
+                        $current_calendar_year = (int)date('Y');
+                        $current_year_total = $yearly_totals[$current_calendar_year] ?? 0;
+                        $yearly_totals[$current_calendar_year] ??= 0;
+                        krsort($yearly_totals, SORT_NUMERIC);
                         ?>
                         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
                             <div style="background: linear-gradient(135deg, #10b981, #059669); color:white; padding:20px; border-radius:12px; grid-column: span 2;">
                                 <div style="font-size:0.85rem; opacity:0.9;">Total Collected</div>
                                 <div style="font-size:2rem; font-weight:700;">KSh <?= number_format($total_all, 2) ?></div>
+                            </div>
+                            <div style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color:white; padding:20px; border-radius:12px; grid-column: span 2;">
+                                <div style="font-size:0.85rem; opacity:0.9;">Collected in <?= $current_calendar_year ?> (January-December)</div>
+                                <div style="font-size:1.7rem; font-weight:700;">KSh <?= number_format($current_year_total, 2) ?></div>
                             </div>
                             <div style="background: linear-gradient(135deg, #10b981, #059669); color:white; padding:20px; border-radius:12px;">
                                 <div style="font-size:0.85rem; opacity:0.9;">This Month</div>
@@ -7351,6 +7366,17 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <div style="background: linear-gradient(135deg, #f59e0b, #d97706); color:white; padding:20px; border-radius:12px;">
                                 <div style="font-size:0.85rem; opacity:0.9;">This Week</div>
                                 <div style="font-size:1.4rem; font-weight:700;">KSh <?= number_format($total_week, 2) ?></div>
+                            </div>
+                        </div>
+                        <div style="margin-top:20px;">
+                            <h3 style="margin:0 0 10px; font-size:1rem;">Calendar-Year Totals</h3>
+                            <div style="display:grid; gap:8px;">
+                                <?php foreach ($yearly_totals as $year => $year_total): ?>
+                                    <div style="display:flex; justify-content:space-between; gap:12px; padding:10px 12px; border:1px solid var(--border-color); border-radius:8px;">
+                                        <span><?= (int)$year ?> (Jan-Dec)</span>
+                                        <strong>KSh <?= number_format($year_total, 2) ?></strong>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
                         </div>
                     </div>
