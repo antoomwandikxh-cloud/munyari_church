@@ -3962,13 +3962,13 @@ w.document.write('</div>');
                         <h3>Pending Tasks</h3>
                         <div class="value" style="color:var(--warning);"><?= $pending_tasks ?></div>
                     </div>
+                    <div style="display:flex;align-items:center;">
+                        <button type="button" aria-controls="pastorWorshipAnnouncementPanel" aria-expanded="false" data-open-label="Hide Worship Announcements" data-closed-label="Show Worship Announcements" onclick="toggleWorshipAnnouncementPanel('pastorWorshipAnnouncementPanel', this)" style="border:1px solid #a77b08;border-radius:7px;padding:11px 15px;background:#d4a017;color:#1b1b1b;font-weight:700;cursor:pointer;box-shadow:0 0 0 2px rgba(212,160,23,.2);">Show Worship Announcements</button>
+                    </div>
                 </div>
 
                 <div class="content-card" style="margin-bottom:20px;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-                        <h2 style="margin:0;">Worship Announcements</h2>
-                        <button type="button" aria-controls="pastorWorshipAnnouncementPanel" aria-expanded="false" data-open-label="Hide Worship Announcements" data-closed-label="Show Worship Announcements" onclick="toggleWorshipAnnouncementPanel('pastorWorshipAnnouncementPanel', this)" style="border:1px solid var(--border-color);border-radius:7px;padding:8px 12px;background:var(--bg-lighter);color:var(--text-main);font-weight:700;cursor:pointer;">Show Worship Announcements</button>
-                    </div>
+                    <h2>Worship Announcements</h2>
                     <div id="pastorWorshipAnnouncementPanel" data-notification-row-panel hidden style="display:none;">
                     <?php
                     $worship_announcement_rows = $conn->query("SELECT wa.*, m.first_name, m.last_name, m.profile_picture
