@@ -10614,22 +10614,77 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             }
             ?>
 
-            <form method="POST" action="?tab=desired_roles" class="content-card" style="max-width:800px;">
+            <form id="churchVillagePreferencesForm" method="POST" action="?tab=desired_roles" class="content-card" style="max-width:800px;">
                 <input type="hidden" name="save_church_village" value="1">
                 
                 <div style="margin-bottom:30px;">
                     <h2 style="margin-bottom:15px; font-size:1.1rem;">Select Your Church Village <span style="color:var(--danger)">*</span></h2>
-                    <select name="church_village" required style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-lighter); color:var(--text-main);">
-                        <option value="">-- Select Village --</option>
-                        <?php
-                        $villages = ['Akoritho', 'Philadelphia', 'Bethsaida'];
-                        $curr_v = $member['church_village'] ?? '';
-                        foreach ($villages as $v) {
-                            $sel = ($curr_v === $v) ? 'selected' : '';
-                            echo "<option value=\"$v\" $sel>$v</option>";
+                    <?php
+                    $villages = ['Akoritho', 'Philadelphia', 'Bethsaida'];
+                    $curr_v = trim((string)($member['church_village'] ?? ''));
+                    $selected_village = '';
+                    foreach ($villages as $village_name) {
+                        if (strcasecmp($curr_v, $village_name) === 0) {
+                            $selected_village = $village_name;
+                            break;
                         }
+                    }
+                    ?>
+                    <input type="hidden" name="church_village" id="churchVillageSelection" value="<?= htmlspecialchars($selected_village, ENT_QUOTES, 'UTF-8') ?>">
+                    <div class="church-village-choice-row" role="group" aria-label="Choose your church village">
+                        <?php foreach ($villages as $village_option):
+                            $village_selected = $selected_village === $village_option;
                         ?>
-                    </select>
+                            <button type="button" class="church-village-choice" data-village-option="<?= htmlspecialchars($village_option, ENT_QUOTES, 'UTF-8') ?>" aria-pressed="<?= $village_selected ? 'true' : 'false' ?>">
+                                <span class="church-village-choice-name"><?= htmlspecialchars($village_option) ?></span>
+                                <span class="church-village-choice-selected" <?= $village_selected ? '' : 'hidden' ?>>Selected</span>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                    <p id="churchVillageSelectionStatus" aria-live="polite" style="margin:10px 0 0;color:var(--text-muted);font-size:0.86rem;">
+                        <?= $selected_village !== '' ? 'Selected village: ' . htmlspecialchars($selected_village) : 'Choose a village to continue.' ?>
+                    </p>
+                    <style>
+                        .church-village-choice-row{display:flex;gap:12px;overflow-x:auto;padding:3px 2px 10px;scroll-snap-type:x mandatory}
+                        .church-village-choice{flex:1 0 165px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;padding:12px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-lighter);color:var(--text-main);text-align:left;font:inherit;cursor:pointer;scroll-snap-align:start;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease}
+                        .church-village-choice[aria-pressed="true"]{border-color:var(--primary);background:var(--primary);color:#fff;box-shadow:0 0 0 2px rgba(212,160,23,.3)}
+                        .church-village-choice:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+                        .church-village-choice-name{font-weight:750}
+                        .church-village-choice-selected{font-size:.74rem;font-weight:700;opacity:.9}
+                        .church-village-choice-selected[hidden]{display:none}
+                    </style>
+                    <script>
+                        (function () {
+                            var form = document.getElementById('churchVillagePreferencesForm');
+                            var villageInput = document.getElementById('churchVillageSelection');
+                            var status = document.getElementById('churchVillageSelectionStatus');
+                            if (!form || !villageInput || !status) return;
+                            var choices = Array.from(form.querySelectorAll('[data-village-option]'));
+                            function selectVillage(value) {
+                                villageInput.value = value;
+                                choices.forEach(function (choice) {
+                                    var selected = choice.dataset.villageOption === value;
+                                    choice.setAttribute('aria-pressed', selected ? 'true' : 'false');
+                                    var selectedLabel = choice.querySelector('.church-village-choice-selected');
+                                    if (selectedLabel) selectedLabel.hidden = !selected;
+                                });
+                                status.textContent = value ? 'Selected village: ' + value : 'Choose a village to continue.';
+                            }
+                            choices.forEach(function (choice) {
+                                choice.addEventListener('click', function () {
+                                    selectVillage(choice.dataset.villageOption);
+                                });
+                            });
+                            selectVillage(villageInput.value);
+                            form.addEventListener('submit', function (event) {
+                                if (!villageInput.value) {
+                                    event.preventDefault();
+                                    status.textContent = 'Select a church village before saving.';
+                                    choices[0] && choices[0].focus();
+                                }
+                            });
+                        })();
+                    </script>
                 </div>
 
                 <div style="margin-bottom:30px;">
