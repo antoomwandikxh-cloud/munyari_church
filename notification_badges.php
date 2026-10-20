@@ -10,10 +10,47 @@ function notification_display_message($message, $user_type = null) {
     $message = preg_replace('/\s*Fine record\s*#\s*\d+\.?/i', '', $message);
     $message = preg_replace('/\s*\[village-announcement-id:\s*\d+\]/i', '', $message);
     $message = preg_replace('/\s*\[village-leader-chat-id:\s*\d+\]/i', '', $message);
+    $message = preg_replace('/\s*\[notification-(?:tab|group|row):[^\]]+\]/i', '', $message);
     return trim($message);
 }
 
+function notification_with_route($message, $target_tab, $target_group = '', $target_row = '') {
+    $message = trim((string)$message);
+    $target_tab = strtolower(trim((string)$target_tab));
+    $target_group = strtolower(trim((string)$target_group));
+    $target_row = strtolower(trim((string)$target_row));
+
+    if ($target_tab === '' || !preg_match('/^[a-z0-9_-]+$/', $target_tab)) {
+        return $message;
+    }
+
+    $message = preg_replace('/\s*\[notification-(?:tab|group|row):[^\]]+\]/i', '', $message);
+    $message .= ' [notification-tab:' . $target_tab . ']';
+    if ($target_group !== '' && preg_match('/^[a-z0-9_-]+$/', $target_group)) {
+        $message .= ' [notification-group:' . $target_group . ']';
+    }
+    if ($target_row !== '' && preg_match('/^[a-z0-9_-]+$/', $target_row)) {
+        $message .= ' [notification-row:' . $target_row . ']';
+    }
+    return $message;
+}
+
+function notification_route_metadata($message) {
+    $metadata = ['tab' => '', 'group' => '', 'row' => ''];
+    foreach (['tab', 'group', 'row'] as $key) {
+        if (preg_match('/\[notification-' . $key . ':([a-z0-9_-]+)\]/i', (string)$message, $match)) {
+            $metadata[$key] = strtolower($match[1]);
+        }
+    }
+    return $metadata;
+}
+
 function notification_badge_tabs($message, $user_type, $is_treasurer = false) {
+    $route = notification_route_metadata($message);
+    if ($route['tab'] !== '') {
+        return [$route['tab']];
+    }
+
     $msg  = strtolower($message);
     $tabs = [];
 
@@ -465,7 +502,9 @@ function notification_badge_tabs($message, $user_type, $is_treasurer = false) {
         $tabs[] = $user_type === 'member' ? 'manage_worshippers' : 'general_leadership';
     }
 
-    return array_values(array_unique($tabs));
+    // Keep messages that predate explicit routing visible instead of silently
+    // dropping their unread badge. New notifications should use notification_with_route().
+    return $tabs ? array_values(array_unique($tabs)) : ['dashboard'];
 }
 
 function ensure_notification_focus_schema($conn) {
@@ -750,6 +789,10 @@ function notification_focus_message_with_member_id($conn, $message, $created_at 
 }
 
 function notification_target_tab($message, $user_type, $fallback_tab = 'dashboard', $is_treasurer = false) {
+    $route = notification_route_metadata($message);
+    if ($route['tab'] !== '') {
+        return $route['tab'];
+    }
     $tabs = notification_badge_tabs($message, $user_type, $is_treasurer);
     return $tabs[0] ?? $fallback_tab;
 }
@@ -963,6 +1006,14 @@ document.addEventListener("DOMContentLoaded", function () {
             if (villageLeaderChatRow) addHighlightedRow(villageLeaderChatRow);
             return;
         }
+        var explicitRowMatch = notificationMessage.match(/\[notification-row:([a-z0-9_-]+)\]/i);
+        if (explicitRowMatch) {
+            var explicitRow = main.querySelector('[data-notification-row="' + explicitRowMatch[1].toLowerCase() + '"]');
+            if (explicitRow) {
+                addHighlightedRow(explicitRow);
+                return;
+            }
+        }
         var financialRecordMatch = notificationMessage.match(/\[financial-record-id:\s*(\d+)\]/i);
         if (financialRecordMatch) {
             var financialRecordRow = main.querySelector('[data-notification-row="financial-record-' + financialRecordMatch[1] + '"]');
@@ -1127,6 +1178,11 @@ HTML;
 }
 
 function notification_target_group($message, $user_type) {
+    $route = notification_route_metadata($message);
+    if ($route['group'] !== '') {
+        return $route['group'];
+    }
+
     $msg = strtolower($message);
     if (in_array($user_type, ['pastor', 'admin'], true)
         && strpos($msg, 'village leaders chat message from ') !== false) {
