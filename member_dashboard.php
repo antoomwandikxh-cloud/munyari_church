@@ -10764,7 +10764,7 @@ if (typeof filterWTeam !== 'function') {
 }
 </script>
 <script src="flash_messages.js?v=1"></script>
-<script src="topbar_controls.js?v=20261020-portrait-actions-1"></script>
+<script src="topbar_controls.js?v=20261020-sidebar-scroll-1"></script>
 </body>
 </html>
 
