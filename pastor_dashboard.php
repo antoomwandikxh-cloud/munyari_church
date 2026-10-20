@@ -1385,6 +1385,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_pastor_announce
 // Handle Pastor posting a General Church announcement (text, image, and WhatsApp voice note)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_pastor_announcement'])) {
     $raw_msg = trim($_POST['pastor_announcement_message'] ?? '');
+    $announcement_return_url = ($_POST['announcement_return_tab'] ?? '') === 'general_leadership'
+        ? 'pastor_dashboard.php?tab=general_leadership&leader_group=general_church'
+        : 'pastor_dashboard.php?tab=general_announcements';
     
     // Auto-create / ensure pastor_announcements table exists with audio_path
     $conn->query("
@@ -1431,7 +1434,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_pastor_announceme
 
         $ins_res = $conn->query("INSERT INTO pastor_announcements (pastor_id, message, image_path, audio_path) VALUES ($pastor_id, '$ann_msg', $img_sql, $audio_sql)");
         if (!$ins_res) {
-            header("Location: pastor_dashboard.php?tab=general_announcements&error=" . urlencode("Failed to save announcement: " . $conn->error));
+            header("Location: " . $announcement_return_url . "&error=" . urlencode("Failed to save announcement: " . $conn->error));
             exit();
         }
         
@@ -1455,10 +1458,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_pastor_announceme
                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$adm['id']}, 'admin', '$notif_text')");
             }
         }
-        header("Location: pastor_dashboard.php?tab=general_announcements&success=" . urlencode("Announcement and voice note posted to entire church successfully!"));
+        header("Location: " . $announcement_return_url . "&success=" . urlencode("Announcement and voice note posted to entire church successfully!"));
         exit();
     } else {
-        header("Location: pastor_dashboard.php?tab=general_announcements&error=" . urlencode("Please write a message or record/upload a voice note before posting."));
+        header("Location: " . $announcement_return_url . "&error=" . urlencode("Please write a message or record/upload a voice note before posting."));
         exit();
     }
 }
@@ -5233,6 +5236,24 @@ w.document.write('</div>');
                     <?php render_village_leaders_chat_monitor($conn, $notification_focus_messages ?? []); ?>
                 <?php else: ?>
                 <?php if ($active_group === 'general_church'): ?>
+                <div class="content-card" style="margin-bottom:24px;border-left:4px solid #10b981;">
+                    <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">Post a Church-Wide Announcement</h2>
+                    <p style="margin:0 0 14px;color:var(--text-muted);font-size:0.88rem;">This announcement will also remain in General Announcements and notify approved members.</p>
+                    <form method="POST" action="pastor_dashboard.php?tab=general_leadership&amp;leader_group=general_church" enctype="multipart/form-data" id="pastor_ann_form" onsubmit="handlePastorAnnFormSubmit(this, event);">
+                        <input type="hidden" name="post_pastor_announcement" value="1">
+                        <input type="hidden" name="announcement_return_tab" value="general_leadership">
+                        <div class="form-group">
+                            <label for="pastor_ann_textarea" style="font-size:0.88rem;font-weight:700;color:var(--text-main);display:block;margin-bottom:6px;">Announcement message</label>
+                            <textarea id="pastor_ann_textarea" name="pastor_announcement_message" class="form-control" rows="3" placeholder="Write your message, or record a voice note below..." style="margin-bottom:10px;"></textarea>
+                        </div>
+                        <?= render_voice_note_recorder() ?>
+                        <div class="form-group">
+                            <label style="font-size:0.85rem;color:var(--text-muted);display:block;margin-bottom:8px;">Attach image (optional)</label>
+                            <input type="file" name="pastor_ann_image" accept="image/*" class="form-control" style="font-size:0.85rem;">
+                        </div>
+                        <button type="submit" id="pastor_ann_submit_btn" class="btn-submit" style="background:#10b981;">Send to the Church</button>
+                    </form>
+                </div>
                 <div class="content-card" style="margin-bottom:24px;border-left:4px solid #10b981;">
                     <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">Pastor's Church Announcements</h2>
                     <?php
