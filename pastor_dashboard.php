@@ -8614,7 +8614,7 @@ function filterFinanceRecords() {
 </script>
 <?php endif; ?>
 <script src="flash_messages.js?v=1"></script>
-<script src="topbar_controls.js?v=20261020-sidebar-scroll-2"></script>
+<script src="topbar_controls.js?v=20261020-action-scroll-1"></script>
 <script src="church_print_layout.js?v=1"></script>
 </body>
 </html>

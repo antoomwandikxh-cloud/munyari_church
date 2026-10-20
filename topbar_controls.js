@@ -75,6 +75,106 @@
 
     animateToActiveSidebarTab();
 
+    var actionScrollStorageKey = 'dashboardActionScrollRestore:v1';
+    var pendingActionNavigation = false;
+
+    function dashboardFamily(pathname) {
+        var match = pathname.match(/\/(admin|pastor|member)_dashboard\.php$/i);
+        return match ? match[1].toLowerCase() : '';
+    }
+
+    function actionUrlInfo(rawUrl) {
+        try {
+            var url = new URL(rawUrl, window.location.href);
+            if (url.origin !== window.location.origin) return null;
+            var action = (url.searchParams.get('action') || '').toLowerCase();
+            if (['remove_role', 'unassign_all', 'redo_roles'].indexOf(action) !== -1) return { skip: true, action: action };
+            var actionEndpoint = /\/(admin|pastor|member)_action\.php$/i.test(url.pathname);
+            return action || actionEndpoint ? { action: action, url: url } : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function saveActionScrollPosition() {
+        var family = dashboardFamily(window.location.pathname);
+        if (!family) return;
+        var mainContent = document.querySelector('.main-content');
+        try {
+            sessionStorage.setItem(actionScrollStorageKey, JSON.stringify({
+                family: family,
+                windowY: window.scrollY || document.documentElement.scrollTop || 0,
+                contentY: mainContent ? mainContent.scrollTop : 0,
+                savedAt: Date.now()
+            }));
+        } catch (error) {}
+    }
+
+    function markActionNavigation(event) {
+        if (event.defaultPrevented) return;
+        pendingActionNavigation = true;
+    }
+
+    document.addEventListener('click', function (event) {
+        if (!(event.target instanceof Element) || event.defaultPrevented || event.button !== 0
+            || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        var link = event.target.closest('a[href]');
+        if (!link || (link.target && link.target.toLowerCase() !== '_self') || link.hasAttribute('download')) return;
+        var actionInfo = actionUrlInfo(link.href);
+        if (actionInfo && actionInfo.skip) return;
+        var confirmation = /\bconfirm\s*\(/i.test(link.getAttribute('onclick') || '');
+        if (actionInfo || (confirmation && new URL(link.href, window.location.href).origin === window.location.origin)) {
+            markActionNavigation(event);
+        }
+    });
+
+    document.addEventListener('submit', function (event) {
+        if (event.defaultPrevented) return;
+        var form = event.target;
+        if (!form || (form.target && form.target.toLowerCase() !== '_self')) return;
+        var actionInfo = actionUrlInfo(form.action || window.location.href);
+        if (actionInfo && actionInfo.skip) return;
+        var confirmation = /\bconfirm\s*\(/i.test(form.getAttribute('onsubmit') || '');
+        var actionField = form.querySelector('[name="action"]');
+        var submitAction = event.submitter && event.submitter.name === 'action' ? event.submitter.value : '';
+        if (actionInfo || confirmation || (actionField && actionField.value) || submitAction) {
+            markActionNavigation(event);
+        }
+    });
+
+    function persistActionScrollPosition() {
+        if (!pendingActionNavigation) return;
+        pendingActionNavigation = false;
+        saveActionScrollPosition();
+    }
+    window.addEventListener('beforeunload', persistActionScrollPosition);
+    window.addEventListener('pagehide', persistActionScrollPosition);
+
+    (function restoreActionScrollPosition() {
+        var saved;
+        try {
+            saved = JSON.parse(sessionStorage.getItem(actionScrollStorageKey) || 'null');
+            if (saved) sessionStorage.removeItem(actionScrollStorageKey);
+        } catch (error) {
+            return;
+        }
+        if (!saved || saved.family !== dashboardFamily(window.location.pathname)
+            || Date.now() - saved.savedAt > 10000) return;
+
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+        var mainContent = document.querySelector('.main-content');
+        function restore() {
+            window.scrollTo(0, Number(saved.windowY) || 0);
+            if (mainContent) mainContent.scrollTop = Number(saved.contentY) || 0;
+        }
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                restore();
+                window.setTimeout(restore, 80);
+            });
+        });
+    })();
+
     function groupTopbarControls() {
         var topbar = document.querySelector('.topbar');
         if (!topbar || topbar.dataset.quickActionsReady === '1') return;
