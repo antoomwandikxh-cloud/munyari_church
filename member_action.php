@@ -508,6 +508,8 @@ if (isset($_GET['action'])) {
             $chair_roles = chair_roles_for_department($esc_dept);
             $finance_notification = "Financial record submitted for chairperson review in $submitted_dept. KSh " . number_format($amount, 2) . " from the Treasurer. Open Received Financial Records to confirm and disburse. Reason: " . ($record['description'] ?: 'Transfer of recorded funds') . " [financial-record-id:$record_id]";
             $finance_notification_sql = $conn->real_escape_string($finance_notification);
+            $pastor_finance_notification = "Treasurer submitted a financial record of KSh " . number_format($amount, 2) . " for the $submitted_dept department. It is awaiting chairperson confirmation and has not yet been disbursed to members. Please review the transaction before the chairperson disburses it. Reason: " . ($record['description'] ?: 'Transfer of recorded funds') . " [financial-record-id:$record_id]";
+            $pastor_finance_notification_sql = $conn->real_escape_string($pastor_finance_notification);
             
             if (!empty($chair_roles)) {
                 $chairs_res = $conn->query("SELECT id, church_role FROM members WHERE is_approved=1");
@@ -524,7 +526,7 @@ if (isset($_GET['action'])) {
             if ($pastors_res) {
                 while ($pastor = $pastors_res->fetch_assoc()) {
                     $pastor_id = (int)$pastor['id'];
-                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pastor_id, 'pastor', '$finance_notification_sql')");
+                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pastor_id, 'pastor', '$pastor_finance_notification_sql')");
                 }
             }
             

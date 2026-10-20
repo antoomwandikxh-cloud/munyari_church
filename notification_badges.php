@@ -42,6 +42,9 @@ function notification_badge_tabs($message, $user_type) {
     if (strpos($msg, 'financial record submitted for chairperson review in ') === 0) {
         return $user_type === 'member' ? ['received_financials'] : ['financials'];
     }
+    if (strpos($msg, 'treasurer submitted a financial record of ksh ') === 0) {
+        return ['financials'];
+    }
     if (strpos($msg, 'financial record disbursed to members in ') === 0) {
         return $user_type === 'member' ? ['my_financials'] : ['financials'];
     }
