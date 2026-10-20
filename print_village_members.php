@@ -143,6 +143,39 @@ if (file_exists($logo_path)) {
             .watermark { color: rgba(30, 58, 138, 0.25) !important; z-index: 999999 !important; pointer-events: none; mix-blend-mode: multiply !important; opacity: 1 !important; }
             .footer { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; text-align: center !important; }
         }
+        .print-toolbar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 0 20px;
+        }
+        .print-toolbar a,
+        .print-toolbar button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 38px;
+            padding: 8px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #fff;
+            color: #1e293b;
+            font: 600 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .print-toolbar a[aria-current="page"] {
+            border-color: #1e3a8a;
+            background: #eff6ff;
+            color: #1e3a8a;
+        }
+        .print-toolbar .print-action {
+            border-color: #1e3a8a;
+            background: #1e3a8a;
+            color: #fff;
+        }
         table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
         tr { page-break-inside: avoid !important; break-inside: avoid !important; }
         td, th { page-break-inside: avoid !important; break-inside: avoid !important; }
@@ -243,11 +276,11 @@ if (file_exists($logo_path)) {
     <!-- Diagonal Watermark -->
     <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
 
-    <!-- Print button (hidden in print) -->
-    <div class="no-print" style="text-align:center; margin-bottom:20px;">
-        <button onclick="window.print()" style="padding:10px 28px; background:#1e3a8a; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:15px; font-weight:700; letter-spacing:0.5px;">
-            🖨 &#128436; Print / Save PDF
-        </button>
+    <!-- Print controls (hidden in print) -->
+    <div class="no-print print-toolbar" role="group" aria-label="Print orientation and actions">
+        <a href="?village=<?= urlencode($village) ?>&amp;orientation=portrait" <?= $orientation === 'portrait' ? 'aria-current="page"' : '' ?>>Portrait</a>
+        <a href="?village=<?= urlencode($village) ?>&amp;orientation=landscape" <?= $orientation === 'landscape' ? 'aria-current="page"' : '' ?>>Landscape</a>
+        <button class="print-action" type="button" onclick="window.print()">Print / Save PDF</button>
     </div>
 
 <!-- Header with logos -->
