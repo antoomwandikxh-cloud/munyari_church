@@ -1803,30 +1803,6 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     <p>Announcements from village leaders, secretaries, elders, building leaders, queries, and pastoral messages.</p>
                 </div>
 
-                <div class="content-card" style="margin-bottom:24px;border-left:4px solid #10b981;">
-                    <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">Church Village Leader Announcements</h2>
-                    <?php
-                    $village_announcements = $conn->query("SELECT va.id, va.village, va.message, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id ORDER BY va.created_at DESC LIMIT 100");
-                    if ($village_announcements && $village_announcements->num_rows > 0):
-                        while ($village_announcement = $village_announcements->fetch_assoc()):
-                            $village_leader_name = trim(($village_announcement['first_name'] ?? '') . ' ' . ($village_announcement['last_name'] ?? '')) ?: 'Village Leader';
-                            $village_leader_photo = !empty($village_announcement['profile_picture']) ? 'uploads/' . basename($village_announcement['profile_picture']) : 'uploads/default_avatar.png';
-                    ?>
-                        <article class="announcement-card" data-notification-row="village-announcement-<?= (int)$village_announcement['id'] ?>" style="padding:14px;margin-bottom:12px;border:1px solid var(--border-color);border-left:3px solid #10b981;border-radius:8px;background:var(--bg-main);">
-                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
-                                <img src="<?= htmlspecialchars($village_leader_photo, ENT_QUOTES) ?>" alt="Village leader profile" onerror="this.src='uploads/default_avatar.png'" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">
-                                <div>
-                                    <strong style="color:var(--text-main);"><?= htmlspecialchars($village_leader_name) ?></strong>
-                                    <div style="font-size:0.82rem;color:var(--text-muted);"><?= htmlspecialchars($village_announcement['village']) ?> Village · <?= date('M j, Y g:i A', strtotime($village_announcement['created_at'])) ?></div>
-                                </div>
-                            </div>
-                            <p style="margin:0;line-height:1.55;white-space:pre-wrap;color:var(--text-main);"><?= nl2br(htmlspecialchars($village_announcement['message'])) ?></p>
-                        </article>
-                    <?php endwhile; else: ?>
-                        <p style="color:var(--text-muted);margin:0;">No village leader announcements yet.</p>
-                    <?php endif; ?>
-                </div>
-
                 <!-- Pastor Post Announcement Form -->
                 <div class="content-card" style="margin-bottom:28px;border-left:4px solid var(--primary);">
                     <h2 style="font-size:1.1rem;margin-top:0;color:var(--primary);">📢 Post Announcement to Entire Church</h2>
@@ -2079,6 +2055,29 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     <?php endif; ?>
                 </div>
 
+                <div class="content-card" style="margin:24px 0;border-left:4px solid #10b981;">
+                    <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">Church Village Leader Announcements</h2>
+                    <?php
+                    $village_announcements = $conn->query("SELECT va.id, va.village, va.message, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id ORDER BY va.created_at DESC LIMIT 100");
+                    if ($village_announcements && $village_announcements->num_rows > 0):
+                        while ($village_announcement = $village_announcements->fetch_assoc()):
+                            $village_leader_name = trim(($village_announcement['first_name'] ?? '') . ' ' . ($village_announcement['last_name'] ?? '')) ?: 'Village Leader';
+                            $village_leader_photo = !empty($village_announcement['profile_picture']) ? 'uploads/' . basename($village_announcement['profile_picture']) : 'uploads/default_avatar.png';
+                    ?>
+                        <article class="announcement-card" data-notification-row="village-announcement-<?= (int)$village_announcement['id'] ?>" style="padding:14px;margin-bottom:12px;border:1px solid var(--border-color);border-left:3px solid #10b981;border-radius:8px;background:var(--bg-main);">
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
+                                <img src="<?= htmlspecialchars($village_leader_photo, ENT_QUOTES) ?>" alt="Village leader profile" onerror="this.src='uploads/default_avatar.png'" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">
+                                <div>
+                                    <strong style="color:var(--text-main);"><?= htmlspecialchars($village_leader_name) ?></strong>
+                                    <div style="font-size:0.82rem;color:var(--text-muted);"><?= htmlspecialchars($village_announcement['village']) ?> Village · <?= date('M j, Y g:i A', strtotime($village_announcement['created_at'])) ?></div>
+                                </div>
+                            </div>
+                            <p style="margin:0;line-height:1.55;white-space:pre-wrap;color:var(--text-main);"><?= nl2br(htmlspecialchars($village_announcement['message'])) ?></p>
+                        </article>
+                    <?php endwhile; else: ?>
+                        <p style="color:var(--text-muted);margin:0;">No village leader announcements yet.</p>
+                    <?php endif; ?>
+                </div>
 
             <?php elseif ($tab == 'notifications'): ?>
                 <?php $pastor_notifs = $conn->query("SELECT * FROM notifications WHERE user_id = $pastor_id AND user_type = 'pastor' ORDER BY created_at DESC"); ?>
