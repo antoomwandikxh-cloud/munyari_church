@@ -3191,7 +3191,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Member Dashboard - Munyari Church</title>
-    <link rel="stylesheet" href="style.css?v=20261020-preference-decline-reason-1">
+    <link rel="stylesheet" href="style.css?v=20261020-preference-decline-reason-2">
     <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_messages) ?>
     <?php
     $phones_result = $conn->query("SELECT phone FROM members WHERE phone IS NOT NULL AND phone != ''");

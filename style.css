@@ -672,11 +672,11 @@ body {
 .preference-decline-reason-message {
     margin: 10px 0 4px;
     padding: 11px 13px;
-    border: 1px solid rgba(245, 158, 11, 0.55);
-    border-left: 4px solid #d97706;
+    border: 1px solid rgba(220, 38, 38, 0.55);
+    border-left: 4px solid #dc2626;
     border-radius: 7px;
-    background: rgba(245, 158, 11, 0.12);
-    color: var(--text-main);
+    background: rgba(220, 38, 38, 0.1);
+    color: #b91c1c;
     font-size: 0.9rem;
     line-height: 1.45;
     overflow-wrap: anywhere;
