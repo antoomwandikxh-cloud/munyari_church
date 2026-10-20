@@ -331,7 +331,12 @@ if (isset($_GET['action'])) {
             }
         }
         if ($dept_is_allowed || ($is_general_leader && !empty($submitted_dept))) {
-            $amount = floatval($_POST['amount']);
+            $amount_input = trim((string)($_POST['amount'] ?? ''));
+            if (!is_numeric($amount_input) || (float)$amount_input <= 0) {
+                header("Location: member_dashboard.php?tab=financials&treasurer_dept=" . urlencode($submitted_dept) . "&error=" . urlencode('Enter an amount greater than zero.'));
+                exit();
+            }
+            $amount = (float)$amount_input;
             $description = $conn->real_escape_string(trim($_POST['description'] ?? ''));
             $record_date = $conn->real_escape_string($_POST['record_date']);
             $esc_dept = $conn->real_escape_string($submitted_dept);
@@ -405,7 +410,12 @@ if (isset($_GET['action'])) {
         }
         if ($dept_is_allowed || ($is_general_leader && !empty($submitted_dept))) {
             $record_id = (int)$_POST['record_id'];
-            $amount = floatval($_POST['amount']);
+            $amount_input = trim((string)($_POST['amount'] ?? ''));
+            if (!is_numeric($amount_input) || (float)$amount_input <= 0) {
+                header("Location: member_dashboard.php?tab=financials&treasurer_dept=" . urlencode($submitted_dept) . "&error=" . urlencode('Enter an amount greater than zero.'));
+                exit();
+            }
+            $amount = (float)$amount_input;
             $description = $conn->real_escape_string(trim($_POST['description'] ?? ''));
             $record_date = $conn->real_escape_string($_POST['record_date']);
             $edit_reason = $conn->real_escape_string(trim($_POST['edit_reason'] ?? ''));

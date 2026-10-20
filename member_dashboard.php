@@ -7169,7 +7169,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <!-- Add Record Form -->
                     <div class="content-card" style="flex: 1; min-width: 300px;">
                         <h2 style="margin-bottom: 15px;">Add New Collection</h2>
-                        <form method="POST" action="member_action.php?action=record_finance">
+                        <form method="POST" action="member_action.php?action=record_finance" class="collection-finance-form">
                             <input type="hidden" name="department" value="<?= htmlspecialchars($active_treasurer_dept) ?>">
                             <div class="form-group">
                                 <label>Department</label>
@@ -7177,7 +7177,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             </div>
                             <div class="form-group">
                                 <label>Amount Collected</label>
-                                <input type="number" step="0.01" min="0" name="amount" class="form-control" placeholder="e.g. 1500.00" required>
+                                <input type="number" step="0.01" min="0.01" name="amount" class="form-control collection-amount-input" placeholder="e.g. 1500.00" inputmode="decimal" required>
+                                <small class="collection-amount-error" role="alert" style="display:none;color:#ef4444;margin-top:5px;">Enter an amount greater than zero.</small>
                             </div>
                             <div class="form-group">
                                 <label>Date of Collection</label>
@@ -7279,14 +7280,15 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <div id="editFinanceSentWarning" style="display:none; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:8px; padding:10px; margin-bottom:15px; font-size:0.9rem; color:#ef4444;">
                             ⚠️ This record was already <strong>sent to the Chairperson</strong>. Saving will reset it to <strong>Unsent</strong> and cancel any related transfers.
                         </div>
-                        <form method="POST" action="member_action.php?action=edit_finance">
+                        <form method="POST" action="member_action.php?action=edit_finance" class="collection-finance-form">
                             <input type="hidden" name="record_id" id="edit_finance_id">
                             <input type="hidden" name="department" value="<?= htmlspecialchars($active_treasurer_dept) ?>">
                             <input type="hidden" name="is_sent" id="edit_finance_is_sent" value="0">
                             
                             <div class="form-group">
                                 <label>Amount Collected</label>
-                                <input type="number" step="0.01" min="0" name="amount" id="edit_finance_amount" class="form-control" required>
+                                <input type="number" step="0.01" min="0.01" name="amount" id="edit_finance_amount" class="form-control collection-amount-input" inputmode="decimal" required>
+                                <small class="collection-amount-error" role="alert" style="display:none;color:#ef4444;margin-top:5px;">Enter an amount greater than zero.</small>
                             </div>
                             <div class="form-group">
                                 <label>Date of Collection</label>
@@ -7323,6 +7325,29 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     function closeEditFinanceModal() {
                         document.getElementById('editFinanceModal').style.display = 'none';
                     }
+                    function validateCollectionAmount(input) {
+                        var rawValue = input.value.trim();
+                        var amount = input.valueAsNumber;
+                        var invalid = input.validity.badInput || (rawValue !== '' && (!Number.isFinite(amount) || amount <= 0));
+                        input.setCustomValidity(invalid ? 'Enter an amount greater than zero.' : '');
+                        input.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+                        var message = input.parentElement.querySelector('.collection-amount-error');
+                        if (message) message.style.display = invalid ? 'block' : 'none';
+                        return !invalid && rawValue !== '';
+                    }
+                    document.querySelectorAll('.collection-amount-input').forEach(function(input) {
+                        input.addEventListener('input', function() { validateCollectionAmount(input); });
+                    });
+                    document.querySelectorAll('.collection-finance-form').forEach(function(form) {
+                        form.addEventListener('submit', function(event) {
+                            var amountInput = form.querySelector('.collection-amount-input');
+                            if (amountInput && !validateCollectionAmount(amountInput)) {
+                                event.preventDefault();
+                                amountInput.reportValidity();
+                                amountInput.focus();
+                            }
+                        });
+                    });
                 </script>
 
                 <!-- Pending Fine Verifications -->
