@@ -3670,7 +3670,7 @@ w.document.write('</div>');
                             <thead><tr><th>Member</th><th>Current</th><th>Requested Update</th><th>Actions</th></tr></thead>
                             <tbody>
                                 <?php while($pu = $pending_updates->fetch_assoc()): ?>
-                                <tr>
+                                <tr data-notification-row="member-village-update-<?= (int)$pu['id'] ?>">
                                     <td><?= htmlspecialchars($pu['first_name'] . ' ' . $pu['last_name']) ?></td>
                                     <td>
                                         <span style="display:block;font-size:0.9rem;"><?= htmlspecialchars($pu['church_village'] ?? 'None') ?></span>

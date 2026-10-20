@@ -1682,9 +1682,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_church_village'])
     } else {
         // Update request - goes to pending
         $conn->query("UPDATE members SET pending_church_village = '$cv', pending_desired_role_pref = $drp_sql WHERE id = $member_id");
-        $update_msg = $conn->real_escape_string("Member " . $member['first_name'] . " " . $member['last_name'] . " requested to update their church village to $cv.");
+        $requested_role_label = $drp !== '' ? $drp : 'No desired role';
+        $update_msg = "Member " . trim($member['first_name'] . " " . $member['last_name']) . " requested to change their church village to $cv and desired role to $requested_role_label.";
+        $routed_update_msg = notification_with_route($update_msg, 'desired_roles', '', 'member-village-update-' . $member_id);
         $pastors_q = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
-        if ($pastors_q) { while ($p = $pastors_q->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$p['id']},'pastor','$update_msg')"); } }
+        if ($pastors_q) {
+            $notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, 'pastor', ?)");
+            if ($notice) {
+                while ($p = $pastors_q->fetch_assoc()) {
+                    $pastor_id = (int)$p['id'];
+                    $notice->bind_param('is', $pastor_id, $routed_update_msg);
+                    $notice->execute();
+                }
+                $notice->close();
+            }
+        }
         header("Location: member_dashboard.php?tab=desired_roles&success=Your update request has been sent to the Pastor for approval.");
         exit();
     }
@@ -10614,7 +10626,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             }
             ?>
 
-            <form id="churchVillagePreferencesForm" method="POST" action="?tab=desired_roles" class="content-card" style="max-width:800px;">
+            <form id="churchVillagePreferencesForm" method="POST" action="?tab=desired_roles" class="content-card" data-has-saved-village="<?= $has_church_village ? 'true' : 'false' ?>" style="max-width:800px;">
                 <input type="hidden" name="save_church_village" value="1">
                 
                 <div style="margin-bottom:30px;">
@@ -10699,6 +10711,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     event.preventDefault();
                                     status.textContent = 'Select a church village before saving.';
                                     choices[0] && choices[0].focus();
+                                    return;
+                                }
+                                if (form.dataset.hasSavedVillage === 'true') {
+                                    var roleInput = form.querySelector('#desiredRoleSelection');
+                                    var roleLabel = roleInput && roleInput.value ? roleInput.value : 'No desired role';
+                                    var confirmMessage = 'You have already chosen ' + villageInput.value + ' village and ' + roleLabel + ' role. Do you want to confirm sending this change request to the Pastor for approval?';
+                                    if (!window.confirm(confirmMessage)) event.preventDefault();
                                 }
                             });
                         })();

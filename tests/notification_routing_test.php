@@ -20,6 +20,36 @@ expect_same('manage_department', notification_target_tab($routed_message, 'membe
 expect_same('womens_ministry', notification_target_group($routed_message, 'member'), 'click routing preserves the department group');
 expect_same('department-member-42', notification_route_metadata($routed_message)['row'], 'exact row focus survives routing');
 expect_same('A new member was approved.', notification_display_message($routed_message, 'member'), 'routing metadata is hidden from the visible message');
+$village_update_notification = notification_with_route(
+    'Member Rose requested to change their church village to Philadelphia and desired role to Worshipper.',
+    'desired_roles',
+    '',
+    'member-village-update-42'
+);
+expect_same(['desired_roles'], notification_badge_tabs($village_update_notification, 'pastor'), 'village preference requests badge the Pastor Desired Roles tab');
+expect_same('desired_roles', notification_target_tab($village_update_notification, 'pastor'), 'village preference request opens Pastor Desired Roles');
+expect_same('member-village-update-42', notification_route_metadata($village_update_notification)['row'], 'village preference request targets the exact pending member row');
+expect_same(
+    'Member Rose requested to change their church village to Philadelphia and desired role to Worshipper.',
+    notification_display_message($village_update_notification, 'pastor'),
+    'village preference route metadata stays hidden from the Pastor notification text'
+);
+$village_update_glow = render_notification_tab_glow_script('desired_roles', 'desired_roles', $village_update_notification);
+if (strpos($village_update_glow, 'notification-row:member-village-update-42') === false
+    || strpos($village_update_glow, 'notification-row-glow') === false) {
+    fwrite(STDERR, "FAIL: village preference request opens and highlights the exact pending member row.\n");
+    exit(1);
+}
+$member_dashboard_source = file_get_contents(__DIR__ . '/../member_dashboard.php');
+$pastor_dashboard_source = file_get_contents(__DIR__ . '/../pastor_dashboard.php');
+if ($member_dashboard_source === false
+    || strpos($member_dashboard_source, 'notification_with_route($update_msg, \'desired_roles\', \'\', \'member-village-update-\' . $member_id)') === false
+    || strpos($member_dashboard_source, 'form.dataset.hasSavedVillage === \'true\'') === false
+    || $pastor_dashboard_source === false
+    || strpos($pastor_dashboard_source, 'data-notification-row="member-village-update-<?= (int)$pu[\'id\'] ?>"') === false) {
+    fwrite(STDERR, "FAIL: village update requests must confirm before sending and route to the exact Pastor pending-update row.\n");
+    exit(1);
+}
 $worship_announcement = notification_with_route(
     'Worship announcement posted by Amina Kageni for worshippers.',
     'manage_worshippers',
