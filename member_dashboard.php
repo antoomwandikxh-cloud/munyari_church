@@ -3,6 +3,7 @@ session_start();
 require_once 'db_connect.php';
 require_once 'highlight_retention.php';
 require_once 'notification_badges.php';
+require_once 'village_leader_chat_helper.php';
 require_once 'role_departments.php';
 require_once 'voice_note_helper.php';
 require_once 'organized_event_helper.php';
@@ -10,6 +11,7 @@ if (!isset($_SESSION['member_id'])) { header("Location: login.php"); exit(); }
 
 $member_id = $_SESSION['member_id'];
 cleanup_expired_church_highlights($conn);
+ensure_village_leader_chat_schema($conn);
 $conn->query("
     CREATE TABLE IF NOT EXISTS sunday_school_class_requests (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -63,15 +65,6 @@ $conn->query("
         member_id INT NOT NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'Absent',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-");
-$conn->query("
-    CREATE TABLE IF NOT EXISTS village_leader_messages (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        sender_id INT NOT NULL,
-        message TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_village_leader_messages_created (created_at)
     )
 ");
 @$conn->query("ALTER TABLE worship_tasks MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'Pending'");
@@ -1680,14 +1673,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_village_leader_c
     $village_chat_village = trim((string)($member['church_village'] ?? ''));
     $village_chat_notice = "Village leaders chat message from $village_chat_sender ($village_chat_village): A new message was posted in the shared village leaders chat. [village-leader-chat-id:$village_chat_message_id]";
     try {
-        $village_chat_notice_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) SELECT id, 'member', ? FROM members WHERE is_village_leader = 1 AND is_approved = 1 AND id <> ? AND LOWER(TRIM(COALESCE(church_village, ''))) IN (LOWER(?), LOWER(?), LOWER(?))");
+        $village_chat_notice_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) SELECT id, 'member', ? FROM members WHERE is_village_leader = 1 AND is_approved = 1 AND LOWER(TRIM(COALESCE(church_village, ''))) IN (LOWER(?), LOWER(?), LOWER(?))");
         if (!$village_chat_notice_stmt) throw new RuntimeException($conn->error);
         $village_names = ['Akoritho', 'Philadelphia', 'Bethsaida'];
-        $village_chat_notice_stmt->bind_param('sisss', $village_chat_notice, $member_id, $village_names[0], $village_names[1], $village_names[2]);
+        $village_chat_notice_stmt->bind_param('ssss', $village_chat_notice, $village_names[0], $village_names[1], $village_names[2]);
         $village_chat_notice_stmt->execute();
         $village_chat_notice_stmt->close();
     } catch (Throwable $error) {
         error_log('Village leaders chat notifications failed: ' . $error->getMessage());
+    }
+
+    foreach ([['pastors', 'pastor', "is_approved = 1"], ['admins', 'admin', '1 = 1']] as [$recipient_table, $recipient_type, $recipient_filter]) {
+        try {
+            $staff_notice_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) SELECT id, '$recipient_type', ? FROM $recipient_table WHERE $recipient_filter");
+            if (!$staff_notice_stmt) throw new RuntimeException($conn->error);
+            $staff_notice_stmt->bind_param('s', $village_chat_notice);
+            $staff_notice_stmt->execute();
+            $staff_notice_stmt->close();
+        } catch (Throwable $error) {
+            error_log('Village leaders chat notification to ' . $recipient_type . ' failed: ' . $error->getMessage());
+        }
     }
 
     header('Location: ?tab=village_leader_chat&sent=1');
@@ -10529,7 +10534,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     $village_chat_leaders[] = $village_chat_leader;
                 }
             }
-            $village_chat_messages = $conn->query("SELECT chat_messages.id, chat_messages.sender_id, chat_messages.message, chat_messages.created_at, chat_messages.first_name, chat_messages.last_name, chat_messages.church_village, chat_messages.profile_picture FROM (SELECT vlm.id, vlm.sender_id, vlm.message, vlm.created_at, m.first_name, m.last_name, m.church_village, m.profile_picture FROM village_leader_messages vlm JOIN members m ON m.id = vlm.sender_id WHERE m.is_village_leader = 1 AND m.is_approved = 1 ORDER BY vlm.id DESC LIMIT 200) AS chat_messages ORDER BY chat_messages.id ASC");
+            $village_chat_messages = village_leader_chat_message_result($conn, $notification_focus_messages);
             ?>
             <div class="page-header">
                 <h1>Village Leaders Chat</h1>
@@ -10550,7 +10555,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         $chat_leader_photo = $chat_leader_photo !== '' ? 'uploads/' . rawurlencode(basename($chat_leader_photo)) : 'uploads/default_avatar.png';
                     ?>
                         <div style="display:flex;align-items:center;gap:9px;padding:8px 11px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-lighter);min-width:190px;">
-                            <img src="<?= htmlspecialchars($chat_leader_photo) ?>" alt="" onerror="this.src='uploads/default_avatar.png'" style="width:40px;height:40px;flex:0 0 40px;border-radius:50%;object-fit:cover;border:2px solid #d6a832;">
+                            <img src="<?= htmlspecialchars($chat_leader_photo) ?>" alt="View <?= htmlspecialchars(trim($chat_leader['first_name'] . ' ' . $chat_leader['last_name']), ENT_QUOTES) ?> profile photo" title="Click to view profile photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;flex:0 0 40px;border-radius:50%;object-fit:cover;border:2px solid #d6a832;cursor:zoom-in;">
                             <div style="min-width:0;">
                                 <div style="font-weight:700;color:var(--text-main);overflow-wrap:anywhere;"><?= htmlspecialchars(trim($chat_leader['first_name'] . ' ' . $chat_leader['last_name'])) ?></div>
                                 <div style="font-size:.82rem;color:var(--text-muted);overflow-wrap:anywhere;"><?= htmlspecialchars($chat_leader['church_village'] ?? '') ?> Village</div>
@@ -10572,7 +10577,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             $chat_message_sender = trim($chat_message['first_name'] . ' ' . $chat_message['last_name']);
                         ?>
                             <article data-notification-row="village-leader-chat-<?= (int)$chat_message['id'] ?>" style="display:flex;align-items:flex-end;gap:9px;max-width:min(760px,100%);align-self:<?= $chat_message_is_own ? 'flex-end' : 'flex-start' ?>;flex-direction:<?= $chat_message_is_own ? 'row-reverse' : 'row' ?>;">
-                                <img src="<?= htmlspecialchars($chat_message_photo) ?>" alt="<?= htmlspecialchars($chat_message_sender) ?>" onerror="this.src='uploads/default_avatar.png'" style="width:38px;height:38px;flex:0 0 38px;border-radius:50%;object-fit:cover;border:1px solid var(--border-color);">
+                                <img src="<?= htmlspecialchars($chat_message_photo) ?>" alt="View <?= htmlspecialchars($chat_message_sender, ENT_QUOTES) ?> profile photo" title="Click to view profile photo" onclick="viewProfileImage(this.src);" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:38px;height:38px;flex:0 0 38px;border-radius:50%;object-fit:cover;border:1px solid var(--border-color);cursor:zoom-in;">
                                 <div style="min-width:100px;padding:10px 13px;border:1px solid var(--border-color);border-radius:12px;background:<?= $chat_message_is_own ? 'rgba(16,185,129,.13)' : 'var(--bg-lighter)' ?>;color:var(--text-main);">
                                     <div style="display:flex;gap:12px;justify-content:space-between;align-items:baseline;flex-wrap:wrap;margin-bottom:5px;">
                                         <strong style="font-size:.86rem;"><?= htmlspecialchars($chat_message_sender) ?></strong>

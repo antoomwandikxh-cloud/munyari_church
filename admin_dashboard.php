@@ -26,6 +26,7 @@ function render_role_pills($church_role_raw, $is_pastor = false, $is_leader = fa
 session_start();
 require_once 'db_connect.php';
 require_once 'highlight_retention.php';
+require_once 'village_leader_chat_helper.php';
 if (isset($_POST['add_custom_role'])) {
     $role_name = trim($_POST['custom_role_name']);
     if (!empty($role_name)) {
@@ -237,6 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_village_leader
 // ──────────────────────────────────────────────────────────────────────────
 
 $admin_id = $_SESSION['admin_id'];
+ensure_village_leader_chat_schema($conn);
 cleanup_expired_church_highlights($conn);
 $direct_tab_notification_messages = [];
 $tab_badges = build_tab_notification_badges($conn, $admin_id, 'admin', $tab, $direct_tab_notification_messages);
@@ -3599,6 +3601,7 @@ w.document.write('</div>');
                         </div>
                     </form>
                 </div>
+                <?php render_village_leaders_chat_monitor($conn, $notification_focus_messages ?? []); ?>
 
 
             <?php elseif ($tab == 'settings'): ?>

@@ -306,9 +306,11 @@ if (!function_exists('render_building_leader_profiles_card')) {
     }
 }
 require_once 'notification_badges.php';
+require_once 'village_leader_chat_helper.php';
 if (!isset($_SESSION['pastor_id'])) { header("Location: login.php"); exit(); }
 
 $pastor_id = $_SESSION['pastor_id'];
+ensure_village_leader_chat_schema($conn);
 cleanup_expired_church_highlights($conn);
 $pastor_name = $_SESSION['pastor_name'];
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
@@ -5233,6 +5235,7 @@ w.document.write('</div>');
                         </div>
                     </form>
                 </div>
+                <?php render_village_leaders_chat_monitor($conn, $notification_focus_messages ?? []); ?>
 
 
             <?php elseif ($tab == 'choir_songs'): ?>
