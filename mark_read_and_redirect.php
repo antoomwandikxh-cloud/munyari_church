@@ -33,6 +33,12 @@ $notification_created_at = '';
 $notification_related_member_id = 0;
 $notification_focus_message = '';
 $notification_found = false;
+$is_treasurer_member = false;
+if ($user_type === 'member') {
+    $member_role_result = $conn->query("SELECT church_role FROM members WHERE id = $user_id LIMIT 1");
+    $member_role_row = $member_role_result ? $member_role_result->fetch_assoc() : null;
+    $is_treasurer_member = stripos((string)($member_role_row['church_role'] ?? ''), 'treasurer') !== false;
+}
 $has_related_member_id = ensure_notification_focus_schema($conn);
 $related_member_column = $has_related_member_id ? 'related_member_id' : 'NULL';
 $lookup_stmt = $conn->prepare("SELECT message, created_at, $related_member_column FROM notifications WHERE id = ? AND user_id = ? AND user_type = ? LIMIT 1");
@@ -46,7 +52,7 @@ if ($lookup_stmt) {
 
 unset($_SESSION['notification_tab_glow'], $_SESSION['notification_row_focus'], $_SESSION['fine_notification_highlight']);
 if ($notification_found) {
-    $redirect_tab = notification_target_tab($notification_message, $user_type, 'dashboard');
+    $redirect_tab = notification_target_tab($notification_message, $user_type, 'dashboard', $is_treasurer_member);
     $notification_focus_message = notification_focus_message_with_media_id($conn, $notification_message, $notification_created_at);
     $notification_focus_message = notification_focus_message_with_member_id($conn, $notification_focus_message, $notification_created_at, $notification_related_member_id);
     $_SESSION['notification_tab_glow'] = $redirect_tab;
@@ -74,10 +80,10 @@ if ($user_type === 'member') {
     ];
     if (isset($department_by_group[$redirect_group])) {
         $department = $department_by_group[$redirect_group];
-        if ($redirect_tab === 'leader_chat' || $redirect_tab === 'manage_department' || $redirect_tab === 'financials' || $redirect_tab === 'received_financials') {
+        if ($redirect_tab === 'leader_chat' || $redirect_tab === 'manage_department' || $redirect_tab === 'financials' || $redirect_tab === 'received_financials' || $redirect_tab === 'treasurer_records') {
             $_SESSION['dashboard_dept'] = $department;
         }
-        if ($redirect_tab === 'financials') {
+        if ($redirect_tab === 'financials' || $redirect_tab === 'treasurer_records') {
             $destination .= '&treasurer_dept=' . urlencode($department);
         }
         if ($redirect_tab === 'received_financials') {

@@ -1415,6 +1415,25 @@ $dept_key     = strtolower(str_replace(' ', '_', $managed_dept));
 if (!empty($treasurer_depts)) {
     $active_treasurer_dept = $_GET['treasurer_dept'] ?? (in_array($active_dashboard_dept, $treasurer_depts) ? $active_dashboard_dept : $treasurer_depts[0]);
 }
+$treasurer_records_dept_options = $treasurer_depts;
+$member_home_dept = trim($member['department'] ?? '');
+if ($member_home_dept !== '' && strcasecmp($member_home_dept, 'None') !== 0) {
+    $has_home_finance_dept = false;
+    foreach ($treasurer_records_dept_options as $finance_dept_option) {
+        if (department_matches($member_home_dept, $finance_dept_option)) {
+            $has_home_finance_dept = true;
+            break;
+        }
+    }
+    if (!$has_home_finance_dept) $treasurer_records_dept_options[] = $member_home_dept;
+}
+$treasurer_records_default_dept = $treasurer_records_dept_options[0] ?? $member_home_dept;
+foreach ($treasurer_records_dept_options as $finance_dept_option) {
+    if (department_matches($active_dashboard_dept, $finance_dept_option)) {
+        $treasurer_records_default_dept = $finance_dept_option;
+        break;
+    }
+}
 
 // Context-aware role flags: each is true ONLY if the member holds that role FOR the active dashboard dept.
 // These drive sidebar panel visibility so switching context hides irrelevant panels.
@@ -2920,10 +2939,11 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <?php if (!empty($tab_badges['received_financials'])): ?><span class="tab-notif-badge"><?= $tab_badges['received_financials'] > 99 ? '99+' : $tab_badges['received_financials'] ?></span><?php endif; ?>
                 </a>
                 <?php endif; ?>
-                <?php if ($ctx_is_treasurer && !$ctx_is_organizing_secretary): ?>
-                <a href="?tab=treasurer_records&treasurer_dept=<?= urlencode($active_treasurer_dept) ?>" class="sidebar-link <?= $tab == 'treasurer_records' ? 'active' : '' ?>">
+                <?php if ($is_treasurer && !$ctx_is_organizing_secretary): ?>
+                <a href="?tab=treasurer_records&treasurer_dept=<?= urlencode($treasurer_records_default_dept) ?>" class="sidebar-link <?= $tab == 'treasurer_records' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></rect><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10h10M7 14h6"></path></svg>
                     Financial Records
+                    <?= render_tab_notification_badge($tab_badges, 'treasurer_records') ?>
                 </a>
                 <?php endif; ?>
                 <?php if ((department_allows_graduation_and_sport($member['department'] ?? '') || $is_youth_advisor_scope) && !$is_sport_secretary): ?>
@@ -3025,10 +3045,11 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         <?php if (!empty($tab_badges['received_financials'])): ?><span class="tab-notif-badge"><?= $tab_badges['received_financials'] > 99 ? '99+' : $tab_badges['received_financials'] ?></span><?php endif; ?>
                     </a>
                     <?php endif; ?>
-                    <?php if ($ctx_is_treasurer): ?>
-                    <a href="?tab=treasurer_records&treasurer_dept=<?= urlencode($active_treasurer_dept) ?>" class="sidebar-link <?= $tab == 'treasurer_records' ? 'active' : '' ?>">
+                    <?php if ($is_treasurer): ?>
+                    <a href="?tab=treasurer_records&treasurer_dept=<?= urlencode($treasurer_records_default_dept) ?>" class="sidebar-link <?= $tab == 'treasurer_records' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></rect><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10h10M7 14h6"></path></svg>
                         Financial Records
+                        <?= render_tab_notification_badge($tab_badges, 'treasurer_records') ?>
                     </a>
                     <?php endif; ?>
                     <?php if (!$ctx_is_leader && !$ctx_is_secretary): ?>
@@ -3355,7 +3376,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 $drop_notifs = $conn->query("SELECT * FROM notifications WHERE user_id = $member_id AND user_type = 'member' ORDER BY created_at DESC LIMIT 8");
                                 if ($drop_notifs && $drop_notifs->num_rows > 0):
                                     while ($dn = $drop_notifs->fetch_assoc()):
-                                        $target_tab = notification_target_tab($dn['message'], 'member', 'dashboard');
+                                        $target_tab = notification_target_tab($dn['message'], 'member', 'dashboard', $is_treasurer);
                                         $dn_group = notification_target_group($dn['message'], 'member');
                                         if ($is_choir_leader && $target_tab === 'choir_songs') {
                                             $target_tab = 'manage_songs';
@@ -5247,7 +5268,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <?php $notifications = $conn->query("SELECT * FROM notifications WHERE user_id = $member_id AND user_type = 'member' ORDER BY created_at DESC"); if($notifications && $notifications->num_rows > 0): ?>
                         <?php while($n = $notifications->fetch_assoc()): ?>
                             <?php
-                            $target_tab = notification_target_tab($n['message'], 'member', 'dashboard');
+                            $target_tab = notification_target_tab($n['message'], 'member', 'dashboard', $is_treasurer);
                             $dn_group = notification_target_group($n['message'], 'member');
                             if ($is_choir_leader && $target_tab === 'choir_songs') {
                                 $target_tab = 'manage_songs';
@@ -7174,27 +7195,28 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
             <?php if ($tab == 'treasurer_records' && $is_treasurer): ?>
                 <?php
-                $active_treasurer_records_dept = $treasurer_depts[0] ?? '';
+                $active_treasurer_records_dept = $treasurer_records_default_dept;
                 $requested_treasurer_records_dept = trim($_GET['treasurer_dept'] ?? '');
-                if ($requested_treasurer_records_dept !== '' && in_array($requested_treasurer_records_dept, $treasurer_depts, true)) {
-                    $active_treasurer_records_dept = $requested_treasurer_records_dept;
-                } elseif (in_array($active_dashboard_dept, $treasurer_depts, true)) {
-                    $active_treasurer_records_dept = $active_dashboard_dept;
+                foreach ($treasurer_records_dept_options as $finance_dept_option) {
+                    if ($requested_treasurer_records_dept !== '' && department_matches($requested_treasurer_records_dept, $finance_dept_option)) {
+                        $active_treasurer_records_dept = $finance_dept_option;
+                        break;
+                    }
                 }
                 ?>
                 <div class="page-header">
                     <h1>Financial Records</h1>
-                    <p>Transactions recorded by you for <strong><?= htmlspecialchars($active_treasurer_records_dept) ?></strong>, including their chairperson review status.</p>
+                    <p>Confirmed financial records from your department Chairperson for <strong><?= htmlspecialchars($active_treasurer_records_dept) ?></strong>.</p>
                 </div>
 
-                <?php if (count($treasurer_depts) > 1): ?>
+                <?php if (count($treasurer_records_dept_options) > 1): ?>
                 <div class="content-card" style="margin-bottom:20px;">
                     <form method="GET" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                         <input type="hidden" name="tab" value="treasurer_records">
                         <label style="font-weight:600;margin:0;">Viewing Financial Records For:</label>
                         <select name="treasurer_dept" class="form-control" style="max-width:300px;margin:0;" onchange="this.form.submit()">
-                            <?php foreach ($treasurer_depts as $dept): ?>
-                                <option value="<?= htmlspecialchars($dept) ?>" <?= $dept === $active_treasurer_records_dept ? 'selected' : '' ?>><?= htmlspecialchars($dept) ?></option>
+                            <?php foreach ($treasurer_records_dept_options as $dept): ?>
+                                <option value="<?= htmlspecialchars($dept) ?>" <?= department_matches($dept, $active_treasurer_records_dept) ? 'selected' : '' ?>><?= htmlspecialchars($dept) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </form>

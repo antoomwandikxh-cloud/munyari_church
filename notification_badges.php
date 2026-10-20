@@ -11,7 +11,7 @@ function notification_display_message($message, $user_type = null) {
     return trim($message);
 }
 
-function notification_badge_tabs($message, $user_type) {
+function notification_badge_tabs($message, $user_type, $is_treasurer = false) {
     $msg  = strtolower($message);
     $tabs = [];
 
@@ -50,7 +50,9 @@ function notification_badge_tabs($message, $user_type) {
         return ['financials'];
     }
     if (strpos($msg, 'financial record disbursed to members in ') === 0) {
-        return $user_type === 'member' ? ['my_financials'] : ['financials'];
+        return $user_type === 'member'
+            ? ($is_treasurer ? ['treasurer_records'] : ['my_financials'])
+            : ['financials'];
     }
 
     if (strpos($msg, 'department event') !== false && strpos($msg, 'organising secretary') !== false) {
@@ -608,6 +610,12 @@ function notify_staff_of_department_member_approval($conn, $member_id) {
 function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab, &$current_tab_messages = null) {
     $user_id      = (int)$user_id;
     $user_type_sql = $conn->real_escape_string($user_type);
+    $is_treasurer = false;
+    if ($user_type === 'member') {
+        $role_result = $conn->query("SELECT church_role FROM members WHERE id = $user_id LIMIT 1");
+        $role_row = $role_result ? $role_result->fetch_assoc() : null;
+        $is_treasurer = stripos((string)($role_row['church_role'] ?? ''), 'treasurer') !== false;
+    }
     $has_related_member_id = ensure_notification_focus_schema($conn);
     $related_member_column = $has_related_member_id ? 'related_member_id' : 'NULL AS related_member_id';
     $result = $conn->query("SELECT id, message, created_at, $related_member_column FROM notifications WHERE user_id = $user_id AND user_type = '$user_type_sql' AND is_read = 0");
@@ -617,7 +625,7 @@ function build_tab_notification_badges($conn, $user_id, $user_type, $current_tab
 
     if ($result) {
         while ($notification = $result->fetch_assoc()) {
-            $tabs = notification_badge_tabs($notification['message'], $user_type);
+            $tabs = notification_badge_tabs($notification['message'], $user_type, $is_treasurer);
             foreach ($tabs as $target_tab) {
                 if (!isset($badges[$target_tab])) {
                     $badges[$target_tab] = 0;
@@ -725,8 +733,8 @@ function notification_focus_message_with_member_id($conn, $message, $created_at 
         : $message;
 }
 
-function notification_target_tab($message, $user_type, $fallback_tab = 'dashboard') {
-    $tabs = notification_badge_tabs($message, $user_type);
+function notification_target_tab($message, $user_type, $fallback_tab = 'dashboard', $is_treasurer = false) {
+    $tabs = notification_badge_tabs($message, $user_type, $is_treasurer);
     return $tabs[0] ?? $fallback_tab;
 }
 
@@ -1056,6 +1064,9 @@ function notification_target_group($message, $user_type) {
     $fine_department = '';
     if ($user_type === 'member'
         && preg_match('/^financial record submitted for chairperson review in\s+(.+?)\.\s*KSh/i', $message, $finance_department_match)) {
+        $fine_department = trim($finance_department_match[1]);
+    } elseif ($user_type === 'member'
+        && preg_match('/^financial record disbursed to members in\s+(.+?):/i', $message, $finance_department_match)) {
         $fine_department = trim($finance_department_match[1]);
     }
     if ($user_type === 'member'
