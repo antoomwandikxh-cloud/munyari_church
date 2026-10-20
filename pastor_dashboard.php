@@ -3553,9 +3553,25 @@ w.document.write('</div>');
 
                             echo "<div style='background:rgba(16,185,129,0.1);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>Update approved!</div>";
                         } else if ($action === 'reject') {
+                            $declined_changes = [];
+                            $pending_village = trim((string)($mem['pending_church_village'] ?? ''));
+                            $current_village = trim((string)($mem['church_village'] ?? ''));
+                            $pending_role = trim((string)($mem['pending_desired_role_pref'] ?? ''));
+                            $current_role = trim((string)($mem['desired_role_pref'] ?? ''));
+                            if ($pending_village !== '' && strcasecmp($pending_village, $current_village) !== 0) {
+                                $declined_changes[] = 'your church village to ' . $pending_village;
+                            }
+                            if (strcasecmp($pending_role, $current_role) !== 0) {
+                                $declined_changes[] = 'your desired role to ' . ($pending_role !== '' ? $pending_role : 'No role');
+                            }
+                            $declined_request = $declined_changes
+                                ? 'change ' . implode(' and ', $declined_changes)
+                                : 'update your church village or desired role';
+                            $decline_message = 'The Pastor declined your request to ' . $declined_request . '.';
+                            $routed_decline_message = notification_with_route($decline_message, 'desired_roles', '', 'member-village-update-' . $update_id);
+                            $escaped_decline_message = $conn->real_escape_string($routed_decline_message);
                             $conn->query("UPDATE members SET pending_church_village = NULL, pending_desired_role_pref = NULL WHERE id = $update_id");
-                            $msg = $conn->real_escape_string("Your request to update your church village was rejected by the Pastor.");
-                            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($update_id, 'member', '$msg')");
+                            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($update_id, 'member', '$escaped_decline_message')");
                             echo "<div style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>Update rejected.</div>";
                         }
                     }

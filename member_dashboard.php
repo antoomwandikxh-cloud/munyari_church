@@ -10704,7 +10704,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             }
             ?>
 
-            <form id="churchVillagePreferencesForm" method="POST" action="?tab=desired_roles" class="content-card" data-has-saved-village="<?= $has_church_village ? 'true' : 'false' ?>" data-has-pending-request="<?= (!empty($member['pending_church_village']) || !empty($member['pending_desired_role_pref'])) ? 'true' : 'false' ?>" data-saved-village="<?= htmlspecialchars((string)($member['church_village'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-saved-role="<?= htmlspecialchars((string)($member['desired_role_pref'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" style="max-width:800px;">
+            <form id="churchVillagePreferencesForm" data-notification-row="member-village-update-<?= (int)$member_id ?>" method="POST" action="?tab=desired_roles" class="content-card" data-has-saved-village="<?= $has_church_village ? 'true' : 'false' ?>" data-has-pending-request="<?= (!empty($member['pending_church_village']) || !empty($member['pending_desired_role_pref'])) ? 'true' : 'false' ?>" data-saved-village="<?= htmlspecialchars((string)($member['church_village'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-saved-role="<?= htmlspecialchars((string)($member['desired_role_pref'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" style="max-width:800px;">
                 <input type="hidden" name="save_church_village" value="1">
                 
                 <div style="margin-bottom:30px;">
