@@ -3743,6 +3743,17 @@ w.document.write('</div>');
                     <h1>Discipline & Reports Overview</h1>
                     <p>View all fines issued and disciplinary reports forwarded from Chairmen across all departments.</p>
                 </div>
+                <div id="discipline-record-department-filter" class="content-card" style="margin-bottom:14px;padding:14px 16px;">
+                    <strong style="display:block;margin-bottom:10px;color:var(--text-main);">Filter discipline records by department</strong>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                        <button type="button" data-discipline-record-filter="all" data-discipline-record-label="All Departments" aria-pressed="true" style="border:1px solid #64748b;border-radius:20px;padding:7px 12px;background:#64748b;color:#fff;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer;">All Departments <span data-discipline-record-count="all" style="margin-left:4px;opacity:.85;">0</span></button>
+                        <button type="button" data-discipline-record-filter="youths" data-discipline-record-label="Youths" aria-pressed="false" style="border:1px solid #3b82f6;border-radius:20px;padding:7px 12px;background:#3b82f6;color:#fff;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer;">Youths <span data-discipline-record-count="youths" style="margin-left:4px;opacity:.85;">0</span></button>
+                        <button type="button" data-discipline-record-filter="womens_ministry" data-discipline-record-label="Women Ministry" aria-pressed="false" style="border:1px solid #ec4899;border-radius:20px;padding:7px 12px;background:#ec4899;color:#fff;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer;">Women Ministry <span data-discipline-record-count="womens_ministry" style="margin-left:4px;opacity:.85;">0</span></button>
+                        <button type="button" data-discipline-record-filter="elders" data-discipline-record-label="Elders" aria-pressed="false" style="border:1px solid #8b5cf6;border-radius:20px;padding:7px 12px;background:#8b5cf6;color:#fff;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer;">Elders <span data-discipline-record-count="elders" style="margin-left:4px;opacity:.85;">0</span></button>
+                        <button type="button" data-discipline-record-filter="sunday_school" data-discipline-record-label="Sunday School" aria-pressed="false" style="border:1px solid #f59e0b;border-radius:20px;padding:7px 12px;background:#f59e0b;color:#fff;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer;">Sunday School <span data-discipline-record-count="sunday_school" style="margin-left:4px;opacity:.85;">0</span></button>
+                    </div>
+                    <p id="discipline-record-filter-status" role="status" aria-live="polite" style="display:none;margin:12px 0 0;color:var(--text-muted);text-align:center;padding:8px;"></p>
+                </div>
 
                 <!-- Department Fine Rules -->
                 <?php
@@ -3754,19 +3765,20 @@ w.document.write('</div>');
                     }
                 }
                 ?>
-                <div class="content-card" style="margin-bottom:30px;">
+                <div class="content-card" data-discipline-record-panel="rules" style="margin-bottom:30px;">
                     <h2>Department Fine Rules</h2>
                     <p style="color:var(--text-muted);">Current fine rules set by Discipline Masters, grouped by department.</p>
+                    <p data-discipline-record-empty="rules" role="status" aria-live="polite" style="display:none;color:var(--text-muted);"></p>
                     <?php if (!empty($department_fine_rules_by_department)): ?>
                         <?php $fine_rule_group_index = 0; foreach ($department_fine_rules_by_department as $fine_rule_department => $department_rules): ?>
-                            <section style="<?= $fine_rule_group_index > 0 ? 'margin-top:22px;padding-top:18px;border-top:1px solid var(--border-color);' : '' ?>">
+                            <section data-discipline-department-group="<?= htmlspecialchars(notification_department_group_key($fine_rule_department), ENT_QUOTES) ?>" style="<?= $fine_rule_group_index > 0 ? 'margin-top:22px;padding-top:18px;border-top:1px solid var(--border-color);' : '' ?>">
                                 <h3 style="margin:0 0 10px;"><?= htmlspecialchars($fine_rule_department) ?></h3>
                                 <div class="table-responsive">
                                     <table>
                                         <thead><tr><th>Fine Rule</th><th>Amount</th><th>Created</th></tr></thead>
                                         <tbody>
                                             <?php foreach ($department_rules as $fine_rule): ?>
-                                                <tr data-notification-row="fine-rule-<?= (int)$fine_rule['id'] ?>">
+                                                <tr data-discipline-record-department="<?= htmlspecialchars(notification_department_group_key($fine_rule['department']), ENT_QUOTES) ?>" data-notification-row="fine-rule-<?= (int)$fine_rule['id'] ?>">
                                                     <td><?= htmlspecialchars($fine_rule['fine_name']) ?></td>
                                                     <td style="font-weight:600;">KSh <?= number_format((float)$fine_rule['amount'], 2) ?></td>
                                                     <td style="white-space:nowrap;color:var(--text-muted);font-size:.9em;"><?= !empty($fine_rule['created_at']) ? date('M j, Y', strtotime($fine_rule['created_at'])) : '—' ?></td>
@@ -3778,7 +3790,7 @@ w.document.write('</div>');
                             </section>
                         <?php $fine_rule_group_index++; endforeach; ?>
                     <?php else: ?>
-                        <p style="color:var(--text-muted);">No department fine rules have been set up yet.</p>
+                        <p class="discipline-record-default-empty" style="color:var(--text-muted);">No department fine rules have been set up yet.</p>
                     <?php endif; ?>
                 </div>
 
@@ -3804,8 +3816,9 @@ w.document.write('</div>');
                 </div>
 
                 <!-- All Fines -->
-                <div class="content-card" style="margin-bottom: 30px;">
+                <div class="content-card" data-discipline-record-panel="fines" style="margin-bottom: 30px;">
                     <h2>All Fines Issued</h2>
+                    <p data-discipline-record-empty="fines" role="status" aria-live="polite" style="display:none;color:var(--text-muted);"></p>
                     <?php
                     $focus_fine_id = 0;
                     foreach (($notification_focus_messages ?? []) as $focus_message) {
@@ -3822,7 +3835,7 @@ w.document.write('</div>');
                                 <thead><tr><th>Profile</th><th>Member</th><th>Department</th><th>Offense</th><th>Amount</th><th>Issued By</th><th>Status</th><th>Date & Time</th></tr></thead>
                                 <tbody>
                                     <?php while($af = $all_fines_pastor->fetch_assoc()): ?>
-                                        <tr data-notification-row="oversight-fine-<?= (int)$af['id'] ?>">
+                                        <tr data-discipline-record-department="<?= htmlspecialchars(notification_department_group_key($af['department']), ENT_QUOTES) ?>" data-notification-row="oversight-fine-<?= (int)$af['id'] ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($af['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars($af['first_name'] . ' ' . $af['last_name']) ?></td>
                                             <td><span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;"><?= htmlspecialchars($af['department']) ?></span></td>
@@ -3843,12 +3856,12 @@ w.document.write('</div>');
                             </table>
                         </div>
                     <?php else: ?>
-                        <p style="color: var(--text-muted);">No fines have been issued yet.</p>
+                        <p class="discipline-record-default-empty" style="color: var(--text-muted);">No fines have been issued yet.</p>
                     <?php endif; ?>
                 </div>
 
                 <!-- Forwarded Reports -->
-                <div class="content-card" style="border-top: 4px solid var(--danger);">
+                <div class="content-card" data-discipline-record-panel="reports" style="border-top: 4px solid var(--danger);">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                         <h2 style="color: var(--danger);margin:0;">Forwarded Disciplinary Reports</h2>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -3857,6 +3870,7 @@ w.document.write('</div>');
                         </div>
                     </div>
                     <p style="color: var(--text-muted); margin-bottom: 15px;">Reports escalated by department Chairmen.</p>
+                    <p data-discipline-record-empty="reports" role="status" aria-live="polite" style="display:none;color:var(--text-muted);"></p>
                     <?php
                     $forwarded = $conn->query("SELECT mr.*, m.first_name, m.last_name, m.profile_picture, dm.first_name as dm_first, dm.last_name as dm_last FROM member_reports mr JOIN members m ON mr.reported_member_id = m.id JOIN members dm ON mr.reported_by_id = dm.id WHERE mr.status = 'Forwarded to Pastor' ORDER BY mr.created_at DESC");
                     if ($forwarded && $forwarded->num_rows > 0):
@@ -3866,7 +3880,7 @@ w.document.write('</div>');
                                 <thead><tr><th>Profile</th><th>Reported Member</th><th>Department</th><th>Reported By</th><th>Reason</th><th>Date</th></tr></thead>
                                 <tbody>
                                     <?php while($fr = $forwarded->fetch_assoc()): ?>
-                                        <tr data-notification-row="disciplinary-report-<?= (int)$fr['id'] ?>">
+                                        <tr data-discipline-record-department="<?= htmlspecialchars(notification_department_group_key($fr['department']), ENT_QUOTES) ?>" data-notification-row="disciplinary-report-<?= (int)$fr['id'] ?>">
                                             <td><img src="uploads/<?= htmlspecialchars(basename($fr['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars(trim(($fr['first_name'] ?? '') . ' ' . ($fr['last_name'] ?? ''))) ?> profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;" onclick="viewProfileImage(this.src);" title="View reported member photo"></td>
                                             <td style="font-weight: 500;"><?= htmlspecialchars(trim(($fr['first_name'] ?? '') . ' ' . ($fr['last_name'] ?? '')) ?: 'Unknown') ?></td>
                                             <td><span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981;"><?= htmlspecialchars($fr['department']) ?></span></td>
@@ -3879,9 +3893,89 @@ w.document.write('</div>');
                             </table>
                         </div>
                     <?php else: ?>
-                        <p style="color: var(--text-muted);">No reports have been forwarded by Chairmen yet.</p>
+                        <p class="discipline-record-default-empty" style="color: var(--text-muted);">No reports have been forwarded by Chairmen yet.</p>
                     <?php endif; ?>
                 </div>
+                <script>
+                    (function () {
+                        const filterRoot = document.getElementById('discipline-record-department-filter');
+                        if (!filterRoot) return;
+                        const buttons = Array.from(filterRoot.querySelectorAll('[data-discipline-record-filter]'));
+                        const rows = Array.from(document.querySelectorAll('[data-discipline-record-department]'));
+                        const panels = Array.from(document.querySelectorAll('[data-discipline-record-panel]'));
+                        const groups = Array.from(document.querySelectorAll('[data-discipline-department-group]'));
+                        const status = document.getElementById('discipline-record-filter-status');
+                        const defaultEmptyMessages = Array.from(document.querySelectorAll('.discipline-record-default-empty'));
+                        const focusMessages = <?= json_encode(array_values($notification_focus_messages ?? []), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
+                        const counts = { all: rows.length };
+                        rows.forEach(row => {
+                            const key = row.dataset.disciplineRecordDepartment || 'other';
+                            counts[key] = (counts[key] || 0) + 1;
+                        });
+                        buttons.forEach(button => {
+                            const key = button.dataset.disciplineRecordFilter;
+                            const count = filterRoot.querySelector('[data-discipline-record-count="' + key + '"]');
+                            if (count) count.textContent = String(counts[key] || 0);
+                            button.addEventListener('click', function () {
+                                const selected = this.dataset.disciplineRecordFilter;
+                                const wasSelected = this.getAttribute('aria-pressed') === 'true';
+                                const nextFilter = wasSelected ? '' : selected;
+                                buttons.forEach(item => item.setAttribute('aria-pressed', item.dataset.disciplineRecordFilter === nextFilter ? 'true' : 'false'));
+                                rows.forEach(row => {
+                                    row.style.display = nextFilter === 'all' || (nextFilter !== '' && row.dataset.disciplineRecordDepartment === nextFilter) ? '' : 'none';
+                                });
+                                groups.forEach(group => {
+                                    group.style.display = nextFilter === 'all' || (nextFilter !== '' && group.dataset.disciplineDepartmentGroup === nextFilter) ? '' : 'none';
+                                });
+                                defaultEmptyMessages.forEach(message => {
+                                    message.style.display = nextFilter === 'all' && rows.length ? '' : 'none';
+                                });
+                                panels.forEach(panel => {
+                                    const emptyMessage = panel.querySelector('[data-discipline-record-empty]');
+                                    if (!emptyMessage) return;
+                                    const panelRows = Array.from(panel.querySelectorAll('[data-discipline-record-department]'));
+                                    const matchingRows = nextFilter === 'all'
+                                        ? panelRows
+                                        : panelRows.filter(row => row.dataset.disciplineRecordDepartment === nextFilter);
+                                    const panelEmptyText = {
+                                        rules: 'No fine rules have been posted in ',
+                                        fines: 'No fines have been recorded in ',
+                                        reports: 'No forwarded disciplinary reports for '
+                                    }[panel.dataset.disciplineRecordPanel];
+                                    if (nextFilter !== '' && nextFilter !== 'all' && counts[nextFilter] && matchingRows.length === 0 && panelEmptyText) {
+                                        const label = buttons.find(button => button.dataset.disciplineRecordFilter === nextFilter)?.dataset.disciplineRecordLabel || 'this department';
+                                        emptyMessage.textContent = panelEmptyText + label + ' yet.';
+                                        emptyMessage.style.display = 'block';
+                                    } else {
+                                        emptyMessage.style.display = 'none';
+                                    }
+                                });
+                                if (!status) return;
+                                if (nextFilter === '') {
+                                    status.textContent = 'Record lists closed. Choose a department or All Departments to show records.';
+                                    status.style.display = 'block';
+                                } else if (!counts[nextFilter]) {
+                                    const label = this.dataset.disciplineRecordLabel || 'this department';
+                                    status.textContent = nextFilter === 'all'
+                                        ? 'No disciplinary records have been posted yet.'
+                                        : 'No discipline records posted yet in ' + label + '.';
+                                    status.style.display = 'block';
+                                } else {
+                                    status.style.display = 'none';
+                                }
+                            });
+                        });
+                        if (!rows.length && status) {
+                            status.textContent = 'No disciplinary records have been posted yet.';
+                            status.style.display = 'block';
+                            defaultEmptyMessages.forEach(message => { message.style.display = 'none'; });
+                        }
+                        const focusMessage = focusMessages.find(message => /\[notification-row:(?:fine-rule|oversight-fine|disciplinary-report)-\d+\]/i.test(message));
+                        const groupMatch = focusMessage && focusMessage.match(/\[notification-group:([a-z0-9_-]+)\]/i);
+                        const focusButton = groupMatch && buttons.find(button => button.dataset.disciplineRecordFilter === groupMatch[1].toLowerCase());
+                        if (focusButton) focusButton.click();
+                    })();
+                </script>
 
             <?php elseif ($tab == 'graduation_info'): ?>
                 <?php $current_year = date('Y'); ?>

@@ -8713,24 +8713,62 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             <?php endif; ?>
 
             <?php if ($tab == 'discipline' && $is_discipline_master):
-                $active_disc_dept = $_GET['disc_dept'] ?? (in_array($active_dashboard_dept, $discipline_master_depts) ? $active_dashboard_dept : ($discipline_master_depts[0] ?? $active_dashboard_dept));
+                $discipline_department_filters = [
+                    'youths' => ['label' => 'Youths', 'department' => 'Youths', 'color' => '#3b82f6'],
+                    'womens_ministry' => ['label' => 'Women Ministry', 'department' => 'Womens Ministry', 'color' => '#ec4899'],
+                    'elders' => ['label' => 'Elders', 'department' => 'Elders', 'color' => '#8b5cf6'],
+                    'sunday_school' => ['label' => 'Sunday School', 'department' => 'Sunday School', 'color' => '#f59e0b'],
+                ];
+                $requested_disc_dept = trim((string)($_GET['disc_dept'] ?? ''));
+                $active_disc_dept = '';
+                foreach ($discipline_master_depts as $assigned_disc_dept) {
+                    if ($requested_disc_dept !== '' && department_matches($requested_disc_dept, $assigned_disc_dept)) {
+                        $active_disc_dept = $assigned_disc_dept;
+                        break;
+                    }
+                }
+                if ($active_disc_dept === '') {
+                    foreach ($discipline_master_depts as $assigned_disc_dept) {
+                        if (department_matches($active_dashboard_dept, $assigned_disc_dept)) {
+                            $active_disc_dept = $assigned_disc_dept;
+                            break;
+                        }
+                    }
+                }
+                if ($active_disc_dept === '') {
+                    $active_disc_dept = $discipline_master_depts[0] ?? $active_dashboard_dept;
+                }
+                $assigned_disc_depts_by_filter = [];
+                foreach ($discipline_master_depts as $assigned_disc_dept) {
+                    foreach ($discipline_department_filters as $filter_key => $filter) {
+                        if (department_matches($assigned_disc_dept, $filter['department'])) {
+                            $assigned_disc_depts_by_filter[$filter_key] = $assigned_disc_dept;
+                        }
+                    }
+                }
             ?>
                 <div class="page-header">
                     <h1>Discipline &amp; Fines</h1>
-                    <?php if (count($discipline_master_depts) > 1): ?>
-                    <p>You serve as Discipline Master in multiple departments. Select one to manage:</p>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-                        <?php foreach ($discipline_master_depts as $dd): ?>
-                            <a href="?tab=discipline&disc_dept=<?= urlencode($dd) ?>"
-                               class="btn-sm<?= (strtolower($dd) === strtolower($active_disc_dept)) ? ' btn-success' : '' ?>"
-                               style="text-decoration:none;<?= (strtolower($dd) !== strtolower($active_disc_dept)) ? 'background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-main);' : '' ?>">
-                               <?= htmlspecialchars($dd) ?>
-                            </a>
+                    <p>Issue fines and report members within the <strong><?= htmlspecialchars($active_disc_dept) ?></strong> department.</p>
+                    <strong style="display:block;margin-top:12px;margin-bottom:9px;color:var(--text-main);">Department records</strong>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <?php foreach ($discipline_department_filters as $filter_key => $filter): ?>
+                            <?php
+                            $assigned_filter_dept = $assigned_disc_depts_by_filter[$filter_key] ?? '';
+                            $is_filter_active = $assigned_filter_dept !== '' && department_matches($active_disc_dept, $filter['department']);
+                            ?>
+                            <?php if ($assigned_filter_dept !== ''): ?>
+                                <a href="?tab=discipline&amp;disc_dept=<?= urlencode($assigned_filter_dept) ?>" data-discipline-master-filter="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" aria-pressed="<?= $is_filter_active ? 'true' : 'false' ?>" class="btn-sm" style="text-decoration:none;border:1px solid <?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;background:<?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;color:#fff;opacity:<?= $is_filter_active ? '1' : '.78' ?>;">
+                                    <?= htmlspecialchars($filter['label']) ?>
+                                </a>
+                            <?php else: ?>
+                                <button type="button" disabled aria-disabled="true" title="You are not assigned as Discipline Master for this department." class="btn-sm" style="border:1px solid <?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;background:<?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;color:#fff;opacity:.38;cursor:not-allowed;">
+                                    <?= htmlspecialchars($filter['label']) ?>
+                                </button>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     </div>
-                    <?php else: ?>
-                    <p>Issue fines and report members within the <strong><?= htmlspecialchars($active_disc_dept) ?></strong> department.</p>
-                    <?php endif; ?>
+                    <p id="discipline-master-record-filter-status" role="status" aria-live="polite" style="display:none;margin:12px 0 0;color:var(--text-muted);"></p>
                 </div>
                 
                 <!-- Customize Fines -->
@@ -8768,7 +8806,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     $fines = $conn->query("SELECT * FROM fine_templates WHERE department = '$dm_dept' ORDER BY created_at DESC");
                     if ($fines && $fines->num_rows > 0):
                     ?>
-                        <div class="table-responsive" style="margin-top: 25px;">
+                        <div class="table-responsive" data-discipline-master-record-list style="margin-top: 25px;">
                             <table>
                                 <thead><tr><th>Offense</th><th>Fine Amount</th><th style="text-align: right;">Action</th></tr></thead>
                                 <tbody>
@@ -8801,7 +8839,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </div>
                     <?php else: ?>
                         <div style="text-align: center; padding: 30px; margin-top: 20px; background: rgba(0,0,0,0.02); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);">
-                            <p style="color: var(--text-muted); margin: 0;">No fine rules have been set up yet. Create your first rule above.</p>
+                            <p data-discipline-master-record-list style="color: var(--text-muted); margin: 0;">No fine rules have been set up yet. Create your first rule above.</p>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -8901,7 +8939,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 $discipline_print_name = strtoupper(trim($member['first_name'] . ' ' . $member['last_name']));
                 $discipline_print_photo = 'uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png');
                 ?>
-                <div class="content-card fine-print-card" style="margin-top: 30px;"
+                <div class="content-card fine-print-card" data-discipline-master-record-list style="margin-top: 30px;"
                      data-print-kind="discipline-master-unpaid"
                      data-print-title="Unpaid Fines" data-print-department="<?= htmlspecialchars($dm_dept, ENT_QUOTES) ?>"
                      data-print-leader="<?= htmlspecialchars($discipline_print_name, ENT_QUOTES) ?>"
@@ -8978,7 +9016,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 $history_print_name = strtoupper(trim($member['first_name'] . ' ' . $member['last_name']));
                 $history_print_photo = 'uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png');
                 ?>
-                <div class="content-card fine-print-card" style="margin-top: 30px;"
+                <div class="content-card fine-print-card" data-discipline-master-record-list style="margin-top: 30px;"
                      data-print-title="Fines History" data-print-department="<?= htmlspecialchars($dm_dept, ENT_QUOTES) ?>"
                      data-print-leader="<?= htmlspecialchars($history_print_name, ENT_QUOTES) ?>"
                      data-print-leader-photo="<?= htmlspecialchars($history_print_photo, ENT_QUOTES) ?>" data-print-leader-role="Discipline Master">
@@ -9081,7 +9119,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     WHERE mr.reported_by_id = $member_id
                     ORDER BY mr.created_at DESC, mr.id DESC");
                 ?>
-                <div class="content-card" style="margin-top: 30px; border-top: 4px solid var(--primary);"
+                <div class="content-card" data-discipline-master-record-list style="margin-top: 30px; border-top: 4px solid var(--primary);"
                      data-print-leader="<?= htmlspecialchars(strtoupper(trim($member['first_name'] . ' ' . $member['last_name'])), ENT_QUOTES) ?>"
                      data-print-leader-photo="<?= htmlspecialchars('uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png'), ENT_QUOTES) ?>"
                      data-print-leader-role="Discipline Master">
@@ -9140,6 +9178,30 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <p style="color:var(--text-muted);margin:0;">You have not sent any disciplinary reports yet.</p>
                     <?php endif; ?>
                 </div>
+                <script>
+                    (function () {
+                        const buttons = Array.from(document.querySelectorAll('[data-discipline-master-filter]'));
+                        const recordLists = Array.from(document.querySelectorAll('[data-discipline-master-record-list]'));
+                        const status = document.getElementById('discipline-master-record-filter-status');
+                        if (!buttons.length || !recordLists.length || !status) return;
+                        const activeButton = buttons.find(button => button.getAttribute('aria-pressed') === 'true');
+                        if (!activeButton) return;
+                        const activeKey = activeButton.dataset.disciplineMasterFilter;
+                        const activeLabel = activeButton.textContent.trim();
+                        let recordsClosed = false;
+                        activeButton.addEventListener('click', function (event) {
+                            if (this.dataset.disciplineMasterFilter !== activeKey) return;
+                            event.preventDefault();
+                            recordsClosed = !recordsClosed;
+                            recordLists.forEach(list => { list.style.display = recordsClosed ? 'none' : ''; });
+                            this.setAttribute('aria-pressed', recordsClosed ? 'false' : 'true');
+                            status.textContent = recordsClosed
+                                ? 'Records closed for ' + activeLabel + '. Click the department again to reopen them.'
+                                : 'Showing discipline records for ' + activeLabel + '.';
+                            status.style.display = recordsClosed ? 'block' : 'none';
+                        });
+                    })();
+                </script>
             <?php endif; ?>
 
             <?php if ($tab == 'my_fines' && !empty($member['department']) && $member['department'] !== 'None'): ?>

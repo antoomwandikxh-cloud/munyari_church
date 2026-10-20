@@ -82,6 +82,34 @@ if (strpos($pastor_dashboard_source, 'data-organized-event-filter="<?= htmlspeci
     fwrite(STDERR, "FAIL: pastor Organised Events must filter, toggle closed, and auto-select the department from a routed notification.\n");
     exit(1);
 }
+foreach (['pastor_dashboard.php', 'admin_dashboard.php'] as $discipline_dashboard) {
+    $discipline_dashboard_source = file_get_contents(__DIR__ . '/../' . $discipline_dashboard);
+    foreach (['youths', 'womens_ministry', 'elders', 'sunday_school'] as $discipline_department_filter) {
+        if ($discipline_dashboard_source === false
+            || strpos($discipline_dashboard_source, 'data-discipline-record-filter="' . $discipline_department_filter . '"') === false) {
+            fwrite(STDERR, "FAIL: $discipline_dashboard must provide a discipline-record filter for $discipline_department_filter.\n");
+            exit(1);
+        }
+    }
+    if (strpos($discipline_dashboard_source, 'data-discipline-record-department=') === false
+        || strpos($discipline_dashboard_source, 'const nextFilter = wasSelected ? \'\' : selected;') === false
+        || strpos($discipline_dashboard_source, 'No discipline records posted yet in \' + label + \'.') === false
+        || strpos($discipline_dashboard_source, 'data-notification-row="oversight-fine-') === false
+        || strpos($discipline_dashboard_source, 'data-notification-row="disciplinary-report-') === false) {
+        fwrite(STDERR, "FAIL: $discipline_dashboard must filter, toggle, and show empty-state text for routed discipline records.\n");
+        exit(1);
+    }
+}
+$member_dashboard_source = file_get_contents(__DIR__ . '/../member_dashboard.php');
+if ($member_dashboard_source === false
+    || strpos($member_dashboard_source, 'data-discipline-master-filter=') === false
+    || strpos($member_dashboard_source, 'data-discipline-master-record-list') === false
+    || strpos($member_dashboard_source, 'department_matches($requested_disc_dept, $assigned_disc_dept)') === false
+    || strpos($member_dashboard_source, 'recordsClosed = !recordsClosed;') === false
+    || strpos($member_dashboard_source, 'You are not assigned as Discipline Master for this department.') === false) {
+    fwrite(STDERR, "FAIL: Discipline Masters must see department ribbons limited to their assigned departments.\n");
+    exit(1);
+}
 $glow_script = render_notification_tab_glow_script('manage_department', 'manage_department', $routed_message);
 if (strpos($glow_script, 'notification-row:department-member-42') === false
     || strpos($glow_script, 'notification-row-glow') === false) {
