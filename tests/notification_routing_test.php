@@ -30,6 +30,15 @@ expect_same('organized_events', notification_target_tab($event_notification, 'pa
 expect_same('', notification_target_group($event_notification, 'pastor'), 'pastor event feed is a cross-department destination');
 expect_same('organized-event-73', notification_route_metadata($event_notification)['row'], 'organizing secretary announcement focuses its exact event row');
 expect_same('New department announcement from Organising Secretary Amina Kageni: Weekly Meeting', notification_display_message($event_notification, 'pastor'), 'organizing secretary route metadata stays hidden from pastor message');
+$stale_event_notification = notification_with_route(
+    'New department announcement from Organising Secretary Amina Kageni: Weekly Meeting',
+    'general_announcements',
+    'youths',
+    'organized-event-73'
+);
+expect_same(['organized_events'], notification_badge_tabs($stale_event_notification, 'pastor'), 'older pastor event notices move their unread badge to Organised Events');
+expect_same('organized_events', notification_target_tab($stale_event_notification, 'pastor'), 'stale announcement-tab metadata cannot override pastor event routing');
+expect_same('', notification_target_group($stale_event_notification, 'pastor'), 'stale department filter is ignored for the cross-department pastor event feed');
 $admin_event_notification = notification_with_route(
     'New department announcement from Organising Secretary Amina Kageni: Weekly Meeting',
     'general_announcements',

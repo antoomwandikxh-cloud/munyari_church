@@ -58,7 +58,15 @@ function notification_department_group_key($department) {
     return 'other';
 }
 
+function notification_is_pastor_organized_event($message, $user_type) {
+    return $user_type === 'pastor'
+        && preg_match('/^\s*New department (?:event|announcement) from Organi[sz]ing Secretary\b/i', (string)$message) === 1;
+}
+
 function notification_badge_tabs($message, $user_type, $is_treasurer = false) {
+    if (notification_is_pastor_organized_event($message, $user_type)) {
+        return ['organized_events'];
+    }
     $route = notification_route_metadata($message);
     if ($route['tab'] !== '') {
         return [$route['tab']];
@@ -802,6 +810,9 @@ function notification_focus_message_with_member_id($conn, $message, $created_at 
 }
 
 function notification_target_tab($message, $user_type, $fallback_tab = 'dashboard', $is_treasurer = false) {
+    if (notification_is_pastor_organized_event($message, $user_type)) {
+        return 'organized_events';
+    }
     $route = notification_route_metadata($message);
     if ($route['tab'] !== '') {
         return $route['tab'];
@@ -1191,6 +1202,9 @@ HTML;
 }
 
 function notification_target_group($message, $user_type) {
+    if (notification_is_pastor_organized_event($message, $user_type)) {
+        return '';
+    }
     $route = notification_route_metadata($message);
     if ($route['group'] !== '') {
         return $route['group'];
