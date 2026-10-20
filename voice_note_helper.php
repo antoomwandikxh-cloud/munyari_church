@@ -707,8 +707,11 @@ function render_voice_note_recorder($audience_label = 'all church members') {
         var voiceBlob = blobInput ? blobInput.value : "";
         var audioFileInput = document.getElementById("pastor_voice_file_input");
         var hasAudioFile = audioFileInput && audioFileInput.files && audioFileInput.files.length > 0;
+        var existingAudioInput = form.querySelector('input[name="existing_audio_available"]');
+        var removeAudioInput = form.querySelector('input[name="remove_audio"]');
+        var hasExistingAudio = existingAudioInput && existingAudioInput.value === "1" && !(removeAudioInput && removeAudioInput.checked);
         var hasText = textarea && textarea.value.trim().length > 0;
-        var hasVoice = (voiceBlob && voiceBlob.length > 50) || hasAudioFile;
+        var hasVoice = (voiceBlob && voiceBlob.length > 50) || hasAudioFile || hasExistingAudio;
 
         if (!hasText && !hasVoice) {
             if (event) event.preventDefault();
