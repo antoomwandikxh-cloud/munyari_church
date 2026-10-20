@@ -10646,12 +10646,21 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </p>
                     <style>
                         .church-village-choice-row{display:flex;gap:12px;overflow-x:auto;padding:3px 2px 10px;scroll-snap-type:x mandatory}
-                        .church-village-choice{flex:1 0 165px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;padding:12px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-lighter);color:var(--text-main);text-align:left;font:inherit;cursor:pointer;scroll-snap-align:start;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease}
+                        .church-village-choice{flex:1 0 165px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;padding:12px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-lighter);color:var(--text-main);text-align:left;font:inherit;cursor:pointer;scroll-snap-align:start;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}
+                        .church-village-choice:hover{transform:translateY(-2px);border-color:var(--primary);box-shadow:0 6px 16px rgba(15,23,42,.16)}
                         .church-village-choice[aria-pressed="true"]{border-color:var(--primary);background:var(--primary);color:#fff;box-shadow:0 0 0 2px rgba(212,160,23,.3)}
                         .church-village-choice:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
                         .church-village-choice-name{font-weight:750}
                         .church-village-choice-selected{font-size:.74rem;font-weight:700;opacity:.9}
                         .church-village-choice-selected[hidden]{display:none}
+                        .desired-role-choice-row{display:flex;gap:12px;overflow-x:auto;padding:3px 2px 10px;scroll-snap-type:x mandatory}
+                        .desired-role-choice{flex:1 0 165px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;padding:12px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-lighter);color:var(--text-main);text-align:left;font:inherit;cursor:pointer;scroll-snap-align:start;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}
+                        .desired-role-choice:hover{transform:translateY(-2px);border-color:var(--primary);box-shadow:0 6px 16px rgba(15,23,42,.16)}
+                        .desired-role-choice[aria-pressed="true"]{border-color:var(--primary);background:var(--primary);color:#fff;box-shadow:0 0 0 2px rgba(212,160,23,.3)}
+                        .desired-role-choice:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+                        .desired-role-choice-name{font-weight:750;overflow-wrap:anywhere}
+                        .desired-role-choice-selected{font-size:.74rem;font-weight:700;opacity:.9}
+                        .desired-role-choice-selected[hidden]{display:none}
                     </style>
                     <script>
                         (function () {
@@ -10689,25 +10698,61 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
                 <div style="margin-bottom:30px;">
                     <h2 style="margin-bottom:15px; font-size:1.1rem;">Select Desired Role (Optional)</h2>
-                    <select name="desired_role_pref" style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-lighter); color:var(--text-main);">
-                        <option value="">-- None --</option>
-                        <?php
-                        $roles = ['Worshipper'];
-                        $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles ORDER BY id ASC");
-                        if ($cr_q) {
-                            while($cr = $cr_q->fetch_assoc()){
-                                if (!in_array($cr['role_name'], $roles)) {
-                                    $roles[] = $cr['role_name'];
-                                }
+                    <?php
+                    $roles = ['Worshipper'];
+                    $cr_q = $conn->query("SELECT role_name FROM custom_desired_roles ORDER BY id ASC");
+                    if ($cr_q) {
+                        while ($cr = $cr_q->fetch_assoc()) {
+                            if (!in_array($cr['role_name'], $roles, true)) {
+                                $roles[] = $cr['role_name'];
                             }
                         }
-                        $curr_r = $member['desired_role_pref'] ?? '';
-                        foreach ($roles as $r) {
-                            $sel = ($curr_r === $r) ? 'selected' : '';
-                            echo "<option value=\"$r\" $sel>$r</option>";
-                        }
+                    }
+                    $curr_r = trim((string)($member['desired_role_pref'] ?? ''));
+                    $selected_role = in_array($curr_r, $roles, true) ? $curr_r : '';
+                    ?>
+                    <input type="hidden" name="desired_role_pref" id="desiredRoleSelection" value="<?= htmlspecialchars($selected_role, ENT_QUOTES, 'UTF-8') ?>">
+                    <div class="desired-role-choice-row" role="group" aria-label="Choose an optional desired role">
+                        <?php
+                        $role_options = array_merge([''], $roles);
+                        foreach ($role_options as $role_option):
+                            $role_selected = $selected_role === $role_option;
+                            $role_label = $role_option !== '' ? $role_option : 'No role';
                         ?>
-                    </select>
+                            <button type="button" class="desired-role-choice" data-desired-role-option="<?= htmlspecialchars($role_option, ENT_QUOTES, 'UTF-8') ?>" aria-pressed="<?= $role_selected ? 'true' : 'false' ?>">
+                                <span class="desired-role-choice-name"><?= htmlspecialchars($role_label) ?></span>
+                                <span class="desired-role-choice-selected" <?= $role_selected ? '' : 'hidden' ?>>Selected</span>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                    <p id="desiredRoleSelectionStatus" aria-live="polite" style="margin:10px 0 0;color:var(--text-muted);font-size:0.86rem;">
+                        <?= $selected_role !== '' ? 'Selected desired role: ' . htmlspecialchars($selected_role) : 'No desired role selected.' ?>
+                    </p>
+                    <script>
+                        (function () {
+                            var form = document.getElementById('churchVillagePreferencesForm');
+                            var roleInput = document.getElementById('desiredRoleSelection');
+                            var status = document.getElementById('desiredRoleSelectionStatus');
+                            if (!form || !roleInput || !status) return;
+                            var choices = Array.from(form.querySelectorAll('[data-desired-role-option]'));
+                            function selectRole(value) {
+                                roleInput.value = value;
+                                choices.forEach(function (choice) {
+                                    var selected = choice.dataset.desiredRoleOption === value;
+                                    choice.setAttribute('aria-pressed', selected ? 'true' : 'false');
+                                    var selectedLabel = choice.querySelector('.desired-role-choice-selected');
+                                    if (selectedLabel) selectedLabel.hidden = !selected;
+                                });
+                                status.textContent = value ? 'Selected desired role: ' + value : 'No desired role selected.';
+                            }
+                            choices.forEach(function (choice) {
+                                choice.addEventListener('click', function () {
+                                    selectRole(choice.dataset.desiredRoleOption);
+                                });
+                            });
+                            selectRole(roleInput.value);
+                        })();
+                    </script>
                 </div>
                 
                 <button type="submit" class="btn-primary" style="padding:12px 24px;">Save Preferences</button>
