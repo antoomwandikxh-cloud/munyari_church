@@ -575,11 +575,12 @@ if (isset($_GET['action'])) {
 
             // Notify the treasurer/member who submitted the transaction and the approved members in that department.
             $chair_name = trim(($member_query['first_name'] ?? '') . ' ' . ($member_query['last_name'] ?? ''));
-            $msg = $conn->real_escape_string("Financial record confirmed and disbursed for {$record['department']}. KSh " . number_format($amount, 2) . " was confirmed by $chair_name. Open Financial Records.");
+            $finance_focus_tag = "[financial-record-id:$financial_record_id]";
+            $member_msg = $conn->real_escape_string("Financial record disbursed to members in {$record['department']}: KSh " . number_format($amount, 2) . " was confirmed by $chair_name. View Financial Records. $finance_focus_tag");
             $recorded_by = (int)$record['recorded_by'];
             $notified_members = [];
             if ($recorded_by > 0) {
-                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($recorded_by, 'member', '$msg')");
+                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($recorded_by, 'member', '$member_msg')");
                 $notified_members[$recorded_by] = true;
             }
 
@@ -592,9 +593,18 @@ if (isset($_GET['action'])) {
                 while ($notify_member = $dept_members_notify->fetch_assoc()) {
                     $notify_member_id = (int)$notify_member['id'];
                     if ($notify_member_id > 0 && $notify_member_id !== $member_id && empty($notified_members[$notify_member_id])) {
-                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($notify_member_id, 'member', '$msg')");
+                        $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($notify_member_id, 'member', '$member_msg')");
                         $notified_members[$notify_member_id] = true;
                     }
+                }
+            }
+
+            $pastor_msg = $conn->real_escape_string("Financial record disbursed to members in {$record['department']}: KSh " . number_format($amount, 2) . " was confirmed by $chair_name and is now available for members to view. $finance_focus_tag");
+            $pastors_to_notify = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
+            if ($pastors_to_notify) {
+                while ($pastor_to_notify = $pastors_to_notify->fetch_assoc()) {
+                    $pastor_to_notify_id = (int)$pastor_to_notify['id'];
+                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($pastor_to_notify_id, 'pastor', '$pastor_msg')");
                 }
             }
 

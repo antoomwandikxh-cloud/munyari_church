@@ -9743,7 +9743,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             </thead>
                             <tbody>
                                 <?php while($dept_record = $my_dept_records->fetch_assoc()): ?>
-                                <tr>
+                                <tr data-notification-row="financial-record-<?= (int)$dept_record['id'] ?>">
                                     <td><?= date('M j, Y', strtotime($dept_record['chair_confirmed_at'] ?: $dept_record['record_date'])) ?></td>
                                     <td><?= htmlspecialchars($dept_record['department']) ?></td>
                                     <td style="font-weight: 700; color: #10b981;">KSh <?= number_format($dept_record['amount'], 2) ?></td>

@@ -4090,7 +4090,7 @@ w.document.write('</div>');
                         $finance_department_filter = $d === 'Building & Construction'
                             ? "(fr.department = 'Building & Construction' OR fr.department = 'Building')"
                             : "fr.department = '$d_esc'";
-                        $fin_records = $conn->query("SELECT fr.*, COALESCE(fr.recorded_by_name, CONCAT(m.first_name, ' ', m.last_name)) AS poster_name, COALESCE(m.profile_picture, 'default_avatar.png') AS poster_pic FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE $finance_department_filter ORDER BY fr.recorded_at DESC LIMIT 30");
+                        $fin_records = $conn->query("SELECT fr.*, COALESCE(fr.recorded_by_name, CONCAT(m.first_name, ' ', m.last_name)) AS poster_name, COALESCE(m.profile_picture, 'default_avatar.png') AS poster_pic FROM financial_records fr LEFT JOIN members m ON fr.recorded_by = m.id WHERE $finance_department_filter ORDER BY COALESCE(fr.chair_confirmed_at, fr.recorded_at) DESC LIMIT 30");
                         if ($fin_records && $fin_records->num_rows > 0):
                             $has_any_records = true;
                     ?>
