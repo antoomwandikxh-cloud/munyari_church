@@ -10265,6 +10265,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </div>
                         <?php endif; ?>
                     </div>
+                    <input type="search" class="search-icon-input" placeholder="Search village members..." aria-label="Search village members by name, phone, role, or residence" oninput="filterVillageLeaderMembers(this)"
+                       style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; width:100%; max-width:240px; font-size:0.85rem; background:var(--bg-main); color:var(--text-main);">
                     <a href="print_village_members.php?village=<?= urlencode($member['church_village']) ?>" target="_blank"
                        style="display:inline-flex; align-items:center; gap:6px; padding:8px 16px; background:#10b981; color:white; text-decoration:none; border-radius:8px; font-size:0.85rem; font-weight:600;">
                         <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
@@ -10288,7 +10290,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 if ($v_mems && $v_mems->num_rows > 0):
                 ?>
                 <div class="table-responsive">
-                    <table class="print-table">
+                    <table class="print-table" id="villageLeaderMemberTable">
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -10323,6 +10325,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </tbody>
                     </table>
                 </div>
+                <p id="villageMemberSearchEmpty" hidden style="margin:12px 0 0; color:var(--text-muted); font-size:0.9rem;">No village members match your search.</p>
                 <?php else: ?>
                 <div style="text-align:center; padding:50px 20px; color:var(--text-muted);">
                     <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin:0 auto 12px; display:block; opacity:0.3;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
@@ -10330,6 +10333,22 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 </div>
                 <?php endif; ?>
             </div>
+
+            <script>
+            function filterVillageLeaderMembers(input) {
+                var table = document.getElementById('villageLeaderMemberTable');
+                if (!table) return;
+                var query = (input.value || '').trim().toLocaleLowerCase();
+                var visible = 0;
+                table.querySelectorAll('tbody tr').forEach(function(row) {
+                    var matches = !query || (row.textContent || '').toLocaleLowerCase().includes(query);
+                    row.hidden = !matches;
+                    if (matches) visible++;
+                });
+                var emptyState = document.getElementById('villageMemberSearchEmpty');
+                if (emptyState) emptyState.hidden = visible > 0;
+            }
+            </script>
 
             <style>
                 @media print {
