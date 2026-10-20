@@ -24,9 +24,11 @@ class FakeElement {
     }
 }
 
-function bootDashboard({ storage = new Map(), pathname = '/munyari_church/admin_dashboard.php', windowY = 0, contentY = 0 } = {}) {
+function bootDashboard({ storage = new Map(), pathname = '/munyari_church/admin_dashboard.php', windowY = 0, contentY = 0, flashNotice = null } = {}) {
     const documentHandlers = {};
     const windowHandlers = {};
+    const timers = [];
+    let timerClock = 0;
     const mainContent = { scrollTop: contentY };
     const location = {
         pathname,
@@ -39,7 +41,7 @@ function bootDashboard({ storage = new Map(), pathname = '/munyari_church/admin_
         scrollY: windowY,
         addEventListener(name, callback) { windowHandlers[name] = callback; },
         scrollTo(_x, y) { this.scrollY = y; },
-        setTimeout(callback) { callback(); }
+        setTimeout(callback, delay = 0) { timers.push({ at: timerClock + delay, callback }); }
     };
     const document = {
         readyState: 'loading',
@@ -47,6 +49,7 @@ function bootDashboard({ storage = new Map(), pathname = '/munyari_church/admin_
         addEventListener(name, callback) { documentHandlers[name] = callback; },
         querySelector(selector) {
             if (selector === '.main-content') return mainContent;
+            if (selector === '.flash-success') return flashNotice;
             return null;
         }
     };
@@ -65,7 +68,19 @@ function bootDashboard({ storage = new Map(), pathname = '/munyari_church/admin_
         sessionStorage,
         window
     });
-    return { documentHandlers, windowHandlers, mainContent, sessionStorage, window };
+    function advanceTimers(milliseconds) {
+        const targetTime = timerClock + milliseconds;
+        while (true) {
+            timers.sort((a, b) => a.at - b.at);
+            const next = timers[0];
+            if (!next || next.at > targetTime) break;
+            timers.shift();
+            timerClock = next.at;
+            next.callback();
+        }
+        timerClock = targetTime;
+    }
+    return { advanceTimers, documentHandlers, windowHandlers, mainContent, sessionStorage, window };
 }
 
 const actionPage = bootDashboard({ windowY: 615, contentY: 1270 });
@@ -134,8 +149,28 @@ assert.equal(cancelledStorage.has(storageKey), false, 'cancelled confirmations d
 const restored = bootDashboard({
     storage: new Map([[storageKey, JSON.stringify({ family: 'admin', windowY: 615, contentY: 1270, savedAt: Date.now() })]])
 });
+restored.advanceTimers(80);
 assert.equal(restored.window.scrollY, 615, 'window scroll is restored after the dashboard action');
 assert.equal(restored.mainContent.scrollTop, 1270, 'dashboard panel scroll is restored after the dashboard action');
+
+const flashNotice = {
+    style: {},
+    attributes: {},
+    isConnected: true,
+    setAttribute(name, value) { this.attributes[name] = value; },
+    remove() { this.isConnected = false; }
+};
+const actionReturnWithNotice = bootDashboard({
+    storage: new Map([[storageKey, JSON.stringify({ family: 'admin', windowY: 240, contentY: 680, savedAt: Date.now() })]]),
+    flashNotice
+});
+assert.equal(flashNotice.style.position, 'fixed', 'success notice is brought into view before restoring scroll');
+actionReturnWithNotice.advanceTimers(420);
+assert.equal(actionReturnWithNotice.mainContent.scrollTop, 680, 'scroll restoration follows the visible success notice');
+actionReturnWithNotice.advanceTimers(2579);
+assert.equal(flashNotice.isConnected, true, 'success notice remains visible for three seconds');
+actionReturnWithNotice.advanceTimers(1);
+assert.equal(flashNotice.isConnected, false, 'success notice auto-dismisses after three seconds');
 
 for (const dashboard of ['admin_dashboard.php', 'pastor_dashboard.php', 'member_dashboard.php']) {
     const dashboardSource = fs.readFileSync(dashboard, 'utf8');

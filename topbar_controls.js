@@ -163,14 +163,35 @@
 
         if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
         var mainContent = document.querySelector('.main-content');
+        var successNotice = document.querySelector('.flash-success');
+        if (successNotice) {
+            successNotice.setAttribute('role', 'status');
+            successNotice.setAttribute('aria-live', 'polite');
+            successNotice.style.position = 'fixed';
+            successNotice.style.top = '14px';
+            successNotice.style.left = '50%';
+            successNotice.style.width = 'min(520px, calc(100vw - 28px))';
+            successNotice.style.maxWidth = 'calc(100vw - 28px)';
+            successNotice.style.margin = '0';
+            successNotice.style.boxSizing = 'border-box';
+            successNotice.style.zIndex = '10000';
+            successNotice.style.boxShadow = '0 10px 28px rgba(0, 0, 0, .22)';
+            successNotice.style.transform = 'translateX(-50%)';
+            window.setTimeout(function () {
+                if (!successNotice.isConnected) return;
+                successNotice.style.transition = 'opacity 220ms ease, transform 220ms ease';
+                successNotice.style.opacity = '0';
+                successNotice.style.transform = 'translate(-50%, -6px)';
+                window.setTimeout(function () { successNotice.remove(); }, 250);
+            }, 2750);
+        }
         function restore() {
             window.scrollTo(0, Number(saved.windowY) || 0);
             if (mainContent) mainContent.scrollTop = Number(saved.contentY) || 0;
         }
         requestAnimationFrame(function () {
             requestAnimationFrame(function () {
-                restore();
-                window.setTimeout(restore, 80);
+                window.setTimeout(restore, successNotice ? 420 : 80);
             });
         });
     })();
