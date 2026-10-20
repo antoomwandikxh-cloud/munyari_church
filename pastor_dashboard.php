@@ -3528,13 +3528,30 @@ w.document.write('</div>');
                             $new_v = $conn->real_escape_string($new_v_raw);
                             $new_drp_val = $mem['pending_desired_role_pref'];
                             $new_drp = $new_drp_val ? "'" . $conn->real_escape_string($new_drp_val) . "'" : "NULL";
+                            $approved_changes = [];
+                            $current_v_raw = trim((string)($mem['church_village'] ?? ''));
+                            $current_drp_raw = trim((string)($mem['desired_role_pref'] ?? ''));
+                            $approved_role_raw = trim((string)($new_drp_val ?? ''));
+                            if (strcasecmp($current_v_raw, $new_v_raw) !== 0) {
+                                $approved_changes[] = 'your church village to ' . $new_v_raw;
+                            }
+                            if (strcasecmp($current_drp_raw, $approved_role_raw) !== 0) {
+                                $approved_changes[] = 'your desired role to ' . ($approved_role_raw !== '' ? $approved_role_raw : 'No role');
+                            }
+                            $approved_request = $approved_changes
+                                ? 'change ' . implode(' and ', $approved_changes)
+                                : 'update your church village or desired role';
+                            $approval_message = 'The Pastor approved your request to ' . $approved_request . '.';
+                            $routed_approval_message = notification_with_route($approval_message, 'desired_roles', '', 'member-village-update-' . $update_id);
+                            $escaped_approval_message = $conn->real_escape_string($routed_approval_message);
                             $village_update_ok = $conn->query("UPDATE members SET church_village = '$new_v', desired_role_pref = $new_drp, pending_church_village = NULL, pending_desired_role_pref = NULL WHERE id = $update_id");
                             if ($village_update_ok && strcasecmp(trim((string)($mem['church_village'] ?? '')), $new_v_raw) !== 0) {
                                 notify_church_village_leaders_of_member($conn, $update_id, $new_v_raw);
                             }
-                            
-                            $msg = $conn->real_escape_string("Your request to update your church village to $new_v has been approved.");
-                            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($update_id, 'member', '$msg')");
+
+                            if ($village_update_ok) {
+                                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($update_id, 'member', '$escaped_approval_message')");
+                            }
                             
                             $old_drp_val = trim((string)($mem['desired_role_pref'] ?? ''));
                             if (strcasecmp(trim((string)$new_drp_val), 'Worshipper') === 0 && strcasecmp($old_drp_val, 'Worshipper') !== 0) {
