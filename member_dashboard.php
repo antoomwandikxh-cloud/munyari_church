@@ -6692,7 +6692,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <h3 style="margin:0;font-size:1rem;">Class Roster</h3>
                                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                                     <button type="button" class="btn-submit" style="width:auto;height:auto;padding:8px 12px;margin:0;background:var(--bg-lighter);color:var(--text-main);border:1px solid var(--border-color);" onclick="printSsRoster('<?= htmlspecialchars($roster_dom_id, ENT_QUOTES) ?>', '<?= htmlspecialchars($teacher_class, ENT_QUOTES) ?>')">Print</button>
-                                    <button type="button" class="btn-submit" style="width:auto;height:auto;padding:8px 12px;margin:0;background:var(--bg-lighter);color:var(--text-main);border:1px solid var(--border-color);" onclick="printSsRoster('<?= htmlspecialchars($roster_dom_id, ENT_QUOTES) ?>', '<?= htmlspecialchars($teacher_class, ENT_QUOTES) ?>')">Save as PDF</button>
                                     <button type="button" class="btn-submit" style="width:auto;height:auto;padding:8px 12px;margin:0;" onclick="downloadSsRosterCsv('<?= htmlspecialchars($table_dom_id, ENT_QUOTES) ?>', '<?= htmlspecialchars($teacher_class, ENT_QUOTES) ?>')">Download CSV</button>
                                 </div>
                             </div>
@@ -6725,7 +6724,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </div>
                     <?php endforeach; ?>
                     <script>
-                    function printSsRoster(sectionId, className) {
+                    function printSsRoster(sectionId, className, orientation) {
+                        if (!orientation) return choosePrintOrientation(selected => printSsRoster(sectionId, className, selected));
                         const section = document.getElementById(sectionId);
                         if (!section) return;
                         const table = section.querySelector('table');
@@ -6765,7 +6765,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             body{font-family:Arial,sans-serif;padding:18px;} 
                             table{width:100%;border-collapse:collapse;} 
                             th,td{padding:5px 8px;border:1px solid #ccc;font-size:0.8rem;} 
-                            @media print{@page{size:A4 portrait; margin: 12mm 10mm 24mm 10mm !important;} thead{display:table-header-group !important;} tr{page-break-inside:avoid !important; break-inside:avoid !important;} td,th{page-break-inside:avoid !important; break-inside:avoid !important;}}
+                            @media print{@page{size:A4 ${orientation}; margin: 12mm 10mm 24mm 10mm !important;} thead{display:table-header-group !important;} tr{page-break-inside:avoid !important; break-inside:avoid !important;} td,th{page-break-inside:avoid !important; break-inside:avoid !important;}}
                         </style>
                         </head><body>
                         
@@ -6824,7 +6824,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         setTimeout(() => printWindow.print(), 600);
                     }
                     
-                    function printSsAttendance(reportId) {
+                    function printSsAttendance(reportId, orientation) {
+                        if (!orientation) return choosePrintOrientation(selected => printSsAttendance(reportId, selected));
                         const report = document.getElementById(reportId);
                         if (!report) return;
                         const meta = report.querySelector('[data-report-title]');
@@ -6856,7 +6857,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             body{font-family:Arial,sans-serif;padding:18px;} 
                             table{width:100%;border-collapse:collapse;} 
                             th,td{padding:5px 8px;border:1px solid #ccc;font-size:0.8rem;} 
-                            @media print{@page{size:A4 portrait; margin: 12mm 10mm 24mm 10mm !important;} thead{display:table-header-group !important;} tr{page-break-inside:avoid !important; break-inside:avoid !important;} td,th{page-break-inside:avoid !important; break-inside:avoid !important;}}
+                            @media print{@page{size:A4 ${orientation}; margin: 12mm 10mm 24mm 10mm !important;} thead{display:table-header-group !important;} tr{page-break-inside:avoid !important; break-inside:avoid !important;} td,th{page-break-inside:avoid !important; break-inside:avoid !important;}}
                         </style>
                         </head><body>
                         
@@ -7465,7 +7466,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <?php endforeach; ?>
                             </div>
                             <script>
-                            function printTreasurerYearTotals() {
+                            function printTreasurerYearTotals(orientation) {
+                                if (!orientation) return choosePrintOrientation(selected => printTreasurerYearTotals(selected));
                                 var printWindow = window.open('', '_blank', 'width=900,height=700');
                                 if (!printWindow) {
                                     alert('Allow pop-ups to print the yearly collection totals.');
@@ -7493,7 +7495,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 var logoUrl = new URL('church_logo.jpg', window.location.href).href;
                                 var profileUrl = new URL(profilePath, window.location.href).href;
                                 var reportHtml = '<!doctype html><html><head><meta charset="utf-8"><title>Annual Collection Totals - E.A.P.C Munyari Church</title><style>' +
-                                    '@page{size:A4 portrait;margin:8mm 10mm 18mm}*{box-sizing:border-box}body{position:relative;margin:0;padding:0;font:12px Arial,sans-serif;color:#17202a;orphans:2;widows:2}' +
+                                    '@page{size:A4 ' + orientation + ';margin:8mm 10mm 18mm}*{box-sizing:border-box}body{position:relative;margin:0;padding:0;font:12px Arial,sans-serif;color:#17202a;orphans:2;widows:2}' +
                                     '.watermark{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-38deg);font-size:42px;color:rgba(14,116,144,.16);font-weight:900;white-space:nowrap;z-index:0;pointer-events:none}' +
                                     '.report-content{position:relative;z-index:1}.treasurer{text-align:center;margin:0 auto 8px}.treasurer img{width:54px;height:54px;object-fit:cover;border-radius:50%;border:2px solid #0e7490}.treasurer-name{font-size:12px;font-weight:800;color:#0e7490;margin-top:3px;text-transform:uppercase}.treasurer-role{font-size:10px;color:#555;margin-top:1px}' +
                                     '.brand{display:grid;grid-template-columns:50px 1fr 50px;align-items:center;gap:10px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 7px;margin-bottom:10px}.brand-logo{width:50px;height:50px;object-fit:contain}.brand h1{font-size:16px;line-height:1.25;color:#0e7490;text-transform:uppercase;margin:0}.brand p{font-size:10px;color:#555;margin:3px 0 0}.report-title{text-align:center;font-size:14px;font-weight:800;text-transform:uppercase;margin:0 0 4px}.report-meta{text-align:center;color:#444;margin:0 0 10px}' +
@@ -8466,6 +8468,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php endforeach; ?>
                     <script>
                     function printOrganizedAttendance(registerId, orientation, attendanceStatus) {
+                        if (!orientation) return choosePrintOrientation(selected => printOrganizedAttendance(registerId, selected, attendanceStatus));
                         var card = document.getElementById('attendance-register-' + registerId);
                         if (!card) return;
                         var form = card.querySelector('form[data-organized-attendance-form]');
@@ -11083,6 +11086,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
     <script>
         window.tabNotificationBadges = <?= json_encode($tab_badges) ?>;
     </script>
+    <script src="print_orientation.js?v=20261020"></script>
     <script src="script.js?v=20261019-all-leader-print-photos-20"></script>
 <!-- Image Viewer Modal -->
 <div id="imageViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; flex-direction:column;">

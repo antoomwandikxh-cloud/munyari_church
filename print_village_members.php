@@ -278,9 +278,7 @@ if (file_exists($logo_path)) {
 
     <!-- Print controls (hidden in print) -->
     <div class="no-print print-toolbar" role="group" aria-label="Print orientation and actions">
-        <a href="?village=<?= urlencode($village) ?>&amp;orientation=portrait" <?= $orientation === 'portrait' ? 'aria-current="page"' : '' ?>>Portrait</a>
-        <a href="?village=<?= urlencode($village) ?>&amp;orientation=landscape" <?= $orientation === 'landscape' ? 'aria-current="page"' : '' ?>>Landscape</a>
-        <button class="print-action" type="button" onclick="window.print()">Print / Save PDF</button>
+        <button class="print-action" type="button" onclick="printCurrentPageWithOrientation()">Print / Save PDF</button>
     </div>
 
 <!-- Header with logos -->
@@ -401,6 +399,7 @@ if (file_exists($logo_path)) {
         Generated from Munyari Church &nbsp;|&nbsp; <?= date('Y-m-d H:i') ?>
     </div>
 
+    <script src="print_orientation.js?v=20261020"></script>
     <script>
         window.onload = function () {
             setTimeout(function () { window.print(); }, 700);

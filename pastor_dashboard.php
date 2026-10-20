@@ -1476,6 +1476,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
     <title>Pastor Dashboard - Munyari Church</title>
     <link rel="stylesheet" href="style.css?v=20261020-search-icons-1">
     <?= render_notification_tab_glow_script($notification_tab_glow, $tab, $notification_focus_messages) ?>
+    <script src="print_orientation.js?v=20261020"></script>
     <script src="script.js?v=20261019-all-leader-print-photos-20"></script>
 <style>
 .role-pills-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
@@ -2724,7 +2725,7 @@ function filterMembersTable() {
 
 
 function printMemberDirectory(orientation) {
-                        if (!orientation) orientation = 'landscape';
+                        if (!orientation) return choosePrintOrientation(selected => printMemberDirectory(selected));
                         var printDiv = document.getElementById("printableMemberDir");
                         if (!printDiv) { alert("Print content not found."); return; }
                         var w = window.open('', '_blank');
@@ -2903,7 +2904,7 @@ function printMemberDirectory(orientation) {
                 ?>
 <script>
 function printAllLeaders(orientation) {
-    if (!orientation) orientation = 'portrait';
+    if (!orientation) return choosePrintOrientation(selected => printAllLeaders(selected));
     var pageSize = orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
 
     // Fetch church logo and pastor name from existing helpers
@@ -2991,7 +2992,7 @@ function printAllLeaders(orientation) {
 }
 
 function printDepartment(deptName, containerId, leaderSpanId, orientation) {
-    if (!orientation) orientation = 'landscape';
+    if (!orientation) return choosePrintOrientation(selected => printDepartment(deptName, containerId, leaderSpanId, selected));
     var container = document.getElementById(containerId);
     if (!container) { alert('Could not find department table.'); return; }
 
@@ -7395,7 +7396,8 @@ w.document.write('</div>');
                         <?php endwhile; ?>
                         </div>
                         <script>
-                        function printSundaySchoolAttendanceReport(reportId) {
+                        function printSundaySchoolAttendanceReport(reportId, orientation) {
+                            if (!orientation) return choosePrintOrientation(selected => printSundaySchoolAttendanceReport(reportId, selected));
                             const report = document.getElementById(reportId);
                             if (!report) return;
                             const meta = report.querySelector('[data-class-name]');
@@ -7522,6 +7524,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 </body></html>');
+                            const pageStyle = win.document.createElement('style');
+                            pageStyle.textContent = '@page{size:A4 ' + orientation + ';}';
+                            win.document.head.appendChild(pageStyle);
                             win.document.close();
                             win.focus();
                             win.print();
@@ -7787,7 +7792,7 @@ document.addEventListener("DOMContentLoaded", function () {
     
 
 function printRequiredLeadersTable(orientation) {
-    if (!orientation) orientation = 'portrait';
+    if (!orientation) return choosePrintOrientation(selected => printRequiredLeadersTable(selected));
     var card = document.getElementById('requiredLeadersCard');
     if (!card) { alert('Table not found.'); return; }
     
@@ -7856,7 +7861,8 @@ function printRequiredLeadersTable(orientation) {
     w.focus();
     setTimeout(function(){ w.print(); }, 600);
 }
-function printRequiredTable() {
+function printRequiredTable(orientation) {
+    if (!orientation) return choosePrintOrientation(selected => printRequiredTable(selected));
     var card = document.getElementById('assignedRolesCard');
     if (!card) {
         alert('Table not found.');
@@ -7866,7 +7872,7 @@ function printRequiredTable() {
     if (!w) return;
     w.document.write('<!DOCTYPE html><html><head><title>Required Church Leaders Table</title>');
     w.document.write('<style>');
-    w.document.write('@page { margin: 15mm; size: A4 landscape; }');
+    w.document.write('@page { margin: 15mm; size: A4 ' + orientation + '; }');
     w.document.write('body { font-family: Arial, sans-serif; font-size: 0.85rem; color: #111; }');
     w.document.write('h2 { color: #1e3a8a; font-size: 1.2rem; margin-bottom: 12px; }');
     w.document.write('.badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:700; }');
@@ -8076,7 +8082,7 @@ function openDeclineModal(id, name) {
 }
 
         function printVillageTable(containerId, villageName, orientation) {
-        if (!orientation) orientation = 'landscape';
+        if (!orientation) return choosePrintOrientation(selected => printVillageTable(containerId, villageName, selected));
         var container = document.getElementById(containerId);
         if (!container) { alert('Table not found.'); return; }
         var w = window.open('', '_blank');

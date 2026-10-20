@@ -363,6 +363,9 @@ function addChurchPrintRowNumbers(table) {
 }
 
 function printDisciplinaryCases(button, orientation) {
+    if (!orientation) {
+        return choosePrintOrientation(selected => printDisciplinaryCases(button, selected));
+    }
     const card = button?.closest('.content-card');
     const sourceTable = card?.querySelector('.table-responsive table');
     if (!sourceTable) return;
@@ -462,6 +465,9 @@ function printDisciplinaryCases(button, orientation) {
 }
 
 function printFineReport(button, orientation, statusFilter) {
+    if (!orientation) {
+        return choosePrintOrientation(selected => printFineReport(button, selected, statusFilter));
+    }
     const card = button?.closest('.fine-print-card');
     const sourceTable = card?.querySelector('.table-responsive table');
     if (!card || !sourceTable) return;

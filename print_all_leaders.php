@@ -7,6 +7,7 @@ require_once 'db_connect.php';
 require_once 'role_departments.php';
 
 $print_date = date('d F Y, H:i');
+$orientation = ($_GET['orientation'] ?? 'portrait') === 'landscape' ? 'landscape' : 'portrait';
 
 /* ── PASTOR INFO ───────────────────────────────────────────────────── */
 $pastor = null;
@@ -125,7 +126,7 @@ function matches_group($role_norm, $raw_role, $dept, $sk){
 <style>
 *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;box-sizing:border-box;margin:0;padding:0;}
 @media print {
-    @page { size: A4 landscape; margin: 12mm 10mm 24mm 10mm !important; }
+    @page { size: A4 <?= $orientation ?>; margin: 12mm 10mm 24mm 10mm !important; }
     body { margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     thead { display: table-header-group !important; }
     tfoot { display: table-footer-group !important; }
@@ -382,6 +383,7 @@ foreach($leader_sections as $sk => $section):
 
 <div class="footer">Generated from E.A.P.C Munyari Portal | Printed on: <?=htmlspecialchars($print_date)?></div>
 
+<script src="print_orientation.js?v=20261020"></script>
 <script>
 window.addEventListener('load', function(){ window.print(); });
 </script>
