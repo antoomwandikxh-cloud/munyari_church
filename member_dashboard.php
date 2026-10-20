@@ -10225,59 +10225,73 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_village_announcement'])) {
                 $announcement_text = trim((string)($_POST['message'] ?? ''));
                 $village_name = trim((string)($member['church_village'] ?? ''));
-                $announcement_stmt = $conn->prepare("INSERT INTO village_announcements (village, leader_id, message) VALUES (?, ?, ?)");
                 $announcement_saved = false;
                 $announcement_id = 0;
-                if ($announcement_stmt && $announcement_text !== '' && $village_name !== '') {
-                    $announcement_stmt->bind_param('sis', $village_name, $member_id, $announcement_text);
-                    $announcement_saved = $announcement_stmt->execute();
-                    if ($announcement_saved) $announcement_id = (int)$conn->insert_id;
-                    $announcement_stmt->close();
+                if ($announcement_text !== '' && $village_name !== '') {
+                    try {
+                        $announcement_stmt = $conn->prepare("INSERT INTO village_announcements (village, leader_id, message) VALUES (?, ?, ?)");
+                        if ($announcement_stmt) {
+                            $announcement_stmt->bind_param('sis', $village_name, $member_id, $announcement_text);
+                            $announcement_saved = $announcement_stmt->execute();
+                            if ($announcement_saved) $announcement_id = (int)$conn->insert_id;
+                            $announcement_stmt->close();
+                        }
+                    } catch (Throwable $error) {
+                        error_log('Village announcement save failed: ' . $error->getMessage());
+                    }
                 }
 
                 if ($announcement_saved && $announcement_id > 0) {
                     $leader_name = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? ''));
                     $notice = "New village announcement from Village Leader $leader_name in $village_name village: $announcement_text [village-announcement-id:$announcement_id]";
-                    $notice_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
-                    $village_members = $conn->prepare("SELECT id FROM members WHERE is_approved = 1 AND id <> ? AND LOWER(TRIM(church_village)) = LOWER(?)");
                     $notifications_sent = 0;
-                    if ($notice_stmt && $village_members) {
-                        $village_members->bind_param('is', $member_id, $village_name);
-                        if ($village_members->execute()) {
-                            $village_members->bind_result($village_member_id);
-                            while ($village_members->fetch()) {
-                                $recipient_id = (int)$village_member_id;
-                                $recipient_type = 'member';
-                                $notice_stmt->bind_param('iss', $recipient_id, $recipient_type, $notice);
-                                if ($notice_stmt->execute()) $notifications_sent++;
-                            }
-                        }
-                    }
-                    if ($village_members) $village_members->close();
+                    $notification_failures = [];
 
-                    $pastors = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
-                    if ($notice_stmt && $pastors) {
-                        while ($pastor = $pastors->fetch_assoc()) {
-                            $recipient_id = (int)$pastor['id'];
-                            $recipient_type = 'pastor';
-                            $notice_stmt->bind_param('iss', $recipient_id, $recipient_type, $notice);
-                            if ($notice_stmt->execute()) $notifications_sent++;
-                        }
+                    // Bulk inserts avoid executing another statement while a recipient result is still being fetched.
+                    try {
+                        $member_notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) SELECT id, 'member', ? FROM members WHERE is_approved = 1 AND id <> ? AND LOWER(TRIM(church_village)) = LOWER(?)");
+                        if (!$member_notice) throw new RuntimeException($conn->error);
+                        $member_notice->bind_param('sis', $notice, $member_id, $village_name);
+                        $member_notice->execute();
+                        $notifications_sent += max(0, $member_notice->affected_rows);
+                        $member_notice->close();
+                    } catch (Throwable $error) {
+                        $notification_failures[] = 'village members';
+                        error_log('Village announcement member notifications failed: ' . $error->getMessage());
                     }
-                    $admins = $conn->query("SELECT id FROM admins");
-                    if ($notice_stmt && $admins) {
-                        while ($admin = $admins->fetch_assoc()) {
-                            $recipient_id = (int)$admin['id'];
-                            $recipient_type = 'admin';
-                            $notice_stmt->bind_param('iss', $recipient_id, $recipient_type, $notice);
-                            if ($notice_stmt->execute()) $notifications_sent++;
-                        }
+
+                    try {
+                        $pastor_notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) SELECT id, 'pastor', ? FROM pastors WHERE is_approved = 1");
+                        if (!$pastor_notice) throw new RuntimeException($conn->error);
+                        $pastor_notice->bind_param('s', $notice);
+                        $pastor_notice->execute();
+                        $notifications_sent += max(0, $pastor_notice->affected_rows);
+                        $pastor_notice->close();
+                    } catch (Throwable $error) {
+                        $notification_failures[] = 'pastors';
+                        error_log('Village announcement pastor notifications failed: ' . $error->getMessage());
                     }
-                    if ($notice_stmt) $notice_stmt->close();
-                    $delivery_message = $notifications_sent > 0
-                        ? 'Announcement posted. Notifications sent to ' . $notifications_sent . ' recipients.'
-                        : 'Announcement posted, but notification delivery failed.';
-                    echo "<div style='background:rgba(16,185,129,0.1);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>" . htmlspecialchars($delivery_message) . "</div>";
+
+                    try {
+                        $admin_notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) SELECT id, 'admin', ? FROM admins");
+                        if (!$admin_notice) throw new RuntimeException($conn->error);
+                        $admin_notice->bind_param('s', $notice);
+                        $admin_notice->execute();
+                        $notifications_sent += max(0, $admin_notice->affected_rows);
+                        $admin_notice->close();
+                    } catch (Throwable $error) {
+                        $notification_failures[] = 'admins';
+                        error_log('Village announcement admin notifications failed: ' . $error->getMessage());
+                    }
+
+                    if ($notification_failures) {
+                        $delivery_message = 'Announcement posted. Notifications reached ' . $notifications_sent . ' recipients; delivery could not be completed for ' . implode(', ', $notification_failures) . '.';
+                    } elseif ($notifications_sent > 0) {
+                        $delivery_message = 'Announcement posted and notifications sent to ' . $notifications_sent . ' recipients.';
+                    } else {
+                        $delivery_message = 'Announcement posted. No other approved village members or staff were available to notify.';
+                    }
+                    echo "<div role='status' style='background:rgba(16,185,129,0.1);color:var(--success);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>" . htmlspecialchars($delivery_message) . "</div>";
                 } else {
                     echo "<div role='alert' style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>The announcement could not be posted. Please try again.</div>";
                 }
@@ -10285,7 +10299,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             ?>
             
             <!-- Post Announcement Form -->
-            <div class="content-card" style="margin-bottom:30px;">
+            <div class="content-card" style="margin-bottom:18px;">
                 <h2 style="margin-bottom:15px; color:var(--text-main); font-size:1.1rem;">Post Announcement to <?= htmlspecialchars($member['church_village']) ?></h2>
                 <form method="POST" action="?tab=manage_church_village">
                     <input type="hidden" name="post_village_announcement" value="1">
@@ -10294,9 +10308,32 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 </form>
             </div>
 
-            <!-- Members List -->
-            <!-- Members Card Grid -->
-            <!-- Members Table Grid -->
+            <div class="content-card" style="margin-bottom:24px;">
+                <h2 style="margin:0 0 14px; color:var(--text-main); font-size:1.05rem;">Recent Village Announcements</h2>
+                <?php
+                $village_name = trim((string)($member['church_village'] ?? ''));
+                $announcement_list_stmt = $conn->prepare("SELECT va.id, va.message, va.created_at, m.first_name, m.last_name FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id WHERE LOWER(TRIM(va.village)) = LOWER(?) ORDER BY va.created_at DESC LIMIT 20");
+                $announcement_list = false;
+                if ($announcement_list_stmt) {
+                    $announcement_list_stmt->bind_param('s', $village_name);
+                    if ($announcement_list_stmt->execute()) $announcement_list = $announcement_list_stmt->get_result();
+                }
+                if ($announcement_list && $announcement_list->num_rows > 0):
+                    while ($announcement = $announcement_list->fetch_assoc()):
+                ?>
+                    <article class="announcement-card" data-notification-row="village-announcement-<?= (int)$announcement['id'] ?>" style="padding:12px 14px; background:var(--bg-lighter); border:1px solid var(--border-color); border-left:3px solid #10b981; border-radius:8px; margin-bottom:10px;">
+                        <p style="margin:0 0 8px; color:var(--text-main); white-space:pre-wrap;"><?= htmlspecialchars($announcement['message']) ?></p>
+                        <small style="color:var(--text-muted); font-size:0.8rem;">Posted by <?= htmlspecialchars(trim(($announcement['first_name'] ?? '') . ' ' . ($announcement['last_name'] ?? '')) ?: 'Village Leader') ?> · <?= htmlspecialchars(date('M j, Y g:i A', strtotime($announcement['created_at']))) ?></small>
+                    </article>
+                <?php
+                    endwhile;
+                else:
+                ?>
+                    <p style="color:var(--text-muted); margin:0;">No announcements have been posted for this village yet.</p>
+                <?php endif; if ($announcement_list_stmt) $announcement_list_stmt->close(); ?>
+            </div>
+
+            <!-- Members Table -->
             <div class="content-card">
                 <?php
                 $v = $conn->real_escape_string($member['church_village']);
