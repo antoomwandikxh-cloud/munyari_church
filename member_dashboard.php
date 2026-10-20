@@ -10130,7 +10130,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             // Leader profile and announcements
             if ($has_church_village) {
                 $cv = $conn->real_escape_string($member['church_village']);
-                $v_leader_q = $conn->query("SELECT id, first_name, last_name, phone, profile_picture FROM members WHERE is_village_leader = 1 AND church_village = '$cv'");
+                $v_leader_q = $conn->query("SELECT id, first_name, last_name, phone, profile_picture FROM members WHERE is_village_leader = 1 AND LOWER(TRIM(church_village)) = LOWER(TRIM('$cv'))");
                 if ($v_leader_q && $v_leader_q->num_rows > 0) {
                     $vl = $v_leader_q->fetch_assoc();
                     ?>
@@ -10147,26 +10147,24 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="content-card" style="margin-bottom:24px;">
-                        <h2 style="margin-bottom:15px; font-size:1.1rem; color:var(--text-main);">Village Announcements</h2>
-                        <?php
-                        $vl_id = $vl['id'];
-                        $announcements = $conn->query("SELECT id, message, created_at FROM village_announcements WHERE village = '$cv' ORDER BY created_at DESC");
-                        if ($announcements && $announcements->num_rows > 0) {
-                            while ($ann = $announcements->fetch_assoc()) {
-                                echo "<div class='announcement-card' data-notification-row='village-announcement-" . (int)$ann['id'] . "' style='padding:12px; background:var(--bg-lighter); border-radius:8px; margin-bottom:12px; border-left:3px solid #10b981;'>";
-                                echo "<p style='margin:0 0 8px; font-size:0.95rem; color:var(--text-main);'>" . nl2br(htmlspecialchars($ann['message'])) . "</p>";
-                                echo "<small style='color:var(--text-muted); font-size:0.8rem;'>Posted: " . date('M j, Y g:i A', strtotime($ann['created_at'])) . "</small>";
-                                echo "</div>";
-                            }
-                        } else {
-                            echo "<p style='color:var(--text-muted); margin:0;'>No announcements from your village leader yet.</p>";
-                        }
-                        ?>
-                    </div>
+                    <?php } ?>
+                <div class="content-card" style="margin-bottom:24px;">
+                    <h2 style="margin-bottom:15px; font-size:1.1rem; color:var(--text-main);">Village Announcements</h2>
                     <?php
-                }
+                    $announcements = $conn->query("SELECT id, message, created_at FROM village_announcements WHERE LOWER(TRIM(village)) = LOWER(TRIM('$cv')) ORDER BY created_at DESC");
+                    if ($announcements && $announcements->num_rows > 0) {
+                        while ($ann = $announcements->fetch_assoc()) {
+                            echo "<article class='announcement-card' data-notification-row='village-announcement-" . (int)$ann['id'] . "' style='padding:12px; background:var(--bg-lighter); border-radius:8px; margin-bottom:12px; border-left:3px solid #10b981;'>";
+                            echo "<p style='margin:0 0 8px; font-size:0.95rem; color:var(--text-main);'>" . nl2br(htmlspecialchars($ann['message'])) . "</p>";
+                            echo "<small style='color:var(--text-muted); font-size:0.8rem;'>Posted: " . date('M j, Y g:i A', strtotime($ann['created_at'])) . "</small>";
+                            echo "</article>";
+                        }
+                    } else {
+                        echo "<p style='color:var(--text-muted); margin:0;'>No announcements from your village yet.</p>";
+                    }
+                    ?>
+                </div>
+                <?php
             }
             ?>
 
@@ -10249,7 +10247,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
                     // Bulk inserts avoid executing another statement while a recipient result is still being fetched.
                     try {
-                        $member_notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) SELECT id, 'member', ? FROM members WHERE is_approved = 1 AND id <> ? AND LOWER(TRIM(church_village)) = LOWER(?)");
+                        $member_notice = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) SELECT id, 'member', ? FROM members WHERE is_approved = 1 AND id <> ? AND LOWER(TRIM(church_village)) = LOWER(TRIM(?))");
                         if (!$member_notice) throw new RuntimeException($conn->error);
                         $member_notice->bind_param('sis', $notice, $member_id, $village_name);
                         $member_notice->execute();
