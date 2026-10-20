@@ -2973,7 +2973,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <?php if ($ctx_is_chairperson): ?>
                     <a href="?tab=received_financials" class="sidebar-link <?= $tab == 'received_financials' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></rect><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10h10M7 14h6"></path></svg>
-                        Received Financial Records
+                        Financial Records
                         <?php if (!empty($tab_badges['received_financials'])): ?><span class="tab-notif-badge"><?= $tab_badges['received_financials'] > 99 ? '99+' : $tab_badges['received_financials'] ?></span><?php endif; ?>
                     </a>
                     <?php endif; ?>
@@ -3871,13 +3871,13 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
 
                 <?php if (!$can_view_received_financials): ?>
                     <div class="page-header">
-                        <h1>Received Financial Records</h1>
-                        <p>You do not have chairperson access to received financial records.</p>
+                        <h1>Financial Records</h1>
+                        <p>You do not have chairperson access to financial records.</p>
                     </div>
                 <?php else: ?>
                     <div class="page-header">
-                        <h1>Received Financial Records</h1>
-                        <p>Transactions sent by the treasurer for <strong><?= htmlspecialchars($active_received_dept) ?></strong>.</p>
+                        <h1>Financial Records</h1>
+                        <p>Treasurer-posted records and transactions confirmed and disbursed for <strong><?= htmlspecialchars($active_received_dept) ?></strong>.</p>
                     </div>
 
                     <?php if (isset($_GET['success'])): ?><div class="alert alert-success flash-success" style="margin-bottom:16px;"><?= htmlspecialchars($_GET['success']) ?></div><?php endif; ?>
@@ -3898,19 +3898,20 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <?php endif; ?>
 
                     <div class="content-card" style="border-top: 4px solid var(--primary);">
-                        <h2 style="margin-bottom: 15px;">Received Treasurer Records</h2>
-                        <p style="color: var(--text-muted); margin-bottom: 20px;">Confirm and disburse each complete transaction sent by your department treasurer.</p>
+                        <h2 style="margin-bottom: 15px;">Treasurer Records &amp; Disbursement History</h2>
+                        <p style="color: var(--text-muted); margin-bottom: 20px;">Review every financial record posted by your department treasurer. Records can be confirmed and disbursed after the treasurer sends them to you.</p>
 
                         <?php
                         $received_records = $conn->query("
-                            SELECT dft.*, fr.id AS financial_record_id, fr.is_chair_confirmed, fr.chair_confirmed_at, fr.chair_disbursement_note, fr.description AS record_description, fr.record_date, cb.first_name AS confirmed_first, cb.last_name AS confirmed_last, m.first_name, m.last_name
-                            FROM department_funds_transfer dft
-                            JOIN financial_records fr ON dft.financial_record_id = fr.id
+                            SELECT fr.*, fr.id AS financial_record_id, dft.created_at AS transfer_created_at, dft.description AS transfer_description, cb.first_name AS confirmed_first, cb.last_name AS confirmed_last, m.first_name, m.last_name
+                            FROM financial_records fr
+                            LEFT JOIN department_funds_transfer dft ON dft.financial_record_id = fr.id AND dft.transfer_type = 'To Chairperson'
                             JOIN members m ON fr.recorded_by = m.id
                             LEFT JOIN members cb ON fr.chair_confirmed_by = cb.id
                             WHERE " . department_match_sql($conn, 'fr.department', $active_received_dept) . "
-                              AND dft.transfer_type='To Chairperson'
-                            ORDER BY fr.is_chair_confirmed ASC, dft.created_at DESC
+                              AND COALESCE(fr.description, '') NOT LIKE 'Disciplinary Fine:%'
+                            ORDER BY CASE WHEN fr.is_sent_to_chair = 1 AND fr.is_chair_confirmed = 0 THEN 0 WHEN fr.is_chair_confirmed = 1 THEN 1 ELSE 2 END,
+                                     COALESCE(fr.chair_confirmed_at, dft.created_at, fr.recorded_at) DESC
                         ");
                         if ($received_records && $received_records->num_rows > 0):
                         ?>
@@ -3918,7 +3919,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Date Sent</th>
+                                        <th>Record Date</th>
                                         <th>Treasurer</th>
                                         <th>Source / Description</th>
                                         <th>Amount (KSh)</th>
@@ -3929,10 +3930,10 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                 <tbody>
                                     <?php while($rr = $received_records->fetch_assoc()): ?>
                                     <tr data-notification-row="financial-record-<?= (int)$rr['financial_record_id'] ?>">
-                                        <td><?= date('M j, Y', strtotime($rr['created_at'])) ?></td>
+                                        <td><?= date('M j, Y', strtotime($rr['transfer_created_at'] ?: $rr['record_date'])) ?></td>
                                         <td><?= htmlspecialchars($rr['first_name'] . ' ' . $rr['last_name']) ?></td>
                                         <td>
-                                            <div><?= htmlspecialchars($rr['record_description'] ?: $rr['description']) ?></div>
+                                            <div><?= htmlspecialchars($rr['description'] ?: ($rr['transfer_description'] ?: 'No description')) ?></div>
                                             <?php if (!empty($rr['chair_disbursement_note'])): ?>
                                                 <small style="color: var(--text-muted);">Chair note: <?= htmlspecialchars($rr['chair_disbursement_note']) ?></small>
                                             <?php endif; ?>
@@ -3944,12 +3945,14 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                                 <?php if (!empty($rr['chair_confirmed_at'])): ?>
                                                     <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">By <?= htmlspecialchars(trim(($rr['confirmed_first'] ?? '') . ' ' . ($rr['confirmed_last'] ?? ''))) ?> on <?= date('M j, Y', strtotime($rr['chair_confirmed_at'])) ?></div>
                                                 <?php endif; ?>
-                                            <?php else: ?>
+                                            <?php elseif (!empty($rr['is_sent_to_chair'])): ?>
                                                 <span class="badge" style="background: rgba(245,158,11,0.12); color: #f59e0b;">Pending Confirmation</span>
+                                            <?php else: ?>
+                                                <span class="badge" style="background: rgba(100,100,100,0.1); color: var(--text-muted);">Awaiting Treasurer Submission</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <?php if (empty($rr['is_chair_confirmed'])): ?>
+                                            <?php if (!empty($rr['is_sent_to_chair']) && empty($rr['is_chair_confirmed'])): ?>
                                                 <form method="POST" action="member_action.php?action=disperse_funds" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0;">
                                                     <input type="hidden" name="department" value="<?= htmlspecialchars($active_received_dept) ?>">
                                                     <input type="hidden" name="financial_record_id" value="<?= (int)$rr['financial_record_id'] ?>">
@@ -3957,7 +3960,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                                                     <button type="submit" class="btn-submit" style="margin:0;padding:7px 12px;font-size:0.85rem;" onclick="return confirm('Confirm and disburse this whole transaction of KSh <?= number_format($rr['amount'], 2) ?>?');">Confirm & Disburse</button>
                                                 </form>
                                             <?php else: ?>
-                                                <span style="color:var(--text-muted);font-size:0.9rem;">Completed</span>
+                                                <span style="color:var(--text-muted);font-size:0.9rem;"><?= !empty($rr['is_chair_confirmed']) ? 'Completed' : 'Waiting for treasurer' ?></span>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
@@ -3966,7 +3969,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                             </table>
                         </div>
                         <?php else: ?>
-                            <p style="color: var(--text-muted);">No financial records have been received from the treasurer yet.</p>
+                            <p style="color: var(--text-muted);">No financial records have been posted for this department yet.</p>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
