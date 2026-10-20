@@ -2913,6 +2913,13 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <?= render_tab_notification_badge($tab_badges, 'organized_events') ?>
                 </a>
                 <?php endif; ?>
+                <?php if ($ctx_is_chairperson && !$ctx_is_organizing_secretary): ?>
+                <a href="?tab=received_financials" class="sidebar-link <?= $tab == 'received_financials' ? 'active' : '' ?>">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></rect><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10h10M7 14h6"></path></svg>
+                    Financial Records
+                    <?php if (!empty($tab_badges['received_financials'])): ?><span class="tab-notif-badge"><?= $tab_badges['received_financials'] > 99 ? '99+' : $tab_badges['received_financials'] ?></span><?php endif; ?>
+                </a>
+                <?php endif; ?>
                 <?php if ((department_allows_graduation_and_sport($member['department'] ?? '') || $is_youth_advisor_scope) && !$is_sport_secretary): ?>
                     <a href="?tab=dept_sport" class="sidebar-link <?= $tab == 'dept_sport' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -2970,13 +2977,6 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         Manage <?= htmlspecialchars($managed_dept) ?>
                         <?php if (!empty($tab_badges['manage_department'])): ?><span class="tab-notif-badge"><?= $tab_badges['manage_department'] > 99 ? '99+' : $tab_badges['manage_department'] ?></span><?php endif; ?>
                     </a>
-                    <?php if ($ctx_is_chairperson): ?>
-                    <a href="?tab=received_financials" class="sidebar-link <?= $tab == 'received_financials' ? 'active' : '' ?>">
-                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></rect><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10h10M7 14h6"></path></svg>
-                        Received Financial Records
-                        <?php if (!empty($tab_badges['received_financials'])): ?><span class="tab-notif-badge"><?= $tab_badges['received_financials'] > 99 ? '99+' : $tab_badges['received_financials'] ?></span><?php endif; ?>
-                    </a>
-                    <?php endif; ?>
                     <a href="?tab=appoint_leaders" class="sidebar-link <?= $tab == 'appoint_leaders' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
                         Appoint Leaders
@@ -3012,6 +3012,13 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                         Organised Events
                         <?= render_tab_notification_badge($tab_badges, 'organized_events') ?>
                     </a>
+                    <?php if ($ctx_is_chairperson): ?>
+                    <a href="?tab=received_financials" class="sidebar-link <?= $tab == 'received_financials' ? 'active' : '' ?>">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></rect><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10h10M7 14h6"></path></svg>
+                        Financial Records
+                        <?php if (!empty($tab_badges['received_financials'])): ?><span class="tab-notif-badge"><?= $tab_badges['received_financials'] > 99 ? '99+' : $tab_badges['received_financials'] ?></span><?php endif; ?>
+                    </a>
+                    <?php endif; ?>
                     <?php if (!$ctx_is_leader && !$ctx_is_secretary): ?>
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>" style="position:relative;">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path></svg>
@@ -3140,7 +3147,7 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                 <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: #10b981; margin-top: 10px;">Treasurer Panel</div>
                 <a href="?tab=financials" class="sidebar-link <?= $tab == 'financials' ? 'active' : '' ?>">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></rect><circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9h.01M18 15h.01"></path></svg>
-                    Financial Records
+                    Manage Financial Records
                     <?= render_tab_notification_badge($tab_badges, 'financials') ?>
                 </a>
                 <?php endif; ?>
@@ -7155,7 +7162,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
             <?php if ($tab == 'financials' && $is_treasurer): ?>
                 <div class="page-header">
-                    <h1>Financial Records</h1>
+                    <h1>Manage Financial Records</h1>
                     <p>Record and track money collected for <strong><?= htmlspecialchars($active_treasurer_dept) ?></strong>.</p>
                 </div>
 
