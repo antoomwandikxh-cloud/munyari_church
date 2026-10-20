@@ -17,9 +17,9 @@ function notification_badge_tabs($message, $user_type, $is_treasurer = false) {
     $tabs = [];
 
     // Village announcements may contain words used by other notification categories (for example, "fine").
-    // Route them first so every recipient gets the Church Village badge and exact announcement focus.
+    // Route them first so each audience gets the correct announcements tab and exact post focus.
     if (strpos($msg, 'new village announcement') !== false && strpos($msg, 'village leader') !== false) {
-        return ['desired_roles'];
+        return $user_type === 'member' ? ['desired_roles'] : ['general_announcements'];
     }
 
     if (strpos($msg, 'disciplinary report outcome:') !== false) {
