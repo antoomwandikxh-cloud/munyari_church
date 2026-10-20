@@ -74,7 +74,10 @@ expect_same(
 );
 $village_declined_glow = render_notification_tab_glow_script('desired_roles', 'desired_roles', $village_declined_notification);
 if (strpos($village_declined_glow, 'notification-row:' . $village_focus_row) === false
-    || strpos($village_declined_glow, 'notification-row-glow') === false) {
+    || strpos($village_declined_glow, 'notification-row-glow') === false
+    || strpos($village_declined_glow, 'preference-decline-reason-message') === false
+    || strpos($village_declined_glow, '}, 15000)') === false
+    || strpos($village_declined_glow, 'Pastor\'s reason for declining: ') === false) {
     fwrite(STDERR, "FAIL: declined village request opens the exact preference panel and applies its gold glow.\n");
     exit(1);
 }
@@ -94,7 +97,8 @@ expect_same('desired_roles', notification_target_tab($role_declined_notification
 expect_same(member_preference_notification_row('role', ''), notification_route_metadata($role_declined_notification)['row'], 'declined role change targets the No role option');
 $role_declined_glow = render_notification_tab_glow_script('desired_roles', 'desired_roles', $role_declined_notification);
 if (strpos($role_declined_glow, 'notification-row:' . member_preference_notification_row('role', '')) === false
-    || strpos($role_declined_glow, 'notification-row-glow') === false) {
+    || strpos($role_declined_glow, 'notification-row-glow') === false
+    || strpos($role_declined_glow, 'preference-decline-reason-message') === false) {
     fwrite(STDERR, "FAIL: declined role request targets and glows only its selected role option.\n");
     exit(1);
 }

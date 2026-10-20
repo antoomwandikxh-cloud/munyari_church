@@ -1058,6 +1058,24 @@ document.addEventListener("DOMContentLoaded", function () {
                     }
                 }
                 addHighlightedRow(explicitRow);
+                if (/^member-preference-(?:village|role)-[a-f0-9]{32}$/i.test(explicitRowMatch[1])) {
+                    var visibleDeclineMessage = notificationMessage
+                        .replace(/\s*\[notification-(?:tab|group|row):[^\]]+\]/gi, "")
+                        .trim();
+                    var declineReasonMatch = visibleDeclineMessage.match(/^The Pastor declined your request to[\s\S]*?\.\s*Reason:\s*([\s\S]+)$/i);
+                    var preferenceChoices = explicitRow.closest(".church-village-choice-row, .desired-role-choice-row");
+                    if (declineReasonMatch && preferenceChoices) {
+                        var reasonNotice = document.createElement("div");
+                        reasonNotice.className = "preference-decline-reason-message";
+                        reasonNotice.setAttribute("role", "status");
+                        reasonNotice.setAttribute("aria-live", "polite");
+                        reasonNotice.textContent = "Pastor's reason for declining: " + declineReasonMatch[1].trim();
+                        preferenceChoices.insertAdjacentElement("beforebegin", reasonNotice);
+                        window.setTimeout(function () {
+                            reasonNotice.remove();
+                        }, 15000);
+                    }
+                }
                 return;
             }
         }

@@ -669,6 +669,19 @@ body {
     animation: notificationRowGoldGlow 10s ease-in-out 1;
 }
 
+.preference-decline-reason-message {
+    margin: 10px 0 4px;
+    padding: 11px 13px;
+    border: 1px solid rgba(245, 158, 11, 0.55);
+    border-left: 4px solid #d97706;
+    border-radius: 7px;
+    background: rgba(245, 158, 11, 0.12);
+    color: var(--text-main);
+    font-size: 0.9rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
 .notification-role-glow {
     border-radius: 4px;
     animation: notificationRoleTextGoldGlow 10s ease-in-out 1;

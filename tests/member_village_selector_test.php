@@ -68,6 +68,9 @@ if (strpos($pastor_dashboard, '$pending_village_changed = strcasecmp(trim((strin
     || strpos($pastor_dashboard, '$pending_role_changed = strcasecmp(trim((string)($pu[\'pending_desired_role_pref\'] ?? \'\')), trim((string)($pu[\'desired_role_pref\'] ?? \'\'))) !== 0;') === false
     || strpos($pastor_dashboard, '<?php if ($pending_role_changed): ?>') === false
     || strpos($pastor_dashboard, 'Reason for declining') === false
+    || strpos($pastor_dashboard, 'data-open-decline') === false
+    || strpos($pastor_dashboard, 'data-confirm-decline hidden') === false
+    || strpos($pastor_dashboard, 'Decline &amp; Notify') === false
     || strpos($pastor_dashboard, 'Enter a reason of 1,000 characters or fewer before declining this request.') === false
     || strpos($pastor_dashboard, "pending_preference_reason'] ??") === false
     || strpos($pastor_dashboard, "'. Reason: ' . \$decline_reason") === false) {

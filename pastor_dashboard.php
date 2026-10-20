@@ -3759,7 +3759,7 @@ w.document.write('</div>');
                                             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                                                 <button type="submit" name="action" value="approve" data-village-approve class="btn-sm btn-success" style="border:none;cursor:pointer;">Approve</button>
                                                 <button type="button" data-open-decline class="btn-sm" style="border:none;background:var(--danger);color:white;cursor:pointer;">Decline</button>
-                                                <button type="submit" name="action" value="reject" data-confirm-decline hidden class="btn-sm" style="border:none;background:var(--danger);color:white;cursor:pointer;">Send Decline</button>
+                                                <button type="submit" name="action" value="reject" data-confirm-decline hidden class="btn-sm" style="border:none;background:var(--danger);color:white;cursor:pointer;">Decline &amp; Notify</button>
                                                 <button type="button" data-cancel-decline hidden class="btn-sm" style="border:1px solid var(--border-color);background:var(--bg-main);color:var(--text-main);cursor:pointer;">Cancel</button>
                                             </div>
                                         </form>
