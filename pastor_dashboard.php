@@ -1806,6 +1806,47 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     <p>Announcements from village leaders, secretaries, elders, building leaders, queries, and pastoral messages.</p>
                 </div>
 
+                <?php
+                $announcement_department_key = static function ($department) {
+                    $department = strtolower(trim((string)$department));
+                    if (strpos($department, 'youth') !== false) return 'youths';
+                    if (strpos($department, 'women') !== false) return 'womens_ministry';
+                    if (strpos($department, 'elder') !== false) return 'elders';
+                    if (strpos($department, 'sunday') !== false) return 'sunday_school';
+                    if (strpos($department, 'building') !== false || strpos($department, 'construction') !== false) return 'building_construction';
+                    if (strpos($department, 'worship') !== false || strpos($department, 'choir') !== false) return 'worship_leaders';
+                    if (strpos($department, 'village') !== false) return 'village_leaders';
+                    if (strpos($department, 'general') !== false || strpos($department, 'church') !== false) return 'general_church';
+                    return 'other';
+                };
+                $announcement_department_filters = [
+                    'youths' => ['label' => 'Youth Announcements', 'color' => '#3b82f6'],
+                    'womens_ministry' => ['label' => "Women's Ministry Announcements", 'color' => '#ec4899'],
+                    'elders' => ['label' => 'Elders Announcements', 'color' => '#8b5cf6'],
+                    'sunday_school' => ['label' => 'Sunday School Announcements', 'color' => '#f59e0b'],
+                    'general_church' => ['label' => 'General Church Announcements', 'color' => '#10b981'],
+                    'building_construction' => ['label' => 'Building Announcements', 'color' => '#ef4444'],
+                    'worship_leaders' => ['label' => 'Worship Announcements', 'color' => '#d946ef'],
+                    'village_leaders' => ['label' => 'Church Village Announcements', 'color' => '#d6a832'],
+                ];
+                ?>
+                <div class="content-card" id="announcement-department-filter" style="margin:0 0 12px;padding:14px 16px;">
+                    <strong style="display:block;margin-bottom:10px;color:var(--text-main);">Select a department</strong>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                        <?php foreach ($announcement_department_filters as $filter_key => $filter): ?>
+                            <button type="button" class="announcement-filter-button" data-announcement-filter="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" aria-pressed="false" style="--announcement-accent:<?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;border:1px solid var(--border-color);border-radius:20px;padding:7px 11px;background:var(--bg-card);color:var(--text-muted);font:inherit;font-size:0.82rem;font-weight:650;cursor:pointer;">
+                                <?= htmlspecialchars($filter['label']) ?> <span data-announcement-count="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" style="margin-left:4px;opacity:.8;">0</span>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div id="announcement-department-results" aria-live="polite"></div>
+                <p id="announcement-department-empty" class="content-card" style="margin:0 0 24px;color:var(--text-muted);text-align:center;">Choose a department to view its announcements.</p>
+                <style>
+                    .announcement-filter-button[aria-pressed="true"] { background:var(--announcement-accent)!important; border-color:var(--announcement-accent)!important; color:#fff!important; }
+                    .announcement-filter-button:focus-visible { outline:2px solid var(--announcement-accent); outline-offset:2px; }
+                </style>
+
                 <!-- Pastor Post Announcement Form -->
                 <div class="content-card" style="margin-bottom:28px;border-left:4px solid var(--primary);">
                     <h2 style="font-size:1.1rem;margin-top:0;color:var(--primary);">📢 Post Announcement to Entire Church</h2>
@@ -1832,7 +1873,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                 </div>
 
                 <!-- Pastor's Announcements & Voice Notes (With Edit & Delete) -->
-                <div class="content-card" style="margin-bottom:28px;border-left:4px solid #10b981;">
+                <div class="content-card" data-announcement-panel style="display:none;margin-bottom:28px;border-left:4px solid #10b981;">
                     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:15px;">
                         <div>
                             <h2 style="font-size:1.15rem;margin:0;color:#10b981;display:flex;align-items:center;gap:8px;">
@@ -1854,7 +1895,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                             $p_name = !empty($pa['first_name']) ? ('Pastor ' . htmlspecialchars($pa['first_name'] . ' ' . $pa['last_name'])) : 'Pastor ' . htmlspecialchars($pastor['first_name'] . ' ' . $pastor['last_name']);
                             $p_pic  = !empty($pa['profile_picture']) ? 'uploads/' . $pa['profile_picture'] : (!empty($pastor['profile_picture']) ? 'uploads/' . $pastor['profile_picture'] : 'uploads/default_avatar.png');
                     ?>
-                        <div class="content-card" style="margin-bottom:16px;border:1px solid var(--border-color);border-left:4px solid #10b981;background:var(--bg-main, #f8fafc);padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);" id="ann_card_<?= $pa['id'] ?>">
+                        <div class="content-card" data-announcement-department="general_church" style="margin-bottom:16px;border:1px solid var(--border-color);border-left:4px solid #10b981;background:var(--bg-main, #f8fafc);padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);" id="ann_card_<?= $pa['id'] ?>">
                             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
                                 <div style="display:flex;align-items:center;gap:10px;">
                                     <img src="<?= htmlspecialchars($p_pic) ?>" alt="Pastor" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #10b981;">
@@ -2023,50 +2064,9 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     <?php endif; ?>
                 </div>
 
-                <?php
-                $announcement_department_key = static function ($department) {
-                    $department = strtolower(trim((string)$department));
-                    if (strpos($department, 'youth') !== false) return 'youths';
-                    if (strpos($department, 'women') !== false) return 'womens_ministry';
-                    if (strpos($department, 'elder') !== false) return 'elders';
-                    if (strpos($department, 'sunday') !== false) return 'sunday_school';
-                    if (strpos($department, 'building') !== false || strpos($department, 'construction') !== false) return 'building_construction';
-                    if (strpos($department, 'worship') !== false || strpos($department, 'choir') !== false) return 'worship_leaders';
-                    if (strpos($department, 'village') !== false) return 'village_leaders';
-                    if (strpos($department, 'general') !== false || strpos($department, 'church') !== false) return 'general_church';
-                    return 'other';
-                };
-                $announcement_department_filters = [
-                    'all' => ['label' => 'All Announcements', 'color' => '#64748b'],
-                    'youths' => ['label' => 'Youth Announcements', 'color' => '#3b82f6'],
-                    'womens_ministry' => ['label' => "Women's Ministry", 'color' => '#ec4899'],
-                    'elders' => ['label' => 'Elders', 'color' => '#8b5cf6'],
-                    'sunday_school' => ['label' => 'Sunday School', 'color' => '#f59e0b'],
-                    'general_church' => ['label' => 'General Church', 'color' => '#10b981'],
-                    'building_construction' => ['label' => 'Building Department', 'color' => '#ef4444'],
-                    'worship_leaders' => ['label' => 'Worship Department', 'color' => '#d946ef'],
-                    'village_leaders' => ['label' => 'Church Villages', 'color' => '#d6a832'],
-                    'other' => ['label' => 'Other Departments', 'color' => '#64748b'],
-                ];
-                ?>
-                <div class="content-card" id="announcement-department-filter" style="margin:0 0 16px;padding:14px 16px;">
-                    <strong style="display:block;margin-bottom:10px;color:var(--text-main);">Browse Announcements by Department</strong>
-                    <div class="announcement-filter-buttons" style="display:flex;flex-wrap:wrap;gap:8px;">
-                        <?php foreach ($announcement_department_filters as $filter_key => $filter): ?>
-                            <button type="button" class="announcement-filter-button" data-announcement-filter="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" aria-pressed="<?= $filter_key === 'all' ? 'true' : 'false' ?>" style="--announcement-accent:<?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;border:1px solid var(--border-color);border-radius:20px;padding:7px 11px;background:var(--bg-card);color:var(--text-muted);font:inherit;font-size:0.82rem;font-weight:650;cursor:pointer;">
-                                <?= htmlspecialchars($filter['label']) ?> <span data-announcement-count="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" style="margin-left:4px;opacity:.8;">0</span>
-                            </button>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <style>
-                    .announcement-filter-button[aria-pressed="true"] { background:var(--announcement-accent)!important; border-color:var(--announcement-accent)!important; color:#fff!important; }
-                    .announcement-filter-button:focus-visible { outline:2px solid var(--announcement-accent); outline-offset:2px; }
-                </style>
-
                 <!-- All Department & Secretary Announcements -->
-                <div class="content-card" data-announcement-panel style="margin-bottom:24px;border-left:4px solid var(--secondary);">
-                    <h2 style="font-size:1.05rem;margin-top:0;color:var(--secondary);">📋 Department Announcements (All Secretaries & Elders)</h2>
+                <div class="content-card" data-announcement-panel style="display:none;margin-bottom:24px;border-left:4px solid var(--secondary);">
+                    <h2 style="font-size:1.05rem;margin-top:0;color:var(--secondary);">Department Announcements from Leaders and Secretaries</h2>
                     <?php
                     $dept_anns = $conn->query("
                         SELECT da.*, m.first_name, m.last_name, m.church_role
@@ -2076,13 +2076,15 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     ");
                     if ($dept_anns && $dept_anns->num_rows > 0):
                         while ($dann = $dept_anns->fetch_assoc()):
+                            $dann_filter_key = $announcement_department_key($dann['department'] ?? '');
+                            $dann_filter_color = $announcement_department_filters[$dann_filter_key]['color'] ?? '#64748b';
                     ?>
-                        <div data-announcement-department="<?= htmlspecialchars($announcement_department_key($dann['department'] ?? ''), ENT_QUOTES) ?>" style="padding:14px 0;border-bottom:1px solid var(--border-color);">
+                        <div data-announcement-department="<?= htmlspecialchars($dann_filter_key, ENT_QUOTES) ?>" style="padding:14px 0 14px 12px;border-bottom:1px solid var(--border-color);border-left:4px solid <?= htmlspecialchars($dann_filter_color, ENT_QUOTES) ?>;">
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;">
                                 <div>
                                     <strong style="color:var(--text-main);"><?= htmlspecialchars($dann['first_name'] . ' ' . $dann['last_name']) ?></strong>
                                     <span style="font-size:0.8rem;color:var(--text-muted);"> — <?= htmlspecialchars(clean_role_display($dann['church_role'])) ?></span>
-                                    <span style="font-size:0.75rem;background:rgba(37,99,235,0.1);color:var(--primary);padding:2px 8px;border-radius:20px;margin-left:6px;"><?= htmlspecialchars($dann['department']) ?></span>
+                                    <span style="font-size:0.75rem;background:<?= htmlspecialchars($dann_filter_color, ENT_QUOTES) ?>;color:#fff;padding:3px 9px;border-radius:5px;margin-left:6px;font-weight:700;"><?= htmlspecialchars($dann['department']) ?></span>
                                 </div>
                                 <small style="color:var(--text-muted);font-size:0.75rem;"><?= date('M j, Y g:i A', strtotime($dann['created_at'])) ?></small>
                             </div>
@@ -2098,7 +2100,7 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                     <?php endif; ?>
                 </div>
 
-                <div class="content-card" data-announcement-panel style="margin:24px 0;border-left:4px solid #10b981;">
+                <div class="content-card" data-announcement-panel style="display:none;margin:24px 0;border-left:4px solid #10b981;">
                     <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">Church Village Leader Announcements</h2>
                     <?php
                     $village_announcements = $conn->query("SELECT va.id, va.village, va.message, va.audio_path, va.created_at, m.first_name, m.last_name, m.profile_picture FROM village_announcements va LEFT JOIN members m ON m.id = va.leader_id ORDER BY va.created_at DESC");
@@ -2124,40 +2126,54 @@ if ($tab == 'notifications' && $unread_notifs > 0) {
                         <p style="color:var(--text-muted);margin:0;">No village leader announcements yet.</p>
                     <?php endif; ?>
                 </div>
-                <p id="announcement-department-empty" class="content-card" style="display:none;color:var(--text-muted);text-align:center;">No announcements have been posted for this department yet.</p>
                 <script>
                     (function () {
                         const filterRoot = document.getElementById('announcement-department-filter');
                         if (!filterRoot) return;
+                        const results = document.getElementById('announcement-department-results');
+                        const emptyMessage = document.getElementById('announcement-department-empty');
                         const archivePanels = Array.from(document.querySelectorAll('[data-announcement-panel]'));
                         const announcementRows = archivePanels.flatMap(panel => Array.from(panel.querySelectorAll('[data-announcement-department]')));
                         const filterButtons = Array.from(filterRoot.querySelectorAll('[data-announcement-filter]'));
-                        const emptyMessage = document.getElementById('announcement-department-empty');
+                        const notificationFocusMessages = <?= json_encode(array_values($notification_focus_messages ?? []), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
                         const counts = {};
                         announcementRows.forEach(row => {
                             const key = row.dataset.announcementDepartment || 'other';
                             counts[key] = (counts[key] || 0) + 1;
                         });
+                        archivePanels.forEach(panel => {
+                            panel.style.display = 'none';
+                            results.appendChild(panel);
+                        });
                         filterButtons.forEach(button => {
                             const key = button.dataset.announcementFilter;
                             const count = filterRoot.querySelector('[data-announcement-count="' + key + '"]');
-                            if (count) count.textContent = key === 'all' ? String(announcementRows.length) : String(counts[key] || 0);
+                            if (count) count.textContent = String(counts[key] || 0);
                             button.addEventListener('click', function () {
                                 const selected = this.dataset.announcementFilter;
                                 filterButtons.forEach(item => item.setAttribute('aria-pressed', item === this ? 'true' : 'false'));
                                 let visibleCount = 0;
                                 announcementRows.forEach(row => {
-                                    const visible = selected === 'all' || row.dataset.announcementDepartment === selected;
+                                    const visible = row.dataset.announcementDepartment === selected;
                                     row.style.display = visible ? '' : 'none';
                                     if (visible) visibleCount++;
                                 });
                                 archivePanels.forEach(panel => {
                                     const hasVisibleRows = Array.from(panel.querySelectorAll('[data-announcement-department]')).some(row => row.style.display !== 'none');
-                                    panel.style.display = selected === 'all' || hasVisibleRows ? '' : 'none';
+                                    panel.style.display = hasVisibleRows ? '' : 'none';
                                 });
-                                emptyMessage.style.display = selected !== 'all' && visibleCount === 0 ? 'block' : 'none';
+                                emptyMessage.style.display = visibleCount === 0 ? 'block' : 'none';
+                                emptyMessage.textContent = visibleCount === 0 ? 'No announcements have been posted for this department yet.' : '';
                             });
                         });
+                        const hasVillageAnnouncementFocus = notificationFocusMessages.some(message =>
+                            /\[village-announcement-id:\s*\d+\]/i.test(message)
+                            || /\[notification-row:village-announcement-\d+\]/i.test(message)
+                        );
+                        if (hasVillageAnnouncementFocus) {
+                            const villageButton = filterButtons.find(button => button.dataset.announcementFilter === 'village_leaders');
+                            if (villageButton) villageButton.click();
+                        }
                     })();
                 </script>
 
