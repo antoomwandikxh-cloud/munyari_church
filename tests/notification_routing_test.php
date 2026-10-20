@@ -76,7 +76,9 @@ if (strpos($pastor_dashboard_source, 'data-organized-event-filter="<?= htmlspeci
     || strpos($pastor_dashboard_source, 'notification-group:([a-z0-9_-]+)') === false
     || strpos($pastor_dashboard_source, 'const nextFilter = wasSelected ? \'\' : selected;') === false
     || strpos($pastor_dashboard_source, 'nextFilter !== \'\' && row.dataset.organizedEventDepartment === nextFilter') === false
-    || strpos($pastor_dashboard_source, 'organized-event-filter-empty') === false) {
+    || strpos($pastor_dashboard_source, 'organized-event-filter-empty') === false
+    || strpos($pastor_dashboard_source, 'No events posted yet in \' + label + \'.') === false
+    || strpos($pastor_dashboard_source, 'data-organized-event-label=') === false) {
     fwrite(STDERR, "FAIL: pastor Organised Events must filter, toggle closed, and auto-select the department from a routed notification.\n");
     exit(1);
 }

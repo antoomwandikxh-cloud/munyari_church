@@ -6559,18 +6559,18 @@ w.document.write('</div>');
                 <div class="content-card" id="organized-event-department-filter" style="margin-bottom:14px;padding:14px 16px;">
                     <strong style="display:block;margin-bottom:10px;color:var(--text-main);">Filter events by department</strong>
                     <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                        <button type="button" data-organized-event-filter="all" aria-pressed="true" style="border:1px solid #64748b;border-radius:20px;padding:7px 12px;background:#64748b;color:#fff;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer;">All Events <span data-organized-event-count="all" style="margin-left:4px;opacity:.85;">0</span></button>
+                        <button type="button" data-organized-event-filter="all" data-organized-event-label="All Events" aria-pressed="true" style="border:1px solid #64748b;border-radius:20px;padding:7px 12px;background:#64748b;color:#fff;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer;">All Events <span data-organized-event-count="all" style="margin-left:4px;opacity:.85;">0</span></button>
                         <?php foreach ($organised_event_filters as $filter_key => $filter): ?>
-                            <button type="button" data-organized-event-filter="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" aria-pressed="false" style="border:1px solid <?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;border-radius:20px;padding:7px 12px;background:<?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;color:#fff;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer;">
+                            <button type="button" data-organized-event-filter="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" data-organized-event-label="<?= htmlspecialchars($filter['label'], ENT_QUOTES) ?>" aria-pressed="false" style="border:1px solid <?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;border-radius:20px;padding:7px 12px;background:<?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;color:#fff;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer;">
                                 <?= htmlspecialchars($filter['label']) ?> <span data-organized-event-count="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" style="margin-left:4px;opacity:.85;">0</span>
                             </button>
                         <?php endforeach; ?>
                     </div>
                 </div>
-                <p id="organized-event-filter-empty" role="status" style="display:none;color:var(--text-muted);text-align:center;padding:16px;">Event list closed. Choose a department or All Events to show events.</p>
 
                 <div class="content-card">
                     <h2>Recent Events</h2>
+                    <p id="organized-event-filter-empty" role="status" aria-live="polite" style="display:none;color:var(--text-muted);text-align:center;padding:16px;"></p>
                     <?php
                     $events = $conn->query("SELECT oe.*, m.first_name, m.last_name, m.profile_picture FROM organized_events oe JOIN members m ON oe.organizer_id = m.id ORDER BY oe.created_at DESC");
                     
@@ -6614,9 +6614,7 @@ w.document.write('</div>');
                                 <?php endif; ?>
                             </div>
                         </div>
-                    <?php endwhile; else: ?>
-                        <p style="color: var(--text-muted);">No departmental events have been posted by Organizing Secretaries yet.</p>
-                    <?php endif; ?>
+                    <?php endwhile; endif; ?>
                 </div>
                 <script>
                     (function () {
@@ -6631,6 +6629,10 @@ w.document.write('</div>');
                             const key = row.dataset.organizedEventDepartment || 'other';
                             counts[key] = (counts[key] || 0) + 1;
                         });
+                        if (!eventRows.length && emptyMessage) {
+                            emptyMessage.textContent = 'No departmental events have been posted yet.';
+                            emptyMessage.style.display = 'block';
+                        }
                         filterButtons.forEach(button => {
                             const key = button.dataset.organizedEventFilter;
                             const count = filterRoot.querySelector('[data-organized-event-count="' + key + '"]');
@@ -6643,7 +6645,20 @@ w.document.write('</div>');
                                 eventRows.forEach(row => {
                                     row.style.display = nextFilter === 'all' || (nextFilter !== '' && row.dataset.organizedEventDepartment === nextFilter) ? '' : 'none';
                                 });
-                                if (emptyMessage) emptyMessage.style.display = nextFilter === '' && eventRows.length ? 'block' : 'none';
+                                if (emptyMessage) {
+                                    if (nextFilter === '') {
+                                        emptyMessage.textContent = 'Event list closed. Choose a department or All Events to show events.';
+                                        emptyMessage.style.display = 'block';
+                                    } else if (!counts[nextFilter]) {
+                                        const label = this.dataset.organizedEventLabel || 'this department';
+                                        emptyMessage.textContent = nextFilter === 'all'
+                                            ? 'No departmental events have been posted yet.'
+                                            : 'No events posted yet in ' + label + '.';
+                                        emptyMessage.style.display = 'block';
+                                    } else {
+                                        emptyMessage.style.display = 'none';
+                                    }
+                                }
                             });
                         });
 
