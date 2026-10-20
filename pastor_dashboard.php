@@ -5229,6 +5229,39 @@ w.document.write('</div>');
                 <?php if ($active_group === 'village_leaders'): ?>
                     <?php render_village_leaders_chat_monitor($conn, $notification_focus_messages ?? []); ?>
                 <?php else: ?>
+                <?php if ($active_group === 'general_church'): ?>
+                <div class="content-card" style="margin-bottom:24px;border-left:4px solid #10b981;">
+                    <h2 style="font-size:1.05rem;margin-top:0;color:#10b981;">Pastor's Church Announcements</h2>
+                    <?php
+                    $leadership_pastor_announcements = $conn->query("SELECT pa.*, p.first_name, p.last_name, p.profile_picture FROM pastor_announcements pa LEFT JOIN pastors p ON pa.pastor_id = p.id ORDER BY pa.created_at DESC LIMIT 50");
+                    if ($leadership_pastor_announcements && $leadership_pastor_announcements->num_rows > 0):
+                        while ($leadership_announcement = $leadership_pastor_announcements->fetch_assoc()):
+                            $leadership_pastor_name = !empty($leadership_announcement['first_name']) ? 'Pastor ' . trim($leadership_announcement['first_name'] . ' ' . $leadership_announcement['last_name']) : 'Senior Pastor';
+                            $leadership_pastor_photo = !empty($leadership_announcement['profile_picture']) ? 'uploads/' . basename($leadership_announcement['profile_picture']) : 'uploads/default_avatar.png';
+                    ?>
+                        <article style="padding:14px 0;border-bottom:1px solid var(--border-color);">
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                                <img src="<?= htmlspecialchars($leadership_pastor_photo, ENT_QUOTES) ?>" alt="Pastor profile" onerror="this.src='uploads/default_avatar.png'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;cursor:zoom-in;" onclick="viewProfileImage(this.src);">
+                                <div style="min-width:0;">
+                                    <strong style="display:block;color:var(--text-main);font-size:0.92rem;"><?= htmlspecialchars($leadership_pastor_name) ?></strong>
+                                    <small style="color:var(--text-muted);">General Church · <?= date('M j, Y g:i A', strtotime($leadership_announcement['created_at'])) ?></small>
+                                </div>
+                            </div>
+                            <?php if (trim((string)$leadership_announcement['message']) !== ''): ?><p style="margin:0 0 8px;white-space:pre-wrap;color:var(--text-main);line-height:1.5;"><?= htmlspecialchars($leadership_announcement['message']) ?></p><?php endif; ?>
+                            <?php if (!empty($leadership_announcement['audio_path'])): ?>
+                                <?= render_whatsapp_voice_player($leadership_announcement['audio_path'], $leadership_pastor_name, $leadership_pastor_photo, $leadership_announcement['created_at']) ?>
+                            <?php endif; ?>
+                            <?php if (!empty($leadership_announcement['image_path'])): ?>
+                                <a href="<?= htmlspecialchars($leadership_announcement['image_path'], ENT_QUOTES) ?>" target="_blank" rel="noopener" style="display:block;margin-top:8px;">
+                                    <img src="<?= htmlspecialchars($leadership_announcement['image_path'], ENT_QUOTES) ?>" alt="Pastoral announcement" style="width:100%;max-height:300px;object-fit:cover;border-radius:8px;border:1px solid var(--border-color);">
+                                </a>
+                            <?php endif; ?>
+                        </article>
+                    <?php endwhile; else: ?>
+                        <p style="margin:0;color:var(--text-muted);">No pastoral announcements have been posted yet.</p>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
                 <!-- Chat view for active group -->
                 <div class="content-card" style="margin-bottom:24px;border-left:4px solid <?= $active_color ?>;">
                     <h2 style="font-size:1.05rem;margin-top:0;color:<?= $active_color ?>;"><?= $active_label ?> — Leadership Chat</h2>
