@@ -4736,7 +4736,7 @@ w.document.write('</div>');
                     <strong style="display:block;margin-bottom:10px;color:var(--text-main);">Select a department</strong>
                     <div style="display:flex;flex-wrap:wrap;gap:8px;">
                         <?php foreach ($announcement_department_filters as $filter_key => $filter): ?>
-                            <button type="button" class="announcement-filter-button" data-announcement-filter="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" aria-pressed="false" style="--announcement-accent:<?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;border:1px solid var(--border-color);border-radius:20px;padding:7px 11px;background:var(--bg-card);color:var(--text-muted);font:inherit;font-size:0.82rem;font-weight:650;cursor:pointer;">
+                            <button type="button" class="announcement-filter-button" data-announcement-filter="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" aria-pressed="false" style="--announcement-accent:<?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;border:1px solid <?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;border-radius:20px;padding:7px 11px;background:<?= htmlspecialchars($filter['color'], ENT_QUOTES) ?>;color:#fff;font:inherit;font-size:0.82rem;font-weight:650;cursor:pointer;">
                                 <?= htmlspecialchars($filter['label']) ?> <span data-announcement-count="<?= htmlspecialchars($filter_key, ENT_QUOTES) ?>" style="margin-left:4px;opacity:.8;">0</span>
                             </button>
                         <?php endforeach; ?>
@@ -4745,7 +4745,7 @@ w.document.write('</div>');
                 <div id="announcement-department-results" aria-live="polite"></div>
                 <p id="announcement-department-empty" class="content-card" style="margin:0 0 24px;color:var(--text-muted);text-align:center;">Choose a department to view its announcements.</p>
                 <style>
-                    .announcement-filter-button[aria-pressed="true"] { background:var(--announcement-accent)!important; border-color:var(--announcement-accent)!important; color:#fff!important; }
+                    .announcement-filter-button[aria-pressed="true"] { outline:2px solid var(--announcement-accent); outline-offset:2px; transform:translateY(-1px); }
                     .announcement-filter-button:focus-visible { outline:2px solid var(--announcement-accent); outline-offset:2px; }
                 </style>
 
@@ -4920,6 +4920,15 @@ w.document.write('</div>');
                             const count = filterRoot.querySelector('[data-announcement-count="' + key + '"]');
                             if (count) count.textContent = String(counts[key] || 0);
                             button.addEventListener('click', function () {
+                                const wasSelected = this.getAttribute('aria-pressed') === 'true';
+                                if (wasSelected) {
+                                    filterButtons.forEach(item => item.setAttribute('aria-pressed', 'false'));
+                                    announcementRows.forEach(row => { row.style.display = 'none'; });
+                                    archivePanels.forEach(panel => { panel.style.display = 'none'; });
+                                    emptyMessage.style.display = 'block';
+                                    emptyMessage.textContent = 'Choose a department to view its announcements.';
+                                    return;
+                                }
                                 const selected = this.dataset.announcementFilter;
                                 filterButtons.forEach(item => item.setAttribute('aria-pressed', item === this ? 'true' : 'false'));
                                 let visibleCount = 0;
