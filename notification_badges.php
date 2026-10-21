@@ -44,6 +44,73 @@ function member_preference_notification_row($preference_type, $value) {
     return 'member-preference-' . $preference_type . '-' . md5(strtolower(trim((string)$value)));
 }
 
+function member_preference_roles_normalize($roles) {
+    if (!is_array($roles)) return [];
+    $normalized = [];
+    $seen = [];
+    foreach ($roles as $role) {
+        if (!is_scalar($role)) continue;
+        $role = trim((string)$role);
+        if ($role === '') continue;
+        $key = strtolower($role);
+        if (isset($seen[$key])) continue;
+        $seen[$key] = true;
+        $normalized[] = $role;
+    }
+    return $normalized;
+}
+
+function member_preference_roles_from_storage($json_roles, $legacy_role = '') {
+    if ($json_roles !== null && trim((string)$json_roles) !== '') {
+        $decoded = json_decode((string)$json_roles, true);
+        if (is_array($decoded)) return member_preference_roles_normalize($decoded);
+    }
+    $legacy_role = trim((string)$legacy_role);
+    return $legacy_role === '' ? [] : [$legacy_role];
+}
+
+function member_preference_roles_json($roles) {
+    return json_encode(member_preference_roles_normalize($roles), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}
+
+function member_preference_roles_legacy_value($roles) {
+    $roles = member_preference_roles_normalize($roles);
+    foreach ($roles as $role) {
+        if (strcasecmp($role, 'Worshipper') === 0) return 'Worshipper';
+    }
+    return $roles[0] ?? '';
+}
+
+function member_preference_role_lists_equal($left, $right) {
+    $left = array_map('strtolower', member_preference_roles_normalize($left));
+    $right = array_map('strtolower', member_preference_roles_normalize($right));
+    sort($left, SORT_STRING);
+    sort($right, SORT_STRING);
+    return $left === $right;
+}
+
+function member_preference_roles_has($roles, $role_name) {
+    foreach (member_preference_roles_normalize($roles) as $role) {
+        if (strcasecmp($role, trim((string)$role_name)) === 0) return true;
+    }
+    return false;
+}
+
+function ensure_member_preference_roles_schema($conn) {
+    if (!$conn) return false;
+    $columns = [
+        'desired_role_prefs_json' => 'ALTER TABLE members ADD COLUMN desired_role_prefs_json TEXT NULL AFTER desired_role_pref',
+        'pending_desired_role_prefs_json' => 'ALTER TABLE members ADD COLUMN pending_desired_role_prefs_json TEXT NULL AFTER pending_desired_role_pref',
+    ];
+    foreach ($columns as $column => $alter_sql) {
+        $column_result = $conn->query("SHOW COLUMNS FROM members LIKE '$column'");
+        if ($column_result && $column_result->num_rows === 0) {
+            if (!$conn->query($alter_sql)) return false;
+        }
+    }
+    return true;
+}
+
 function notification_route_metadata($message) {
     $metadata = ['tab' => '', 'group' => '', 'row' => ''];
     foreach (['tab', 'group', 'row'] as $key) {
@@ -1059,7 +1126,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 addHighlightedRow(explicitRow);
                 var pendingPreferenceMatch = explicitRowMatch[1].match(/^member-village-update-(\d+)$/i);
-                var requestReasonMatch = notificationMessage.match(/\bReason:\s*([\s\S]*?)(?=\s*\[notification-(?:tab|group|row):|$)/i);
+                var requestReasonMatch = notificationMessage.match(/\bReasons?:\s*([\s\S]*?)(?=\s*\[notification-(?:tab|group|row):|$)/i);
                 if (pendingPreferenceMatch && requestReasonMatch) {
                     var requestReason = explicitRow.querySelector('[data-preference-reason-for-request="' + pendingPreferenceMatch[1] + '"]');
                     if (requestReason) requestReason.classList.add("notification-preference-reason-glow");

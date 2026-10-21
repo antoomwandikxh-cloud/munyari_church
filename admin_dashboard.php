@@ -189,6 +189,7 @@ if (!function_exists('render_dashboard_leader_profiles_overview')) {
     }
 }
 if (!isset($_SESSION['admin_id'])) { header("Location: login.php"); exit(); }
+ensure_member_preference_roles_schema($conn);
 
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
 $notification_tab_glow = $_SESSION['notification_tab_glow'] ?? '';
@@ -4342,7 +4343,7 @@ w.document.write('</div>');
                     $v_color = $village_colors[$v] ?? '#94a3b8';
                     
                     // Fetch members
-                    $v_members_res = $conn->query("SELECT id, first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type, " . role_rank_case_sql('church_role') . " AS role_rank FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, role_rank ASC, first_name ASC");
+                    $v_members_res = $conn->query("SELECT id, first_name, last_name, department, church_role, phone, desired_role_pref, desired_role_prefs_json, profile_picture, church_village, is_village_leader, 'Member' AS person_type, " . role_rank_case_sql('church_role') . " AS role_rank FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, role_rank ASC, first_name ASC");
                     $v_count = $v_members_res ? $v_members_res->num_rows : 0;
                     
                     $v_leaders = [];
@@ -4412,7 +4413,8 @@ w.document.write('</div>');
                             </thead>
                             <tbody>
                             <?php $i = 1; foreach ($all_v_rows as $row):
-                                $dsr = $row['desired_role_pref'] ?? '';
+                                $row_desired_roles = member_preference_roles_from_storage($row['desired_role_prefs_json'] ?? null, $row['desired_role_pref'] ?? '');
+                                $dsr = $row_desired_roles ? implode(', ', $row_desired_roles) : '';
                                 $dsr_color = $dsr === 'Worshipper' ? '#8b5cf6' : ($dsr === 'Church Cleaner' ? '#0ea5e9' : ($dsr === 'Church Cooker' ? '#f59e0b' : '#94a3b8'));
                                 $is_leader = !empty($row['is_village_leader']);
                                 $is_pastor = ($row['person_type'] === 'Pastor');
@@ -4481,7 +4483,7 @@ w.document.write('</div>');
                         $c_role_esc = $conn->real_escape_string($c_role);
                         $c_color    = $badge_colors_map[$c_role] ?? '#8b5cf6';
                         $c_icon     = $badge_icons_map[$c_role]  ?? '✨';
-                        $cmems = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone FROM members WHERE desired_role_pref='$c_role_esc' ORDER BY church_village, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name");
+                        $cmems = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone FROM members WHERE desired_role_pref='$c_role_esc' OR (JSON_VALID(desired_role_prefs_json) AND JSON_CONTAINS(desired_role_prefs_json, JSON_QUOTE('$c_role_esc'))) ORDER BY church_village, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name");
                         $c_count = $cmems ? $cmems->num_rows : 0;
                 ?>
                 <div class="content-card" style="margin-bottom: 24px; border-top: 4px solid <?= $c_color ?>;">

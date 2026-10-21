@@ -308,6 +308,7 @@ if (!function_exists('render_building_leader_profiles_card')) {
 require_once 'notification_badges.php';
 require_once 'village_leader_chat_helper.php';
 if (!isset($_SESSION['pastor_id'])) { header("Location: login.php"); exit(); }
+ensure_member_preference_roles_schema($conn);
 
 $pastor_id = $_SESSION['pastor_id'];
 $pending_preference_reason_column = $conn->query("SHOW COLUMNS FROM members LIKE 'pending_preference_reason'");
@@ -3525,32 +3526,42 @@ w.document.write('</div>');
                 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['handle_village_update'])) {
                     $update_id = (int)$_POST['member_id'];
                     $action = $_POST['action'];
-                    $mem = $conn->query("SELECT first_name, last_name, church_village, desired_role_pref, pending_church_village, pending_desired_role_pref, pending_preference_reason FROM members WHERE id = $update_id")->fetch_assoc();
+                    $mem = $conn->query("SELECT first_name, last_name, church_village, desired_role_pref, desired_role_prefs_json, pending_church_village, pending_desired_role_pref, pending_desired_role_prefs_json, pending_preference_reason FROM members WHERE id = $update_id")->fetch_assoc();
                     if ($mem && $mem['pending_church_village']) {
                         $pending_village_for_focus = trim((string)($mem['pending_church_village'] ?? ''));
                         $current_village_for_focus = trim((string)($mem['church_village'] ?? ''));
-                        $pending_role_for_focus = trim((string)($mem['pending_desired_role_pref'] ?? ''));
-                        $current_role_for_focus = trim((string)($mem['desired_role_pref'] ?? ''));
+                        $pending_roles_for_focus = member_preference_roles_from_storage($mem['pending_desired_role_prefs_json'] ?? null, $mem['pending_desired_role_pref'] ?? '');
+                        $current_roles_for_focus = member_preference_roles_from_storage($mem['desired_role_prefs_json'] ?? null, $mem['desired_role_pref'] ?? '');
                         $preference_focus_row = 'member-village-update-' . $update_id;
                         if (strcasecmp($pending_village_for_focus, $current_village_for_focus) !== 0) {
                             $preference_focus_row = member_preference_notification_row('village', $pending_village_for_focus);
-                        } elseif (strcasecmp($pending_role_for_focus, $current_role_for_focus) !== 0) {
-                            $preference_focus_row = member_preference_notification_row('role', $pending_role_for_focus);
+                        } elseif (!member_preference_role_lists_equal($pending_roles_for_focus, $current_roles_for_focus)) {
+                            $focus_role = '';
+                            foreach ($pending_roles_for_focus as $pending_role) {
+                                if (!member_preference_roles_has($current_roles_for_focus, $pending_role)) { $focus_role = $pending_role; break; }
+                            }
+                            if ($focus_role === '') {
+                                foreach ($current_roles_for_focus as $current_role) {
+                                    if (!member_preference_roles_has($pending_roles_for_focus, $current_role)) { $focus_role = $current_role; break; }
+                                }
+                            }
+                            $preference_focus_row = member_preference_notification_row('role', $focus_role);
                         }
                         if ($action === 'approve') {
                             $new_v_raw = trim((string)$mem['pending_church_village']);
                             $new_v = $conn->real_escape_string($new_v_raw);
-                            $new_drp_val = $mem['pending_desired_role_pref'];
-                            $new_drp = $new_drp_val ? "'" . $conn->real_escape_string($new_drp_val) . "'" : "NULL";
+                            $new_roles = $pending_roles_for_focus;
+                            $new_drp_val = member_preference_roles_legacy_value($new_roles);
+                            $new_drp = $new_drp_val !== '' ? "'" . $conn->real_escape_string($new_drp_val) . "'" : 'NULL';
+                            $new_roles_json = $conn->real_escape_string(member_preference_roles_json($new_roles));
                             $approved_changes = [];
                             $current_v_raw = trim((string)($mem['church_village'] ?? ''));
-                            $current_drp_raw = trim((string)($mem['desired_role_pref'] ?? ''));
-                            $approved_role_raw = trim((string)($new_drp_val ?? ''));
+                            $current_roles = $current_roles_for_focus;
                             if (strcasecmp($current_v_raw, $new_v_raw) !== 0) {
                                 $approved_changes[] = 'your church village to ' . $new_v_raw;
                             }
-                            if (strcasecmp($current_drp_raw, $approved_role_raw) !== 0) {
-                                $approved_changes[] = 'your desired role to ' . ($approved_role_raw !== '' ? $approved_role_raw : 'No role');
+                            if (!member_preference_role_lists_equal($current_roles, $new_roles)) {
+                                $approved_changes[] = 'your desired roles to ' . ($new_roles ? implode(', ', $new_roles) : 'No role');
                             }
                             $approved_request = $approved_changes
                                 ? 'change ' . implode(' and ', $approved_changes)
@@ -3558,7 +3569,7 @@ w.document.write('</div>');
                             $approval_message = 'The Pastor approved your request to ' . $approved_request . '.';
                             $routed_approval_message = notification_with_route($approval_message, 'desired_roles', '', $preference_focus_row);
                             $escaped_approval_message = $conn->real_escape_string($routed_approval_message);
-                            $village_update_ok = $conn->query("UPDATE members SET church_village = '$new_v', desired_role_pref = $new_drp, pending_church_village = NULL, pending_desired_role_pref = NULL, pending_preference_reason = NULL WHERE id = $update_id");
+                            $village_update_ok = $conn->query("UPDATE members SET church_village = '$new_v', desired_role_pref = $new_drp, desired_role_prefs_json = '$new_roles_json', pending_church_village = NULL, pending_desired_role_pref = NULL, pending_desired_role_prefs_json = NULL, pending_preference_reason = NULL WHERE id = $update_id");
                             if ($village_update_ok && strcasecmp(trim((string)($mem['church_village'] ?? '')), $new_v_raw) !== 0) {
                                 notify_church_village_leaders_of_member($conn, $update_id, $new_v_raw);
                             }
@@ -3567,12 +3578,11 @@ w.document.write('</div>');
                                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($update_id, 'member', '$escaped_approval_message')");
                             }
                             
-                            $old_drp_val = trim((string)($mem['desired_role_pref'] ?? ''));
-                            if (strcasecmp(trim((string)$new_drp_val), 'Worshipper') === 0 && strcasecmp($old_drp_val, 'Worshipper') !== 0) {
+                            if (member_preference_roles_has($new_roles, 'Worshipper') && !member_preference_roles_has($current_roles, 'Worshipper')) {
                                 $wl_name  = $conn->real_escape_string($mem['first_name'] . ' ' . $mem['last_name']);
                                 $wc_res = $conn->query("SELECT COUNT(*) as c FROM members WHERE is_approved=1 AND (LOWER(TRIM(church_role)) LIKE '%worshipper%' OR LOWER(TRIM(department)) LIKE '%worship%' OR desired_role_pref='Worshipper')");
                                 $wc = $wc_res ? $wc_res->fetch_assoc()['c'] : 0;
-                                $wl_notif = $conn->real_escape_string("A new worshipper ($wl_name) has joined! Total worshippers is now $wc.");
+                                $wl_notif = $conn->real_escape_string(notification_with_route("A new worshipper ($wl_name) has joined! Total worshippers is now $wc.", 'manage_worshippers'));
                                 
                                 $wleaders = $conn->query("SELECT id FROM members WHERE is_approved = 1 AND LOWER(TRIM(church_role)) IN ('worship leader','vice worship leader')");
                                 if ($wleaders) { while ($wl = $wleaders->fetch_assoc()) { $conn->query("INSERT INTO notifications (user_id,user_type,message) VALUES ({$wl['id']},'member','$wl_notif')"); } }
@@ -3590,13 +3600,13 @@ w.document.write('</div>');
                                 $declined_changes = [];
                                 $pending_village = trim((string)($mem['pending_church_village'] ?? ''));
                                 $current_village = trim((string)($mem['church_village'] ?? ''));
-                                $pending_role = trim((string)($mem['pending_desired_role_pref'] ?? ''));
-                                $current_role = trim((string)($mem['desired_role_pref'] ?? ''));
+                                $pending_roles = $pending_roles_for_focus;
+                                $current_roles = $current_roles_for_focus;
                                 if ($pending_village !== '' && strcasecmp($pending_village, $current_village) !== 0) {
                                     $declined_changes[] = 'your church village to ' . $pending_village;
                                 }
-                                if (strcasecmp($pending_role, $current_role) !== 0) {
-                                    $declined_changes[] = 'your desired role to ' . ($pending_role !== '' ? $pending_role : 'No role');
+                                if (!member_preference_role_lists_equal($pending_roles, $current_roles)) {
+                                    $declined_changes[] = 'your desired roles to ' . ($pending_roles ? implode(', ', $pending_roles) : 'No role');
                                 }
                                 $declined_request = $declined_changes
                                     ? 'change ' . implode(' and ', $declined_changes)
@@ -3604,7 +3614,7 @@ w.document.write('</div>');
                                 $decline_message = 'The Pastor declined your request to ' . $declined_request . '. Reason: ' . $decline_reason;
                                 $routed_decline_message = notification_with_route($decline_message, 'desired_roles', '', $preference_focus_row);
                                 $escaped_decline_message = $conn->real_escape_string($routed_decline_message);
-                                $conn->query("UPDATE members SET pending_church_village = NULL, pending_desired_role_pref = NULL, pending_preference_reason = NULL WHERE id = $update_id");
+                                $conn->query("UPDATE members SET pending_church_village = NULL, pending_desired_role_pref = NULL, pending_desired_role_prefs_json = NULL, pending_preference_reason = NULL WHERE id = $update_id");
                                 $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($update_id, 'member', '$escaped_decline_message')");
                                 echo "<div style='background:rgba(239,68,68,0.1);color:var(--danger);padding:12px 16px;border-radius:8px;margin-bottom:16px;'>Update rejected and the member has been notified.</div>";
                             }
@@ -3709,7 +3719,7 @@ w.document.write('</div>');
                 <?php endif; ?>
                 <?php
                 // Fetch Pending Updates
-                $pending_updates = $conn->query("SELECT id, first_name, last_name, church_village, pending_church_village, desired_role_pref, pending_desired_role_pref, pending_preference_reason FROM members WHERE pending_church_village IS NOT NULL ORDER BY first_name ASC");
+                $pending_updates = $conn->query("SELECT id, first_name, last_name, church_village, pending_church_village, desired_role_pref, desired_role_prefs_json, pending_desired_role_pref, pending_desired_role_prefs_json, pending_preference_reason FROM members WHERE pending_church_village IS NOT NULL ORDER BY first_name ASC");
                 if ($pending_updates && $pending_updates->num_rows > 0):
                 ?>
                 <div class="content-card" style="margin-bottom: 30px; border-left: 4px solid var(--warning);">
@@ -3726,18 +3736,20 @@ w.document.write('</div>');
                                     <td><?= htmlspecialchars($pu['first_name'] . ' ' . $pu['last_name']) ?></td>
                                     <td>
                                         <span style="display:block;font-size:0.9rem;"><?= htmlspecialchars($pu['church_village'] ?? 'None') ?></span>
-                                        <span style="font-size:0.75rem;color:var(--text-muted);"><?= htmlspecialchars($pu['desired_role_pref'] ?? 'No role') ?></span>
+                                        <?php $pu_current_roles = member_preference_roles_from_storage($pu['desired_role_prefs_json'] ?? null, $pu['desired_role_pref'] ?? ''); ?>
+                                        <span style="font-size:0.75rem;color:var(--text-muted);"><?= htmlspecialchars($pu_current_roles ? implode(', ', $pu_current_roles) : 'No role') ?></span>
                                     </td>
                                     <td>
                                         <?php
                                         $pending_village_changed = strcasecmp(trim((string)($pu['pending_church_village'] ?? '')), trim((string)($pu['church_village'] ?? ''))) !== 0;
-                                        $pending_role_changed = strcasecmp(trim((string)($pu['pending_desired_role_pref'] ?? '')), trim((string)($pu['desired_role_pref'] ?? ''))) !== 0;
+                                        $pu_pending_roles = member_preference_roles_from_storage($pu['pending_desired_role_prefs_json'] ?? null, $pu['pending_desired_role_pref'] ?? '');
+                                        $pending_role_changed = !member_preference_role_lists_equal($pu_pending_roles, $pu_current_roles);
                                         ?>
                                         <?php if ($pending_village_changed): ?>
                                             <span style="display:block;font-size:0.9rem;font-weight:600;color:var(--primary);">Church village &rarr; <?= htmlspecialchars($pu['pending_church_village']) ?></span>
                                         <?php endif; ?>
                                         <?php if ($pending_role_changed): ?>
-                                            <span style="display:block;font-size:0.75rem;color:var(--text-muted);">Desired role &rarr; <?= htmlspecialchars($pu['pending_desired_role_pref'] ?? 'No role') ?></span>
+                                            <span style="display:block;font-size:0.75rem;color:var(--text-muted);">Desired roles &rarr; <?= htmlspecialchars($pu_pending_roles ? implode(', ', $pu_pending_roles) : 'No role') ?></span>
                                         <?php endif; ?>
                                         <?php if (!$pending_village_changed && !$pending_role_changed): ?>
                                             <span style="font-size:0.85rem;color:var(--text-muted);">No preference changes detected</span>
@@ -3860,7 +3872,7 @@ w.document.write('</div>');
                     $v_color = $village_colors[$v] ?? '#94a3b8';
                     
                     // Fetch members
-                    $v_members_res = $conn->query("SELECT id, first_name, last_name, department, church_role, phone, desired_role_pref, profile_picture, church_village, is_village_leader, 'Member' AS person_type, " . role_rank_case_sql('church_role') . " AS role_rank FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, role_rank ASC, first_name ASC");
+                    $v_members_res = $conn->query("SELECT id, first_name, last_name, department, church_role, phone, desired_role_pref, desired_role_prefs_json, profile_picture, church_village, is_village_leader, 'Member' AS person_type, " . role_rank_case_sql('church_role') . " AS role_rank FROM members WHERE church_village='$v' ORDER BY is_village_leader DESC, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, role_rank ASC, first_name ASC");
                     $v_count = $v_members_res ? $v_members_res->num_rows : 0;
                     
                     $v_leaders = [];
@@ -3930,7 +3942,8 @@ w.document.write('</div>');
                             </thead>
                             <tbody>
                             <?php $i = 1; foreach ($all_v_rows as $row):
-                                $dsr = $row['desired_role_pref'] ?? '';
+                                $row_desired_roles = member_preference_roles_from_storage($row['desired_role_prefs_json'] ?? null, $row['desired_role_pref'] ?? '');
+                                $dsr = $row_desired_roles ? implode(', ', $row_desired_roles) : '';
                                 $dsr_color = $dsr === 'Worshipper' ? '#8b5cf6' : ($dsr === 'Church Cleaner' ? '#0ea5e9' : ($dsr === 'Church Cooker' ? '#f59e0b' : '#94a3b8'));
                                 $is_leader = !empty($row['is_village_leader']);
                                 $is_pastor = ($row['person_type'] === 'Pastor');
@@ -3999,7 +4012,7 @@ w.document.write('</div>');
                         $c_role_esc = $conn->real_escape_string($c_role);
                         $c_color    = $badge_colors_map[$c_role] ?? '#8b5cf6';
                         $c_icon     = $badge_icons_map[$c_role]  ?? '✨';
-                        $cmems = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone FROM members WHERE desired_role_pref='$c_role_esc' ORDER BY church_village, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name");
+                        $cmems = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone FROM members WHERE desired_role_pref='$c_role_esc' OR (JSON_VALID(desired_role_prefs_json) AND JSON_CONTAINS(desired_role_prefs_json, JSON_QUOTE('$c_role_esc'))) ORDER BY church_village, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name");
                         $c_count = $cmems ? $cmems->num_rows : 0;
                 ?>
                 <div class="content-card" style="margin-bottom: 24px; border-top: 4px solid <?= $c_color ?>;">

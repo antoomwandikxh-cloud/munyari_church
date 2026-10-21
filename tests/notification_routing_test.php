@@ -8,6 +8,16 @@ function expect_same($expected, $actual, $label) {
     }
 }
 
+expect_same(['Worshipper', 'Church Cleaner'], member_preference_roles_normalize(['Worshipper', '', 'Church Cleaner', 'worshipper']), 'role lists are trimmed and de-duplicated case-insensitively');
+expect_same(['Church Cleaner'], member_preference_roles_from_storage(null, 'Church Cleaner'), 'legacy single-role records remain readable');
+expect_same(['Worshipper', 'Church Cleaner'], member_preference_roles_from_storage('["Worshipper","Church Cleaner"]', 'Other role'), 'stored JSON role lists take precedence over the legacy value');
+expect_same([], member_preference_roles_from_storage('[]', 'Legacy role'), 'an explicit empty JSON role list means no role is selected');
+expect_same('["Worshipper","Church Cleaner"]', member_preference_roles_json(['Worshipper', 'Church Cleaner']), 'the complete selected role set can be persisted');
+expect_same('Worshipper', member_preference_roles_legacy_value(['Church Cleaner', 'Worshipper']), 'the legacy value prioritizes Worshipper for compatibility');
+expect_same(true, member_preference_roles_has(['Choir Leader', 'Church Cleaner'], 'choir leader'), 'role membership ignores case');
+expect_same(true, member_preference_role_lists_equal(['Choir Leader', 'Church Cleaner'], ['church cleaner', 'choir leader']), 'role set equality ignores ordering and case');
+expect_same(false, member_preference_role_lists_equal(['Choir Leader'], []), 'removing every role is a change');
+
 $routed_message = notification_with_route(
     'A new member was approved.',
     'manage_department',
@@ -85,6 +95,19 @@ $village_update_glow = render_notification_tab_glow_script('desired_roles', 'des
 if (strpos($village_update_glow, 'notification-row:member-village-update-42') === false
     || strpos($village_update_glow, 'notification-row-glow') === false) {
     fwrite(STDERR, "FAIL: village preference request opens and highlights the exact pending member row.\n");
+    exit(1);
+}
+$multi_role_exit_notification = notification_with_route(
+    "Member Rose requested these desired roles: No role and requested to leave Choir Leader. Reasons:\nLeaving Choir Leader: I can no longer serve.",
+    'desired_roles',
+    '',
+    'member-village-update-42'
+);
+$multi_role_exit_glow = render_notification_tab_glow_script('desired_roles', 'desired_roles', $multi_role_exit_notification);
+if (strpos($multi_role_exit_glow, 'Reasons:') === false
+    || strpos($multi_role_exit_glow, 'data-preference-reason-for-request') === false
+    || strpos($multi_role_exit_glow, 'notification-preference-reason-glow') === false) {
+    fwrite(STDERR, "FAIL: multi-role exit reasons remain visible and glow in the exact Pastor request row.\n");
     exit(1);
 }
 $worship_preference_request = notification_with_route(

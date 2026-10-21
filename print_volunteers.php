@@ -1,10 +1,12 @@
 <?php
 session_start();
 require_once 'db_connect.php';
+require_once 'notification_badges.php';
 
 if (!isset($_SESSION['pastor_id']) && !isset($_SESSION['admin_id'])) {
     die("Unauthorized access.");
 }
+ensure_member_preference_roles_schema($conn);
 
 $print_date = date('F j, Y \a\t g:i A');
 $village_colors = ['Akoritho' => '#6366f1', 'Philadelphia' => '#0ea5e9', 'Bethsaida' => '#10b981'];
@@ -54,7 +56,7 @@ $role_data = [];
 foreach ($all_roles as $role) {
     $esc = $conn->real_escape_string($role);
     $members = [];
-    $mq = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type FROM members WHERE desired_role_pref='$esc' AND is_approved=1 ORDER BY CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name ASC, last_name ASC");
+    $mq = $conn->query("SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type FROM members WHERE is_approved=1 AND (desired_role_pref='$esc' OR (JSON_VALID(desired_role_prefs_json) AND JSON_CONTAINS(desired_role_prefs_json, JSON_QUOTE('$esc')))) ORDER BY CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name ASC, last_name ASC");
     if ($mq) { while ($row = $mq->fetch_assoc()) $members[] = $row; }
     $pq = $conn->query("SELECT first_name, last_name, church_village, department, role AS church_role, phone, profile_picture, 'Pastor' AS person_type FROM pastors WHERE desired_role_pref='$esc' AND is_approved=1");
     if ($pq) { while ($row = $pq->fetch_assoc()) $members[] = $row; }

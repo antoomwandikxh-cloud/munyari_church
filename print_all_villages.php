@@ -25,10 +25,12 @@ function render_role_pills($church_role_raw, $is_pastor = false, $is_leader = fa
 
 session_start();
 require_once 'db_connect.php';
+require_once 'notification_badges.php';
 
 if (!isset($_SESSION['pastor_id']) && !isset($_SESSION['admin_id'])) {
     die("Unauthorized access.");
 }
+ensure_member_preference_roles_schema($conn);
 
 $villages       = ['Akoritho', 'Philadelphia', 'Bethsaida'];
 $village_colors = ['Akoritho' => '#6366f1', 'Philadelphia' => '#0ea5e9', 'Bethsaida' => '#10b981'];
@@ -85,12 +87,12 @@ if ($pq) {
 /* ── Cleaners + Cookers ──────────────────────────────────────── */
 $cleaners_q = $conn->query(
     "SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type
-     FROM members WHERE desired_role_pref='Church Cleaner' AND is_approved=1
+     FROM members WHERE is_approved=1 AND (desired_role_pref='Church Cleaner' OR (JSON_VALID(desired_role_prefs_json) AND JSON_CONTAINS(desired_role_prefs_json, JSON_QUOTE('Church Cleaner'))))
      ORDER BY church_village, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name"
 );
 $cookers_q = $conn->query(
     "SELECT first_name, last_name, church_village, department, church_role, phone, profile_picture, 'Member' AS person_type
-     FROM members WHERE desired_role_pref='Church Cooker' AND is_approved=1
+     FROM members WHERE is_approved=1 AND (desired_role_pref='Church Cooker' OR (JSON_VALID(desired_role_prefs_json) AND JSON_CONTAINS(desired_role_prefs_json, JSON_QUOTE('Church Cooker'))))
      ORDER BY church_village, CASE department WHEN 'Elders' THEN 1 WHEN 'Womens Ministry' THEN 2 WHEN 'Youths' THEN 3 WHEN 'Sunday School' THEN 4 ELSE 5 END ASC, first_name"
 );
 
@@ -304,7 +306,7 @@ foreach ($villages as $v):
     // All approved members of this village, leader first
     $mq  = $conn->query(
         "SELECT first_name, last_name, department, church_role, phone,
-                desired_role_pref, is_village_leader, profile_picture,
+                desired_role_pref, desired_role_prefs_json, is_village_leader, profile_picture,
                 'member' AS ptype
          FROM members
          WHERE church_village='$vs' AND is_approved=1
@@ -353,8 +355,7 @@ foreach ($villages as $v):
             foreach ($all_rows as $row):
                 $is_leader  = !empty($row['is_village_leader']);
                 $is_pastor  = ($row['ptype'] === 'pastor');
-                $dsr        = $row['desired_role_pref'] ?? '';
-                $dsr_c      = ['Worshipper'=>'#8b5cf6','Church Cleaner'=>'#0ea5e9','Church Cooker'=>'#f59e0b'][$dsr] ?? '#94a3b8';
+                $desired_roles = member_preference_roles_from_storage($row['desired_role_prefs_json'] ?? null, $row['desired_role_pref'] ?? '');
                 $pic_b64    = img_b64($row['profile_picture'] ?? '');
                 $row_class  = $is_leader ? 'lrow' : ($is_pastor ? 'prow' : '');
         ?>
@@ -378,8 +379,10 @@ foreach ($villages as $v):
                 <td style="color:#666; font-weight:600;"><?= htmlspecialchars($row['phone'] ?? '—') ?></td>
                 <td><?= render_role_pills($row['church_role'] ?? '', $is_pastor, $is_leader) ?></td>
                 <td>
-                    <?php if ($dsr): ?>
-                        <span class="badge" style="background:<?= $dsr_c ?>22;color:<?= $dsr_c ?>;"><?= htmlspecialchars($dsr) ?></span>
+                    <?php if ($desired_roles): ?>
+                        <?php foreach ($desired_roles as $dsr): $dsr_c = ['Worshipper'=>'#8b5cf6','Church Cleaner'=>'#0ea5e9','Church Cooker'=>'#f59e0b'][$dsr] ?? '#94a3b8'; ?>
+                            <span class="badge" style="background:<?= $dsr_c ?>22;color:<?= $dsr_c ?>;"><?= htmlspecialchars($dsr) ?></span>
+                        <?php endforeach; ?>
                     <?php else: ?>
                         <span style="color:#bbb;">—</span>
                     <?php endif; ?>
