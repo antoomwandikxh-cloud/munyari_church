@@ -1528,6 +1528,15 @@ $ctx_is_choir_leader          = $is_choir_leader         && in_array($active_das
 $ctx_is_prayer_coordinator    = $is_prayer_coordinator   && in_array($active_dashboard_dept, $prayer_coordinator_depts);
 $ctx_is_sport_secretary       = $is_sport_secretary      && in_array($active_dashboard_dept, $sport_secretary_depts);
 // Graduation secretary is department-specific — only show if active dept supports it
+$ctx_has_regular_department_secretary = false;
+foreach ($secretary_departments as $secretary_role => $secretary_dept) {
+    if ($secretary_role === 'graduands secretary') continue;
+    if (in_array($secretary_role, $member_roles_normalized, true) && department_matches($active_dashboard_dept, $secretary_dept)) {
+        $ctx_has_regular_department_secretary = true;
+        break;
+    }
+}
+$ctx_show_secretary_panel = $ctx_has_regular_department_secretary || ($ctx_is_secretary && !$ctx_is_graduands_secretary);
 $ctx_is_graduands_secretary   = $is_graduands_secretary  && department_allows_graduation_and_sport($active_dashboard_dept);
 $ctx_is_subsidiary_leader = in_array($active_dashboard_dept, $subsidiary_leader_depts, true);
 $can_use_department_leader_chat = $ctx_is_leader || $ctx_is_secretary || $ctx_is_organizing_secretary
@@ -3432,22 +3441,24 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <a href="?tab=appoint_leaders" class="sidebar-link <?= $tab == 'appoint_leaders' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
                         Appoint Leaders
+                    <?php if (!$ctx_is_graduands_secretary): ?>
                     </a>
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
                         <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
                         <?= render_tab_notification_badge($tab_badges, 'leader_chat') ?>
+                    <?php endif; ?>
                     </a>
                 <?php endif; ?>
 
                 <!-- Secretary Panel -->
-                <?php if ($ctx_is_secretary): ?>
+                <?php if ($ctx_show_secretary_panel): ?>
                     <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: var(--primary); margin-top: 10px;">Secretary Panel</div>
                     <a href="?tab=dept_announcements" class="sidebar-link <?= $tab == 'dept_announcements' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
                         <?= htmlspecialchars($managed_dept) ?> Announcement
                     </a>
-                    <?php if (!$ctx_is_leader): ?>
+                    <?php if (!$ctx_is_leader && !$ctx_is_graduands_secretary): ?>
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
                         <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
@@ -3504,14 +3515,14 @@ if ($is_ss_member_setup && !$has_ss_class_setup && $tab !== 'manage_classes') {
                     <?php endif; ?>
                 <?php endif; ?>
 
-                <!-- Graduation Panel -->
+                <!-- Graduation Control Panel -->
                 <?php if ($is_graduands_secretary): ?>
-                    <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: var(--primary); margin-top: 10px;">Graduation Panel</div>
+                    <div class="sidebar-label" style="padding: 10px 20px; font-size: 12px; text-transform: uppercase; color: var(--primary); margin-top: 10px;">Graduation Control Panel</div>
                     <a href="?tab=graduation_panel" class="sidebar-link <?= $tab == 'graduation_panel' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"></path></svg>
-                        Graduation Panel
+                        Manage Graduation
                     </a>
-                    <?php if (!$is_leader && !$is_secretary): ?>
+                    <?php if ($ctx_is_graduands_secretary): ?>
                     <a href="?tab=leader_chat" class="sidebar-link <?= $tab == 'leader_chat' ? 'active' : '' ?>">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l.586-.586z"></path></svg>
                         <?= htmlspecialchars($managed_dept ?? 'Youths') ?> Leaders Chat
@@ -9802,7 +9813,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
             <?php if ($tab == 'graduation_panel' && $is_graduands_secretary): ?>
                 <div class="page-header">
-                    <h1>Graduation Panel</h1>
+                    <h1>Manage Graduation</h1>
                     <p>Manage the list of graduating youths for the current year and make graduation announcements.</p>
                 </div>
 
@@ -9836,20 +9847,142 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <!-- Add to Roster -->
                 <div class="content-card">
                     <h2>Graduation Roster (<?= $current_year ?>)</h2>
-                    <form method="POST" action="member_action.php?action=add_graduand" style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <form id="graduationRosterForm" method="POST" action="member_action.php?action=add_graduand" style="display: flex; gap: 15px; margin-bottom: 20px; align-items: flex-start; flex-wrap: wrap;">
                         <?php
                         // Fetch non-graduating members in department
-                        $avail = $conn->query("SELECT m.id, m.first_name, m.last_name FROM members m
+                        $avail = $conn->query("SELECT m.id, m.first_name, m.last_name, m.profile_picture FROM members m
                             LEFT JOIN graduation_list gl ON m.id = gl.member_id AND gl.graduation_year = $current_year
+                        $available_graduand_count = $avail ? $avail->num_rows : 0;
                             WHERE m.department = '$esc_dept' AND m.is_approved = 1 AND gl.id IS NULL ORDER BY m.first_name ASC");
                         ?>
-                        <select name="member_id" class="form-control" style="flex: 1;" required>
-                            <option value="" disabled selected>-- Select Member to Add to Roster --</option>
-                            <?php while($a = $avail->fetch_assoc()): ?>
-                                <option value="<?= $a['id'] ?>"><?= htmlspecialchars($a['first_name'] . ' ' . $a['last_name']) ?></option>
-                            <?php endwhile; ?>
-                        </select>
-                        <button type="submit" class="btn-submit" style="width: auto;" <?= ($avail->num_rows == 0) ? 'disabled' : '' ?>>Add to Graduation List</button>
+                        <div id="graduationMemberPicker" style="position: relative; flex: 1; min-width: 240px;">
+                            <input type="hidden" name="member_id" id="graduationMemberId" value="">
+                            <button type="button" id="graduationMemberToggle" class="form-control" aria-haspopup="listbox" aria-expanded="false" <?= ($available_graduand_count === 0) ? 'disabled' : '' ?> style="width: 100%; min-height: 44px; display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer;">
+                                <img data-selected-photo src="uploads/default_avatar.png" alt="" hidden onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex: 0 0 34px;">
+                                <span data-selected-label><?= $available_graduand_count ? '-- Select Member to Add to Roster --' : 'No eligible members available' ?></span>
+                                <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-left: auto; flex: 0 0 16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"></path></svg>
+                            </button>
+                            <div id="graduationMemberMenu" hidden style="position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0; padding: 8px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 12px 28px rgba(0,0,0,.25);">
+                                <div style="display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-main);">
+                                    <svg aria-hidden="true" width="17" height="17" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24" style="flex: 0 0 17px;"><circle cx="11" cy="11" r="7" stroke-width="2"></circle><path d="m16 16 4 4" stroke-width="2" stroke-linecap="round"></path></svg>
+                                    <input id="graduationMemberSearch" type="search" inputmode="text" autocomplete="off" placeholder="Search members" aria-label="Search graduating members" style="width: 100%; min-width: 0; padding: 10px 0; border: 0; outline: 0; color: var(--text-main); background: transparent;">
+                                </div>
+                                <p id="graduationMemberSearchError" role="status" hidden style="margin: 6px 2px; color: var(--danger); font-size: .82rem;">Use letters, spaces, apostrophes, or hyphens only.</p>
+                                <div id="graduationMemberOptions" role="listbox" aria-label="Eligible graduating members" style="max-height: 280px; overflow-y: auto; margin-top: 6px;">
+                                    <?php while($a = $avail->fetch_assoc()): ?>
+                                        <?php
+                                        $graduand_name = trim($a['first_name'] . ' ' . $a['last_name']);
+                                        $graduand_photo = 'uploads/' . basename($a['profile_picture'] ?: 'default_avatar.png');
+                                        ?>
+                                        <button type="button" role="option" aria-selected="false" class="graduation-member-option" data-member-id="<?= (int)$a['id'] ?>" data-member-name="<?= htmlspecialchars($graduand_name, ENT_QUOTES, 'UTF-8') ?>" data-member-photo="<?= htmlspecialchars($graduand_photo, ENT_QUOTES, 'UTF-8') ?>" style="width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 6px; color: var(--text-main); background: transparent; text-align: left; cursor: pointer;">
+                                            <img src="<?= htmlspecialchars($graduand_photo, ENT_QUOTES, 'UTF-8') ?>" alt="" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); flex: 0 0 38px;">
+                                            <span><?= htmlspecialchars($graduand_name, ENT_QUOTES, 'UTF-8') ?></span>
+                                        </button>
+                                    <?php endwhile; ?>
+                                    <p id="graduationMemberNoResults" hidden style="margin: 10px 8px; color: var(--text-muted); font-size: .9rem;">No matching members.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-submit" style="width: auto;" <?= ($available_graduand_count === 0) ? 'disabled' : '' ?>>Add to Graduation List</button>
+                    <style>
+                        .graduation-member-option:hover,
+                        .graduation-member-option:focus-visible,
+                        .graduation-member-option[aria-selected="true"] {
+                            background: rgba(59, 130, 246, .14) !important;
+                            background: color-mix(in srgb, var(--primary) 12%, var(--bg-card)) !important;
+                            outline: none;
+                        }
+                        #graduationMemberSearch::-webkit-search-cancel-button { cursor: pointer; }
+                    </style>
+                    <script>
+                        (() => {
+                            const picker = document.getElementById('graduationMemberPicker');
+                            if (!picker) return;
+                            const form = document.getElementById('graduationRosterForm');
+                            const toggle = document.getElementById('graduationMemberToggle');
+                            const menu = document.getElementById('graduationMemberMenu');
+                            const search = document.getElementById('graduationMemberSearch');
+                            const hiddenMemberId = document.getElementById('graduationMemberId');
+                            const selectedPhoto = toggle.querySelector('[data-selected-photo]');
+                            const selectedLabel = toggle.querySelector('[data-selected-label]');
+                            const searchError = document.getElementById('graduationMemberSearchError');
+                            const noResults = document.getElementById('graduationMemberNoResults');
+                            const options = Array.from(picker.querySelectorAll('.graduation-member-option'));
+
+                            const closeMenu = () => {
+                                menu.hidden = true;
+                                toggle.setAttribute('aria-expanded', 'false');
+                            };
+                            const openMenu = (initialCharacter = '') => {
+                                menu.hidden = false;
+                                toggle.setAttribute('aria-expanded', 'true');
+                                requestAnimationFrame(() => {
+                                    search.focus();
+                                    if (initialCharacter) {
+                                        search.value = initialCharacter;
+                                        filterOptions();
+                                    }
+                                });
+                            };
+                            const filterOptions = () => {
+                                const typed = search.value;
+                                const cleaned = typed.replace(/[^\p{L}\s'-]/gu, '');
+                                const invalidInput = cleaned !== typed;
+                                if (invalidInput) search.value = cleaned;
+                                searchError.hidden = !invalidInput;
+                                const query = cleaned.trim().toLocaleLowerCase();
+                                let visibleCount = 0;
+                                options.forEach(option => {
+                                    const matches = option.dataset.memberName.toLocaleLowerCase().includes(query);
+                                    option.hidden = !matches;
+                                    if (matches) visibleCount++;
+                                });
+                                noResults.hidden = visibleCount > 0;
+                            };
+
+                            toggle.addEventListener('click', () => menu.hidden ? openMenu() : closeMenu());
+                            toggle.addEventListener('keydown', event => {
+                                if (event.key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey) return;
+                                const firstCharacter = event.key.replace(/[^\p{L}\s'-]/gu, '');
+                                event.preventDefault();
+                                if (!firstCharacter) {
+                                    searchError.hidden = false;
+                                    return;
+                                }
+                                if (menu.hidden) {
+                                    search.value = '';
+                                    openMenu(firstCharacter);
+                                } else {
+                                    search.focus();
+                                    search.value += firstCharacter;
+                                    filterOptions();
+                                }
+                            });
+                            search.addEventListener('input', filterOptions);
+                            search.addEventListener('keyup', () => requestAnimationFrame(filterOptions));
+                            options.forEach(option => option.addEventListener('click', () => {
+                                hiddenMemberId.value = option.dataset.memberId;
+                                selectedPhoto.src = option.dataset.memberPhoto;
+                                selectedPhoto.alt = option.dataset.memberName;
+                                selectedPhoto.hidden = false;
+                                selectedLabel.textContent = option.dataset.memberName;
+                                options.forEach(item => item.setAttribute('aria-selected', item === option ? 'true' : 'false'));
+                                searchError.hidden = true;
+                                closeMenu();
+                                toggle.focus();
+                            }));
+                            document.addEventListener('click', event => {
+                                if (!picker.contains(event.target)) closeMenu();
+                            });
+                            form.addEventListener('submit', event => {
+                                if (hiddenMemberId.value) return;
+                                event.preventDefault();
+                                openMenu();
+                                searchError.textContent = 'Select a member before adding to the graduation list.';
+                                searchError.hidden = false;
+                            });
+                        })();
+                    </script>
                     </form>
 
                     <?php
