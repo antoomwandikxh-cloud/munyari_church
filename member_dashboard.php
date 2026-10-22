@@ -9875,7 +9875,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         $graduand_photo = 'uploads/' . basename($a['profile_picture'] ?: 'default_avatar.png');
                                         ?>
                                         <button type="button" role="option" aria-selected="false" class="graduation-member-option" data-member-id="<?= (int)$a['id'] ?>" data-member-name="<?= htmlspecialchars($graduand_name, ENT_QUOTES, 'UTF-8') ?>" data-member-photo="<?= htmlspecialchars($graduand_photo, ENT_QUOTES, 'UTF-8') ?>" style="width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 6px; color: var(--text-main); background: transparent; text-align: left; cursor: pointer;">
-                                            <img src="<?= htmlspecialchars($graduand_photo, ENT_QUOTES, 'UTF-8') ?>" alt="" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); flex: 0 0 38px;">
+                                            <img src="<?= htmlspecialchars($graduand_photo, ENT_QUOTES, 'UTF-8') ?>" alt="View <?= htmlspecialchars($graduand_name, ENT_QUOTES, 'UTF-8') ?> profile photo" title="Click to view full profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); flex: 0 0 38px; cursor: zoom-in;">
                                             <span><?= htmlspecialchars($graduand_name, ENT_QUOTES, 'UTF-8') ?></span>
                                         </button>
                                     <?php endwhile; ?>
@@ -9908,6 +9908,15 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             const selectedLabel = toggle.querySelector('[data-selected-label]');
                             const searchError = document.getElementById('graduationMemberSearchError');
                             const noResults = document.getElementById('graduationMemberNoResults');
+                            options.forEach(option => {
+                                const profilePhoto = option.querySelector('img');
+                                if (!profilePhoto) return;
+                                profilePhoto.addEventListener('click', event => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    viewProfileImage(profilePhoto.currentSrc || profilePhoto.src);
+                                });
+                            });
                             const options = Array.from(picker.querySelectorAll('.graduation-member-option'));
 
                             const closeMenu = () => {
