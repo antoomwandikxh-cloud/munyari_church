@@ -56,12 +56,12 @@ const elements = {
 const document = {
     getElementById(id) { return elements[id] || null; },
     addEventListener() {}
-const viewedPhotos = [];
 };
+const viewedPhotos = [];
 
 vm.runInNewContext(`(() => { const picker = document.getElementById('graduationMemberPicker');${match[1]}`, {
-    viewProfileImage(src) { viewedPhotos.push(src); },
     document,
+    viewProfileImage(src) { viewedPhotos.push(src); },
     requestAnimationFrame(callback) { callback(); }
 });
 
@@ -69,6 +69,7 @@ search.value = 'r';
 search.listeners.input();
 assert.equal(menu.hidden, false, 'typing immediately opens the member list');
 assert.equal(options[0].style.display, 'flex', 'first-keypress match remains visible');
+assert.equal(options[1].style.display, 'none', 'non-matching option is hidden despite inline flex styling');
 let photoClickPrevented = false;
 let photoClickStopped = false;
 options[0].profilePhoto.listeners.click({
@@ -77,7 +78,6 @@ options[0].profilePhoto.listeners.click({
 });
 assert.equal(viewedPhotos[0], 'https://example.test/member-0.png', 'clicking a candidate profile photo opens the full-size preview');
 assert.equal(photoClickPrevented && photoClickStopped, true, 'photo preview does not select the member at the same time');
-assert.equal(options[1].style.display, 'none', 'non-matching option is hidden despite inline flex styling');
 
 search.value = 'r2';
 search.listeners.input();
