@@ -10076,18 +10076,17 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </div>
 
                     <?php
-                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.phone, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC, m.last_name ASC");
+                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC, m.last_name ASC");
                     if ($roster && $roster->num_rows > 0):
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th><th>Added Date</th></tr></thead>
+                                <thead><tr><th>Photo</th><th>Name</th><th>Graduation Date</th><th>Added Date</th></tr></thead>
                                 <tbody>
                                     <?php while($r = $roster->fetch_assoc()): ?>
                                         <tr data-notification-row="graduation-roster-<?= (int)$r['id'] ?>">
                                             <td><img data-graduation-roster-photo src="uploads/<?= htmlspecialchars(basename($r['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?> profile photo" title="Click to view profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src);" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"></td>
                                             <td style="font-weight:500;white-space:nowrap;"><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
-                                            <td><?= htmlspecialchars($r['phone'] ?? '-') ?></td>
                                             <td><?= !empty($r['graduation_date']) ? date('M j, Y', strtotime($r['graduation_date'])) : '-' ?></td>
                                             <td style="color: var(--text-muted);"><?= date('M j, Y', strtotime($r['added_at'])) ?></td>
                                         </tr>
