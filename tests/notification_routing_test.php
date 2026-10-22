@@ -398,6 +398,40 @@ if (strpos($glow_script, 'notification-row:department-member-42') === false
     || strpos($glow_script, 'notification-row-glow') === false) {
     fwrite(STDERR, "FAIL: explicit row metadata reaches the shared gold-glow handler.\n");
     exit(1);
+$graduation_notice = notification_with_route(
+    'Rose Mumbi has been added to the Youths graduation roster for 2026.',
+    'graduation_info',
+    notification_department_group_key('Youths'),
+    'graduation-roster-73'
+);
+expect_same(['graduation_info'], notification_badge_tabs($graduation_notice, 'member'), 'graduation roster notice badges the member Graduation Info tab');
+expect_same('graduation_info', notification_target_tab($graduation_notice, 'pastor'), 'graduation roster notice opens Pastor Graduation Info');
+expect_same('youths', notification_target_group($graduation_notice, 'admin'), 'graduation roster notice keeps the department route group');
+expect_same('graduation-roster-73', notification_route_metadata($graduation_notice)['row'], 'graduation roster notice focuses the inserted roster entry');
+expect_same('Rose Mumbi has been added to the Youths graduation roster for 2026.', notification_display_message($graduation_notice, 'member'), 'graduation route metadata stays out of the visible notice');
+$graduation_glow_script = render_notification_tab_glow_script('graduation_info', 'graduation_info', $graduation_notice);
+if (strpos($graduation_glow_script, 'notification-row:graduation-roster-73') === false
+    || strpos($graduation_glow_script, 'notification-row-glow') === false) {
+    fwrite(STDERR, "FAIL: graduation roster notification reaches the exact gold-glow row handler.\n");
+    exit(1);
+}
+$graduation_action_source = file_get_contents(__DIR__ . '/../member_action.php');
+if ($graduation_action_source === false
+    || strpos($graduation_action_source, 'notification_with_route($message, \'graduation_info\', $graduation_group, $graduation_row)') === false
+    || strpos($graduation_action_source, '$send_graduation_notification($recipient_id, \'member\', $member_message)') === false
+    || strpos($graduation_action_source, '$send_graduation_notification($pastor[\'id\'], \'pastor\', $oversight_message)') === false
+    || strpos($graduation_action_source, '$send_graduation_notification($admin[\'id\'], \'admin\', $oversight_message)') === false) {
+    fwrite(STDERR, "FAIL: adding a graduand must send routed notices to department members, pastors, and admins.\n");
+    exit(1);
+}
+foreach (['member_dashboard.php', 'pastor_dashboard.php', 'admin_dashboard.php'] as $graduation_dashboard) {
+    $graduation_dashboard_source = file_get_contents(__DIR__ . '/../' . $graduation_dashboard);
+    if ($graduation_dashboard_source === false
+        || strpos($graduation_dashboard_source, 'data-notification-row="graduation-roster-<?= (int)$r[\'id\'] ?>"') === false) {
+        fwrite(STDERR, "FAIL: $graduation_dashboard must render graduation row keys for exact notification highlights.\n");
+        exit(1);
+    }
+}
 }
 expect_same(['dashboard'], notification_badge_tabs('Unclassified legacy notification', 'member'), 'unclassified legacy notifications retain an unread badge');
 expect_same(['my_fines'], notification_badge_tabs('Fine issued to Jane: KSh 100', 'member'), 'legacy fine notifications retain their existing route');

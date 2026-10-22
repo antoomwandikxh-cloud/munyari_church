@@ -2144,37 +2144,99 @@ if (isset($_GET['action'])) {
     
     // Graduands Secretary: Add to Graduation List
     elseif ($action === 'add_graduand' && $_SERVER['REQUEST_METHOD'] == 'POST') {
-        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
+        $member_result = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1");
+        $member_query = $member_result ? $member_result->fetch_assoc() : null;
         if (member_has_role($member_query['church_role'] ?? '', 'graduands secretary')) {
-            $dept = $conn->real_escape_string($member_query['department']);
-            $target_id = (int)$_POST['member_id'];
-            $year = date('Y');
-            
-            $conn->query("INSERT INTO graduation_list (member_id, department, graduation_year, added_by) 
-                          VALUES ($target_id, '$dept', $year, $member_id)");
-                          
-            // Notify target member
-            $notif_msg = "Congratulations! You have been added to the graduation roster for $year.";
-            $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ($target_id, 'member', '$notif_msg')");
-            
-            // Fetch target member details for broadcasting
-            $target = $conn->query("SELECT first_name, last_name FROM members WHERE id = $target_id")->fetch_assoc();
-            $target_name = $conn->real_escape_string($target['first_name'] . ' ' . $target['last_name']);
-            
-            // Notify Chairman
-            $chair_msg = "$target_name has been added to the graduation roster for $year.";
-            $chairmen = $conn->query("SELECT id FROM members WHERE department = '$dept' AND church_role LIKE '%chairman%'");
-            while ($c = $chairmen->fetch_assoc()) {
-                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$c['id']}, 'member', '$chair_msg')");
+            $department = trim((string)($member_query['department'] ?? ''));
+            $target_id = (int)($_POST['member_id'] ?? 0);
+            $year = (int)date('Y');
+
+            $target_stmt = $conn->prepare("SELECT id, first_name, last_name FROM members
+                WHERE id = ? AND is_approved = 1 AND LOWER(TRIM(department)) = LOWER(TRIM(?)) LIMIT 1");
+            if (!$target_stmt) {
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not verify the selected member.'));
+                exit();
             }
-            
-            // Notify all other department members
-            $dept_msg = "$target_name is graduating this year ($year)!";
-            $members = $conn->query("SELECT id FROM members WHERE department = '$dept' AND id != $target_id AND is_approved = 1 AND church_role NOT LIKE '%chairman%'");
-            while ($m = $members->fetch_assoc()) {
-                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$m['id']}, 'member', '$dept_msg')");
+            $target_stmt->bind_param('is', $target_id, $department);
+            $target_stmt->execute();
+            $target_result = $target_stmt->get_result();
+            $target = $target_result ? $target_result->fetch_assoc() : null;
+            $target_stmt->close();
+            if (!$target) {
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Choose an approved member from your department.'));
+                exit();
             }
-                          
+
+            $existing_stmt = $conn->prepare("SELECT id FROM graduation_list WHERE member_id = ? AND graduation_year = ? LIMIT 1");
+            if ($existing_stmt) {
+                $existing_stmt->bind_param('ii', $target_id, $year);
+                $existing_stmt->execute();
+                $existing_result = $existing_stmt->get_result();
+                $already_added = $existing_result && $existing_result->num_rows > 0;
+                $existing_stmt->close();
+                if ($already_added) {
+                    header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('This member is already on the graduation roster.'));
+                    exit();
+                }
+            }
+
+            $insert_stmt = $conn->prepare("INSERT INTO graduation_list (member_id, department, graduation_year, added_by) VALUES (?, ?, ?, ?)");
+            if (!$insert_stmt) {
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not add this member to the graduation roster.'));
+                exit();
+            }
+            $insert_stmt->bind_param('isii', $target_id, $department, $year, $member_id);
+            $inserted = $insert_stmt->execute();
+            $graduation_entry_id = (int)$conn->insert_id;
+            $insert_stmt->close();
+            if (!$inserted || $graduation_entry_id < 1) {
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not add this member to the graduation roster.'));
+                exit();
+            }
+
+            $target_name = trim($target['first_name'] . ' ' . $target['last_name']);
+            $graduation_group = notification_department_group_key($department);
+            $graduation_row = 'graduation-roster-' . $graduation_entry_id;
+            $notification_stmt = $conn->prepare("INSERT INTO notifications (user_id, user_type, message) VALUES (?, ?, ?)");
+            $send_graduation_notification = function ($recipient_id, $recipient_type, $message) use ($notification_stmt, $graduation_group, $graduation_row) {
+                if (!$notification_stmt) return false;
+                $recipient_id = (int)$recipient_id;
+                $recipient_type = (string)$recipient_type;
+                $routed_message = notification_with_route($message, 'graduation_info', $graduation_group, $graduation_row);
+                $notification_stmt->bind_param('iss', $recipient_id, $recipient_type, $routed_message);
+                return $notification_stmt->execute();
+            };
+
+            $department_stmt = $conn->prepare("SELECT id FROM members WHERE is_approved = 1 AND LOWER(TRIM(department)) = LOWER(TRIM(?))");
+            if ($department_stmt) {
+                $department_stmt->bind_param('s', $department);
+                $department_stmt->execute();
+                $department_members = $department_stmt->get_result();
+                while ($department_member = $department_members->fetch_assoc()) {
+                    $recipient_id = (int)$department_member['id'];
+                    $member_message = $recipient_id === $target_id
+                        ? "You have been added to the $department graduation roster for $year."
+                        : "$target_name has been added to the $department graduation roster for $year.";
+                    $send_graduation_notification($recipient_id, 'member', $member_message);
+                }
+                $department_stmt->close();
+            }
+
+            $oversight_message = "New graduand: $target_name has been added to the $department graduation roster for $year.";
+            $pastors = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
+            if ($pastors) {
+                while ($pastor = $pastors->fetch_assoc()) {
+                    $send_graduation_notification($pastor['id'], 'pastor', $oversight_message);
+                }
+            }
+            $admins = $conn->query("SELECT id FROM admins");
+            if ($admins) {
+                while ($admin = $admins->fetch_assoc()) {
+                    $send_graduation_notification($admin['id'], 'admin', $oversight_message);
+                }
+            }
+            if ($notification_stmt) $notification_stmt->close();
+
             header("Location: member_dashboard.php?tab=graduation_panel&success=Member added to graduation roster");
             exit();
         }

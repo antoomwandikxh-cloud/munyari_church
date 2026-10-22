@@ -7109,7 +7109,7 @@ w.document.write('</div>');
                                 <thead><tr><th>Name</th><th>Department</th><th>Added Date</th></tr></thead>
                                 <tbody>
                                     <?php while($r = $roster->fetch_assoc()): ?>
-                                        <tr>
+                                        <tr data-graduation-kind="roster" data-graduation-department="<?= htmlspecialchars(notification_department_group_key($r['department']), ENT_QUOTES) ?>" data-notification-row="graduation-roster-<?= (int)$r['id'] ?>">
                                             <td style="font-weight: 500;"><svg width="18" height="18" fill="none" stroke="var(--primary)" viewBox="0 0 24 24" style="vertical-align: text-bottom; margin-right: 8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
                                             <td><span class="badge" style="background: rgba(37,99,235,0.1); color: var(--primary);"><?= htmlspecialchars($r['department']) ?></span></td>
                                             <td style="color: var(--text-muted);"><?= date('M j, Y', strtotime($r['added_at'])) ?></td>
