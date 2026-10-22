@@ -415,6 +415,14 @@ if (strpos($graduation_glow_script, 'notification-row:graduation-roster-73') ===
     fwrite(STDERR, "FAIL: graduation roster notification reaches the exact gold-glow row handler.\n");
     exit(1);
 }
+foreach (['member_dashboard.php', 'pastor_dashboard.php', 'admin_dashboard.php'] as $graduation_dashboard) {
+    $graduation_dashboard_source = file_get_contents(__DIR__ . '/../' . $graduation_dashboard);
+    if ($graduation_dashboard_source === false
+        || strpos($graduation_dashboard_source, 'href="?tab=graduation_info"') === false
+        || strpos($graduation_dashboard_source, 'render_tab_notification_badge($tab_badges, \'graduation_info\')') === false) {
+        fwrite(STDERR, "FAIL: $graduation_dashboard Graduation Info tab must show its unread badge.\n");
+        exit(1);
+    }
 $graduation_action_source = file_get_contents(__DIR__ . '/../member_action.php');
 if ($graduation_action_source === false
     || strpos($graduation_action_source, 'notification_with_route($message, \'graduation_info\', $graduation_group, $graduation_row)') === false
