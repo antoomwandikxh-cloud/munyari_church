@@ -9856,6 +9856,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             WHERE m.department = '$esc_dept' AND m.is_approved = 1 AND gl.id IS NULL ORDER BY m.first_name ASC");
                         ?>
                         <div id="graduationMemberPicker" style="position: relative; flex: 1; min-width: 240px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 0 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-main);">
+                                <svg aria-hidden="true" width="17" height="17" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24" style="flex: 0 0 17px;"><circle cx="11" cy="11" r="7" stroke-width="2"></circle><path d="m16 16 4 4" stroke-width="2" stroke-linecap="round"></path></svg>
+                                <input id="graduationMemberSearch" type="search" inputmode="text" autocomplete="off" placeholder="Search members" aria-label="Search graduating members" style="width: 100%; min-width: 0; padding: 10px 0; border: 0; outline: 0; color: var(--text-main); background: transparent;">
+                            </div>
+                            <p id="graduationMemberSearchError" role="status" hidden style="margin: 0 2px 8px; color: var(--danger); font-size: .82rem;">Use letters, spaces, apostrophes, or hyphens only.</p>
                             <input type="hidden" name="member_id" id="graduationMemberId" value="">
                             <button type="button" id="graduationMemberToggle" class="form-control" aria-haspopup="listbox" aria-expanded="false" <?= ($available_graduand_count === 0) ? 'disabled' : '' ?> style="width: 100%; min-height: 44px; display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer;">
                                 <img data-selected-photo src="uploads/default_avatar.png" alt="" hidden onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex: 0 0 34px;">
@@ -9863,11 +9868,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-left: auto; flex: 0 0 16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"></path></svg>
                             </button>
                             <div id="graduationMemberMenu" hidden style="position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0; padding: 8px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 12px 28px rgba(0,0,0,.25);">
-                                <div style="display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-main);">
-                                    <svg aria-hidden="true" width="17" height="17" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24" style="flex: 0 0 17px;"><circle cx="11" cy="11" r="7" stroke-width="2"></circle><path d="m16 16 4 4" stroke-width="2" stroke-linecap="round"></path></svg>
-                                    <input id="graduationMemberSearch" type="search" inputmode="text" autocomplete="off" placeholder="Search members" aria-label="Search graduating members" style="width: 100%; min-width: 0; padding: 10px 0; border: 0; outline: 0; color: var(--text-main); background: transparent;">
-                                </div>
-                                <p id="graduationMemberSearchError" role="status" hidden style="margin: 6px 2px; color: var(--danger); font-size: .82rem;">Use letters, spaces, apostrophes, or hyphens only.</p>
                                 <div id="graduationMemberOptions" role="listbox" aria-label="Eligible graduating members" style="max-height: 280px; overflow-y: auto; margin-top: 6px;">
                                     <?php while($a = $avail->fetch_assoc()): ?>
                                         <?php
@@ -9883,6 +9883,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 </div>
                             </div>
                         </div>
+                    </form>
                         <button type="submit" class="btn-submit" style="width: auto;" <?= ($available_graduand_count === 0) ? 'disabled' : '' ?>>Add to Graduation List</button>
                     <style>
                         .graduation-member-option:hover,
@@ -9934,7 +9935,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 let visibleCount = 0;
                                 options.forEach(option => {
                                     const matches = option.dataset.memberName.toLocaleLowerCase().includes(query);
-                                    option.hidden = !matches;
+                                    option.style.display = matches ? 'flex' : 'none';
                                     if (matches) visibleCount++;
                                 });
                                 noResults.hidden = visibleCount > 0;
@@ -9958,13 +9959,24 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                     filterOptions();
                                 }
                             });
-                            search.addEventListener('input', filterOptions);
+                            search.addEventListener('focus', () => {
+                                menu.hidden = false;
+                                toggle.setAttribute('aria-expanded', 'true');
+                                filterOptions();
+                            });
+                            search.addEventListener('input', () => {
+                                menu.hidden = false;
+                                toggle.setAttribute('aria-expanded', 'true');
+                                filterOptions();
+                            });
                             search.addEventListener('keyup', () => requestAnimationFrame(filterOptions));
                             options.forEach(option => option.addEventListener('click', () => {
                                 hiddenMemberId.value = option.dataset.memberId;
                                 selectedPhoto.src = option.dataset.memberPhoto;
                                 selectedPhoto.alt = option.dataset.memberName;
                                 selectedPhoto.hidden = false;
+                                search.value = '';
+                                filterOptions();
                                 selectedLabel.textContent = option.dataset.memberName;
                                 options.forEach(item => item.setAttribute('aria-selected', item === option ? 'true' : 'false'));
                                 searchError.hidden = true;
@@ -9983,7 +9995,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             });
                         })();
                     </script>
-                    </form>
 
                     <?php
                     $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC");
