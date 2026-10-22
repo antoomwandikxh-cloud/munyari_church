@@ -3,11 +3,13 @@ session_start();
 require_once 'db_connect.php';
 require_once 'highlight_retention.php';
 require_once 'notification_badges.php';
+require_once 'graduation_roster_helper.php';
 require_once 'village_leader_chat_helper.php';
 require_once 'role_departments.php';
 require_once 'voice_note_helper.php';
 require_once 'organized_event_helper.php';
 if (!isset($_SESSION['member_id'])) { header("Location: login.php"); exit(); }
+ensure_graduation_roster_schema($conn);
 ensure_member_preference_roles_schema($conn);
 
 if (!function_exists('remove_worship_announcement_media')) {
@@ -9884,7 +9886,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 </div>
                             </div>
                         </div>
-                    </form>
+                        <div style="min-width: 190px;">
+                            <label for="graduationDate" style="display:block;margin-bottom:7px;font-weight:600;color:var(--text-main);">Graduation Date</label>
+                            <input type="date" id="graduationDate" name="graduation_date" class="form-control" required aria-required="true">
+                        </div>
                         <button type="submit" class="btn-submit" style="width: auto;" <?= ($available_graduand_count === 0) ? 'disabled' : '' ?>>Add to Graduation List</button>
                     <style>
                         .graduation-member-option:hover,
@@ -9986,6 +9991,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 selectedPhoto.alt = option.dataset.memberName;
                                 selectedPhoto.hidden = false;
                                 search.value = '';
+                    </form>
                                 filterOptions();
                                 selectedLabel.textContent = option.dataset.memberName;
                                 options.forEach(item => item.setAttribute('aria-selected', item === option ? 'true' : 'false'));
@@ -10007,17 +10013,33 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </script>
 
                     <?php
-                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC");
+                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.phone, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC, m.last_name ASC");
                     if ($roster && $roster->num_rows > 0):
                     ?>
                         <div class="table-responsive">
-                            <table>
-                                <thead><tr><th>Name</th><th>Added Date</th><th>Action</th></tr></thead>
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+                                <h3 style="margin:0;">Graduation roster</h3>
+                                <button type="button" class="btn-sm" onclick="printGraduationRoster()" style="display:inline-flex;align-items:center;gap:7px;background:var(--primary);color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;">
+                                    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
+                                    Print Graduation List
+                                </button>
+                            </div>
+                            <table id="graduationSecretaryRoster">
+                                <thead><tr><th>Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th><th>Added Date</th><th>Action</th></tr></thead>
                                 <tbody>
                                     <?php while($r = $roster->fetch_assoc()): ?>
-                                        <tr>
-                                            <td style="font-weight: 500; white-space:nowrap;"><img data-graduation-roster-photo src="uploads/<?= htmlspecialchars(basename($r['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?> profile photo" title="Click to view profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src);" style="width:38px;height:38px;margin-right:9px;vertical-align:middle;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
-                                            <td style="color: var(--text-muted);"><?= date('M j, Y', strtotime($r['added_at'])) ?></td>
+                                        <?php
+                                            $graduand_full_name = trim($r['first_name'] . ' ' . $r['last_name']);
+                                            $graduand_photo_url = 'uploads/' . basename($r['profile_picture'] ?: 'default_avatar.png');
+                                            $graduation_date_display = !empty($r['graduation_date']) ? date('M j, Y', strtotime($r['graduation_date'])) : '-';
+                                            $added_date_display = !empty($r['added_at']) ? date('M j, Y', strtotime($r['added_at'])) : '-';
+                                        ?>
+                                        <tr data-graduation-roster-entry="true" data-graduand-name="<?= htmlspecialchars($graduand_full_name, ENT_QUOTES, 'UTF-8') ?>" data-graduand-phone="<?= htmlspecialchars($r['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-graduation-date="<?= htmlspecialchars($r['graduation_date'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-added-date="<?= htmlspecialchars($added_date_display, ENT_QUOTES, 'UTF-8') ?>" data-graduand-photo="<?= htmlspecialchars($graduand_photo_url, ENT_QUOTES, 'UTF-8') ?>">
+                                            <td><img data-graduation-roster-photo src="<?= htmlspecialchars($graduand_photo_url, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($graduand_full_name, ENT_QUOTES, 'UTF-8') ?> profile photo" title="Click to view profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src);" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"></td>
+                                            <td style="font-weight:500;white-space:nowrap;"><?= htmlspecialchars($graduand_full_name) ?></td>
+                                            <td><?= htmlspecialchars($r['phone'] ?? '-') ?></td>
+                                            <td><?= htmlspecialchars($graduation_date_display) ?></td>
+                                            <td style="color:var(--text-muted);"><?= htmlspecialchars($added_date_display) ?></td>
                                             <td>
                                                 <a href="member_action.php?action=remove_graduand&id=<?= $r['id'] ?>" class="btn-action" style="color: var(--danger); background: rgba(239,68,68,0.1); padding: 4px 8px; border-radius: 4px;" onclick="return confirm('Remove from graduation list?');">Remove</a>
                                             </td>
@@ -10054,16 +10076,19 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </div>
 
                     <?php
-                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC");
+                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.phone, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC, m.last_name ASC");
                     if ($roster && $roster->num_rows > 0):
                     ?>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Name</th><th>Added Date</th></tr></thead>
+                                <thead><tr><th>Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th><th>Added Date</th></tr></thead>
                                 <tbody>
                                     <?php while($r = $roster->fetch_assoc()): ?>
                                         <tr data-notification-row="graduation-roster-<?= (int)$r['id'] ?>">
-                                            <td style="font-weight: 500; white-space:nowrap;"><img data-graduation-roster-photo src="uploads/<?= htmlspecialchars(basename($r['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?> profile photo" title="Click to view profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src);" style="width:38px;height:38px;margin-right:9px;vertical-align:middle;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"><svg width="18" height="18" fill="none" stroke="var(--primary)" viewBox="0 0 24 24" style="vertical-align: text-bottom; margin-right: 8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
+                                            <td><img data-graduation-roster-photo src="uploads/<?= htmlspecialchars(basename($r['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?> profile photo" title="Click to view profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src);" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"></td>
+                                            <td style="font-weight:500;white-space:nowrap;"><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
+                                            <td><?= htmlspecialchars($r['phone'] ?? '-') ?></td>
+                                            <td><?= !empty($r['graduation_date']) ? date('M j, Y', strtotime($r['graduation_date'])) : '-' ?></td>
                                             <td style="color: var(--text-muted);"><?= date('M j, Y', strtotime($r['added_at'])) ?></td>
                                         </tr>
                                     <?php endwhile; ?>
@@ -10130,6 +10155,63 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:30px;">
                     <div class="content-card" style="flex:1; min-width:200px; text-align:center; padding:25px; background:linear-gradient(135deg,rgba(79,70,229,0.1),rgba(16,185,129,0.1)); border:1px solid rgba(79,70,229,0.2);">
                         <p style="font-size:2.5rem;font-weight:700;margin:0;color:var(--primary);"><?= $sched_count ?></p>
+                <script>
+                    function printGraduationRoster(orientation) {
+                        if (!orientation) return choosePrintOrientation(selected => printGraduationRoster(selected));
+                        const table = document.getElementById('graduationSecretaryRoster');
+                        if (!table) return;
+                        const escapeHtml = value => String(value || '').replace(/[&<>"']/g, character => ({
+                            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+                        }[character]));
+                        const rows = Array.from(table.querySelectorAll('tbody tr[data-graduation-roster-entry]'));
+                        const leaderName = <?= json_encode(strtoupper(trim($member['first_name'] . ' ' . $member['last_name']))) ?>;
+                        const leaderPhoto = new URL(<?= json_encode('uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png')) ?>, window.location.href).href;
+                        const logoUrl = new URL('church_logo.jpg', window.location.href).href;
+                        const generatedAt = new Date().toLocaleString();
+                        const listRows = rows.map((row, index) => {
+                            const photo = new URL(row.dataset.graduandPhoto || 'uploads/default_avatar.png', window.location.href).href;
+                            const graduationDate = row.dataset.graduationDate
+                                ? new Date(row.dataset.graduationDate + 'T00:00:00').toLocaleDateString(undefined, {year:'numeric',month:'short',day:'numeric'})
+                                : '-';
+                            return `<tr><td>${index + 1}</td><td><img class="graduate-photo" src="${escapeHtml(photo)}" alt=""></td><td>${escapeHtml(row.dataset.graduandName)}</td><td>${escapeHtml(row.dataset.graduandPhone || '-')}</td><td>${escapeHtml(graduationDate)}</td><td>${escapeHtml(row.dataset.addedDate || '-')}</td></tr>`;
+                        }).join('');
+                        const signatureMarkup = buildChurchPrintSignatureMarkup('Graduands Secretary', leaderName, escapeHtml);
+                        const printWindow = window.open('', '_blank', 'width=1000,height=750');
+                        if (!printWindow) {
+                            alert('Allow pop-ups for this site to print the graduation list.');
+                            return;
+                        }
+                        const layoutScript = new URL('church_print_layout.js?v=1', window.location.href).href;
+                        const html = `<!doctype html><html><head><meta charset="utf-8"><title>E.A.P.C Munyari Church Graduation List</title><style>
+                            @page{size:A4 ${orientation};margin:12mm 10mm 16mm}*{box-sizing:border-box}
+                            body{margin:0;padding:4px 2px 20px;font:12px Arial,Helvetica,sans-serif;color:#17202a}
+                            .watermark{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-36deg);font-size:40px;color:rgba(14,116,144,.13);font-weight:800;white-space:nowrap;pointer-events:none;z-index:0}
+                            .print-leader-header,.brand,.report-heading,.roster-meta,table,.signature{position:relative;z-index:1}
+                            .print-leader-header{margin:0 0 8px;text-align:center}.leader-name{font-size:14px;font-weight:800;color:#0e7490}.leader-role{margin-top:3px;font-size:10px;color:#555}
+                            .brand{display:grid;grid-template-columns:58px 1fr 58px;align-items:center;gap:10px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 9px;margin-bottom:10px}
+                            .brand-logo{width:54px;height:54px;object-fit:contain}.brand h1{margin:0;color:#0e7490;font-size:17px;line-height:1.25}.brand p{margin:4px 0 0;color:#555;font-size:10px}
+                            .report-heading{text-align:center;margin:0 0 8px;font-size:15px;text-transform:uppercase}.roster-meta{text-align:center;margin:0 0 12px;color:#444}
+                            table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
+                            th,td{border:1px solid #89939d;padding:6px 7px;text-align:left;vertical-align:middle}th{background:#0e7490;color:white;font-size:10px;text-transform:uppercase}
+                            .graduate-photo{display:block;width:35px;height:35px;border-radius:50%;object-fit:cover;border:1px solid #aab4be}
+                            .footer{position:fixed;bottom:-10mm;left:0;right:0;border-top:1px solid #0e7490;padding-top:4px;text-align:center;font-size:9px;color:#53606b}
+                            @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+                        </style><script src="${escapeHtml(layoutScript)}" data-direct-print="true"><\/script></head><body>
+                            <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
+                            <div class="print-leader-header"><div class="print-leader-person"><img class="print-leader-avatar" src="${escapeHtml(leaderPhoto)}" alt="Graduands Secretary"><div class="leader-name">${escapeHtml(leaderName)}</div><div class="leader-role">Graduands Secretary</div></div></div>
+                            <div class="brand report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
+                            <h2 class="report-heading">Graduating Members (<?= htmlspecialchars($current_year, ENT_QUOTES, 'UTF-8') ?>)</h2>
+                            <p class="roster-meta">Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
+                            <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th><th>Added Date</th></tr></thead><tbody>${listRows || '<tr><td colspan="6" style="text-align:center">No graduands on the roster.</td></tr>'}</tbody></table>
+                            ${signatureMarkup}
+                            <div class="footer">E.A.P.C Munyari Church | Graduation Roster | Generated: ${escapeHtml(generatedAt)}</div>
+                        </body></html>`;
+                        printWindow.document.write(html);
+                        printWindow.document.close();
+                        printWindow.focus();
+                        setTimeout(() => printWindow.print(), 700);
+                    }
+                </script>
                         <p style="color:var(--text-muted);margin:5px 0 0;">Upcoming Prayers</p>
                     </div>
                     <div class="content-card" style="flex:1; min-width:200px; text-align:center; padding:25px; background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(239,68,68,0.1)); border:1px solid rgba(245,158,11,0.2);">

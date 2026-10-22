@@ -5,6 +5,7 @@ require_once 'role_departments.php';
 require_once 'voice_note_helper.php';
 require_once 'organized_event_helper.php';
 require_once 'notification_badges.php';
+require_once 'graduation_roster_helper.php';
 
 function member_has_role($church_role_string, $target_role) {
     $roles = array_map('normalize_role_name', explode(',', str_replace('&', ',', $church_role_string ?? '')));
@@ -140,6 +141,7 @@ if (!isset($_SESSION['member_id'])) {
 }
 
 $member_id = $_SESSION['member_id'];
+ensure_graduation_roster_schema($conn);
 
 function ensure_financial_record_workflow_schema($conn) {
     $columns = [
@@ -2150,6 +2152,16 @@ if (isset($_GET['action'])) {
             $department = trim((string)($member_query['department'] ?? ''));
             $target_id = (int)($_POST['member_id'] ?? 0);
             $year = (int)date('Y');
+            $graduation_date = trim((string)($_POST['graduation_date'] ?? ''));
+            $parsed_graduation_date = DateTime::createFromFormat('!Y-m-d', $graduation_date);
+            $date_errors = DateTime::getLastErrors();
+            if (!$parsed_graduation_date
+                || ($date_errors && ($date_errors['warning_count'] > 0 || $date_errors['error_count'] > 0))
+                || $parsed_graduation_date->format('Y-m-d') !== $graduation_date) {
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Choose a valid graduation date.'));
+                exit();
+            }
+            $graduation_date_label = $parsed_graduation_date->format('F j, Y');
 
             $target_stmt = $conn->prepare("SELECT id, first_name, last_name FROM members
                 WHERE id = ? AND is_approved = 1 AND LOWER(TRIM(department)) = LOWER(TRIM(?)) LIMIT 1");
@@ -2180,12 +2192,12 @@ if (isset($_GET['action'])) {
                 }
             }
 
-            $insert_stmt = $conn->prepare("INSERT INTO graduation_list (member_id, department, graduation_year, added_by) VALUES (?, ?, ?, ?)");
+            $insert_stmt = $conn->prepare("INSERT INTO graduation_list (member_id, department, graduation_year, graduation_date, added_by) VALUES (?, ?, ?, ?, ?)");
             if (!$insert_stmt) {
                 header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not add this member to the graduation roster.'));
                 exit();
             }
-            $insert_stmt->bind_param('isii', $target_id, $department, $year, $member_id);
+            $insert_stmt->bind_param('isisi', $target_id, $department, $year, $graduation_date, $member_id);
             $inserted = $insert_stmt->execute();
             $graduation_entry_id = (int)$conn->insert_id;
             $insert_stmt->close();
@@ -2215,14 +2227,14 @@ if (isset($_GET['action'])) {
                 while ($department_member = $department_members->fetch_assoc()) {
                     $recipient_id = (int)$department_member['id'];
                     $member_message = $recipient_id === $target_id
-                        ? "You have been added to the $department graduation roster for $year."
-                        : "$target_name has been added to the $department graduation roster for $year.";
+                        ? "You have been added to the $department graduation roster for $year. Graduation date: $graduation_date_label."
+                        : "$target_name has been added to the $department graduation roster for $year. Graduation date: $graduation_date_label.";
                     $send_graduation_notification($recipient_id, 'member', $member_message);
                 }
                 $department_stmt->close();
             }
 
-            $oversight_message = "New graduand: $target_name has been added to the $department graduation roster for $year.";
+            $oversight_message = "New graduand: $target_name has been added to the $department graduation roster for $year. Graduation date: $graduation_date_label.";
             $pastors = $conn->query("SELECT id FROM pastors WHERE is_approved = 1");
             if ($pastors) {
                 while ($pastor = $pastors->fetch_assoc()) {
