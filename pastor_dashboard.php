@@ -7100,7 +7100,13 @@ w.document.write('</div>');
                         $count_query = $conn->query("SELECT COUNT(*) as total FROM graduation_list WHERE graduation_year=$current_year");
                         $total_graduands = $count_query->fetch_assoc()['total'];
                         ?>
-                        <span class="badge" style="background: var(--primary); color: white; font-size: 14px; padding: 5px 12px;">Total Church-wide: <?= $total_graduands ?></span>
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+                            <span id="graduationRosterTotal" data-churchwide-total="<?= (int)$total_graduands ?>" class="badge" style="background: var(--primary); color: white; font-size: 14px; padding: 5px 12px;">Total Church-wide: <?= $total_graduands ?></span>
+                            <button type="button" class="btn-sm" onclick="printPastorGraduationRoster()" style="display:inline-flex;align-items:center;gap:7px;background:var(--primary);color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;">
+                                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
+                                Print Graduation List
+                            </button>
+                        </div>
                     </div>
 
                     <?php
@@ -7108,11 +7114,11 @@ w.document.write('</div>');
                     if ($roster && $roster->num_rows > 0):
                     ?>
                         <div class="table-responsive">
-                            <table>
+                            <table id="pastorGraduationRoster">
                                 <thead><tr><th>Photo</th><th>Name</th><th>Phone Number</th><th>Department</th><th>Graduation Date</th><th>Added Date</th></tr></thead>
                                 <tbody>
                                     <?php while($r = $roster->fetch_assoc()): ?>
-                                        <tr data-graduation-kind="roster" data-graduation-department="<?= htmlspecialchars(notification_department_group_key($r['department']), ENT_QUOTES) ?>" data-notification-row="graduation-roster-<?= (int)$r['id'] ?>">
+                                        <tr data-graduation-kind="roster" data-graduation-department="<?= htmlspecialchars(notification_department_group_key($r['department']), ENT_QUOTES) ?>" data-notification-row="graduation-roster-<?= (int)$r['id'] ?>" data-graduand-name="<?= htmlspecialchars(trim($r['first_name'] . ' ' . $r['last_name']), ENT_QUOTES, 'UTF-8') ?>" data-graduand-phone="<?= htmlspecialchars($r['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-graduand-department="<?= htmlspecialchars($r['department'], ENT_QUOTES, 'UTF-8') ?>" data-graduation-date="<?= htmlspecialchars($r['graduation_date'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-graduand-photo="uploads/<?= htmlspecialchars(basename($r['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES, 'UTF-8') ?>">
                                             <td><img data-graduation-roster-photo src="uploads/<?= htmlspecialchars(basename($r['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?> profile photo" title="Click to view profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src);" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"></td>
                                             <td style="font-weight:500;white-space:nowrap;"><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
                                             <td><?= htmlspecialchars($r['phone'] ?? '-') ?></td>
@@ -7202,6 +7208,7 @@ w.document.write('</div>');
                                     <?php else: ?>
                                         <p style="color: var(--text-muted); margin: 10px 0;">No members have viewed this quote yet.</p>
                                     <?php endif; ?>
+                                            <td><?= !empty($r['graduation_date']) ? date('M j, Y', strtotime($r['graduation_date'])) : '-' ?></td>
                                 </div>
                             </details>
                                             <td><?= !empty($r['graduation_date']) ? date('M j, Y', strtotime($r['graduation_date'])) : '-' ?></td>
@@ -7217,6 +7224,69 @@ w.document.write('</div>');
                                     <input type="hidden" name="remove_daily_message" value="1">
                                     <input type="hidden" name="daily_message_id" value="<?= (int)$current_daily_message['id'] ?>">
                                     <button type="submit" class="btn" style="background:#b42318; color:#fff;">Remove Current Daily Quote</button>
+                <script>
+                    function printPastorGraduationRoster(orientation) {
+                        if (!orientation) return choosePrintOrientation(selected => printPastorGraduationRoster(selected));
+                        const table = document.getElementById('pastorGraduationRoster');
+                        const rows = table
+                            ? Array.from(table.querySelectorAll('tbody tr[data-graduation-kind="roster"]')).filter(row => row.style.display !== 'none' && getComputedStyle(row).display !== 'none')
+                            : [];
+                        const escapeHtml = value => String(value || '').replace(/[&<>"']/g, character => ({
+                            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+                        }[character]));
+                        const leaderName = <?= json_encode(strtoupper(trim(($pastor['first_name'] ?? '') . ' ' . ($pastor['last_name'] ?? '')))) ?>;
+                        const leaderPhoto = new URL(<?= json_encode('uploads/' . basename(!empty($pastor['profile_picture']) ? $pastor['profile_picture'] : 'default_avatar.png')) ?>, window.location.href).href;
+                        const logoUrl = new URL('church_logo.jpg', window.location.href).href;
+                        const generatedAt = new Date().toLocaleString();
+                        const listRows = rows.map((row, index) => {
+                            const photo = new URL(row.dataset.graduandPhoto || 'uploads/default_avatar.png', window.location.href).href;
+                            const date = row.dataset.graduationDate
+                                ? new Date(row.dataset.graduationDate + 'T00:00:00').toLocaleDateString(undefined, {year:'numeric',month:'short',day:'numeric'})
+                                : '-';
+                            return `<tr><td>${index + 1}</td><td><img class="graduate-photo" src="${escapeHtml(photo)}" alt=""></td><td>${escapeHtml(row.dataset.graduandName)}</td><td>${escapeHtml(row.dataset.graduandPhone || '-')}</td><td>${escapeHtml(row.dataset.graduandDepartment)}</td><td>${escapeHtml(date)}</td></tr>`;
+                        }).join('');
+                        const activeFilter = document.querySelector('[data-graduation-department-filter][aria-pressed="true"]');
+                        const scopeLabel = activeFilter ? activeFilter.dataset.graduationDepartmentLabel : 'All Departments';
+                        const signatureMarkup = buildChurchPrintSignatureMarkup('Pastor', leaderName, escapeHtml);
+                        const printWindow = window.open('', '_blank', 'width=1000,height=750');
+                        if (!printWindow) {
+                            alert('Allow pop-ups for this site to print the graduation list.');
+                            return;
+                        }
+                        const layoutScript = new URL('church_print_layout.js?v=1', window.location.href).href;
+                        const html = `<!doctype html><html><head><meta charset="utf-8"><title>E.A.P.C Munyari Church Graduation List</title><style>
+                            @page{size:A4 ${orientation};margin:12mm 10mm 16mm}*{box-sizing:border-box}
+                            body{margin:0;padding:4px 2px 0;font:12px Arial,Helvetica,sans-serif;color:#17202a}
+                            .watermark{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-36deg);font-size:40px;color:rgba(14,116,144,.13);font-weight:800;white-space:nowrap;pointer-events:none;z-index:0}
+                            .print-leader-header,.brand,.report-heading,.roster-meta,table,.signature{position:relative;z-index:1}
+                            .print-leader-header{margin:0 0 8px;text-align:center}.leader-name{font-size:14px;font-weight:800;color:#0e7490}.leader-role{margin-top:3px;font-size:10px;color:#555}
+                            .brand{display:grid;grid-template-columns:58px 1fr 58px;align-items:center;gap:10px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 9px;margin-bottom:10px}
+                            .brand-logo{width:54px;height:54px;object-fit:contain}.brand h1{margin:0;color:#0e7490;font-size:17px;line-height:1.25}.brand p{margin:4px 0 0;color:#555;font-size:10px}
+                            .report-heading{text-align:center;margin:0 0 8px;font-size:15px;text-transform:uppercase}.roster-meta{text-align:center;margin:0 0 12px;color:#444}
+                            table{width:100%;border-collapse:collapse;page-break-inside:auto;break-inside:auto}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
+                            th,td{border:1px solid #89939d;padding:6px 7px;text-align:left;vertical-align:middle}th{background:#0e7490;color:white;font-size:10px;text-transform:uppercase}
+                            .graduate-photo{display:block;width:35px;height:35px;border-radius:50%;object-fit:cover;border:1px solid #aab4be}
+                            .signature{margin:18px auto 0!important;padding:0 24px!important;break-inside:avoid!important;page-break-inside:avoid!important}
+                            .signature .stamp{width:96px!important;height:96px!important;min-width:96px!important;min-height:96px!important;margin:0!important}
+                            .footer{position:fixed;bottom:-10mm;left:0;right:0;border-top:1px solid #0e7490;padding-top:4px;text-align:center;font-size:9px;color:#53606b}
+                            @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+                        </style><script src="${escapeHtml(layoutScript)}" data-direct-print="true"><\/script></head><body>
+                            <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
+                            <div class="print-leader-header"><div class="print-leader-person"><img class="print-leader-avatar" src="${escapeHtml(leaderPhoto)}" alt="Church Pastor"><div class="leader-name">${escapeHtml(leaderName)}</div><div class="leader-role">Church Pastor</div></div></div>
+                            <div class="brand report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
+                            <h2 class="report-heading">Graduating Members (<?= (int)$current_year ?>)</h2>
+                            <p class="roster-meta">Scope: ${escapeHtml(scopeLabel)}<br>Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
+                            <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Department</th><th>Graduation Date</th></tr></thead><tbody>${listRows || '<tr><td colspan="6" style="text-align:center">No graduands on the roster.</td></tr>'}</tbody></table>
+                            ${signatureMarkup}
+                            <div class="footer">E.A.P.C Munyari Church | Graduation Roster | Generated: ${escapeHtml(generatedAt)}</div>
+                        </body></html>`;
+                        printWindow.document.write(html);
+                        printWindow.document.close();
+                        printWindow.focus();
+                        setTimeout(() => printWindow.print(), 700);
+                    }
+                </script>
+
                                 </form>
                             <?php endif; ?>
                         </div>

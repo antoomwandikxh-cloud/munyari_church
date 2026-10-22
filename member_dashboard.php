@@ -10152,8 +10152,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 $items_count = $conn->query("SELECT COUNT(*) as c FROM prayer_items WHERE department='$esc_dept' AND status='Active'")->fetch_assoc()['c'];
                 ?>
                 <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:30px;">
-                    <div class="content-card" style="flex:1; min-width:200px; text-align:center; padding:25px; background:linear-gradient(135deg,rgba(79,70,229,0.1),rgba(16,185,129,0.1)); border:1px solid rgba(79,70,229,0.2);">
-                        <p style="font-size:2.5rem;font-weight:700;margin:0;color:var(--primary);"><?= $sched_count ?></p>
                 <script>
                     function printGraduationRoster(orientation) {
                         if (!orientation) return choosePrintOrientation(selected => printGraduationRoster(selected));
@@ -10172,7 +10170,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             const graduationDate = row.dataset.graduationDate
                                 ? new Date(row.dataset.graduationDate + 'T00:00:00').toLocaleDateString(undefined, {year:'numeric',month:'short',day:'numeric'})
                                 : '-';
-                            return `<tr><td>${index + 1}</td><td><img class="graduate-photo" src="${escapeHtml(photo)}" alt=""></td><td>${escapeHtml(row.dataset.graduandName)}</td><td>${escapeHtml(row.dataset.graduandPhone || '-')}</td><td>${escapeHtml(graduationDate)}</td><td>${escapeHtml(row.dataset.addedDate || '-')}</td></tr>`;
+                            return `<tr><td>${index + 1}</td><td><img class="graduate-photo" src="${escapeHtml(photo)}" alt=""></td><td>${escapeHtml(row.dataset.graduandName)}</td><td>${escapeHtml(row.dataset.graduandPhone || '-')}</td><td>${escapeHtml(graduationDate)}</td></tr>`;
                         }).join('');
                         const signatureMarkup = buildChurchPrintSignatureMarkup('Graduands Secretary', leaderName, escapeHtml);
                         const printWindow = window.open('', '_blank', 'width=1000,height=750');
@@ -10183,7 +10181,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         const layoutScript = new URL('church_print_layout.js?v=1', window.location.href).href;
                         const html = `<!doctype html><html><head><meta charset="utf-8"><title>E.A.P.C Munyari Church Graduation List</title><style>
                             @page{size:A4 ${orientation};margin:12mm 10mm 16mm}*{box-sizing:border-box}
-                            body{margin:0;padding:4px 2px 20px;font:12px Arial,Helvetica,sans-serif;color:#17202a}
+                            body{margin:0;padding:4px 2px 0;font:12px Arial,Helvetica,sans-serif;color:#17202a}
                             .watermark{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-36deg);font-size:40px;color:rgba(14,116,144,.13);font-weight:800;white-space:nowrap;pointer-events:none;z-index:0}
                             .print-leader-header,.brand,.report-heading,.roster-meta,table,.signature{position:relative;z-index:1}
                             .print-leader-header{margin:0 0 8px;text-align:center}.leader-name{font-size:14px;font-weight:800;color:#0e7490}.leader-role{margin-top:3px;font-size:10px;color:#555}
@@ -10193,6 +10191,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
                             th,td{border:1px solid #89939d;padding:6px 7px;text-align:left;vertical-align:middle}th{background:#0e7490;color:white;font-size:10px;text-transform:uppercase}
                             .graduate-photo{display:block;width:35px;height:35px;border-radius:50%;object-fit:cover;border:1px solid #aab4be}
+                            .signature{margin:18px auto 0!important;padding:0 24px!important;break-inside:avoid!important;page-break-inside:avoid!important}
+                            .signature .stamp{width:96px!important;height:96px!important;min-width:96px!important;min-height:96px!important;margin:0!important}
                             .footer{position:fixed;bottom:-10mm;left:0;right:0;border-top:1px solid #0e7490;padding-top:4px;text-align:center;font-size:9px;color:#53606b}
                             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
                         </style><script src="${escapeHtml(layoutScript)}" data-direct-print="true"><\/script></head><body>
@@ -10201,7 +10201,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <div class="brand report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
                             <h2 class="report-heading">Graduating Members (<?= htmlspecialchars($current_year, ENT_QUOTES, 'UTF-8') ?>)</h2>
                             <p class="roster-meta">Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
-                            <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th><th>Added Date</th></tr></thead><tbody>${listRows || '<tr><td colspan="6" style="text-align:center">No graduands on the roster.</td></tr>'}</tbody></table>
+                            <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th></tr></thead><tbody>${listRows || '<tr><td colspan="5" style="text-align:center">No graduands on the roster.</td></tr>'}</tbody></table>
                             ${signatureMarkup}
                             <div class="footer">E.A.P.C Munyari Church | Graduation Roster | Generated: ${escapeHtml(generatedAt)}</div>
                         </body></html>`;
@@ -10211,6 +10211,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         setTimeout(() => printWindow.print(), 700);
                     }
                 </script>
+                    <div class="content-card" style="flex:1; min-width:200px; text-align:center; padding:25px; background:linear-gradient(135deg,rgba(79,70,229,0.1),rgba(16,185,129,0.1)); border:1px solid rgba(79,70,229,0.2);">
+                        <p style="font-size:2.5rem;font-weight:700;margin:0;color:var(--primary);"><?= $sched_count ?></p>
                         <p style="color:var(--text-muted);margin:5px 0 0;">Upcoming Prayers</p>
                     </div>
                     <div class="content-card" style="flex:1; min-width:200px; text-align:center; padding:25px; background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(239,68,68,0.1)); border:1px solid rgba(245,158,11,0.2);">
