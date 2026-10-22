@@ -2161,6 +2161,10 @@ if (isset($_GET['action'])) {
                 header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Choose a valid graduation date.'));
                 exit();
             }
+            if ($graduation_date < date('Y-m-d')) {
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Graduation date cannot be in the past.'));
+                exit();
+            }
             $graduation_date_label = $parsed_graduation_date->format('F j, Y');
 
             $target_stmt = $conn->prepare("SELECT id, first_name, last_name FROM members

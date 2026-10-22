@@ -9888,7 +9888,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </div>
                         <div style="min-width: 190px;">
                             <label for="graduationDate" style="display:block;margin-bottom:7px;font-weight:600;color:var(--text-main);">Graduation Date</label>
-                            <input type="date" id="graduationDate" name="graduation_date" class="form-control" required aria-required="true">
+                            <input type="date" id="graduationDate" name="graduation_date" class="form-control" min="<?= date('Y-m-d') ?>" required aria-required="true">
                         </div>
                         <button type="submit" class="btn-submit" style="width: auto;" <?= ($available_graduand_count === 0) ? 'disabled' : '' ?>>Add to Graduation List</button>
                     <style>
