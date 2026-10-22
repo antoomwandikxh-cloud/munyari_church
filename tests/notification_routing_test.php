@@ -423,6 +423,17 @@ foreach (['member_dashboard.php', 'pastor_dashboard.php', 'admin_dashboard.php']
         fwrite(STDERR, "FAIL: $graduation_dashboard Graduation Info tab must show its unread badge.\n");
         exit(1);
     }
+foreach (['member_dashboard.php', 'pastor_dashboard.php', 'admin_dashboard.php'] as $graduation_dashboard) {
+    $graduation_dashboard_source = file_get_contents(__DIR__ . '/../' . $graduation_dashboard);
+    if ($graduation_dashboard_source === false
+        || strpos($graduation_dashboard_source, 'data-graduation-roster-photo') === false
+        || strpos($graduation_dashboard_source, 'm.profile_picture FROM graduation_list gl JOIN members m') === false
+        || strpos($graduation_dashboard_source, 'onclick="viewProfileImage(this.src);"') === false) {
+        fwrite(STDERR, "FAIL: $graduation_dashboard graduation rosters must show clickable member profile photos.
+");
+        exit(1);
+    }
+}
 $graduation_action_source = file_get_contents(__DIR__ . '/../member_action.php');
 if ($graduation_action_source === false
     || strpos($graduation_action_source, 'notification_with_route($message, \'graduation_info\', $graduation_group, $graduation_row)') === false

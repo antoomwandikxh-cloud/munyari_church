@@ -10007,7 +10007,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </script>
 
                     <?php
-                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC");
+                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC");
                     if ($roster && $roster->num_rows > 0):
                     ?>
                         <div class="table-responsive">
@@ -10016,7 +10016,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <tbody>
                                     <?php while($r = $roster->fetch_assoc()): ?>
                                         <tr>
-                                            <td style="font-weight: 500;"><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
+                                            <td style="font-weight: 500; white-space:nowrap;"><img data-graduation-roster-photo src="uploads/<?= htmlspecialchars(basename($r['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?> profile photo" title="Click to view profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src);" style="width:38px;height:38px;margin-right:9px;vertical-align:middle;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
                                             <td style="color: var(--text-muted);"><?= date('M j, Y', strtotime($r['added_at'])) ?></td>
                                             <td>
                                                 <a href="member_action.php?action=remove_graduand&id=<?= $r['id'] ?>" class="btn-action" style="color: var(--danger); background: rgba(239,68,68,0.1); padding: 4px 8px; border-radius: 4px;" onclick="return confirm('Remove from graduation list?');">Remove</a>
@@ -10054,7 +10054,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </div>
 
                     <?php
-                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC");
+                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC");
                     if ($roster && $roster->num_rows > 0):
                     ?>
                         <div class="table-responsive">
@@ -10063,7 +10063,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 <tbody>
                                     <?php while($r = $roster->fetch_assoc()): ?>
                                         <tr data-notification-row="graduation-roster-<?= (int)$r['id'] ?>">
-                                            <td style="font-weight: 500;"><svg width="18" height="18" fill="none" stroke="var(--primary)" viewBox="0 0 24 24" style="vertical-align: text-bottom; margin-right: 8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
+                                            <td style="font-weight: 500; white-space:nowrap;"><img data-graduation-roster-photo src="uploads/<?= htmlspecialchars(basename($r['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?> profile photo" title="Click to view profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src);" style="width:38px;height:38px;margin-right:9px;vertical-align:middle;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"><svg width="18" height="18" fill="none" stroke="var(--primary)" viewBox="0 0 24 24" style="vertical-align: text-bottom; margin-right: 8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
                                             <td style="color: var(--text-muted);"><?= date('M j, Y', strtotime($r['added_at'])) ?></td>
                                         </tr>
                                     <?php endwhile; ?>
