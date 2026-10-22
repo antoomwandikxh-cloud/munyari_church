@@ -9834,7 +9834,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <!-- Announcement Form -->
                     <div class="content-card" style="flex: 2; min-width: 350px;">
                         <h2>Make Graduation Announcement</h2>
-                        <p style="color: var(--text-muted); margin-bottom: 15px;">This will be posted to the department board and sent directly to the Pastor and Admin.</p>
+                        <p style="color: var(--text-muted); margin-bottom: 15px;">Members of this department will see the announcement in the Graduands Secretary section.</p>
                         <form method="POST" action="member_action.php?action=graduation_announcement">
                             <div class="form-group">
                                 <textarea name="message" class="form-control" rows="4" placeholder="Type your graduation announcement here..." required></textarea>
