@@ -7231,6 +7231,7 @@ w.document.write('</div>');
                         const rows = table
                             ? Array.from(table.querySelectorAll('tbody tr[data-graduation-kind="roster"]')).filter(row => row.style.display !== 'none' && getComputedStyle(row).display !== 'none')
                             : [];
+                        rows.sort((left, right) => (left.dataset.graduandName || '').localeCompare(right.dataset.graduandName || '', undefined, { sensitivity: 'base' }));
                         const escapeHtml = value => String(value || '').replace(/[&<>"']/g, character => ({
                             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
                         }[character]));
@@ -7244,7 +7245,7 @@ w.document.write('</div>');
                             const date = row.dataset.graduationDate
                                 ? new Date(row.dataset.graduationDate + 'T00:00:00').toLocaleDateString(undefined, {year:'numeric',month:'short',day:'numeric'})
                                 : '-';
-                            return `<tr><td>${index + 1}</td><td><img class="graduate-photo" src="${escapeHtml(photo)}" alt=""></td><td>${escapeHtml(row.dataset.graduandName)}</td><td>${escapeHtml(row.dataset.graduandPhone || '-')}</td><td>${escapeHtml(row.dataset.graduandDepartment)}</td><td>${escapeHtml(date)}</td></tr>`;
+                            return `<tr><td>${index + 1}</td><td><img class="graduate-photo" src="${escapeHtml(photo)}" alt=""></td><td>${escapeHtml((row.dataset.graduandName || '').toUpperCase())}</td><td>${escapeHtml(row.dataset.graduandPhone || '-')}</td><td>${escapeHtml(row.dataset.graduandDepartment)}</td><td>${escapeHtml(date)}</td></tr>`;
                         }).join('');
                         const activeFilter = document.querySelector('[data-graduation-department-filter][aria-pressed="true"]');
                         const scopeLabel = activeFilter ? activeFilter.dataset.graduationDepartmentLabel : 'All Departments';

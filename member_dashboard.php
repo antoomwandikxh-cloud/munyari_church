@@ -10060,7 +10060,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         const escapeHtml = value => String(value || '').replace(/[&<>"']/g, character => ({
                             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
                         }[character]));
-                        const rows = Array.from(table.querySelectorAll('tbody tr[data-graduation-roster-entry]'));
+                        const rows = Array.from(table.querySelectorAll('tbody tr[data-graduation-roster-entry]'))
+                            .sort((left, right) => (left.dataset.graduandName || '').localeCompare(right.dataset.graduandName || '', undefined, { sensitivity: 'base' }));
                         const leaderName = <?= json_encode(strtoupper(trim($member['first_name'] . ' ' . $member['last_name']))) ?>;
                         const leaderPhoto = new URL(<?= json_encode('uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png')) ?>, window.location.href).href;
                         const logoUrl = new URL('church_logo.jpg', window.location.href).href;
@@ -10071,7 +10072,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             const graduationDate = row.dataset.graduationDate
                                 ? new Date(row.dataset.graduationDate + 'T00:00:00').toLocaleDateString(undefined, {year:'numeric',month:'short',day:'numeric'})
                                 : '-';
-                            return `<tr><td>${index + 1}</td><td><img class="graduate-photo" src="${escapeHtml(photo)}" alt=""></td><td>${escapeHtml(row.dataset.graduandName)}</td><td>${escapeHtml(row.dataset.graduandPhone || '-')}</td><td>${escapeHtml(graduationDate)}</td></tr>`;
+                            return `<tr><td>${index + 1}</td><td><img class="graduate-photo" src="${escapeHtml(photo)}" alt=""></td><td>${escapeHtml((row.dataset.graduandName || '').toUpperCase())}</td><td>${escapeHtml(row.dataset.graduandPhone || '-')}</td><td>${escapeHtml(graduationDate)}</td></tr>`;
                         }).join('');
                         const signatureMarkup = buildChurchPrintSignatureMarkup('Graduands Secretary', leaderName, escapeHtml);
                         const printWindow = window.open('', '_blank', 'width=1000,height=750');
