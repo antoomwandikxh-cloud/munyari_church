@@ -10052,6 +10052,65 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <p style="color: var(--text-muted);">No youths have been added to the graduation roster for <?= $current_year ?>.</p>
                     <?php endif; ?>
                 </div>
+                <script>
+                    function printGraduationRoster(orientation) {
+                        if (!orientation) return choosePrintOrientation(selected => printGraduationRoster(selected));
+                        const table = document.getElementById('graduationSecretaryRoster');
+                        if (!table) return;
+                        const escapeHtml = value => String(value || '').replace(/[&<>"']/g, character => ({
+                            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+                        }[character]));
+                        const rows = Array.from(table.querySelectorAll('tbody tr[data-graduation-roster-entry]'));
+                        const leaderName = <?= json_encode(strtoupper(trim($member['first_name'] . ' ' . $member['last_name']))) ?>;
+                        const leaderPhoto = new URL(<?= json_encode('uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png')) ?>, window.location.href).href;
+                        const logoUrl = new URL('church_logo.jpg', window.location.href).href;
+                        const generatedAt = new Date().toLocaleString();
+                        const listRows = rows.map((row, index) => {
+                            const photo = new URL(row.dataset.graduandPhoto || 'uploads/default_avatar.png', window.location.href).href;
+                            const graduationDate = row.dataset.graduationDate
+                                ? new Date(row.dataset.graduationDate + 'T00:00:00').toLocaleDateString(undefined, {year:'numeric',month:'short',day:'numeric'})
+                                : '-';
+                            return `<tr><td>${index + 1}</td><td><img class="graduate-photo" src="${escapeHtml(photo)}" alt=""></td><td>${escapeHtml(row.dataset.graduandName)}</td><td>${escapeHtml(row.dataset.graduandPhone || '-')}</td><td>${escapeHtml(graduationDate)}</td></tr>`;
+                        }).join('');
+                        const signatureMarkup = buildChurchPrintSignatureMarkup('Graduands Secretary', leaderName, escapeHtml);
+                        const printWindow = window.open('', '_blank', 'width=1000,height=750');
+                        if (!printWindow) {
+                            alert('Allow pop-ups for this site to print the graduation list.');
+                            return;
+                        }
+                        const layoutScript = new URL('church_print_layout.js?v=1', window.location.href).href;
+                        const html = `<!doctype html><html><head><meta charset="utf-8"><title>E.A.P.C Munyari Church Graduation List</title><style>
+                            @page{size:A4 ${orientation};margin:12mm 10mm 16mm}*{box-sizing:border-box}
+                            body{margin:0;padding:4px 2px 0;font:12px Arial,Helvetica,sans-serif;color:#17202a}
+                            .watermark{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-36deg);font-size:40px;color:rgba(14,116,144,.13);font-weight:800;white-space:nowrap;pointer-events:none;z-index:0}
+                            .print-leader-header,.brand,.report-heading,.roster-meta,table,.signature{position:relative;z-index:1}
+                            .print-leader-header{margin:0 0 8px;text-align:center}.leader-name{font-size:14px;font-weight:800;color:#0e7490}.leader-role{margin-top:3px;font-size:10px;color:#555}
+                            .brand{display:grid;grid-template-columns:58px 1fr 58px;align-items:center;gap:10px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 9px;margin-bottom:10px}
+                            .brand-logo{width:54px;height:54px;object-fit:contain}.brand h1{margin:0;color:#0e7490;font-size:17px;line-height:1.25}.brand p{margin:4px 0 0;color:#555;font-size:10px}
+                            .report-heading{text-align:center;margin:0 0 8px;font-size:15px;text-transform:uppercase}.roster-meta{text-align:center;margin:0 0 12px;color:#444}
+                            table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
+                            th,td{border:1px solid #89939d;padding:6px 7px;text-align:left;vertical-align:middle}th{background:#0e7490;color:white;font-size:10px;text-transform:uppercase}
+                            .graduate-photo{display:block;width:35px;height:35px;border-radius:50%;object-fit:cover;border:1px solid #aab4be}
+                            .signature{margin:18px auto 0!important;padding:0 24px!important;break-inside:avoid!important;page-break-inside:avoid!important}
+                            .signature .stamp{width:96px!important;height:96px!important;min-width:96px!important;min-height:96px!important;margin:0!important}
+                            .footer{position:fixed;bottom:-10mm;left:0;right:0;border-top:1px solid #0e7490;padding-top:4px;text-align:center;font-size:9px;color:#53606b}
+                            @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+                        </style><script src="${escapeHtml(layoutScript)}" data-direct-print="true"><\/script></head><body>
+                            <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
+                            <div class="print-leader-header"><div class="print-leader-person"><img class="print-leader-avatar" src="${escapeHtml(leaderPhoto)}" alt="Graduands Secretary"><div class="leader-name">${escapeHtml(leaderName)}</div><div class="leader-role">Graduands Secretary</div></div></div>
+                            <div class="brand report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
+                            <h2 class="report-heading">Graduating Members (<?= htmlspecialchars($current_year, ENT_QUOTES, 'UTF-8') ?>)</h2>
+                            <p class="roster-meta">Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
+                            <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th></tr></thead><tbody>${listRows || '<tr><td colspan="5" style="text-align:center">No graduands on the roster.</td></tr>'}</tbody></table>
+                            ${signatureMarkup}
+                            <div class="footer">E.A.P.C Munyari Church | Graduation Roster | Generated: ${escapeHtml(generatedAt)}</div>
+                        </body></html>`;
+                        printWindow.document.write(html);
+                        printWindow.document.close();
+                        printWindow.focus();
+                        setTimeout(() => printWindow.print(), 700);
+                    }
+                </script>
             <?php endif; ?>
 
             <?php if ($tab == 'graduation_info' && !empty($member['department']) && $member['department'] !== 'None' && (department_allows_graduation_and_sport($member['department']) || $is_youth_advisor_scope)): ?>
@@ -10152,65 +10211,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 $items_count = $conn->query("SELECT COUNT(*) as c FROM prayer_items WHERE department='$esc_dept' AND status='Active'")->fetch_assoc()['c'];
                 ?>
                 <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:30px;">
-                <script>
-                    function printGraduationRoster(orientation) {
-                        if (!orientation) return choosePrintOrientation(selected => printGraduationRoster(selected));
-                        const table = document.getElementById('graduationSecretaryRoster');
-                        if (!table) return;
-                        const escapeHtml = value => String(value || '').replace(/[&<>"']/g, character => ({
-                            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-                        }[character]));
-                        const rows = Array.from(table.querySelectorAll('tbody tr[data-graduation-roster-entry]'));
-                        const leaderName = <?= json_encode(strtoupper(trim($member['first_name'] . ' ' . $member['last_name']))) ?>;
-                        const leaderPhoto = new URL(<?= json_encode('uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png')) ?>, window.location.href).href;
-                        const logoUrl = new URL('church_logo.jpg', window.location.href).href;
-                        const generatedAt = new Date().toLocaleString();
-                        const listRows = rows.map((row, index) => {
-                            const photo = new URL(row.dataset.graduandPhoto || 'uploads/default_avatar.png', window.location.href).href;
-                            const graduationDate = row.dataset.graduationDate
-                                ? new Date(row.dataset.graduationDate + 'T00:00:00').toLocaleDateString(undefined, {year:'numeric',month:'short',day:'numeric'})
-                                : '-';
-                            return `<tr><td>${index + 1}</td><td><img class="graduate-photo" src="${escapeHtml(photo)}" alt=""></td><td>${escapeHtml(row.dataset.graduandName)}</td><td>${escapeHtml(row.dataset.graduandPhone || '-')}</td><td>${escapeHtml(graduationDate)}</td></tr>`;
-                        }).join('');
-                        const signatureMarkup = buildChurchPrintSignatureMarkup('Graduands Secretary', leaderName, escapeHtml);
-                        const printWindow = window.open('', '_blank', 'width=1000,height=750');
-                        if (!printWindow) {
-                            alert('Allow pop-ups for this site to print the graduation list.');
-                            return;
-                        }
-                        const layoutScript = new URL('church_print_layout.js?v=1', window.location.href).href;
-                        const html = `<!doctype html><html><head><meta charset="utf-8"><title>E.A.P.C Munyari Church Graduation List</title><style>
-                            @page{size:A4 ${orientation};margin:12mm 10mm 16mm}*{box-sizing:border-box}
-                            body{margin:0;padding:4px 2px 0;font:12px Arial,Helvetica,sans-serif;color:#17202a}
-                            .watermark{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-36deg);font-size:40px;color:rgba(14,116,144,.13);font-weight:800;white-space:nowrap;pointer-events:none;z-index:0}
-                            .print-leader-header,.brand,.report-heading,.roster-meta,table,.signature{position:relative;z-index:1}
-                            .print-leader-header{margin:0 0 8px;text-align:center}.leader-name{font-size:14px;font-weight:800;color:#0e7490}.leader-role{margin-top:3px;font-size:10px;color:#555}
-                            .brand{display:grid;grid-template-columns:58px 1fr 58px;align-items:center;gap:10px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 9px;margin-bottom:10px}
-                            .brand-logo{width:54px;height:54px;object-fit:contain}.brand h1{margin:0;color:#0e7490;font-size:17px;line-height:1.25}.brand p{margin:4px 0 0;color:#555;font-size:10px}
-                            .report-heading{text-align:center;margin:0 0 8px;font-size:15px;text-transform:uppercase}.roster-meta{text-align:center;margin:0 0 12px;color:#444}
-                            table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
-                            th,td{border:1px solid #89939d;padding:6px 7px;text-align:left;vertical-align:middle}th{background:#0e7490;color:white;font-size:10px;text-transform:uppercase}
-                            .graduate-photo{display:block;width:35px;height:35px;border-radius:50%;object-fit:cover;border:1px solid #aab4be}
-                            .signature{margin:18px auto 0!important;padding:0 24px!important;break-inside:avoid!important;page-break-inside:avoid!important}
-                            .signature .stamp{width:96px!important;height:96px!important;min-width:96px!important;min-height:96px!important;margin:0!important}
-                            .footer{position:fixed;bottom:-10mm;left:0;right:0;border-top:1px solid #0e7490;padding-top:4px;text-align:center;font-size:9px;color:#53606b}
-                            @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-                        </style><script src="${escapeHtml(layoutScript)}" data-direct-print="true"><\/script></head><body>
-                            <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
-                            <div class="print-leader-header"><div class="print-leader-person"><img class="print-leader-avatar" src="${escapeHtml(leaderPhoto)}" alt="Graduands Secretary"><div class="leader-name">${escapeHtml(leaderName)}</div><div class="leader-role">Graduands Secretary</div></div></div>
-                            <div class="brand report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
-                            <h2 class="report-heading">Graduating Members (<?= htmlspecialchars($current_year, ENT_QUOTES, 'UTF-8') ?>)</h2>
-                            <p class="roster-meta">Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
-                            <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th></tr></thead><tbody>${listRows || '<tr><td colspan="5" style="text-align:center">No graduands on the roster.</td></tr>'}</tbody></table>
-                            ${signatureMarkup}
-                            <div class="footer">E.A.P.C Munyari Church | Graduation Roster | Generated: ${escapeHtml(generatedAt)}</div>
-                        </body></html>`;
-                        printWindow.document.write(html);
-                        printWindow.document.close();
-                        printWindow.focus();
-                        setTimeout(() => printWindow.print(), 700);
-                    }
-                </script>
                     <div class="content-card" style="flex:1; min-width:200px; text-align:center; padding:25px; background:linear-gradient(135deg,rgba(79,70,229,0.1),rgba(16,185,129,0.1)); border:1px solid rgba(79,70,229,0.2);">
                         <p style="font-size:2.5rem;font-weight:700;margin:0;color:var(--primary);"><?= $sched_count ?></p>
                         <p style="color:var(--text-muted);margin:5px 0 0;">Upcoming Prayers</p>
