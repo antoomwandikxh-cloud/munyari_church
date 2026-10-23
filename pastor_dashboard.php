@@ -7099,6 +7099,10 @@ w.document.write('</div>');
                         <button type="button" data-graduation-department-filter="all" data-graduation-department-label="All Departments" aria-pressed="true" style="border:1px solid #64748b;border-radius:20px;padding:8px 14px;background:#64748b;color:#fff;font:inherit;font-size:.86rem;font-weight:700;cursor:pointer;">All Departments <span data-graduation-department-count="all" style="margin-left:4px;opacity:.85;">0</span></button>
                         <button type="button" data-graduation-department-filter="youths" data-graduation-department-label="Youths" aria-pressed="false" style="border:1px solid #b45309;border-radius:20px;padding:8px 14px;background:#b45309;color:#fff;font:inherit;font-size:.86rem;font-weight:700;cursor:pointer;">Youths <span data-graduation-department-count="youths" style="margin-left:4px;opacity:.85;">0</span></button>
                         <button type="button" data-graduation-department-filter="sunday_school" data-graduation-department-label="Sunday School" aria-pressed="false" style="border:1px solid #0e7490;border-radius:20px;padding:8px 14px;background:#0e7490;color:#fff;font:inherit;font-size:.86rem;font-weight:700;cursor:pointer;">Sunday School <span data-graduation-department-count="sunday_school" style="margin-left:4px;opacity:.85;">0</span></button>
+                        <button type="button" class="btn-sm" onclick="printPastorGraduationRoster('all')" title="Print Youths and Sunday School graduands" style="display:inline-flex;align-items:center;gap:7px;background:var(--primary);color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;">
+                            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
+                            Print All Departments
+                        </button>
                     </div>
                     <p id="graduation-department-filter-status" role="status" aria-live="polite" style="display:none;margin:12px 0 0;color:var(--text-muted);text-align:center;padding:8px;"></p>
                 </div>
@@ -7112,17 +7116,9 @@ w.document.write('</div>');
                         ?>
                         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
                             <span id="graduationRosterTotal" data-churchwide-total="<?= (int)$total_graduands ?>" class="badge" style="background: var(--primary); color: white; font-size: 14px; padding: 5px 12px;">Total Church-wide: <?= $total_graduands ?></span>
-                            <button type="button" class="btn-sm" onclick="printPastorGraduationRoster('all')" title="Print Youths and Sunday School graduands" style="display:inline-flex;align-items:center;gap:7px;background:var(--primary);color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;">
+                            <button id="graduationDepartmentPrintButton" type="button" class="btn-sm" data-department="" onclick="printPastorGraduationRoster(this.dataset.department)" title="Print the selected department's graduands" style="display:none;align-items:center;gap:7px;background:var(--primary);color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;">
                                 <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
-                                Print All Departments
-                            </button>
-                            <button type="button" class="btn-sm" onclick="printPastorGraduationRoster('youths')" title="Print Youths graduands" style="display:inline-flex;align-items:center;gap:7px;background:#b45309;color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;">
-                                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
-                                Print Youths
-                            </button>
-                            <button type="button" class="btn-sm" onclick="printPastorGraduationRoster('sunday_school')" title="Print Sunday School graduands" style="display:inline-flex;align-items:center;gap:7px;background:#0e7490;color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;">
-                                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
-                                Print Sunday School
+                                <span id="graduationDepartmentPrintLabel"></span>
                             </button>
                         </div>
                     </div>
@@ -7217,6 +7213,8 @@ w.document.write('</div>');
                         const rosterDefaultEmpty = document.getElementById('graduationRosterDefaultEmpty');
                         const announcementsDefaultEmpty = document.getElementById('graduationAnnouncementsDefaultEmpty');
                         const rosterTotal = document.getElementById('graduationRosterTotal');
+                        const departmentPrintButton = document.getElementById('graduationDepartmentPrintButton');
+                        const departmentPrintLabel = document.getElementById('graduationDepartmentPrintLabel');
                         const rosterWrap = document.getElementById('pastorGraduationRosterWrap');
                         const rosterPanel = document.getElementById('pastorGraduationRosterPanel');
                         const announcementsPanel = document.getElementById('pastorGraduationAnnouncementsPanel');
@@ -7249,6 +7247,16 @@ w.document.write('</div>');
                                 if (rosterWrap) rosterWrap.style.display = selected === '' ? 'none' : '';
                                 if (rosterPanel) rosterPanel.style.display = selected === '' ? 'none' : '';
                                 if (announcementsPanel) announcementsPanel.style.display = selected === '' ? 'none' : '';
+                                if (departmentPrintButton) {
+                                    const isSingleDepartment = selected === 'youths' || selected === 'sunday_school';
+                                    departmentPrintButton.dataset.department = isSingleDepartment ? selected : '';
+                                    departmentPrintButton.style.display = isSingleDepartment ? 'inline-flex' : 'none';
+                                    if (departmentPrintLabel) {
+                                        departmentPrintLabel.textContent = isSingleDepartment
+                                            ? 'Print ' + (this.dataset.graduationDepartmentLabel || 'Department')
+                                            : '';
+                                    }
+                                }
                                 const selectedRosterCount = selected === 'all' ? rosterRecords.length : (selected ? counts[selected].roster : 0);
                                 const selectedAnnouncementCount = selected === 'all'
                                     ? records.length - rosterRecords.length
