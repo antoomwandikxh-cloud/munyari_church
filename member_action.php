@@ -66,6 +66,52 @@ function member_action_insert_notification($conn, $user_id, $user_type, $message
     }
 }
 
+function member_action_broadcast_graduation_announcement($conn, $department, $announcement_id, $sender_id, $is_update = false) {
+    $department = trim((string)$department);
+    $announcement_id = (int)$announcement_id;
+    $sender_id = (int)$sender_id;
+    if ($department === '' || $announcement_id < 1) return false;
+
+    $group = notification_department_group_key($department);
+    $row = 'graduation-announcement-' . $announcement_id;
+    $verb = $is_update ? 'was updated' : 'was posted';
+    $notice = notification_with_route(
+        "A graduation announcement for $department $verb.",
+        'graduation_info',
+        $group,
+        $row
+    );
+
+    $department_members = $conn->prepare("SELECT id FROM members
+        WHERE is_approved = 1 AND id <> ? AND LOWER(TRIM(department)) = LOWER(TRIM(?))");
+    if ($department_members) {
+        $department_members->bind_param('is', $sender_id, $department);
+        if ($department_members->execute()) {
+            $recipients = $department_members->get_result();
+            while ($recipient = $recipients->fetch_assoc()) {
+                member_action_insert_notification($conn, (int)$recipient['id'], 'member', $notice);
+            }
+        }
+        $department_members->close();
+    }
+
+    foreach ([['pastors', 'pastor', 'SELECT id FROM pastors WHERE is_approved = 1'], ['admins', 'admin', 'SELECT id FROM admins']] as $audience) {
+        $leaders = $conn->query($audience[2]);
+        if (!$leaders) continue;
+        while ($leader = $leaders->fetch_assoc()) {
+            member_action_insert_notification($conn, (int)$leader['id'], $audience[1], $notice);
+        }
+    }
+    return true;
+}
+
+function member_action_delete_graduation_voice_note($relative_path) {
+    $relative_path = str_replace('\\', '/', trim((string)$relative_path));
+    if (!preg_match('~^uploads/voice_notes/[A-Za-z0-9_.-]+$~', $relative_path)) return;
+    $absolute_path = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative_path);
+    if (is_file($absolute_path)) @unlink($absolute_path);
+}
+
 function member_action_notify_discipline_masters_for_department($conn, $department, $message) {
     $department = trim((string)$department);
     if ($department === '') {
@@ -142,6 +188,7 @@ if (!isset($_SESSION['member_id'])) {
 
 $member_id = $_SESSION['member_id'];
 ensure_graduation_roster_schema($conn);
+ensure_graduation_announcement_audio_schema($conn);
 
 function ensure_financial_record_workflow_schema($conn) {
     $columns = [
@@ -2353,55 +2400,175 @@ if (isset($_GET['action'])) {
         exit();
     }
 
-    // Graduands Secretary: Remove from Graduation List
-    elseif ($action === 'remove_graduand' && isset($_GET['id'])) {
-        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
-        if (member_has_role($member_query['church_role'] ?? '', 'graduands secretary')) {
-            $grad_id = (int)$_GET['id'];
-            $conn->query("DELETE FROM graduation_list WHERE id = $grad_id");
-            
-            header("Location: member_dashboard.php?tab=graduation_panel&success=Member removed from roster");
-            exit();
+    // Graduands Secretary: Remove from the current department's graduation roster.
+    elseif ($action === 'remove_graduand' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $member_result = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1");
+        $member_query = $member_result ? $member_result->fetch_assoc() : null;
+        $grad_id = (int)($_POST['graduation_id'] ?? 0);
+        $department = trim((string)($member_query['department'] ?? ''));
+        if ($member_query && member_has_role($member_query['church_role'] ?? '', 'graduands secretary') && $grad_id > 0) {
+            $remove_stmt = $conn->prepare("DELETE FROM graduation_list WHERE id = ? AND department = ? AND graduation_year = ?");
+            $year = (int)date('Y');
+            if ($remove_stmt) {
+                $remove_stmt->bind_param('isi', $grad_id, $department, $year);
+                $remove_stmt->execute();
+                $removed = $remove_stmt->affected_rows === 1;
+                $remove_stmt->close();
+                $result_key = $removed ? 'success' : 'error';
+                $result_message = $removed ? 'Member removed from roster' : 'That member is not on your current graduation roster';
+                header("Location: member_dashboard.php?tab=graduation_panel&$result_key=" . urlencode($result_message));
+                exit();
+            }
         }
+        header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('You are not allowed to remove this graduation entry.'));
+        exit();
     }
-    
-    // Graduands Secretary: Broadcast Announcement
-    elseif ($action === 'graduation_announcement' && $_SERVER['REQUEST_METHOD'] == 'POST') {
-        $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();
-        if (member_has_role($member_query['church_role'] ?? '', 'graduands secretary')) {
-            $dept = $conn->real_escape_string($member_query['department']);
-            $raw_msg = $_POST['message'];
-            
-            // Post to department announcements
-            $announcement_msg = $conn->real_escape_string("[GRADUATION UPDATE] " . $raw_msg);
-            $conn->query("INSERT INTO department_announcements (department, secretary_id, message) VALUES ('$dept', $member_id, '$announcement_msg')");
-            
-            // Notify Pastors
-            $preview = $conn->real_escape_string(substr($raw_msg, 0, 60) . '...');
-            $notif_msg = "Graduation Update ($dept): $preview";
-            
-            $pastors = $conn->query("SELECT id FROM pastors");
-            while ($p = $pastors->fetch_assoc()) {
-                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$p['id']}, 'pastor', '$notif_msg')");
-            }
-            
-            // Notify Admins
-            $admins = $conn->query("SELECT id FROM admins");
-            if ($admins) {
-                while ($a = $admins->fetch_assoc()) {
-                    $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$a['id']}, 'admin', '$notif_msg')");
-                }
-            }
-            
-            // Notify all department members
-            $dept_members = $conn->query("SELECT id FROM members WHERE department = '$dept' AND is_approved = 1 AND id != $member_id");
-            while ($dm = $dept_members->fetch_assoc()) {
-                $conn->query("INSERT INTO notifications (user_id, user_type, message) VALUES ({$dm['id']}, 'member', '$notif_msg')");
-            }
-            
-            header("Location: member_dashboard.php?tab=graduation_panel&success=Graduation announcement broadcasted successfully");
+
+    // Graduands Secretary: Broadcast or update a text/audio announcement.
+    elseif (in_array($action, ['graduation_announcement', 'update_graduation_announcement'], true) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $member_result = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1");
+        $member_query = $member_result ? $member_result->fetch_assoc() : null;
+        if (!$member_query || !member_has_role($member_query['church_role'] ?? '', 'graduands secretary')) {
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('You are not allowed to manage graduation announcements.'));
             exit();
         }
+
+        if (!ensure_graduation_announcement_audio_schema($conn)) {
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Audio announcements are unavailable right now.'));
+            exit();
+        }
+
+        $department = trim((string)($member_query['department'] ?? ''));
+        $raw_message = trim((string)($_POST['message'] ?? ''));
+        $announcement_id = 0;
+        $is_update = $action === 'update_graduation_announcement';
+        $old_audio_path = null;
+        $new_audio_path = null;
+
+        if ($is_update) {
+            $announcement_id = (int)($_POST['announcement_id'] ?? 0);
+            $existing_stmt = $conn->prepare("SELECT id, audio_path FROM department_announcements
+                WHERE id = ? AND secretary_id = ? AND department = ? AND message LIKE '[GRADUATION UPDATE]%' LIMIT 1");
+            if (!$existing_stmt || $announcement_id < 1) {
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not find that announcement.'));
+                exit();
+            }
+            $existing_stmt->bind_param('iis', $announcement_id, $member_id, $department);
+            $existing_stmt->execute();
+            $existing_result = $existing_stmt->get_result();
+            $existing_announcement = $existing_result ? $existing_result->fetch_assoc() : null;
+            $existing_stmt->close();
+            if (!$existing_announcement) {
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('That announcement is no longer available to edit.'));
+                exit();
+            }
+            $old_audio_path = $existing_announcement['audio_path'] ?? null;
+            $new_audio_path = $old_audio_path;
+            if (!empty($_POST['remove_voice_note'])) $new_audio_path = null;
+        }
+
+        $audio_field = $is_update ? 'edit_voice_note' : 'pastor_voice_note';
+        $blob_field = $is_update ? 'edit_voice_note_blob' : 'pastor_voice_note_blob';
+        $audio_upload = $_FILES[$audio_field] ?? null;
+        $audio_input = trim((string)($_POST[$blob_field] ?? '')) !== ''
+            || (isset($audio_upload['error']) && (int)$audio_upload['error'] !== UPLOAD_ERR_NO_FILE);
+        $saved_audio = save_voice_note($_POST[$blob_field] ?? null, $audio_upload);
+        if ($audio_input && !$saved_audio) {
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('The voice note could not be saved. Try recording it again or choose a supported audio file.'));
+            exit();
+        }
+        if ($saved_audio) $new_audio_path = $saved_audio;
+
+        if ($raw_message === '' && $new_audio_path) {
+            $raw_message = 'Voice announcement from the Graduands Secretary.';
+        }
+        if ($raw_message === '' || ($is_update && !$new_audio_path && empty($_POST['remove_voice_note']) && !$old_audio_path)) {
+            if ($saved_audio) member_action_delete_graduation_voice_note($saved_audio);
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Add announcement text or record a voice note.'));
+            exit();
+        }
+        if ($is_update && $raw_message === 'Voice announcement from the Graduands Secretary.' && !$new_audio_path) {
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Keep announcement text or add a voice note before saving.'));
+            exit();
+        }
+
+        $stored_message = '[GRADUATION UPDATE] ' . $raw_message;
+        if ($is_update) {
+            $update_stmt = $conn->prepare("UPDATE department_announcements SET message = ?, audio_path = ?
+                WHERE id = ? AND secretary_id = ? AND department = ?");
+            if (!$update_stmt) {
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not save the announcement changes.'));
+                exit();
+            }
+            $update_stmt->bind_param('ssiis', $stored_message, $new_audio_path, $announcement_id, $member_id, $department);
+            $updated = $update_stmt->execute();
+            $update_stmt->close();
+            if (!$updated) {
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not save the announcement changes.'));
+                exit();
+            }
+            if ($old_audio_path && $old_audio_path !== $new_audio_path) member_action_delete_graduation_voice_note($old_audio_path);
+        } else {
+            $insert_stmt = $conn->prepare("INSERT INTO department_announcements (department, secretary_id, message, audio_path) VALUES (?, ?, ?, ?)");
+            if (!$insert_stmt) {
+                if ($saved_audio) member_action_delete_graduation_voice_note($saved_audio);
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not post the graduation announcement.'));
+                exit();
+            }
+            $insert_stmt->bind_param('siss', $department, $member_id, $stored_message, $new_audio_path);
+            $posted = $insert_stmt->execute();
+            $announcement_id = $posted ? (int)$conn->insert_id : 0;
+            $insert_stmt->close();
+            if (!$posted || $announcement_id < 1) {
+                if ($saved_audio) member_action_delete_graduation_voice_note($saved_audio);
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not post the graduation announcement.'));
+                exit();
+            }
+        }
+
+        member_action_broadcast_graduation_announcement($conn, $department, $announcement_id, $member_id, $is_update);
+        $success_message = $is_update ? 'Graduation announcement updated and members notified' : 'Graduation announcement posted and members notified';
+        header("Location: member_dashboard.php?tab=graduation_panel&success=" . urlencode($success_message));
+        exit();
+    }
+
+    // Graduands Secretary: Delete an announcement and its stored voice note.
+    elseif ($action === 'delete_graduation_announcement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $member_result = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1");
+        $member_query = $member_result ? $member_result->fetch_assoc() : null;
+        if (!$member_query || !member_has_role($member_query['church_role'] ?? '', 'graduands secretary')) {
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('You are not allowed to delete graduation announcements.'));
+            exit();
+        }
+        $announcement_id = (int)($_POST['announcement_id'] ?? 0);
+        $department = trim((string)($member_query['department'] ?? ''));
+        $delete_stmt = $conn->prepare("SELECT audio_path FROM department_announcements
+            WHERE id = ? AND secretary_id = ? AND department = ? AND message LIKE '[GRADUATION UPDATE]%' LIMIT 1");
+        if (!$delete_stmt || $announcement_id < 1) {
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not find that announcement.'));
+            exit();
+        }
+        $delete_stmt->bind_param('iis', $announcement_id, $member_id, $department);
+        $delete_stmt->execute();
+        $delete_result = $delete_stmt->get_result();
+        $announcement = $delete_result ? $delete_result->fetch_assoc() : null;
+        $delete_stmt->close();
+        if (!$announcement) {
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('That announcement is no longer available to delete.'));
+            exit();
+        }
+        $remove_stmt = $conn->prepare("DELETE FROM department_announcements WHERE id = ? AND secretary_id = ? AND department = ?");
+        $deleted = false;
+        if ($remove_stmt) {
+            $remove_stmt->bind_param('iis', $announcement_id, $member_id, $department);
+            $deleted = $remove_stmt->execute() && $remove_stmt->affected_rows === 1;
+            $remove_stmt->close();
+        }
+        if ($deleted) member_action_delete_graduation_voice_note($announcement['audio_path'] ?? null);
+        $result_key = $deleted ? 'success' : 'error';
+        $result_message = $deleted ? 'Graduation announcement deleted' : 'Could not delete that announcement';
+        header("Location: member_dashboard.php?tab=graduation_panel&$result_key=" . urlencode($result_message));
+        exit();
     }
 
     // Prayer Coordinator: Schedule a Prayer Session

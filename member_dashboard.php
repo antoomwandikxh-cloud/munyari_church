@@ -10,6 +10,7 @@ require_once 'voice_note_helper.php';
 require_once 'organized_event_helper.php';
 if (!isset($_SESSION['member_id'])) { header("Location: login.php"); exit(); }
 ensure_graduation_roster_schema($conn);
+ensure_graduation_announcement_audio_schema($conn);
 ensure_member_preference_roles_schema($conn);
 
 if (!function_exists('remove_worship_announcement_media')) {
@@ -9826,26 +9827,197 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     $current_year = date('Y');
                     $esc_dept = $conn->real_escape_string($member['department']);
                     $count_query = $conn->query("SELECT COUNT(*) as total FROM graduation_list WHERE department='$esc_dept' AND graduation_year=$current_year");
-                    $total_graduands = $count_query->fetch_assoc()['total'];
+                    $total_graduands = (int)($count_query->fetch_assoc()['total'] ?? 0);
+                    $graduand_count_label = $total_graduands === 1 ? 'member is graduating' : 'members are graduating';
                     ?>
                     <div class="content-card" style="flex: 1; min-width: 250px; background: linear-gradient(135deg, rgba(37,99,235,0.1), rgba(16,185,129,0.1)); border: 1px solid rgba(37,99,235,0.2); text-align: center; padding: 30px;">
                         <svg width="48" height="48" fill="none" stroke="var(--primary)" viewBox="0 0 24 24" style="margin-bottom: 15px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"></path></svg>
                         <h2 style="margin: 0; font-size: 2.5rem; color: var(--text-main);"><?= $total_graduands ?></h2>
-                        <p style="color: var(--text-muted); font-size: 1.1rem; margin-top: 5px;">Graduating Youths (<?= $current_year ?>)</p>
+                        <p style="color: var(--text-muted); font-size: 1.1rem; margin-top: 5px;"><?= htmlspecialchars($member['department']) ?>: <?= $graduand_count_label ?> in <?= $current_year ?></p>
                     </div>
 
                     <!-- Announcement Form -->
                     <div class="content-card" style="flex: 2; min-width: 350px;">
                         <h2>Make Graduation Announcement</h2>
                         <p style="color: var(--text-muted); margin-bottom: 15px;">Members of this department will see the announcement in the Graduands Secretary section.</p>
-                        <form method="POST" action="member_action.php?action=graduation_announcement">
+                        <form method="POST" enctype="multipart/form-data" action="member_action.php?action=graduation_announcement">
                             <div class="form-group">
-                                <textarea name="message" class="form-control" rows="4" placeholder="Type your graduation announcement here..." required></textarea>
+                                <textarea name="message" class="form-control" rows="4" placeholder="Type your graduation announcement here... (optional when recording audio)"></textarea>
                             </div>
                             <button type="submit" class="btn-submit">Broadcast Announcement</button>
                         </form>
                     </div>
                 </div>
+
+                <div class="content-card" style="margin-bottom:24px;">
+                    <h2 style="margin-top:0;">Your Graduation Announcements</h2>
+                    <p style="margin-top:-5px;color:var(--text-muted);">Edit the message or replace/remove its voice note. Changes notify the same audience and focus the updated announcement.</p>
+                    <?php
+                    $secretary_announcements_stmt = $conn->prepare("SELECT id, message, audio_path, created_at FROM department_announcements
+                        WHERE secretary_id = ? AND department = ? AND message LIKE '[GRADUATION UPDATE]%' ORDER BY created_at DESC");
+                    if ($secretary_announcements_stmt) {
+                        $secretary_announcements_stmt->bind_param('is', $member_id, $member['department']);
+                        $secretary_announcements_stmt->execute();
+                        $secretary_announcements = $secretary_announcements_stmt->get_result();
+                    } else {
+                        $secretary_announcements = false;
+                    }
+                    if ($secretary_announcements && $secretary_announcements->num_rows > 0):
+                        while ($own_announcement = $secretary_announcements->fetch_assoc()):
+                            $announcement_text = preg_replace('/^\[GRADUATION UPDATE\]\s*/', '', (string)$own_announcement['message']);
+                    ?>
+                        <article data-notification-row="graduation-announcement-<?= (int)$own_announcement['id'] ?>" style="padding:14px;margin:12px 0;border:1px solid var(--border-color);border-left:4px solid #0e7490;border-radius:8px;background:var(--bg-main);">
+                            <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+                                <div style="flex:1;min-width:220px;">
+                                    <p style="margin:0;line-height:1.5;"><?= nl2br(htmlspecialchars($announcement_text, ENT_QUOTES, 'UTF-8')) ?></p>
+                                    <?php if (!empty($own_announcement['audio_path'])): ?>
+                                        <div style="margin-top:12px;"><?= render_whatsapp_voice_player($own_announcement['audio_path'], trim($member['first_name'] . ' ' . $member['last_name']), 'uploads/' . basename($member['profile_picture'] ?: 'default_avatar.png'), $own_announcement['created_at']) ?></div>
+                                    <?php endif; ?>
+                                    <small style="display:block;margin-top:8px;color:var(--text-muted);">Posted <?= date('M j, Y g:i A', strtotime($own_announcement['created_at'])) ?></small>
+                                </div>
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                    <button type="button" class="btn-sm" data-edit-graduation-announcement="<?= (int)$own_announcement['id'] ?>" data-announcement-message="<?= htmlspecialchars($announcement_text, ENT_QUOTES, 'UTF-8') ?>" data-announcement-audio="<?= htmlspecialchars($own_announcement['audio_path'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="background:var(--primary);color:#fff;border:0;border-radius:6px;padding:7px 11px;cursor:pointer;">Edit / Change Voice Note</button>
+                                    <form method="POST" action="member_action.php?action=delete_graduation_announcement" onsubmit="return confirm('Delete this graduation announcement and its voice note?');">
+                                        <input type="hidden" name="announcement_id" value="<?= (int)$own_announcement['id'] ?>">
+                                        <button type="submit" class="btn-sm" style="background:rgba(239,68,68,.12);color:var(--danger);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:7px 11px;cursor:pointer;">Delete</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </article>
+                    <?php
+                        endwhile;
+                        $secretary_announcements_stmt->close();
+                    else:
+                    ?>
+                        <p style="color:var(--text-muted);">No graduation announcements have been posted yet.</p>
+                    <?php endif; ?>
+                </div>
+
+                <div id="graduationAnnouncementEditor" class="content-card" hidden style="margin-bottom:24px;border:1px solid var(--primary);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+                        <h2 style="margin:0;">Edit Graduation Announcement</h2>
+                        <button type="button" id="closeGraduationAnnouncementEditor" class="btn-sm" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);border-radius:6px;padding:6px 10px;cursor:pointer;">Close</button>
+                    </div>
+                    <form id="graduationAnnouncementEditForm" method="POST" enctype="multipart/form-data" action="member_action.php?action=update_graduation_announcement" style="margin-top:14px;">
+                        <input type="hidden" name="announcement_id" id="editGraduationAnnouncementId">
+                        <div class="form-group">
+                            <label for="editGraduationAnnouncementMessage">Announcement</label>
+                            <textarea id="editGraduationAnnouncementMessage" name="message" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0;">
+                            <audio id="currentGraduationAnnouncementAudio" controls hidden style="width:min(100%,380px);"></audio>
+                            <label style="display:grid;gap:5px;font-size:.88rem;color:var(--text-main);">Replace voice note from device
+                                <input type="file" name="edit_voice_note" id="editGraduationVoiceFile" accept="audio/*" class="form-control" style="max-width:360px;">
+                            </label>
+                            <label style="display:flex;align-items:center;gap:7px;color:var(--danger);font-size:.88rem;">
+                                <input type="checkbox" name="remove_voice_note" value="1" id="removeGraduationVoiceNote"> Remove current voice note
+                            </label>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0;">
+                            <button type="button" id="recordGraduationReplacement" class="btn-sm" style="background:#12805c;color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;">Record replacement voice note</button>
+                            <button type="button" id="stopGraduationReplacement" class="btn-sm" hidden style="background:#dc2626;color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;">Stop recording</button>
+                            <span id="graduationReplacementStatus" role="status" style="color:var(--text-muted);font-size:.86rem;"></span>
+                        </div>
+                        <audio id="graduationReplacementPreview" controls hidden style="display:block;max-width:380px;width:100%;margin-bottom:10px;"></audio>
+                        <input type="hidden" name="edit_voice_note_blob" id="editGraduationVoiceBlob">
+                        <button type="submit" class="btn-submit" style="width:auto;">Save Changes &amp; Notify</button>
+                    </form>
+                </div>
+
+                <script>
+                    (() => {
+                        const editor = document.getElementById('graduationAnnouncementEditor');
+                        const form = document.getElementById('graduationAnnouncementEditForm');
+                        if (!editor || !form) return;
+                        const currentAudio = document.getElementById('currentGraduationAnnouncementAudio');
+                        const replacementPreview = document.getElementById('graduationReplacementPreview');
+                        const replacementBlob = document.getElementById('editGraduationVoiceBlob');
+                        const status = document.getElementById('graduationReplacementStatus');
+                        const startButton = document.getElementById('recordGraduationReplacement');
+                        const stopButton = document.getElementById('stopGraduationReplacement');
+                        let recorder = null;
+                        let stream = null;
+                        let chunks = [];
+                        let previewUrl = '';
+
+                        document.querySelectorAll('[data-edit-graduation-announcement]').forEach(button => {
+                            button.addEventListener('click', () => {
+                                if (recorder && recorder.state !== 'inactive') {
+                                    status.textContent = 'Stop the current recording before opening another announcement.';
+                                    return;
+                                }
+                                form.elements.announcement_id.value = button.dataset.editGraduationAnnouncement;
+                                form.elements.message.value = button.dataset.announcementMessage || '';
+                                currentAudio.hidden = !button.dataset.announcementAudio;
+                                currentAudio.src = button.dataset.announcementAudio || '';
+                                document.getElementById('removeGraduationVoiceNote').checked = false;
+                                document.getElementById('editGraduationVoiceFile').value = '';
+                                replacementBlob.value = '';
+                                replacementPreview.hidden = true;
+                                replacementPreview.removeAttribute('src');
+                                status.textContent = '';
+                                editor.hidden = false;
+                                editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                form.elements.message.focus();
+                            });
+                        });
+                        document.getElementById('closeGraduationAnnouncementEditor').addEventListener('click', () => {
+                            if (recorder && recorder.state !== 'inactive') {
+                                status.textContent = 'Stop the recording before closing this editor.';
+                                return;
+                            }
+                            editor.hidden = true;
+                        });
+                        document.getElementById('editGraduationVoiceFile').addEventListener('change', event => {
+                            if (event.target.files.length) replacementBlob.value = '';
+                        });
+                        startButton.addEventListener('click', async () => {
+                            if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+                                status.textContent = 'Voice recording is not supported by this browser.';
+                                return;
+                            }
+                            try {
+                                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                                const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].find(type => MediaRecorder.isTypeSupported?.(type));
+                                recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+                                chunks = [];
+                                recorder.ondataavailable = event => { if (event.data?.size) chunks.push(event.data); };
+                                recorder.onstop = () => {
+                                    const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+                                    if (previewUrl) URL.revokeObjectURL(previewUrl);
+                                    previewUrl = URL.createObjectURL(blob);
+                                    replacementPreview.src = previewUrl;
+                                    replacementPreview.hidden = false;
+                                    const reader = new FileReader();
+                                    reader.onload = () => { replacementBlob.value = String(reader.result || ''); };
+                                    reader.readAsDataURL(blob);
+                                    stream?.getTracks().forEach(track => track.stop());
+                                    stream = null;
+                                    status.textContent = 'Replacement recording ready. Save to send it to members.';
+                                    startButton.hidden = false;
+                                    stopButton.hidden = true;
+                                };
+                                recorder.start();
+                                startButton.hidden = true;
+                                stopButton.hidden = false;
+                                status.textContent = 'Recording…';
+                            } catch (error) {
+                                stream?.getTracks().forEach(track => track.stop());
+                                stream = null;
+                                status.textContent = 'Allow microphone access to record a replacement.';
+                            }
+                        });
+                        stopButton.addEventListener('click', () => {
+                            if (recorder && recorder.state !== 'inactive') recorder.stop();
+                        });
+                        form.addEventListener('submit', event => {
+                            if (recorder && recorder.state !== 'inactive') {
+                                event.preventDefault();
+                                status.textContent = 'Stop the recording before saving.';
+                            }
+                        });
+                    })();
+                </script>
 
                 <!-- Add to Roster -->
                 <div class="content-card">
@@ -9942,6 +10114,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             const openMenu = (initialCharacter = '') => {
                                 menu.hidden = false;
                                 toggle.setAttribute('aria-expanded', 'true');
+                            <?= render_voice_note_recorder('approved members of the ' . $member['department'] . ' department') ?>
                                 requestAnimationFrame(() => {
                                     search.focus();
                                     if (initialCharacter) {
@@ -10023,19 +10196,27 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </script>
 
                     <?php
-                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.phone, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC, m.last_name ASC");
-                    if ($roster && $roster->num_rows > 0):
+                    $graduation_years = [(int)$current_year];
+                    $years_result = $conn->query("SELECT DISTINCT graduation_year FROM graduation_list WHERE department = '$esc_dept' ORDER BY graduation_year DESC");
+                    if ($years_result) {
+                        while ($year_row = $years_result->fetch_assoc()) $graduation_years[] = (int)$year_row['graduation_year'];
+                    }
+                    $graduation_years = array_values(array_unique($graduation_years));
+                    rsort($graduation_years, SORT_NUMERIC);
+                    $selected_graduation_year = isset($_GET['graduation_print_year']) ? (int)$_GET['graduation_print_year'] : (int)$current_year;
+                    if (!in_array($selected_graduation_year, $graduation_years, true)) $selected_graduation_year = (int)$current_year;
+                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.phone, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $selected_graduation_year ORDER BY m.first_name ASC, m.last_name ASC");
                     ?>
                         <div class="table-responsive">
                             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
-                                <h3 style="margin:0;">Graduation roster</h3>
+                                <h3 style="margin:0;">Graduation roster (<?= $selected_graduation_year ?>)</h3>
                                 <button type="button" class="btn-sm" onclick="printGraduationRoster()" style="display:inline-flex;align-items:center;gap:7px;background:var(--primary);color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;">
                                     <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
                                     Print Graduation List
                                 </button>
                             </div>
                             <table id="graduationSecretaryRoster">
-                                <thead><tr><th>Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th><th>Added Date</th><th>Action</th></tr></thead>
+                                <thead><tr><th>Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th><th>Added Date</th><?php if ($selected_graduation_year === (int)$current_year): ?><th>Action</th><?php endif; ?></tr></thead>
                                 <tbody>
                                     <?php while($r = $roster->fetch_assoc()): ?>
                                         <?php
@@ -10050,10 +10231,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             <td><?= htmlspecialchars($r['phone'] ?? '-') ?></td>
                                             <td><?= htmlspecialchars($graduation_date_display) ?></td>
                                             <td style="color:var(--text-muted);"><?= htmlspecialchars($added_date_display) ?></td>
-                                            <td>
+                                            <?php if ($selected_graduation_year === (int)$current_year): ?><td>
                                                 <div class="graduation-roster-actions">
                                                     <button type="button" class="btn-sm" onclick="toggleGraduationDateEditor(this)" style="background:color-mix(in srgb, var(--primary) 14%, var(--bg-card));color:var(--primary);border:1px solid color-mix(in srgb, var(--primary) 35%, var(--border-color));padding:5px 9px;border-radius:5px;cursor:pointer;">Change date</button>
-                                                    <a href="member_action.php?action=remove_graduand&id=<?= (int)$r['id'] ?>" class="btn-action" style="color: var(--danger); background: rgba(239,68,68,0.1); padding: 5px 9px; border-radius: 4px;" onclick="return confirm('Remove from graduation list?');">Remove</a>
+                                                    <form method="POST" action="member_action.php?action=remove_graduand" onsubmit="return confirm('Remove this member from the current graduation list?');" style="display:inline;">
+                                                        <input type="hidden" name="graduation_id" value="<?= (int)$r['id'] ?>">
+                                                        <button type="submit" class="btn-action" style="color:var(--danger);background:rgba(239,68,68,0.1);padding:5px 9px;border:0;border-radius:4px;cursor:pointer;">Remove</button>
+                                                    </form>
                                                 </div>
                                                 <form class="graduation-date-editor" method="POST" action="member_action.php?action=update_graduand_date" hidden>
                                                     <input type="hidden" name="graduation_id" value="<?= (int)$r['id'] ?>">
@@ -10063,14 +10247,14 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                     <button type="submit" class="btn-sm" style="background:var(--success);color:#fff;border:0;padding:6px 10px;border-radius:5px;cursor:pointer;">Save</button>
                                                     <button type="button" class="btn-sm" onclick="this.closest('.graduation-date-editor').hidden=true" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);padding:6px 10px;border-radius:5px;cursor:pointer;">Cancel</button>
                                                 </form>
-                                            </td>
+                                            </td><?php endif; ?>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
                         </div>
                     <?php else: ?>
-                        <p style="color: var(--text-muted);">No youths have been added to the graduation roster for <?= $current_year ?>.</p>
+                        <p style="color: var(--text-muted);">No members are on the graduation roster for <?= $selected_graduation_year ?>.</p>
                     <?php endif; ?>
                 </div>
                 <script>
@@ -10123,6 +10307,18 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             .scope-department{font-weight:800;color:#000}
                             table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
                             th,td{border:1px solid #89939d;padding:6px 7px;text-align:left;vertical-align:middle}th{background:#0e7490;color:white;font-size:10px;text-transform:uppercase}
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                        <label for="graduationPrintYear" style="color:var(--text-muted);font-size:.9rem;">Graduation year to print</label>
+                        <form method="GET" action="member_dashboard.php" style="display:inline-flex;align-items:center;gap:8px;margin:0;">
+                            <input type="hidden" name="tab" value="graduation_panel">
+                            <select id="graduationPrintYear" name="graduation_print_year" onchange="this.form.submit()" style="min-height:38px;padding:7px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-main);">
+                                <?php foreach ($graduation_years as $year_option): ?>
+                                    <option value="<?= $year_option ?>" <?= $selected_graduation_year === $year_option ? 'selected' : '' ?>><?= $year_option ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </form>
+                    </div>
+                    <?php if ($roster && $roster->num_rows > 0): ?>
                             .graduate-photo{display:block;width:35px;height:35px;border-radius:50%;object-fit:cover;border:1px solid #aab4be}
                             .signature{margin:18px auto 0!important;padding:0 24px!important;break-inside:avoid!important;page-break-inside:avoid!important}
                             .signature .stamp{width:140px!important;height:140px!important;min-width:140px!important;min-height:140px!important;margin:0!important}
@@ -10131,7 +10327,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
                             <div class="print-leader-header"><div class="print-leader-person"><img class="print-leader-avatar" src="${escapeHtml(leaderPhoto)}" alt="Graduands Secretary"><div class="leader-name">${escapeHtml(leaderName)}</div><div class="leader-role">Graduands Secretary</div></div></div>
                             <div class="brand report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster - ${escapeHtml(departmentName)}</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
-                            <h2 class="report-heading">Graduating Members (<?= htmlspecialchars($current_year, ENT_QUOTES, 'UTF-8') ?>)</h2>
+                            <h2 class="report-heading">Graduating Members (<?= htmlspecialchars((string)$selected_graduation_year, ENT_QUOTES, 'UTF-8') ?>)</h2>
                             <p class="roster-meta">Scope: <strong class="scope-department">${escapeHtml(departmentName)}</strong><br>Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
                             <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th></tr></thead><tbody>${listRows || '<tr><td colspan="5" style="text-align:center">No graduands on the roster.</td></tr>'}</tbody></table>
                             ${signatureMarkup}
@@ -10195,16 +10391,19 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                 <div class="content-card">
                     <h2>Graduation Announcements</h2>
                     <?php
-                    $grad_ann = $conn->query("SELECT da.*, m.first_name, m.last_name FROM department_announcements da JOIN members m ON da.secretary_id = m.id WHERE da.department = '$esc_dept' AND da.message LIKE '[GRADUATION UPDATE]%' ORDER BY da.created_at DESC");
+                    $grad_ann = $conn->query("SELECT da.*, m.first_name, m.last_name, m.profile_picture FROM department_announcements da JOIN members m ON da.secretary_id = m.id WHERE da.department = '$esc_dept' AND da.message LIKE '[GRADUATION UPDATE]%' ORDER BY da.created_at DESC");
                     if ($grad_ann && $grad_ann->num_rows > 0):
                     ?>
                         <?php while($ga = $grad_ann->fetch_assoc()): ?>
-                            <div style="padding: 15px; border-left: 4px solid var(--primary); background: var(--bg-main); margin-bottom: 15px; border-radius: 0 8px 8px 0;">
+                            <div data-notification-row="graduation-announcement-<?= (int)$ga['id'] ?>" style="padding: 15px; border-left: 4px solid var(--primary); background: var(--bg-main); margin-bottom: 15px; border-radius: 0 8px 8px 0;">
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                                     <strong style="color: var(--primary);"><?= htmlspecialchars($ga['first_name'] . ' ' . $ga['last_name']) ?> (Graduands Secretary)</strong>
                                     <small style="color: var(--text-muted);"><?= date('M j, Y', strtotime($ga['created_at'])) ?></small>
                                 </div>
                                 <p style="margin: 0; line-height: 1.5;"><?= nl2br(htmlspecialchars(str_replace('[GRADUATION UPDATE] ', '', $ga['message']))) ?></p>
+                                <?php if (!empty($ga['audio_path'])): ?>
+                                    <div style="margin-top:12px;"><?= render_whatsapp_voice_player($ga['audio_path'], trim($ga['first_name'] . ' ' . $ga['last_name']), 'uploads/' . basename($ga['profile_picture'] ?: 'default_avatar.png'), $ga['created_at']) ?></div>
+                                <?php endif; ?>
                             </div>
                         <?php endwhile; ?>
                     <?php else: ?>

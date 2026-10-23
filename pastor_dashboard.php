@@ -27,6 +27,7 @@ session_start();
 require_once 'db_connect.php';
 require_once 'graduation_roster_helper.php';
 ensure_graduation_roster_schema($conn);
+ensure_graduation_announcement_audio_schema($conn);
 require_once 'highlight_retention.php';
 if (isset($_POST['add_custom_role'])) {
     $role_name = trim($_POST['custom_role_name']);
@@ -7178,16 +7179,19 @@ w.document.write('</div>');
                 <div id="pastorGraduationAnnouncementsPanel" class="content-card">
                     <h2>Graduation Announcements</h2>
                     <?php
-                    $grad_ann = $conn->query("SELECT da.*, m.first_name, m.last_name FROM department_announcements da JOIN members m ON da.secretary_id = m.id WHERE da.message LIKE '[GRADUATION UPDATE]%' ORDER BY da.created_at DESC");
+                    $grad_ann = $conn->query("SELECT da.*, m.first_name, m.last_name, m.profile_picture FROM department_announcements da JOIN members m ON da.secretary_id = m.id WHERE da.message LIKE '[GRADUATION UPDATE]%' ORDER BY da.created_at DESC");
                     if ($grad_ann && $grad_ann->num_rows > 0):
                     ?>
                         <?php while($ga = $grad_ann->fetch_assoc()): ?>
-                            <div data-graduation-kind="announcement" data-graduation-department="<?= htmlspecialchars(notification_department_group_key($ga['department']), ENT_QUOTES) ?>" style="padding: 15px; border-left: 4px solid var(--primary); background: var(--bg-main); margin-bottom: 15px; border-radius: 0 8px 8px 0;">
+                            <div data-graduation-kind="announcement" data-graduation-department="<?= htmlspecialchars(notification_department_group_key($ga['department']), ENT_QUOTES) ?>" data-notification-row="graduation-announcement-<?= (int)$ga['id'] ?>" style="padding: 15px; border-left: 4px solid var(--primary); background: var(--bg-main); margin-bottom: 15px; border-radius: 0 8px 8px 0;">
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                                     <strong style="color: var(--primary);"><?= htmlspecialchars($ga['first_name'] . ' ' . $ga['last_name']) ?> (<?= htmlspecialchars($ga['department']) ?> Graduands Secretary)</strong>
                                     <small style="color: var(--text-muted);"><?= date('M j, Y', strtotime($ga['created_at'])) ?></small>
                                 </div>
                                 <p style="margin: 0; line-height: 1.5;"><?= nl2br(htmlspecialchars(str_replace('[GRADUATION UPDATE] ', '', $ga['message']))) ?></p>
+                                <?php if (!empty($ga['audio_path'])): ?>
+                                    <div style="margin-top:12px;"><?= render_whatsapp_voice_player($ga['audio_path'], trim($ga['first_name'] . ' ' . $ga['last_name']), 'uploads/' . basename($ga['profile_picture'] ?: 'default_avatar.png'), $ga['created_at']) ?></div>
+                                <?php endif; ?>
                             </div>
                         <?php endwhile; ?>
                     <?php else: ?>

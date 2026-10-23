@@ -26,3 +26,19 @@ if (!function_exists('ensure_graduation_roster_schema')) {
         return true;
     }
 }
+
+if (!function_exists('ensure_graduation_announcement_audio_schema')) {
+    function ensure_graduation_announcement_audio_schema($conn) {
+        static $checked = false;
+        if ($checked) return true;
+
+        $column = $conn->query("SHOW COLUMNS FROM department_announcements LIKE 'audio_path'");
+        if (!$column) return false;
+        if ($column->num_rows === 0) {
+            if ($conn->query("ALTER TABLE department_announcements ADD COLUMN audio_path VARCHAR(255) NULL AFTER image_path") !== true) return false;
+        }
+
+        $checked = true;
+        return true;
+    }
+}
