@@ -12,6 +12,11 @@ assert.ok(printStart >= 0 && printEnd > printStart, 'Pastor Graduation Info has 
 assert.doesNotMatch(printScript, /leaderPhoto|alt="Church Pastor"/, 'graduation printouts omit the pastor profile header');
 assert.match(printScript, /selectedDepartment === 'all' \? \['youths', 'sunday_school'\] : \[selectedDepartment\]/, 'combined print includes both department graduation secretaries');
 assert.match(printScript, /class="print-leader-header secretary-profiles">\$\{secretaryProfilesMarkup\}/, 'secretary portraits are grouped at the top before the report header');
+assert.match(printScript, /const secretarySignaturesMarkup = secretaryDepartmentKeys\.map/, 'signature blocks follow the same department selection as secretary portraits');
+assert.match(printScript, /buildChurchPrintSignatureMarkup\(`\$\{secretaryRole\} - \$\{departmentLabel\}`/, 'each graduation secretary receives a name, signature, date, and stamp block');
+assert.match(printScript, /const signatureMarkup = `<div class="graduation-signatures">\$\{secretarySignaturesMarkup\}<\/div>`/, 'graduation print uses department secretary signatures instead of the pastor signature');
+assert.match(printScript, /grid-template-columns:repeat\(\$\{signatureColumns\},minmax\(0,1fr\)\)/, 'two department signatures sit side-by-side and a department print uses one column');
+assert.doesNotMatch(printScript, /buildChurchPrintSignatureMarkup\('Pastor'/, 'graduation signature blocks are not signed as the pastor');
 assert.equal((printScript.match(/class="brand report-header"/g) || []).length, 1, 'each graduation print has one church report header');
 assert.doesNotMatch(printScript, /department-report-header|department-secretary-header/, 'department sections do not repeat full headers or secretary portraits');
 assert.ok(printScript.indexOf('secretaryProfilesMarkup}</div>') < printScript.indexOf('<div class="brand report-header"'), 'secretary portraits print above the single report header');

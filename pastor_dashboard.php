@@ -7376,7 +7376,6 @@ w.document.write('</div>');
                         const escapeHtml = value => String(value || '').replace(/[&<>"']/g, character => ({
                             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
                         }[character]));
-                        const leaderName = <?= json_encode(strtoupper(trim(($pastor['first_name'] ?? '') . ' ' . ($pastor['last_name'] ?? '')))) ?>;
                         const graduationSecretaries = <?= json_encode($graduation_secretaries, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
                         const logoUrl = new URL('church_logo.jpg', window.location.href).href;
                         const generatedAt = new Date().toLocaleString();
@@ -7393,6 +7392,14 @@ w.document.write('</div>');
                             const secretaryPhoto = new URL(secretary ? secretary.photo : 'uploads/default_avatar.png', window.location.href).href;
                             return `<div class="print-leader-person"><img class="print-leader-avatar" src="${escapeHtml(secretaryPhoto)}" alt="${escapeHtml(departmentLabel)} Graduands Secretary"><div class="leader-name">${escapeHtml(secretaryName)}</div><div class="leader-role">${escapeHtml(secretaryRole)} - ${escapeHtml(departmentLabel)}</div></div>`;
                         }).join('');
+                        const secretarySignaturesMarkup = secretaryDepartmentKeys.map(departmentKey => {
+                            const departmentLabel = departmentLabels[departmentKey] || scopeLabel;
+                            const secretary = graduationSecretaries[departmentKey] || null;
+                            const secretaryName = secretary ? secretary.name.toUpperCase() : 'NOT ASSIGNED';
+                            const secretaryRole = secretary ? secretary.role : 'Graduands Secretary';
+                            return buildChurchPrintSignatureMarkup(`${secretaryRole} - ${departmentLabel}`, secretaryName, escapeHtml);
+                        }).join('');
+                        const signatureColumns = secretaryDepartmentKeys.length > 1 ? 2 : 1;
                         const sundaySchoolClassOrder = ['Little Angels', 'Champions', 'Battalion', 'Conquerors'];
                         const sundaySchoolClassColors = { 'Little Angels': '#6366f1', 'Champions': '#e11d48', 'Battalion': '#d97706', 'Conquerors': '#059669', 'Unassigned': '#64748b' };
                         const groupedRows = new Map();
@@ -7447,7 +7454,7 @@ w.document.write('</div>');
                                 <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Department</th><th>Graduation Date</th></tr></thead>${departmentBody}</table>
                             </section>`;
                         }).join('');
-                        const signatureMarkup = buildChurchPrintSignatureMarkup('Pastor', leaderName, escapeHtml);
+                        const signatureMarkup = `<div class="graduation-signatures">${secretarySignaturesMarkup}</div>`;
                         const printWindow = window.open('', '_blank', 'width=1000,height=750');
                         if (!printWindow) {
                             alert('Allow pop-ups for this site to print the graduation list.');
@@ -7471,6 +7478,10 @@ w.document.write('</div>');
                             .graduate-photo{display:block;width:35px;height:35px;border-radius:50%;object-fit:cover;border:1px solid #aab4be}
                             .signature{margin:18px auto 0!important;padding:0 24px!important;break-inside:avoid!important;page-break-inside:avoid!important}
                             .signature .stamp{width:96px!important;height:96px!important;min-width:96px!important;min-height:96px!important;margin:0!important}
+                            .graduation-signatures{display:grid;grid-template-columns:repeat(${signatureColumns},minmax(0,1fr));gap:14px;margin:18px auto 0;width:100%;break-inside:auto;page-break-inside:auto}
+                            .graduation-signatures .signature{width:100%!important;margin:0!important;padding:0 4px!important;gap:8px!important;display:flex!important;flex-direction:column;align-items:center}
+                            .graduation-signatures .signature-details{width:100%;gap:5px!important}
+                            .graduation-signatures .signature-details span[style*="width:220px"]{width:min(220px,100%)!important}
                             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
                         </style><script src="${escapeHtml(layoutScript)}" data-direct-print="true"><\/script></head><body>
                             <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
