@@ -267,7 +267,7 @@ function validateInput(input, type) {
 }
 
 // Keep report signatures consistent with the Manage Members print layout.
-function buildChurchPrintSignatureMarkup(role, name, escapeText) {
+function buildChurchPrintSignatureMarkup(role, name, escapeText, includeTime = false) {
     const escape = typeof escapeText === 'function'
         ? escapeText
         : value => String(value).replace(/[&<>"']/g, character => ({
@@ -284,6 +284,7 @@ function buildChurchPrintSignatureMarkup(role, name, escapeText) {
             <div style="font-size:.75rem;font-weight:bold;color:#333;margin-top:2px;margin-bottom:10px">${escape(name || '')}</div>
             <div style="font-size:.9rem;display:flex;align-items:flex-end;justify-content:center;gap:8px"><span style="font-style:italic;color:#333">Sign:</span><span style="display:inline-block;border-bottom:1px solid #000;width:220px;height:14px"></span></div>
             <div style="font-size:.85rem;margin-top:12px;display:flex;align-items:flex-end;justify-content:center;gap:8px"><span style="color:#333">Date:</span><span style="display:inline-block;border-bottom:1px dotted #000;width:220px;height:14px"></span></div>
+            ${includeTime ? '<div style="font-size:.85rem;margin-top:8px;display:flex;align-items:flex-end;justify-content:center;gap:8px"><span style="color:#333">Time:</span><span style="display:inline-block;border-bottom:1px dotted #000;width:220px;height:14px"></span></div>' : ''}
         </div>
         <div style="text-align:center;flex:0 0 140px"><div class="stamp" style="box-sizing:border-box;border:2px dashed #aaa;width:140px;height:140px;min-width:140px;min-height:140px;border-radius:50%;margin:0 0 10px auto;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:.85rem;text-transform:uppercase;letter-spacing:1px">Official<br>Stamp</div></div>
     </div>`;

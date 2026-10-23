@@ -7397,7 +7397,7 @@ w.document.write('</div>');
                             const secretary = graduationSecretaries[departmentKey] || null;
                             const secretaryName = secretary ? secretary.name.toUpperCase() : 'NOT ASSIGNED';
                             const secretaryRole = secretary ? secretary.role : 'Graduands Secretary';
-                            return buildChurchPrintSignatureMarkup(`${secretaryRole} - ${departmentLabel}`, secretaryName, escapeHtml);
+                            return buildChurchPrintSignatureMarkup(`${secretaryRole} - ${departmentLabel}`, secretaryName, escapeHtml, true);
                         }).join('');
                         const signatureColumns = secretaryDepartmentKeys.length > 1 ? 2 : 1;
                         const sundaySchoolClassOrder = ['Little Angels', 'Champions', 'Battalion', 'Conquerors'];
@@ -7479,9 +7479,11 @@ w.document.write('</div>');
                             .signature{margin:18px auto 0!important;padding:0 24px!important;break-inside:avoid!important;page-break-inside:avoid!important}
                             .signature .stamp{width:96px!important;height:96px!important;min-width:96px!important;min-height:96px!important;margin:0!important}
                             .graduation-signatures{display:grid;grid-template-columns:repeat(${signatureColumns},minmax(0,1fr));gap:14px;margin:18px auto 0;width:100%;break-inside:auto;page-break-inside:auto}
-                            .graduation-signatures .signature{width:100%!important;margin:0!important;padding:0 4px!important;gap:8px!important;display:flex!important;flex-direction:column;align-items:center}
-                            .graduation-signatures .signature-details{width:100%;gap:5px!important}
-                            .graduation-signatures .signature-details span[style*="width:220px"]{width:min(220px,100%)!important}
+                            .graduation-signatures .signature{width:100%!important;margin:0!important;padding:0 4px!important;gap:10px!important;display:flex!important;flex-direction:row!important;align-items:flex-end!important}
+                            .graduation-signatures .signature-details{flex:1;min-width:0;gap:5px!important;text-align:left!important}
+                            .graduation-signatures .signature-details div[style*="display:flex"]{justify-content:flex-start!important}
+                            .graduation-signatures .signature > div[style*="flex:0 0 140px"]{flex:0 0 100px!important}
+                            .graduation-signatures .signature-details span[style*="width:220px"]{width:${signatureColumns > 1 ? '140px' : '220px'}!important}
                             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
                         </style><script src="${escapeHtml(layoutScript)}" data-direct-print="true"><\/script></head><body>
                             <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
