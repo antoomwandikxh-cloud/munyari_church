@@ -21,7 +21,10 @@ assert.match(printScript, /const signatureMarkup = `<div class="graduation-signa
 assert.match(printScript, /grid-template-columns:repeat\(\$\{signatureColumns\},minmax\(0,1fr\)\)/, 'two department signatures sit side-by-side and a department print uses one column');
 assert.match(printScript, /\.graduation-signatures \.signature\{[^}]*flex-direction:row!important/, 'secretary signature details and stamp are arranged horizontally');
 assert.match(printScript, /\.graduation-signatures \.signature-details span\[style\*=\"width:220px\"\]\{width:\$\{signatureColumns > 1 \? '140px' : '220px'\}!important\}/, 'signature lines fit beside the stamp in both combined and department prints');
+assert.match(printScript, /\.signature \.stamp\{width:140px!important;height:140px!important;min-width:140px!important;min-height:140px!important/, 'Pastor graduation stamp matches the larger 140px print stamp');
+assert.match(printScript, /\.graduation-signatures \.signature > div\[style\*=\"flex:0 0 140px\"\]\{flex:0 0 140px!important\}/, 'Pastor signature layout reserves full width for the larger stamp');
 assert.doesNotMatch(printScript, /buildChurchPrintSignatureMarkup\('Pastor'/, 'graduation signature blocks are not signed as the pastor');
+assert.match(memberPage, /function printGraduationRoster\(orientation\)[\s\S]*?\.signature \.stamp\{width:140px!important;height:140px!important;min-width:140px!important;min-height:140px!important/, 'Graduands Secretary print uses the larger 140px stamp');
 assert.equal((printScript.match(/class="brand report-header"/g) || []).length, 1, 'each graduation print has one church report header');
 assert.doesNotMatch(printScript, /department-report-header|department-secretary-header/, 'department sections do not repeat full headers or secretary portraits');
 assert.ok(printScript.indexOf('secretaryProfilesMarkup}</div>') < printScript.indexOf('<div class="brand report-header"'), 'secretary portraits print above the single report header');

@@ -7478,12 +7478,12 @@ w.document.write('</div>');
                             th,td{border:1px solid #89939d;padding:6px 7px;text-align:left;vertical-align:middle}th{background:#0e7490;color:white;font-size:10px;text-transform:uppercase}
                             .graduate-photo{display:block;width:35px;height:35px;border-radius:50%;object-fit:cover;border:1px solid #aab4be}
                             .signature{margin:18px auto 0!important;padding:0 24px!important;break-inside:avoid!important;page-break-inside:avoid!important}
-                            .signature .stamp{width:96px!important;height:96px!important;min-width:96px!important;min-height:96px!important;margin:0!important}
+                            .signature .stamp{width:140px!important;height:140px!important;min-width:140px!important;min-height:140px!important;margin:0!important}
                             .graduation-signatures{display:grid;grid-template-columns:repeat(${signatureColumns},minmax(0,1fr));gap:14px;margin:18px auto 0;width:100%;break-inside:auto;page-break-inside:auto}
                             .graduation-signatures .signature{width:100%!important;margin:0!important;padding:0 4px!important;gap:10px!important;display:flex!important;flex-direction:row!important;align-items:flex-end!important}
                             .graduation-signatures .signature-details{flex:1;min-width:0;gap:5px!important;text-align:left!important}
                             .graduation-signatures .signature-details div[style*="display:flex"]{justify-content:flex-start!important}
-                            .graduation-signatures .signature > div[style*="flex:0 0 140px"]{flex:0 0 100px!important}
+                            .graduation-signatures .signature > div[style*="flex:0 0 140px"]{flex:0 0 140px!important}
                             .graduation-signatures .signature-details span[style*="width:220px"]{width:${signatureColumns > 1 ? '140px' : '220px'}!important}
                             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
                         </style><script src="${escapeHtml(layoutScript)}" data-direct-print="true"><\/script></head><body>
