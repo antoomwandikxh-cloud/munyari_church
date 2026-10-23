@@ -7093,7 +7093,17 @@ w.document.write('</div>');
                     <p>View all graduating youths and announcements across the church for <?= $current_year ?>.</p>
                 </div>
 
-                <div class="content-card" style="margin-bottom: 30px;">
+                <div id="graduation-department-filter" class="content-card" style="margin-bottom:14px;padding:14px 16px;">
+                    <strong style="display:block;margin-bottom:10px;color:var(--text-main);">Filter graduation information by department</strong>
+                    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                        <button type="button" data-graduation-department-filter="all" data-graduation-department-label="All Departments" aria-pressed="true" style="border:1px solid #64748b;border-radius:20px;padding:8px 14px;background:#64748b;color:#fff;font:inherit;font-size:.86rem;font-weight:700;cursor:pointer;">All Departments <span data-graduation-department-count="all" style="margin-left:4px;opacity:.85;">0</span></button>
+                        <button type="button" data-graduation-department-filter="youths" data-graduation-department-label="Youths" aria-pressed="false" style="border:1px solid #b45309;border-radius:20px;padding:8px 14px;background:#b45309;color:#fff;font:inherit;font-size:.86rem;font-weight:700;cursor:pointer;">Youths <span data-graduation-department-count="youths" style="margin-left:4px;opacity:.85;">0</span></button>
+                        <button type="button" data-graduation-department-filter="sunday_school" data-graduation-department-label="Sunday School" aria-pressed="false" style="border:1px solid #0e7490;border-radius:20px;padding:8px 14px;background:#0e7490;color:#fff;font:inherit;font-size:.86rem;font-weight:700;cursor:pointer;">Sunday School <span data-graduation-department-count="sunday_school" style="margin-left:4px;opacity:.85;">0</span></button>
+                    </div>
+                    <p id="graduation-department-filter-status" role="status" aria-live="polite" style="display:none;margin:12px 0 0;color:var(--text-muted);text-align:center;padding:8px;"></p>
+                </div>
+
+                <div id="pastorGraduationRosterPanel" class="content-card" style="margin-bottom: 30px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2 style="margin: 0;">Graduation Roster (<?= $current_year ?>)</h2>
                         <?php
@@ -7144,7 +7154,7 @@ w.document.write('</div>');
                     }
                     if ($roster && $roster->num_rows > 0):
                     ?>
-                        <div class="table-responsive">
+                        <div id="pastorGraduationRosterWrap" class="table-responsive">
                             <table id="pastorGraduationRoster">
                                 <thead><tr><th>Photo</th><th>Name</th><th>Phone Number</th><th>Department</th><th>Graduation Date</th><th>Added Date</th></tr></thead>
                                 <tbody>
@@ -7163,19 +7173,20 @@ w.document.write('</div>');
                     <?php else: ?>
                         <div class="text-center" style="padding: 40px; color: var(--text-muted);">
                             <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin: 0 auto 15px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
-                            <p>No graduands have been registered church-wide for <?= $current_year ?>.</p>
+                            <p id="graduationRosterDefaultEmpty">No graduands have been registered church-wide for <?= $current_year ?>.</p>
                         </div>
                     <?php endif; ?>
+                    <p id="graduation-roster-filter-empty" role="status" style="display:none;color:var(--text-muted);padding:12px 0;text-align:center;"></p>
                 </div>
 
-                <div class="content-card">
+                <div id="pastorGraduationAnnouncementsPanel" class="content-card">
                     <h2>Graduation Announcements</h2>
                     <?php
                     $grad_ann = $conn->query("SELECT da.*, m.first_name, m.last_name FROM department_announcements da JOIN members m ON da.secretary_id = m.id WHERE da.message LIKE '[GRADUATION UPDATE]%' ORDER BY da.created_at DESC");
                     if ($grad_ann && $grad_ann->num_rows > 0):
                     ?>
                         <?php while($ga = $grad_ann->fetch_assoc()): ?>
-                            <div style="padding: 15px; border-left: 4px solid var(--primary); background: var(--bg-main); margin-bottom: 15px; border-radius: 0 8px 8px 0;">
+                            <div data-graduation-kind="announcement" data-graduation-department="<?= htmlspecialchars(notification_department_group_key($ga['department']), ENT_QUOTES) ?>" style="padding: 15px; border-left: 4px solid var(--primary); background: var(--bg-main); margin-bottom: 15px; border-radius: 0 8px 8px 0;">
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                                     <strong style="color: var(--primary);"><?= htmlspecialchars($ga['first_name'] . ' ' . $ga['last_name']) ?> (<?= htmlspecialchars($ga['department']) ?> Graduands Secretary)</strong>
                                     <small style="color: var(--text-muted);"><?= date('M j, Y', strtotime($ga['created_at'])) ?></small>
@@ -7184,9 +7195,98 @@ w.document.write('</div>');
                             </div>
                         <?php endwhile; ?>
                     <?php else: ?>
-                        <p style="color: var(--text-muted);">No graduation announcements have been made yet.</p>
+                        <p id="graduationAnnouncementsDefaultEmpty" style="color: var(--text-muted);">No graduation announcements have been made yet.</p>
                     <?php endif; ?>
+                    <p id="graduation-announcements-filter-empty" role="status" style="display:none;color:var(--text-muted);padding:12px 0;text-align:center;"></p>
                 </div>
+
+                <script id="graduationDepartmentFilterScript">
+                    (function () {
+                        const filterRoot = document.getElementById('graduation-department-filter');
+                        if (!filterRoot) return;
+                        const buttons = Array.from(filterRoot.querySelectorAll('[data-graduation-department-filter]'));
+                        const records = Array.from(document.querySelectorAll('[data-graduation-department]'));
+                        const status = document.getElementById('graduation-department-filter-status');
+                        const counts = {
+                            all: { roster: 0, announcement: 0 },
+                            youths: { roster: 0, announcement: 0 },
+                            sunday_school: { roster: 0, announcement: 0 }
+                        };
+                        const rosterEmpty = document.getElementById('graduation-roster-filter-empty');
+                        const announcementEmpty = document.getElementById('graduation-announcements-filter-empty');
+                        const rosterDefaultEmpty = document.getElementById('graduationRosterDefaultEmpty');
+                        const announcementsDefaultEmpty = document.getElementById('graduationAnnouncementsDefaultEmpty');
+                        const rosterTotal = document.getElementById('graduationRosterTotal');
+                        const rosterWrap = document.getElementById('pastorGraduationRosterWrap');
+                        const rosterPanel = document.getElementById('pastorGraduationRosterPanel');
+                        const announcementsPanel = document.getElementById('pastorGraduationAnnouncementsPanel');
+                        const rosterRecords = records.filter(record => record.dataset.graduationKind === 'roster');
+
+                        records.forEach(record => {
+                            const key = record.dataset.graduationDepartment || '';
+                            const kind = record.dataset.graduationKind || '';
+                            if (Object.prototype.hasOwnProperty.call(counts.all, kind)) counts.all[kind]++;
+                            if (Object.prototype.hasOwnProperty.call(counts, key) && Object.prototype.hasOwnProperty.call(counts[key], kind)) {
+                                counts[key][kind]++;
+                            }
+                        });
+                        buttons.forEach(button => {
+                            const key = button.dataset.graduationDepartmentFilter;
+                            const count = filterRoot.querySelector('[data-graduation-department-count="' + key + '"]');
+                            if (count) count.textContent = String(counts[key].announcement);
+                            button.addEventListener('click', function () {
+                                const selected = key === 'all'
+                                    ? 'all'
+                                    : (this.getAttribute('aria-pressed') === 'true' ? '' : key);
+                                buttons.forEach(item => {
+                                    const active = item.dataset.graduationDepartmentFilter === selected;
+                                    item.setAttribute('aria-pressed', active ? 'true' : 'false');
+                                    item.style.boxShadow = active ? '0 0 0 3px rgba(212,160,23,.38)' : 'none';
+                                });
+                                records.forEach(record => {
+                                    record.style.display = selected === 'all' || record.dataset.graduationDepartment === selected ? '' : 'none';
+                                });
+                                if (rosterWrap) rosterWrap.style.display = selected === '' ? 'none' : '';
+                                if (rosterPanel) rosterPanel.style.display = selected === '' ? 'none' : '';
+                                if (announcementsPanel) announcementsPanel.style.display = selected === '' ? 'none' : '';
+                                const selectedRosterCount = selected === 'all' ? rosterRecords.length : (selected ? counts[selected].roster : 0);
+                                const selectedAnnouncementCount = selected === 'all'
+                                    ? records.length - rosterRecords.length
+                                    : (selected ? counts[selected].announcement : 0);
+                                const selectedTotalCount = selectedRosterCount + selectedAnnouncementCount;
+                                const isDepartmentFilter = selected !== 'all' && selected !== '';
+                                if (rosterDefaultEmpty) rosterDefaultEmpty.parentElement.style.display = selected === 'all' ? '' : 'none';
+                                if (announcementsDefaultEmpty) announcementsDefaultEmpty.style.display = selected === 'all' ? '' : 'none';
+                                if (rosterEmpty) {
+                                    rosterEmpty.textContent = 'No graduation roster entries for ' + (this.dataset.graduationDepartmentLabel || 'this department') + ' yet.';
+                                    rosterEmpty.style.display = isDepartmentFilter && selectedTotalCount > 0 && selectedRosterCount === 0 ? 'block' : 'none';
+                                }
+                                if (announcementEmpty) {
+                                    announcementEmpty.textContent = 'No graduation announcements for ' + (this.dataset.graduationDepartmentLabel || 'this department') + ' yet.';
+                                    announcementEmpty.style.display = isDepartmentFilter && selectedTotalCount > 0 && selectedAnnouncementCount === 0 ? 'block' : 'none';
+                                }
+                                if (rosterTotal) {
+                                    rosterTotal.textContent = selected === ''
+                                        ? 'Graduation list closed'
+                                        : (selected === 'all'
+                                            ? 'Total Church-wide: ' + rosterTotal.dataset.churchwideTotal
+                                            : 'Total ' + (this.dataset.graduationDepartmentLabel || 'Department') + ': ' + selectedRosterCount);
+                                }
+                                if (status) {
+                                    if (selected === '') {
+                                        status.textContent = 'Graduation lists are closed. Choose a department or All Departments to open a list.';
+                                        status.style.display = 'block';
+                                    } else if (isDepartmentFilter && selectedTotalCount === 0) {
+                                        status.textContent = 'No graduation roster entries or announcements for ' + (this.dataset.graduationDepartmentLabel || 'this department') + ' yet.';
+                                        status.style.display = 'block';
+                                    } else {
+                                        status.style.display = 'none';
+                                    }
+                                }
+                            });
+                        });
+                    })();
+                </script>
 
             <?php elseif ($tab == 'inspiration_highlights'): ?>
                 <div class="page-header">
