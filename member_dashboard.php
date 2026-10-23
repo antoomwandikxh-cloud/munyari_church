@@ -10064,6 +10064,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             .sort((left, right) => (left.dataset.graduandName || '').localeCompare(right.dataset.graduandName || '', undefined, { sensitivity: 'base' }));
                         const leaderName = <?= json_encode(strtoupper(trim($member['first_name'] . ' ' . $member['last_name']))) ?>;
                         const leaderPhoto = new URL(<?= json_encode('uploads/' . basename($member['profile_picture'] ?? 'default_avatar.png')) ?>, window.location.href).href;
+                        const departmentName = <?= json_encode(trim((string)($member['department'] ?? ''))) ?>;
                         const logoUrl = new URL('church_logo.jpg', window.location.href).href;
                         const generatedAt = new Date().toLocaleString();
                         const footerText = 'E.A.P.C Munyari Church | Graduation Roster | Generated: ' + generatedAt;
@@ -10100,7 +10101,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </style><script src="${escapeHtml(layoutScript)}" data-direct-print="true"><\/script></head><body>
                             <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
                             <div class="print-leader-header"><div class="print-leader-person"><img class="print-leader-avatar" src="${escapeHtml(leaderPhoto)}" alt="Graduands Secretary"><div class="leader-name">${escapeHtml(leaderName)}</div><div class="leader-role">Graduands Secretary</div></div></div>
-                            <div class="brand report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
+                            <div class="brand report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster - ${escapeHtml(departmentName)}</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
                             <h2 class="report-heading">Graduating Members (<?= htmlspecialchars($current_year, ENT_QUOTES, 'UTF-8') ?>)</h2>
                             <p class="roster-meta">Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
                             <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th></tr></thead><tbody>${listRows || '<tr><td colspan="5" style="text-align:center">No graduands on the roster.</td></tr>'}</tbody></table>
