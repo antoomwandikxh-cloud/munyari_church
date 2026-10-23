@@ -7384,6 +7384,15 @@ w.document.write('</div>');
                         const scopeLabel = { all: 'All Departments', youths: 'Youths', sunday_school: 'Sunday School' }[department];
                         const selectedDepartment = department;
                         const departmentLabels = { youths: 'Youths', sunday_school: 'Sunday School' };
+                        const secretaryDepartmentKeys = selectedDepartment === 'all' ? ['youths', 'sunday_school'] : [selectedDepartment];
+                        const secretaryProfilesMarkup = secretaryDepartmentKeys.map(departmentKey => {
+                            const departmentLabel = departmentLabels[departmentKey] || scopeLabel;
+                            const secretary = graduationSecretaries[departmentKey] || null;
+                            const secretaryName = secretary ? secretary.name.toUpperCase() : 'NOT ASSIGNED';
+                            const secretaryRole = secretary ? secretary.role : 'Graduands Secretary';
+                            const secretaryPhoto = new URL(secretary ? secretary.photo : 'uploads/default_avatar.png', window.location.href).href;
+                            return `<div class="print-leader-person"><img class="print-leader-avatar" src="${escapeHtml(secretaryPhoto)}" alt="${escapeHtml(departmentLabel)} Graduands Secretary"><div class="leader-name">${escapeHtml(secretaryName)}</div><div class="leader-role">${escapeHtml(secretaryRole)} - ${escapeHtml(departmentLabel)}</div></div>`;
+                        }).join('');
                         const sundaySchoolClassOrder = ['Little Angels', 'Champions', 'Battalion', 'Conquerors'];
                         const sundaySchoolClassColors = { 'Little Angels': '#6366f1', 'Champions': '#e11d48', 'Battalion': '#d97706', 'Conquerors': '#059669', 'Unassigned': '#64748b' };
                         const groupedRows = new Map();
@@ -7403,10 +7412,6 @@ w.document.write('</div>');
                             const departmentLabel = departmentLabels[departmentKey]
                                 || (departmentRows[0] && departmentRows[0].dataset.graduandDepartment)
                                 || scopeLabel;
-                            const secretary = graduationSecretaries[departmentKey] || null;
-                            const secretaryName = secretary ? secretary.name.toUpperCase() : 'NOT ASSIGNED';
-                            const secretaryRole = secretary ? secretary.role : 'Graduands Secretary';
-                            const secretaryPhoto = new URL(secretary ? secretary.photo : 'uploads/default_avatar.png', window.location.href).href;
                             const renderRows = rowsToRender => rowsToRender.map((row, index) => {
                                 const photo = new URL(row.dataset.graduandPhoto || 'uploads/default_avatar.png', window.location.href).href;
                                 const date = row.dataset.graduationDate
@@ -7433,11 +7438,12 @@ w.document.write('</div>');
                             } else {
                                 departmentBody = `<tbody>${renderRows(departmentRows) || '<tr><td colspan="6" style="text-align:center">No graduands are listed for this department.</td></tr>'}</tbody>`;
                             }
+                            const departmentRibbonColor = departmentKey === 'youths' ? '#b45309' : (departmentKey === 'sunday_school' ? '#0e7490' : '#475569');
+                            const departmentRibbon = selectedDepartment === 'all'
+                                ? `<div class="department-ribbon" style="background:${departmentRibbonColor}">${escapeHtml(departmentLabel)}<span>${departmentRows.length} ${departmentRows.length === 1 ? 'graduand' : 'graduands'}</span></div>`
+                                : '';
                             return `<section class="department-report">
-                                <div class="print-leader-header department-secretary-header"><div class="print-leader-person"><img class="print-leader-avatar" src="${escapeHtml(secretaryPhoto)}" alt="${escapeHtml(departmentLabel)} Graduands Secretary"><div class="leader-name">${escapeHtml(secretaryName)}</div><div class="leader-role">${escapeHtml(secretaryRole)} - ${escapeHtml(departmentLabel)}</div></div></div>
-                                <div class="brand department-report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster - ${escapeHtml(departmentLabel)}</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
-                                <h2 class="report-heading">${escapeHtml(departmentLabel)} Graduating Members (<?= (int)$current_year ?>)</h2>
-                                <p class="roster-meta">Department: ${escapeHtml(departmentLabel)}<br>Total members: ${departmentRows.length}</p>
+                                ${departmentRibbon}
                                 <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Department</th><th>Graduation Date</th></tr></thead>${departmentBody}</table>
                             </section>`;
                         }).join('');
@@ -7454,11 +7460,11 @@ w.document.write('</div>');
                             body{margin:0;padding:4px 2px 0;font:12px Arial,Helvetica,sans-serif;color:#17202a}
                             .watermark{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-36deg);font-size:40px;color:rgba(14,116,144,.13);font-weight:800;white-space:nowrap;pointer-events:none;z-index:0}
                             .print-leader-header,.brand,.report-heading,.roster-meta,table,.signature{position:relative;z-index:1}
-                            .print-leader-header{margin:0 0 8px;text-align:center}.leader-name{font-size:14px;font-weight:800;color:#0e7490}.leader-role{margin-top:3px;font-size:10px;color:#555}
+                            .print-leader-header{margin:0 0 8px;text-align:center}.secretary-profiles{display:flex;align-items:flex-start;justify-content:center;gap:28px;flex-wrap:wrap;margin:0 auto 8px}.secretary-profiles .print-leader-person{min-width:150px}.leader-name{font-size:14px;font-weight:800;color:#0e7490}.leader-role{margin-top:3px;font-size:10px;color:#555}
                             .brand{display:grid;grid-template-columns:58px 1fr 58px;align-items:center;gap:10px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 9px;margin-bottom:10px}
                             .brand-logo{width:54px;height:54px;object-fit:contain}.brand h1{margin:0;color:#0e7490;font-size:17px;line-height:1.25}.brand p{margin:4px 0 0;color:#555;font-size:10px}
                             .report-heading{text-align:center;margin:0 0 8px;font-size:15px;text-transform:uppercase}.roster-meta{text-align:center;margin:0 0 12px;color:#444}
-                            .department-report{position:relative;z-index:1;margin:0 0 20px;break-inside:auto;page-break-inside:auto}.department-report-header{margin-top:10px}.department-secretary-header{margin-top:12px}
+                            .department-report{position:relative;z-index:1;margin:0 0 20px;break-inside:auto;page-break-inside:auto}.department-ribbon{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 7px;padding:8px 10px;border-radius:3px;color:#fff;font-weight:800}.department-ribbon span{font-size:10px;font-weight:600}
                             table{width:100%;border-collapse:collapse;page-break-inside:auto;break-inside:auto}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
                             tr.class-ribbon-row{break-after:avoid;page-break-after:avoid}.class-ribbon-row td{padding:3px;border:0}.class-ribbon{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;border-radius:3px;color:#fff;font-weight:800}.class-ribbon small{font-size:9px;font-weight:600}
                             th,td{border:1px solid #89939d;padding:6px 7px;text-align:left;vertical-align:middle}th{background:#0e7490;color:white;font-size:10px;text-transform:uppercase}
@@ -7468,6 +7474,7 @@ w.document.write('</div>');
                             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
                         </style><script src="${escapeHtml(layoutScript)}" data-direct-print="true"><\/script></head><body>
                             <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
+                            <div class="print-leader-header secretary-profiles">${secretaryProfilesMarkup}</div>
                             <div class="brand report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster - ${escapeHtml(scopeLabel)}</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
                             <h2 class="report-heading">Graduating Members (<?= (int)$current_year ?>)</h2>
                             <p class="roster-meta">Scope: ${escapeHtml(scopeLabel)}<br>Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
