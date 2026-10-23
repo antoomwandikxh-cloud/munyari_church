@@ -7238,6 +7238,7 @@ w.document.write('</div>');
                         const leaderPhoto = new URL(<?= json_encode('uploads/' . basename(!empty($pastor['profile_picture']) ? $pastor['profile_picture'] : 'default_avatar.png')) ?>, window.location.href).href;
                         const logoUrl = new URL('church_logo.jpg', window.location.href).href;
                         const generatedAt = new Date().toLocaleString();
+                        const footerText = 'E.A.P.C Munyari Church | Graduation Roster | Generated: ' + generatedAt;
                         const listRows = rows.map((row, index) => {
                             const photo = new URL(row.dataset.graduandPhoto || 'uploads/default_avatar.png', window.location.href).href;
                             const date = row.dataset.graduationDate
@@ -7255,7 +7256,8 @@ w.document.write('</div>');
                         }
                         const layoutScript = new URL('church_print_layout.js?v=1', window.location.href).href;
                         const html = `<!doctype html><html><head><meta charset="utf-8"><title>E.A.P.C Munyari Church Graduation List</title><style>
-                            @page{size:A4 ${orientation};margin:12mm 10mm 16mm}*{box-sizing:border-box}
+                            @page{size:A4 ${orientation};margin:12mm 10mm 16mm}
+                            @page :first{@bottom-center{content:${JSON.stringify(footerText)};border-top:1px solid #0e7490;padding-top:4px;text-align:center;font:9px Arial,Helvetica,sans-serif;color:#53606b}}*{box-sizing:border-box}
                             body{margin:0;padding:4px 2px 0;font:12px Arial,Helvetica,sans-serif;color:#17202a}
                             .watermark{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-36deg);font-size:40px;color:rgba(14,116,144,.13);font-weight:800;white-space:nowrap;pointer-events:none;z-index:0}
                             .print-leader-header,.brand,.report-heading,.roster-meta,table,.signature{position:relative;z-index:1}
@@ -7268,7 +7270,6 @@ w.document.write('</div>');
                             .graduate-photo{display:block;width:35px;height:35px;border-radius:50%;object-fit:cover;border:1px solid #aab4be}
                             .signature{margin:18px auto 0!important;padding:0 24px!important;break-inside:avoid!important;page-break-inside:avoid!important}
                             .signature .stamp{width:96px!important;height:96px!important;min-width:96px!important;min-height:96px!important;margin:0!important}
-                            .footer{position:fixed;bottom:-10mm;left:0;right:0;border-top:1px solid #0e7490;padding-top:4px;text-align:center;font-size:9px;color:#53606b}
                             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
                         </style><script src="${escapeHtml(layoutScript)}" data-direct-print="true"><\/script></head><body>
                             <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
@@ -7278,7 +7279,6 @@ w.document.write('</div>');
                             <p class="roster-meta">Scope: ${escapeHtml(scopeLabel)}<br>Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
                             <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Department</th><th>Graduation Date</th></tr></thead><tbody>${listRows || '<tr><td colspan="6" style="text-align:center">No graduands on the roster.</td></tr>'}</tbody></table>
                             ${signatureMarkup}
-                            <div class="footer">E.A.P.C Munyari Church | Graduation Roster | Generated: ${escapeHtml(generatedAt)}</div>
                         </body></html>`;
                         printWindow.document.write(html);
                         printWindow.document.close();
