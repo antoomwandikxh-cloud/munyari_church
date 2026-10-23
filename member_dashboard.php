@@ -9818,22 +9818,37 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
             <?php if ($tab == 'graduation_panel' && $is_graduands_secretary): ?>
                 <div class="page-header">
                     <h1>Manage Graduation</h1>
-                    <p>Manage the list of graduating youths for the current year and make graduation announcements.</p>
+                    <p>Choose a graduation year to manage its roster and make graduation announcements.</p>
                 </div>
 
                 <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px;">
                     <!-- Total Count Card -->
                     <?php
-                    $current_year = date('Y');
+                    $current_year = (int)date('Y');
                     $esc_dept = $conn->real_escape_string($member['department']);
-                    $count_query = $conn->query("SELECT COUNT(*) as total FROM graduation_list WHERE department='$esc_dept' AND graduation_year=$current_year");
+                    $graduation_years = [];
+                    $stored_years = $conn->query("SELECT DISTINCT graduation_year FROM graduation_list WHERE department = '$esc_dept'");
+                    if ($stored_years) {
+                        while ($year_row = $stored_years->fetch_assoc()) {
+                            $stored_year = (int)$year_row['graduation_year'];
+                            if ($stored_year >= 1900 && $stored_year <= $current_year + 10) $graduation_years[] = $stored_year;
+                        }
+                    }
+                    $min_graduation_year = min(array_merge([$current_year], $graduation_years));
+                    $max_graduation_year = max(array_merge([$current_year + 10], $graduation_years));
+                    $graduation_years = range($min_graduation_year, $max_graduation_year);
+                    rsort($graduation_years, SORT_NUMERIC);
+                    $selected_graduation_year = isset($_GET['graduation_print_year']) ? (int)$_GET['graduation_print_year'] : $current_year;
+                    if (!in_array($selected_graduation_year, $graduation_years, true)) $selected_graduation_year = $current_year;
+                    $can_manage_selected_graduation_year = $selected_graduation_year >= $current_year && $selected_graduation_year <= $current_year + 10;
+                    $count_query = $conn->query("SELECT COUNT(DISTINCT member_id) as total FROM graduation_list WHERE department='$esc_dept' AND graduation_year=$selected_graduation_year");
                     $total_graduands = (int)($count_query->fetch_assoc()['total'] ?? 0);
                     $graduand_count_label = $total_graduands === 1 ? 'member is graduating' : 'members are graduating';
                     ?>
                     <div class="content-card" style="flex: 1; min-width: 250px; background: linear-gradient(135deg, rgba(37,99,235,0.1), rgba(16,185,129,0.1)); border: 1px solid rgba(37,99,235,0.2); text-align: center; padding: 30px;">
                         <svg width="48" height="48" fill="none" stroke="var(--primary)" viewBox="0 0 24 24" style="margin-bottom: 15px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"></path></svg>
                         <h2 style="margin: 0; font-size: 2.5rem; color: var(--text-main);"><?= $total_graduands ?></h2>
-                        <p style="color: var(--text-muted); font-size: 1.1rem; margin-top: 5px;"><?= htmlspecialchars($member['department']) ?>: <?= $graduand_count_label ?> in <?= $current_year ?></p>
+                        <p style="color: var(--text-muted); font-size: 1.1rem; margin-top: 5px;"><?= htmlspecialchars($member['department']) ?>: <?= $graduand_count_label ?> in <?= $selected_graduation_year ?></p>
                     </div>
 
                     <!-- Announcement Form -->
@@ -9930,6 +9945,18 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         const form = document.getElementById('graduationAnnouncementEditForm');
                         if (!editor || !form) return;
                         const currentAudio = document.getElementById('currentGraduationAnnouncementAudio');
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-basis:100%;margin-bottom:4px;">
+                        <label for="graduationPrintYear" style="color:var(--text-muted);font-size:.9rem;font-weight:600;">Graduation year</label>
+                        <form method="GET" action="member_dashboard.php" style="display:inline-flex;align-items:center;gap:8px;margin:0;">
+                            <input type="hidden" name="tab" value="graduation_panel">
+                            <select id="graduationPrintYear" name="graduation_print_year" onchange="this.form.submit()" style="min-height:38px;padding:7px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-main);">
+                                <?php foreach ($graduation_years as $year_option): ?>
+                                    <option value="<?= $year_option ?>" <?= $selected_graduation_year === $year_option ? 'selected' : '' ?>><?= $year_option ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </form>
+                        <span style="color:var(--text-muted);font-size:.85rem;">Choose a year now or a future year, then add its graduating members below.</span>
+                    </div>
                         const replacementPreview = document.getElementById('graduationReplacementPreview');
                         const replacementBlob = document.getElementById('editGraduationVoiceBlob');
                         const status = document.getElementById('graduationReplacementStatus');
@@ -10021,29 +10048,31 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
 
                 <!-- Add to Roster -->
                 <div class="content-card">
-                    <h2>Graduation Roster (<?= $current_year ?>)</h2>
+                    <h2>Graduation Roster (<?= $selected_graduation_year ?>)</h2>
                     <form id="graduationRosterForm" method="POST" action="member_action.php?action=add_graduand" style="display: flex; gap: 15px; margin-bottom: 20px; align-items: flex-start; flex-wrap: wrap;">
                         <?php
                         // Fetch non-graduating members in department
                         $avail = $conn->query("SELECT m.id, m.first_name, m.last_name, m.profile_picture FROM members m
-                            LEFT JOIN graduation_list gl ON m.id = gl.member_id AND gl.graduation_year = $current_year
-                        $available_graduand_count = $avail ? $avail->num_rows : 0;
+                            LEFT JOIN graduation_list gl ON m.id = gl.member_id AND gl.graduation_year = $selected_graduation_year AND gl.department = '$esc_dept'
                             WHERE m.department = '$esc_dept' AND m.is_approved = 1 AND gl.id IS NULL ORDER BY m.first_name ASC");
                         ?>
-                        <div id="graduationMemberPicker" style="position: relative; flex: 1; min-width: 240px;">
+                        <?php if (!$can_manage_selected_graduation_year): ?>
+                            <p style="flex-basis:100%;margin:0 0 4px;color:var(--text-muted);">This past-year roster is read-only. Select the current or a future year to add or manage members.</p>
+                        <?php endif; ?>
+                            <div id="graduationMemberPicker" style="position: static; z-index: auto; flex: 1 1 100%; min-width: 0;">
+                            <input type="hidden" name="member_id" id="graduationMemberId" value="">
                             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 0 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-main);">
                                 <svg aria-hidden="true" width="17" height="17" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24" style="flex: 0 0 17px;"><circle cx="11" cy="11" r="7" stroke-width="2"></circle><path d="m16 16 4 4" stroke-width="2" stroke-linecap="round"></path></svg>
                                 <input id="graduationMemberSearch" type="search" inputmode="text" autocomplete="off" placeholder="Search members" aria-label="Search graduating members" style="width: 100%; min-width: 0; padding: 10px 0; border: 0; outline: 0; color: var(--text-main); background: transparent;">
                             </div>
                             <p id="graduationMemberSearchError" role="status" hidden style="margin: 0 2px 8px; color: var(--danger); font-size: .82rem;">Use letters, spaces, apostrophes, or hyphens only.</p>
-                            <input type="hidden" name="member_id" id="graduationMemberId" value="">
-                            <button type="button" id="graduationMemberToggle" class="form-control" aria-haspopup="listbox" aria-expanded="false" <?= ($available_graduand_count === 0) ? 'disabled' : '' ?> style="width: 100%; min-height: 44px; display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer;">
+                            <button type="button" id="graduationMemberToggle" class="form-control" aria-haspopup="listbox" aria-expanded="false" <?= ($available_graduand_count === 0 || !$can_manage_selected_graduation_year) ? 'disabled' : '' ?> style="width: 100%; min-height: 44px; display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer;">
                                 <img class="graduation-selected-avatar" data-selected-photo src="uploads/default_avatar.png" alt="" hidden onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex: 0 0 38px;">
                                 <span data-selected-label><?= $available_graduand_count ? '-- Select Member to Add to Roster --' : 'No eligible members available' ?></span>
                                 <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-left: auto; flex: 0 0 16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"></path></svg>
                             </button>
-                            <div id="graduationMemberMenu" hidden style="position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0; padding: 8px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 12px 28px rgba(0,0,0,.25);">
-                                <div id="graduationMemberOptions" role="listbox" aria-label="Eligible graduating members" style="max-height: 280px; overflow-y: auto; margin-top: 6px;">
+                            <div id="graduationMemberMenu" hidden style="position: static; z-index: auto; width: 100%; margin-top: 6px; padding: 8px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.12);">
+                                <div id="graduationMemberOptions" role="listbox" aria-label="Eligible graduating members" style="max-height: 280px; overflow-y: auto;">
                                     <?php while($a = $avail->fetch_assoc()): ?>
                                         <?php
                                         $graduand_name = trim($a['first_name'] . ' ' . $a['last_name']);
@@ -10060,9 +10089,10 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </div>
                         <div style="min-width: 190px;">
                             <label for="graduationDate" style="display:block;margin-bottom:7px;font-weight:600;color:var(--text-main);">Graduation Date</label>
-                            <input type="date" id="graduationDate" name="graduation_date" class="form-control" min="<?= date('Y-m-d') ?>" required aria-required="true">
+                            <input type="date" id="graduationDate" name="graduation_date" class="form-control" min="<?= max(date('Y-m-d'), $selected_graduation_year . '-01-01') ?>" max="<?= $selected_graduation_year ?>-12-31" required aria-required="true" <?= !$can_manage_selected_graduation_year ? 'disabled' : '' ?>>
                         </div>
-                        <button type="submit" class="btn-submit" style="width: auto;" <?= ($available_graduand_count === 0) ? 'disabled' : '' ?>>Add to Graduation List</button>
+                        <button type="submit" class="btn-submit" style="width: auto;" <?= ($available_graduand_count === 0 || !$can_manage_selected_graduation_year) ? 'disabled' : '' ?>>Add to Graduation List</button>
+                    </form>
                     <style>
                         #graduationMemberOptions { display: flex; flex-direction: column; gap: 4px; }
                         .graduation-member-option { min-height: 58px; min-width: 0; overflow: hidden; border: 1px solid transparent !important; transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease; }
@@ -10124,12 +10154,14 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 });
                             };
                             const filterOptions = () => {
+                        <input type="hidden" name="graduation_year" value="<?= $selected_graduation_year ?>">
                                 const typed = search.value;
                                 const cleaned = typed.replace(/[^\p{L}\s'-]/gu, '');
                                 const invalidInput = cleaned !== typed;
                                 if (invalidInput) search.value = cleaned;
                                 searchError.hidden = !invalidInput;
                                 const query = cleaned.trim().toLocaleLowerCase();
+                        $available_graduand_count = $avail ? $avail->num_rows : 0;
                                 let visibleCount = 0;
                                 options.forEach(option => {
                                     const matches = option.dataset.memberName.toLocaleLowerCase().includes(query);
@@ -10174,7 +10206,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 selectedPhoto.alt = option.dataset.memberName;
                                 selectedPhoto.hidden = false;
                                 search.value = '';
-                    </form>
                                 filterOptions();
                                 selectedLabel.textContent = option.dataset.memberName;
                                 options.forEach(item => item.setAttribute('aria-selected', item === option ? 'true' : 'false'));
@@ -10196,16 +10227,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     </script>
 
                     <?php
-                    $graduation_years = [(int)$current_year];
-                    $years_result = $conn->query("SELECT DISTINCT graduation_year FROM graduation_list WHERE department = '$esc_dept' ORDER BY graduation_year DESC");
-                    if ($years_result) {
-                        while ($year_row = $years_result->fetch_assoc()) $graduation_years[] = (int)$year_row['graduation_year'];
-                    }
-                    $graduation_years = array_values(array_unique($graduation_years));
-                    rsort($graduation_years, SORT_NUMERIC);
-                    $selected_graduation_year = isset($_GET['graduation_print_year']) ? (int)$_GET['graduation_print_year'] : (int)$current_year;
-                    if (!in_array($selected_graduation_year, $graduation_years, true)) $selected_graduation_year = (int)$current_year;
-                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.phone, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $selected_graduation_year ORDER BY m.first_name ASC, m.last_name ASC");
+                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.phone, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $selected_graduation_year AND gl.id = (SELECT MIN(gl2.id) FROM graduation_list gl2 WHERE gl2.member_id = gl.member_id AND gl2.department = gl.department AND gl2.graduation_year = gl.graduation_year) ORDER BY m.first_name ASC, m.last_name ASC");
                     ?>
                         <div class="table-responsive">
                             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
@@ -10216,7 +10238,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                 </button>
                             </div>
                             <table id="graduationSecretaryRoster">
-                                <thead><tr><th>Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th><th>Added Date</th><?php if ($selected_graduation_year === (int)$current_year): ?><th>Action</th><?php endif; ?></tr></thead>
+                                <thead><tr><th>Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th><th>Added Date</th><?php if ($can_manage_selected_graduation_year): ?><th>Action</th><?php endif; ?></tr></thead>
                                 <tbody>
                                     <?php while($r = $roster->fetch_assoc()): ?>
                                         <?php
@@ -10231,7 +10253,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             <td><?= htmlspecialchars($r['phone'] ?? '-') ?></td>
                                             <td><?= htmlspecialchars($graduation_date_display) ?></td>
                                             <td style="color:var(--text-muted);"><?= htmlspecialchars($added_date_display) ?></td>
-                                            <?php if ($selected_graduation_year === (int)$current_year): ?><td>
+                                            <?php if ($can_manage_selected_graduation_year): ?><td>
                                                 <div class="graduation-roster-actions">
                                                     <button type="button" class="btn-sm" onclick="toggleGraduationDateEditor(this)" style="background:color-mix(in srgb, var(--primary) 14%, var(--bg-card));color:var(--primary);border:1px solid color-mix(in srgb, var(--primary) 35%, var(--border-color));padding:5px 9px;border-radius:5px;cursor:pointer;">Change date</button>
                                                     <form method="POST" action="member_action.php?action=remove_graduand" onsubmit="return confirm('Remove this member from the current graduation list?');" style="display:inline;">
@@ -10242,7 +10264,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                                 <form class="graduation-date-editor" method="POST" action="member_action.php?action=update_graduand_date" hidden>
                                                     <input type="hidden" name="graduation_id" value="<?= (int)$r['id'] ?>">
                                                     <label style="display:grid;gap:4px;font-size:.75rem;font-weight:600;color:var(--text-muted);">New graduation date
-                                                        <input type="date" name="graduation_date" value="<?= htmlspecialchars($r['graduation_date'] ?? '', ENT_QUOTES, 'UTF-8') ?>" min="<?= date('Y-m-d') ?>" required class="form-control" style="min-width:155px;padding:6px 8px;">
+                                                        <input type="date" name="graduation_date" value="<?= htmlspecialchars($r['graduation_date'] ?? '', ENT_QUOTES, 'UTF-8') ?>" min="<?= max(date('Y-m-d'), $selected_graduation_year . '-01-01') ?>" max="<?= $selected_graduation_year ?>-12-31" required class="form-control" style="min-width:155px;padding:6px 8px;">
                                                     </label>
                                                     <button type="submit" class="btn-sm" style="background:var(--success);color:#fff;border:0;padding:6px 10px;border-radius:5px;cursor:pointer;">Save</button>
                                                     <button type="button" class="btn-sm" onclick="this.closest('.graduation-date-editor').hidden=true" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);padding:6px 10px;border-radius:5px;cursor:pointer;">Cancel</button>
@@ -10307,17 +10329,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             .scope-department{font-weight:800;color:#000}
                             table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
                             th,td{border:1px solid #89939d;padding:6px 7px;text-align:left;vertical-align:middle}th{background:#0e7490;color:white;font-size:10px;text-transform:uppercase}
-                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
-                        <label for="graduationPrintYear" style="color:var(--text-muted);font-size:.9rem;">Graduation year to print</label>
-                        <form method="GET" action="member_dashboard.php" style="display:inline-flex;align-items:center;gap:8px;margin:0;">
-                            <input type="hidden" name="tab" value="graduation_panel">
-                            <select id="graduationPrintYear" name="graduation_print_year" onchange="this.form.submit()" style="min-height:38px;padding:7px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-main);">
-                                <?php foreach ($graduation_years as $year_option): ?>
-                                    <option value="<?= $year_option ?>" <?= $selected_graduation_year === $year_option ? 'selected' : '' ?>><?= $year_option ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </form>
-                    </div>
                     <?php if ($roster && $roster->num_rows > 0): ?>
                             .graduate-photo{display:block;width:35px;height:35px;border-radius:50%;object-fit:cover;border:1px solid #aab4be}
                             .signature{margin:18px auto 0!important;padding:0 24px!important;break-inside:avoid!important;page-break-inside:avoid!important}
@@ -10336,11 +10347,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         printWindow.document.close();
                         printWindow.focus();
                         setTimeout(() => printWindow.print(), 700);
+                                                        <input type="hidden" name="graduation_year" value="<?= $selected_graduation_year ?>">
                     }
                 </script>
             <?php endif; ?>
 
             <?php if ($tab == 'graduation_info' && !empty($member['department']) && $member['department'] !== 'None' && (department_allows_graduation_and_sport($member['department']) || $is_youth_advisor_scope)): ?>
+                                                    <input type="hidden" name="graduation_year" value="<?= $selected_graduation_year ?>">
                 <?php
                 $current_year = date('Y');
                 $graduation_dept = $is_youth_advisor_scope ? 'Youths' : $member['department'];
@@ -10355,14 +10368,14 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2 style="margin: 0;">Graduation Roster (<?= $current_year ?>)</h2>
                         <?php
-                        $count_query = $conn->query("SELECT COUNT(*) as total FROM graduation_list WHERE department='$esc_dept' AND graduation_year=$current_year");
+                        $count_query = $conn->query("SELECT COUNT(DISTINCT member_id) as total FROM graduation_list WHERE department='$esc_dept' AND graduation_year=$current_year");
                         $total_graduands = $count_query->fetch_assoc()['total'];
                         ?>
                         <span class="badge" style="background: var(--primary); color: white; font-size: 14px; padding: 5px 12px;">Total: <?= $total_graduands ?></span>
                     </div>
 
                     <?php
-                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year ORDER BY m.first_name ASC, m.last_name ASC");
+                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $current_year AND gl.id = (SELECT MIN(gl2.id) FROM graduation_list gl2 WHERE gl2.member_id = gl.member_id AND gl2.department = gl.department AND gl2.graduation_year = gl.graduation_year) ORDER BY m.first_name ASC, m.last_name ASC");
                     if ($roster && $roster->num_rows > 0):
                     ?>
                         <div class="table-responsive">

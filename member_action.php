@@ -2198,7 +2198,8 @@ if (isset($_GET['action'])) {
         if (member_has_role($member_query['church_role'] ?? '', 'graduands secretary')) {
             $department = trim((string)($member_query['department'] ?? ''));
             $target_id = (int)($_POST['member_id'] ?? 0);
-            $year = (int)date('Y');
+            $year = (int)($_POST['graduation_year'] ?? 0);
+            $current_year = (int)date('Y');
             $graduation_date = trim((string)($_POST['graduation_date'] ?? ''));
             $parsed_graduation_date = DateTime::createFromFormat('!Y-m-d', $graduation_date);
             $date_errors = DateTime::getLastErrors();
@@ -2210,6 +2211,10 @@ if (isset($_GET['action'])) {
             }
             if ($graduation_date < date('Y-m-d')) {
                 header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Graduation date cannot be in the past.'));
+                exit();
+            }
+            if ($year < $current_year || $year > $current_year + 10 || (int)$parsed_graduation_date->format('Y') !== $year) {
+                header("Location: member_dashboard.php?tab=graduation_panel&graduation_print_year=" . max($current_year, min($year, $current_year + 10)) . "&error=" . urlencode('Choose a date within the selected graduation year.'));
                 exit();
             }
             $graduation_date_label = $parsed_graduation_date->format('F j, Y');
@@ -2230,15 +2235,15 @@ if (isset($_GET['action'])) {
                 exit();
             }
 
-            $existing_stmt = $conn->prepare("SELECT id FROM graduation_list WHERE member_id = ? AND graduation_year = ? LIMIT 1");
+            $existing_stmt = $conn->prepare("SELECT id FROM graduation_list WHERE member_id = ? AND graduation_year = ? AND LOWER(TRIM(department)) = LOWER(TRIM(?)) LIMIT 1");
             if ($existing_stmt) {
-                $existing_stmt->bind_param('ii', $target_id, $year);
+                $existing_stmt->bind_param('iis', $target_id, $year, $department);
                 $existing_stmt->execute();
                 $existing_result = $existing_stmt->get_result();
                 $already_added = $existing_result && $existing_result->num_rows > 0;
                 $existing_stmt->close();
                 if ($already_added) {
-                    header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('This member is already on the graduation roster.'));
+                    header("Location: member_dashboard.php?tab=graduation_panel&graduation_print_year=$year&error=" . urlencode('This member is already on the graduation roster for that year.'));
                     exit();
                 }
             }
@@ -2300,7 +2305,7 @@ if (isset($_GET['action'])) {
             }
             if ($notification_stmt) $notification_stmt->close();
 
-            header("Location: member_dashboard.php?tab=graduation_panel&success=Member added to graduation roster");
+            header("Location: member_dashboard.php?tab=graduation_panel&graduation_print_year=$year&success=Member added to graduation roster");
             exit();
         }
     }
@@ -2326,26 +2331,29 @@ if (isset($_GET['action'])) {
         }
 
         $graduation_id = (int)($_POST['graduation_id'] ?? 0);
-        $graduation_year = (int)date('Y');
+        $graduation_year = (int)($_POST['graduation_year'] ?? 0);
+        $current_year = (int)date('Y');
         $graduation_date = trim((string)($_POST['graduation_date'] ?? ''));
         $parsed_date = DateTime::createFromFormat('!Y-m-d', $graduation_date);
         $date_errors = DateTime::getLastErrors();
         if (!$parsed_date
             || ($date_errors && ($date_errors['warning_count'] > 0 || $date_errors['error_count'] > 0))
             || $parsed_date->format('Y-m-d') !== $graduation_date
+            || $graduation_year < $current_year || $graduation_year > $current_year + 10
+            || (int)$parsed_date->format('Y') !== $graduation_year
             || $graduation_date < date('Y-m-d')) {
-            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Choose a valid graduation date that is today or later.'));
+            header("Location: member_dashboard.php?tab=graduation_panel&graduation_print_year=" . max($current_year, min($graduation_year, $current_year + 10)) . "&error=" . urlencode('Choose a valid date within the selected graduation year.'));
             exit();
         }
 
         $graduand_stmt = $conn->prepare("SELECT gl.id, gl.member_id, gl.department, gl.graduation_year, gl.graduation_date, m.first_name, m.last_name
             FROM graduation_list gl JOIN members m ON m.id = gl.member_id
-            WHERE gl.id = ? AND gl.graduation_year = ? LIMIT 1");
+            WHERE gl.id = ? AND gl.graduation_year = ? AND LOWER(TRIM(gl.department)) = LOWER(TRIM(?)) LIMIT 1");
         if (!$graduand_stmt) {
             header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not load this graduation roster entry.'));
             exit();
         }
-        $graduand_stmt->bind_param('ii', $graduation_id, $graduation_year);
+        $graduand_stmt->bind_param('iis', $graduation_id, $graduation_year, $department);
         $graduand_stmt->execute();
         $graduand_result = $graduand_stmt->get_result();
         $graduand = $graduand_result ? $graduand_result->fetch_assoc() : null;
@@ -2359,13 +2367,13 @@ if (isset($_GET['action'])) {
         $date_changed = $old_date !== $graduation_date;
         if ($date_changed) {
             $conn->begin_transaction();
-            $update_stmt = $conn->prepare("UPDATE graduation_list SET graduation_date = ? WHERE id = ? AND graduation_year = ?");
+            $update_stmt = $conn->prepare("UPDATE graduation_list SET graduation_date = ? WHERE id = ? AND graduation_year = ? AND LOWER(TRIM(department)) = LOWER(TRIM(?))");
             if (!$update_stmt) {
                 $conn->rollback();
                 header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not save the new graduation date.'));
                 exit();
             }
-            $update_stmt->bind_param('sii', $graduation_date, $graduation_id, $graduation_year);
+            $update_stmt->bind_param('siis', $graduation_date, $graduation_id, $graduation_year, $department);
             $updated = $update_stmt->execute();
             $update_stmt->close();
             if (!$updated) {
@@ -2396,27 +2404,40 @@ if (isset($_GET['action'])) {
         }
 
         $success_message = $date_changed ? 'Graduation date updated and member notified' : 'Graduation date is unchanged';
-        header("Location: member_dashboard.php?tab=graduation_panel&success=" . urlencode($success_message));
+        header("Location: member_dashboard.php?tab=graduation_panel&graduation_print_year=$graduation_year&success=" . urlencode($success_message));
         exit();
     }
 
-    // Graduands Secretary: Remove from the current department's graduation roster.
+    // Graduands Secretary: Remove a person from the selected department/year roster.
     elseif ($action === 'remove_graduand' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $member_result = $conn->query("SELECT * FROM members WHERE id = $member_id LIMIT 1");
         $member_query = $member_result ? $member_result->fetch_assoc() : null;
         $grad_id = (int)($_POST['graduation_id'] ?? 0);
         $department = trim((string)($member_query['department'] ?? ''));
-        if ($member_query && member_has_role($member_query['church_role'] ?? '', 'graduands secretary') && $grad_id > 0) {
-            $remove_stmt = $conn->prepare("DELETE FROM graduation_list WHERE id = ? AND department = ? AND graduation_year = ?");
-            $year = (int)date('Y');
-            if ($remove_stmt) {
-                $remove_stmt->bind_param('isi', $grad_id, $department, $year);
-                $remove_stmt->execute();
-                $removed = $remove_stmt->affected_rows === 1;
-                $remove_stmt->close();
+        $year = (int)($_POST['graduation_year'] ?? 0);
+        $current_year = (int)date('Y');
+        if ($member_query && member_has_role($member_query['church_role'] ?? '', 'graduands secretary') && $grad_id > 0
+            && $year >= $current_year && $year <= $current_year + 10) {
+            $entry_stmt = $conn->prepare("SELECT member_id FROM graduation_list WHERE id = ? AND department = ? AND graduation_year = ? LIMIT 1");
+            if ($entry_stmt) {
+                $entry_stmt->bind_param('isi', $grad_id, $department, $year);
+                $entry_stmt->execute();
+                $entry_result = $entry_stmt->get_result();
+                $entry = $entry_result ? $entry_result->fetch_assoc() : null;
+                $entry_stmt->close();
+                $removed = false;
+                if ($entry) {
+                    $remove_stmt = $conn->prepare("DELETE FROM graduation_list WHERE member_id = ? AND department = ? AND graduation_year = ?");
+                    if ($remove_stmt) {
+                        $graduand_member_id = (int)$entry['member_id'];
+                        $remove_stmt->bind_param('isi', $graduand_member_id, $department, $year);
+                        $removed = $remove_stmt->execute() && $remove_stmt->affected_rows > 0;
+                        $remove_stmt->close();
+                    }
+                }
                 $result_key = $removed ? 'success' : 'error';
-                $result_message = $removed ? 'Member removed from roster' : 'That member is not on your current graduation roster';
-                header("Location: member_dashboard.php?tab=graduation_panel&$result_key=" . urlencode($result_message));
+                $result_message = $removed ? 'Member removed from roster' : 'That member is not on your selected graduation roster';
+                header("Location: member_dashboard.php?tab=graduation_panel&graduation_print_year=$year&$result_key=" . urlencode($result_message));
                 exit();
             }
         }
