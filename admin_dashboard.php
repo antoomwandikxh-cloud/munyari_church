@@ -3993,14 +3993,14 @@ w.document.write('</div>');
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2 style="margin: 0;">Graduation Roster (<?= $current_year ?>)</h2>
                         <?php
-                        $count_query = $conn->query("SELECT COUNT(*) as total FROM graduation_list WHERE graduation_year=$current_year");
+                        $count_query = $conn->query("SELECT COUNT(DISTINCT gl.member_id) as total FROM graduation_list gl JOIN members m ON m.id = gl.member_id WHERE gl.graduation_year=$current_year");
                         $total_graduands = $count_query->fetch_assoc()['total'];
                         ?>
                         <span class="badge" style="background: var(--primary); color: white; font-size: 14px; padding: 5px 12px;">Total Church-wide: <?= $total_graduands ?></span>
                     </div>
 
                     <?php
-                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.phone, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.graduation_year = $current_year ORDER BY gl.department ASC, m.first_name ASC, m.last_name ASC");
+                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.phone, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.graduation_year = $current_year AND gl.id = (SELECT MIN(gl2.id) FROM graduation_list gl2 WHERE gl2.member_id = gl.member_id AND gl2.department = gl.department AND gl2.graduation_year = gl.graduation_year) ORDER BY gl.department ASC, m.first_name ASC, m.last_name ASC");
                     if ($roster && $roster->num_rows > 0):
                     ?>
                         <div class="table-responsive">

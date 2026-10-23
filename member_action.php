@@ -2198,7 +2198,8 @@ if (isset($_GET['action'])) {
         if (member_has_role($member_query['church_role'] ?? '', 'graduands secretary')) {
             $department = trim((string)($member_query['department'] ?? ''));
             $target_id = (int)($_POST['member_id'] ?? 0);
-            $year = (int)($_POST['graduation_year'] ?? 0);
+            $year_input = trim((string)($_POST['graduation_year'] ?? ''));
+            $year = preg_match('/^\\d{4}$/D', $year_input) ? (int)$year_input : 0;
             $current_year = (int)date('Y');
             $graduation_date = trim((string)($_POST['graduation_date'] ?? ''));
             $parsed_graduation_date = DateTime::createFromFormat('!Y-m-d', $graduation_date);
@@ -2213,8 +2214,9 @@ if (isset($_GET['action'])) {
                 header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Graduation date cannot be in the past.'));
                 exit();
             }
-            if ($year < $current_year || $year > $current_year + 10 || (int)$parsed_graduation_date->format('Y') !== $year) {
-                header("Location: member_dashboard.php?tab=graduation_panel&graduation_print_year=" . max($current_year, min($year, $current_year + 10)) . "&error=" . urlencode('Choose a date within the selected graduation year.'));
+            if ($year < $current_year || $year > 9999 || (int)$parsed_graduation_date->format('Y') !== $year) {
+                $redirect_year = $year >= $current_year && $year <= 9999 ? $year : $current_year;
+                header("Location: member_dashboard.php?tab=graduation_panel&graduation_print_year=$redirect_year&error=" . urlencode('Choose a date within the selected graduation year.'));
                 exit();
             }
             $graduation_date_label = $parsed_graduation_date->format('F j, Y');
@@ -2331,7 +2333,8 @@ if (isset($_GET['action'])) {
         }
 
         $graduation_id = (int)($_POST['graduation_id'] ?? 0);
-        $graduation_year = (int)($_POST['graduation_year'] ?? 0);
+        $graduation_year_input = trim((string)($_POST['graduation_year'] ?? ''));
+        $graduation_year = preg_match('/^\\d{4}$/D', $graduation_year_input) ? (int)$graduation_year_input : 0;
         $current_year = (int)date('Y');
         $graduation_date = trim((string)($_POST['graduation_date'] ?? ''));
         $parsed_date = DateTime::createFromFormat('!Y-m-d', $graduation_date);
@@ -2339,10 +2342,11 @@ if (isset($_GET['action'])) {
         if (!$parsed_date
             || ($date_errors && ($date_errors['warning_count'] > 0 || $date_errors['error_count'] > 0))
             || $parsed_date->format('Y-m-d') !== $graduation_date
-            || $graduation_year < $current_year || $graduation_year > $current_year + 10
+            || $graduation_year < $current_year || $graduation_year > 9999
             || (int)$parsed_date->format('Y') !== $graduation_year
             || $graduation_date < date('Y-m-d')) {
-            header("Location: member_dashboard.php?tab=graduation_panel&graduation_print_year=" . max($current_year, min($graduation_year, $current_year + 10)) . "&error=" . urlencode('Choose a valid date within the selected graduation year.'));
+            $redirect_year = $graduation_year >= $current_year && $graduation_year <= 9999 ? $graduation_year : $current_year;
+            header("Location: member_dashboard.php?tab=graduation_panel&graduation_print_year=$redirect_year&error=" . urlencode('Choose a valid date within the selected graduation year.'));
             exit();
         }
 
@@ -2414,10 +2418,11 @@ if (isset($_GET['action'])) {
         $member_query = $member_result ? $member_result->fetch_assoc() : null;
         $grad_id = (int)($_POST['graduation_id'] ?? 0);
         $department = trim((string)($member_query['department'] ?? ''));
-        $year = (int)($_POST['graduation_year'] ?? 0);
+        $year_input = trim((string)($_POST['graduation_year'] ?? ''));
+        $year = preg_match('/^\\d{4}$/D', $year_input) ? (int)$year_input : 0;
         $current_year = (int)date('Y');
         if ($member_query && member_has_role($member_query['church_role'] ?? '', 'graduands secretary') && $grad_id > 0
-            && $year >= $current_year && $year <= $current_year + 10) {
+            && $year >= $current_year && $year <= 9999) {
             $entry_stmt = $conn->prepare("SELECT member_id FROM graduation_list WHERE id = ? AND department = ? AND graduation_year = ? LIMIT 1");
             if ($entry_stmt) {
                 $entry_stmt->bind_param('isi', $grad_id, $department, $year);

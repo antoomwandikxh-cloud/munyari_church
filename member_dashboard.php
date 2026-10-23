@@ -9831,17 +9831,19 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     if ($stored_years) {
                         while ($year_row = $stored_years->fetch_assoc()) {
                             $stored_year = (int)$year_row['graduation_year'];
-                            if ($stored_year >= 1900 && $stored_year <= $current_year + 10) $graduation_years[] = $stored_year;
+                            if ($stored_year >= 1000 && $stored_year <= 9999) $graduation_years[] = $stored_year;
                         }
                     }
                     $min_graduation_year = min(array_merge([$current_year], $graduation_years));
-                    $max_graduation_year = max(array_merge([$current_year + 10], $graduation_years));
-                    $graduation_years = range($min_graduation_year, $max_graduation_year);
-                    rsort($graduation_years, SORT_NUMERIC);
-                    $selected_graduation_year = isset($_GET['graduation_print_year']) ? (int)$_GET['graduation_print_year'] : $current_year;
-                    if (!in_array($selected_graduation_year, $graduation_years, true)) $selected_graduation_year = $current_year;
-                    $can_manage_selected_graduation_year = $selected_graduation_year >= $current_year && $selected_graduation_year <= $current_year + 10;
-                    $count_query = $conn->query("SELECT COUNT(DISTINCT member_id) as total FROM graduation_list WHERE department='$esc_dept' AND graduation_year=$selected_graduation_year");
+                    $requested_graduation_year = trim((string)($_GET['graduation_print_year'] ?? ''));
+                    $selected_graduation_year = preg_match('/^\\d{4}$/D', $requested_graduation_year) ? (int)$requested_graduation_year : $current_year;
+                    if ($selected_graduation_year < $min_graduation_year
+                        || ($selected_graduation_year < $current_year && !in_array($selected_graduation_year, $graduation_years, true))
+                        || $selected_graduation_year > 9999) {
+                        $selected_graduation_year = $current_year;
+                    }
+                    $can_manage_selected_graduation_year = $selected_graduation_year >= $current_year && $selected_graduation_year <= 9999;
+                    $count_query = $conn->query("SELECT COUNT(DISTINCT gl.member_id) as total FROM graduation_list gl JOIN members m ON m.id = gl.member_id WHERE gl.department='$esc_dept' AND gl.graduation_year=$selected_graduation_year");
                     $total_graduands = (int)($count_query->fetch_assoc()['total'] ?? 0);
                     $graduand_count_label = $total_graduands === 1 ? 'member is graduating' : 'members are graduating';
                     ?>
@@ -9949,13 +9951,9 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         <label for="graduationPrintYear" style="color:var(--text-muted);font-size:.9rem;font-weight:600;">Graduation year</label>
                         <form method="GET" action="member_dashboard.php" style="display:inline-flex;align-items:center;gap:8px;margin:0;">
                             <input type="hidden" name="tab" value="graduation_panel">
-                            <select id="graduationPrintYear" name="graduation_print_year" onchange="this.form.submit()" style="min-height:38px;padding:7px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-main);">
-                                <?php foreach ($graduation_years as $year_option): ?>
-                                    <option value="<?= $year_option ?>" <?= $selected_graduation_year === $year_option ? 'selected' : '' ?>><?= $year_option ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <input type="number" id="graduationPrintYear" name="graduation_print_year" value="<?= $selected_graduation_year ?>" min="<?= $min_graduation_year ?>" step="1" required onchange="this.form.submit()" aria-label="Graduation year" style="width:118px;min-height:38px;padding:7px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-main);">
                         </form>
-                        <span style="color:var(--text-muted);font-size:.85rem;">Choose a year now or a future year, then add its graduating members below.</span>
+                        <span style="color:var(--text-muted);font-size:.85rem;">Enter any year from <?= $current_year ?> onward; the current year advances automatically each January.</span>
                     </div>
                         const replacementPreview = document.getElementById('graduationReplacementPreview');
                         const replacementBlob = document.getElementById('editGraduationVoiceBlob');
@@ -10368,7 +10366,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2 style="margin: 0;">Graduation Roster (<?= $current_year ?>)</h2>
                         <?php
-                        $count_query = $conn->query("SELECT COUNT(DISTINCT member_id) as total FROM graduation_list WHERE department='$esc_dept' AND graduation_year=$current_year");
+                        $count_query = $conn->query("SELECT COUNT(DISTINCT gl.member_id) as total FROM graduation_list gl JOIN members m ON m.id = gl.member_id WHERE gl.department='$esc_dept' AND gl.graduation_year=$current_year");
                         $total_graduands = $count_query->fetch_assoc()['total'];
                         ?>
                         <span class="badge" style="background: var(--primary); color: white; font-size: 14px; padding: 5px 12px;">Total: <?= $total_graduands ?></span>
