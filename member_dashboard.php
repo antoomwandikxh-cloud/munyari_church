@@ -10092,6 +10092,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             .brand{display:grid;grid-template-columns:58px 1fr 58px;align-items:center;gap:10px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 9px;margin-bottom:10px}
                             .brand-logo{width:54px;height:54px;object-fit:contain}.brand h1{margin:0;color:#0e7490;font-size:17px;line-height:1.25}.brand p{margin:4px 0 0;color:#555;font-size:10px}
                             .report-heading{text-align:center;margin:0 0 8px;font-size:15px;text-transform:uppercase}.roster-meta{text-align:center;margin:0 0 12px;color:#444}
+                            .scope-department{font-weight:800;color:#000}
                             table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
                             th,td{border:1px solid #89939d;padding:6px 7px;text-align:left;vertical-align:middle}th{background:#0e7490;color:white;font-size:10px;text-transform:uppercase}
                             .graduate-photo{display:block;width:35px;height:35px;border-radius:50%;object-fit:cover;border:1px solid #aab4be}
@@ -10103,7 +10104,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <div class="print-leader-header"><div class="print-leader-person"><img class="print-leader-avatar" src="${escapeHtml(leaderPhoto)}" alt="Graduands Secretary"><div class="leader-name">${escapeHtml(leaderName)}</div><div class="leader-role">Graduands Secretary</div></div></div>
                             <div class="brand report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster - ${escapeHtml(departmentName)}</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
                             <h2 class="report-heading">Graduating Members (<?= htmlspecialchars($current_year, ENT_QUOTES, 'UTF-8') ?>)</h2>
-                            <p class="roster-meta">Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
+                            <p class="roster-meta">Scope: <strong class="scope-department">${escapeHtml(departmentName)}</strong><br>Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
                             <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th></tr></thead><tbody>${listRows || '<tr><td colspan="5" style="text-align:center">No graduands on the roster.</td></tr>'}</tbody></table>
                             ${signatureMarkup}
                         </body></html>`;

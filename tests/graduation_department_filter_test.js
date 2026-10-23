@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const page = fs.readFileSync('pastor_dashboard.php', 'utf8');
+const memberPage = fs.readFileSync('member_dashboard.php', 'utf8');
 const sharedPrintHelpers = fs.readFileSync('script.js', 'utf8');
 const scriptMatch = page.match(/<script id="graduationDepartmentFilterScript">([\s\S]*?)<\/script>/);
 assert.ok(scriptMatch, 'Pastor Graduation Info has a department filter script');
@@ -28,6 +29,10 @@ assert.match(page, /m\.sunday_school_class/, 'graduation roster query loads Sund
 assert.match(page, /data-graduand-class=/, 'graduation rows expose Sunday School class for print grouping');
 assert.match(printScript, /sundaySchoolClassOrder[\s\S]*class-ribbon-row[\s\S]*departmentBody/, 'Sunday School graduands print in class-separated ribbon groups');
 assert.match(printScript, /class="graduate-photo"/, 'graduand profile photos remain in the print table');
+assert.match(printScript, /Scope: <strong class="scope-department">\$\{escapeHtml\(scopeLabel\)\}<\/strong>/, 'Pastor graduation scope emphasizes the selected department');
+assert.match(printScript, /\.scope-department\{font-weight:800;color:#000\}/, 'Pastor graduation scope label is bold black');
+assert.match(memberPage, /function printGraduationRoster\(orientation\)[\s\S]*?Scope: <strong class="scope-department">\$\{escapeHtml\(departmentName\)\}<\/strong>/, 'Graduands Secretary print includes a bold department scope');
+assert.match(memberPage, /\.scope-department\{font-weight:800;color:#000\}/, 'Graduands Secretary department scope label is bold black');
 const filterKeys = Array.from(page.matchAll(/data-graduation-department-filter="([^"]+)"/g), match => match[1]);
 assert.deepEqual(filterKeys, ['all', 'youths', 'sunday_school'], 'Graduation Info shows All, Youths, and Sunday School filter buttons');
 assert.match(page, /data-graduation-kind="roster" data-graduation-department=/, 'graduation roster rows carry their department for filtering');

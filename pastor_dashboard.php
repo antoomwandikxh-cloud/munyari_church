@@ -7471,6 +7471,7 @@ w.document.write('</div>');
                             .brand{display:grid;grid-template-columns:58px 1fr 58px;align-items:center;gap:10px;text-align:center;border-bottom:2px solid #0e7490;padding:0 0 9px;margin-bottom:10px}
                             .brand-logo{width:54px;height:54px;object-fit:contain}.brand h1{margin:0;color:#0e7490;font-size:17px;line-height:1.25}.brand p{margin:4px 0 0;color:#555;font-size:10px}
                             .report-heading{text-align:center;margin:0 0 8px;font-size:15px;text-transform:uppercase}.roster-meta{text-align:center;margin:0 0 12px;color:#444}
+                            .scope-department{font-weight:800;color:#000}
                             .department-report{position:relative;z-index:1;margin:0 0 20px;break-inside:auto;page-break-inside:auto}.department-ribbon{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 7px;padding:8px 10px;border-radius:3px;color:#fff;font-weight:800}.department-ribbon span{font-size:10px;font-weight:600}
                             table{width:100%;border-collapse:collapse;page-break-inside:auto;break-inside:auto}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
                             tr.class-ribbon-row{break-after:avoid;page-break-after:avoid}.class-ribbon-row td{padding:3px;border:0}.class-ribbon{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;border-radius:3px;color:#fff;font-weight:800}.class-ribbon small{font-size:9px;font-weight:600}
@@ -7490,7 +7491,7 @@ w.document.write('</div>');
                             <div class="print-leader-header secretary-profiles">${secretaryProfilesMarkup}</div>
                             <div class="brand report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster - ${escapeHtml(scopeLabel)}</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
                             <h2 class="report-heading">Graduating Members (<?= (int)$current_year ?>)</h2>
-                            <p class="roster-meta">Scope: ${escapeHtml(scopeLabel)}<br>Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
+                            <p class="roster-meta">Scope: <strong class="scope-department">${escapeHtml(scopeLabel)}</strong><br>Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
                             ${departmentSections}
                             ${signatureMarkup}
                         </body></html>`;
