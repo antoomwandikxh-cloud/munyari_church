@@ -427,7 +427,8 @@ foreach (['member_dashboard.php', 'pastor_dashboard.php', 'admin_dashboard.php']
     $graduation_dashboard_source = file_get_contents(__DIR__ . '/../' . $graduation_dashboard);
     if ($graduation_dashboard_source === false
         || strpos($graduation_dashboard_source, 'data-graduation-roster-photo') === false
-        || strpos($graduation_dashboard_source, 'm.profile_picture FROM graduation_list gl JOIN members m') === false
+        || strpos($graduation_dashboard_source, 'm.profile_picture') === false
+        || strpos($graduation_dashboard_source, 'FROM graduation_list gl JOIN members m') === false
         || strpos($graduation_dashboard_source, 'onclick="viewProfileImage(this.src);"') === false) {
         fwrite(STDERR, "FAIL: $graduation_dashboard graduation rosters must show clickable member profile photos.
 ");

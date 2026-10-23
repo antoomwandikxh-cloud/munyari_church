@@ -7124,7 +7124,7 @@ w.document.write('</div>');
                     </div>
 
                     <?php
-                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.phone, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.graduation_year = $current_year ORDER BY gl.department ASC, m.first_name ASC, m.last_name ASC");
+                    $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.phone, m.profile_picture, m.sunday_school_class FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.graduation_year = $current_year ORDER BY gl.department ASC, m.first_name ASC, m.last_name ASC");
                     $graduation_secretaries = [];
                     $secretary_result = $conn->query("SELECT id, first_name, last_name, department, church_role, profile_picture FROM members WHERE is_approved = 1 AND LOWER(COALESCE(church_role, '')) LIKE '%graduands secretary%' ORDER BY first_name ASC, last_name ASC");
                     if ($secretary_result) {
@@ -7155,7 +7155,7 @@ w.document.write('</div>');
                                 <thead><tr><th>Photo</th><th>Name</th><th>Phone Number</th><th>Department</th><th>Graduation Date</th><th>Added Date</th></tr></thead>
                                 <tbody>
                                     <?php while($r = $roster->fetch_assoc()): ?>
-                                        <tr data-graduation-kind="roster" data-graduation-department="<?= htmlspecialchars(notification_department_group_key($r['department']), ENT_QUOTES) ?>" data-notification-row="graduation-roster-<?= (int)$r['id'] ?>" data-graduand-name="<?= htmlspecialchars(trim($r['first_name'] . ' ' . $r['last_name']), ENT_QUOTES, 'UTF-8') ?>" data-graduand-phone="<?= htmlspecialchars($r['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-graduand-department="<?= htmlspecialchars($r['department'], ENT_QUOTES, 'UTF-8') ?>" data-graduation-date="<?= htmlspecialchars($r['graduation_date'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-graduand-photo="uploads/<?= htmlspecialchars(basename($r['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES, 'UTF-8') ?>">
+                                        <tr data-graduation-kind="roster" data-graduation-department="<?= htmlspecialchars(notification_department_group_key($r['department']), ENT_QUOTES) ?>" data-notification-row="graduation-roster-<?= (int)$r['id'] ?>" data-graduand-name="<?= htmlspecialchars(trim($r['first_name'] . ' ' . $r['last_name']), ENT_QUOTES, 'UTF-8') ?>" data-graduand-phone="<?= htmlspecialchars($r['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-graduand-department="<?= htmlspecialchars($r['department'], ENT_QUOTES, 'UTF-8') ?>" data-graduand-class="<?= htmlspecialchars($r['sunday_school_class'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-graduation-date="<?= htmlspecialchars($r['graduation_date'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-graduand-photo="uploads/<?= htmlspecialchars(basename($r['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES, 'UTF-8') ?>">
                                             <td><img data-graduation-roster-photo src="uploads/<?= htmlspecialchars(basename($r['profile_picture'] ?: 'default_avatar.png'), ENT_QUOTES) ?>" alt="<?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?> profile photo" title="Click to view profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src);" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"></td>
                                             <td style="font-weight:500;white-space:nowrap;"><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
                                             <td><?= htmlspecialchars($r['phone'] ?? '-') ?></td>
@@ -7377,7 +7377,6 @@ w.document.write('</div>');
                             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
                         }[character]));
                         const leaderName = <?= json_encode(strtoupper(trim(($pastor['first_name'] ?? '') . ' ' . ($pastor['last_name'] ?? '')))) ?>;
-                        const leaderPhoto = new URL(<?= json_encode('uploads/' . basename(!empty($pastor['profile_picture']) ? $pastor['profile_picture'] : 'default_avatar.png')) ?>, window.location.href).href;
                         const graduationSecretaries = <?= json_encode($graduation_secretaries, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
                         const logoUrl = new URL('church_logo.jpg', window.location.href).href;
                         const generatedAt = new Date().toLocaleString();
@@ -7385,6 +7384,8 @@ w.document.write('</div>');
                         const scopeLabel = { all: 'All Departments', youths: 'Youths', sunday_school: 'Sunday School' }[department];
                         const selectedDepartment = department;
                         const departmentLabels = { youths: 'Youths', sunday_school: 'Sunday School' };
+                        const sundaySchoolClassOrder = ['Little Angels', 'Champions', 'Battalion', 'Conquerors'];
+                        const sundaySchoolClassColors = { 'Little Angels': '#6366f1', 'Champions': '#e11d48', 'Battalion': '#d97706', 'Conquerors': '#059669', 'Unassigned': '#64748b' };
                         const groupedRows = new Map();
                         rows.forEach(row => {
                             const key = row.dataset.graduationDepartment || 'other';
@@ -7406,19 +7407,38 @@ w.document.write('</div>');
                             const secretaryName = secretary ? secretary.name.toUpperCase() : 'NOT ASSIGNED';
                             const secretaryRole = secretary ? secretary.role : 'Graduands Secretary';
                             const secretaryPhoto = new URL(secretary ? secretary.photo : 'uploads/default_avatar.png', window.location.href).href;
-                            const listRows = departmentRows.map((row, index) => {
+                            const renderRows = rowsToRender => rowsToRender.map((row, index) => {
                                 const photo = new URL(row.dataset.graduandPhoto || 'uploads/default_avatar.png', window.location.href).href;
                                 const date = row.dataset.graduationDate
                                     ? new Date(row.dataset.graduationDate + 'T00:00:00').toLocaleDateString(undefined, {year:'numeric',month:'short',day:'numeric'})
                                     : '-';
                                 return `<tr><td>${index + 1}</td><td><img class="graduate-photo" src="${escapeHtml(photo)}" alt=""></td><td>${escapeHtml((row.dataset.graduandName || '').toUpperCase())}</td><td>${escapeHtml(row.dataset.graduandPhone || '-')}</td><td>${escapeHtml(row.dataset.graduandDepartment)}</td><td>${escapeHtml(date)}</td></tr>`;
                             }).join('');
+                            let departmentBody;
+                            if (departmentKey === 'sunday_school') {
+                                const classGroups = new Map();
+                                departmentRows.forEach(row => {
+                                    const className = (row.dataset.graduandClass || '').trim() || 'Unassigned';
+                                    if (!classGroups.has(className)) classGroups.set(className, []);
+                                    classGroups.get(className).push(row);
+                                });
+                                const classNames = sundaySchoolClassOrder.filter(className => classGroups.has(className));
+                                classNames.push(...Array.from(classGroups.keys()).filter(className => !sundaySchoolClassOrder.includes(className) && className !== 'Unassigned').sort((left, right) => left.localeCompare(right)));
+                                if (classGroups.has('Unassigned')) classNames.push('Unassigned');
+                                departmentBody = classNames.map(className => {
+                                    const classRows = classGroups.get(className).sort((left, right) => (left.dataset.graduandName || '').localeCompare(right.dataset.graduandName || '', undefined, { sensitivity: 'base' }));
+                                    const ribbonColor = sundaySchoolClassColors[className] || '#475569';
+                                    return `<tbody><tr class="class-ribbon-row"><td colspan="6"><span class="class-ribbon" style="background:${ribbonColor}">${escapeHtml(className)}<small>${classRows.length} ${classRows.length === 1 ? 'graduand' : 'graduands'}</small></span></td></tr>${renderRows(classRows)}</tbody>`;
+                                }).join('') || '<tbody><tr><td colspan="6" style="text-align:center">No graduands are listed for this department.</td></tr></tbody>';
+                            } else {
+                                departmentBody = `<tbody>${renderRows(departmentRows) || '<tr><td colspan="6" style="text-align:center">No graduands are listed for this department.</td></tr>'}</tbody>`;
+                            }
                             return `<section class="department-report">
                                 <div class="print-leader-header department-secretary-header"><div class="print-leader-person"><img class="print-leader-avatar" src="${escapeHtml(secretaryPhoto)}" alt="${escapeHtml(departmentLabel)} Graduands Secretary"><div class="leader-name">${escapeHtml(secretaryName)}</div><div class="leader-role">${escapeHtml(secretaryRole)} - ${escapeHtml(departmentLabel)}</div></div></div>
                                 <div class="brand department-report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster - ${escapeHtml(departmentLabel)}</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
                                 <h2 class="report-heading">${escapeHtml(departmentLabel)} Graduating Members (<?= (int)$current_year ?>)</h2>
                                 <p class="roster-meta">Department: ${escapeHtml(departmentLabel)}<br>Total members: ${departmentRows.length}</p>
-                                <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Department</th><th>Graduation Date</th></tr></thead><tbody>${listRows || '<tr><td colspan="6" style="text-align:center">No graduands are listed for this department.</td></tr>'}</tbody></table>
+                                <table><thead><tr><th>No.</th><th>Profile Photo</th><th>Name</th><th>Phone Number</th><th>Department</th><th>Graduation Date</th></tr></thead>${departmentBody}</table>
                             </section>`;
                         }).join('');
                         const signatureMarkup = buildChurchPrintSignatureMarkup('Pastor', leaderName, escapeHtml);
@@ -7440,6 +7460,7 @@ w.document.write('</div>');
                             .report-heading{text-align:center;margin:0 0 8px;font-size:15px;text-transform:uppercase}.roster-meta{text-align:center;margin:0 0 12px;color:#444}
                             .department-report{position:relative;z-index:1;margin:0 0 20px;break-inside:auto;page-break-inside:auto}.department-report-header{margin-top:10px}.department-secretary-header{margin-top:12px}
                             table{width:100%;border-collapse:collapse;page-break-inside:auto;break-inside:auto}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
+                            tr.class-ribbon-row{break-after:avoid;page-break-after:avoid}.class-ribbon-row td{padding:3px;border:0}.class-ribbon{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;border-radius:3px;color:#fff;font-weight:800}.class-ribbon small{font-size:9px;font-weight:600}
                             th,td{border:1px solid #89939d;padding:6px 7px;text-align:left;vertical-align:middle}th{background:#0e7490;color:white;font-size:10px;text-transform:uppercase}
                             .graduate-photo{display:block;width:35px;height:35px;border-radius:50%;object-fit:cover;border:1px solid #aab4be}
                             .signature{margin:18px auto 0!important;padding:0 24px!important;break-inside:avoid!important;page-break-inside:avoid!important}
@@ -7447,7 +7468,6 @@ w.document.write('</div>');
                             @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
                         </style><script src="${escapeHtml(layoutScript)}" data-direct-print="true"><\/script></head><body>
                             <div class="watermark">E.A.P.C MUNYARI CHURCH</div>
-                            <div class="print-leader-header"><div class="print-leader-person"><img class="print-leader-avatar" src="${escapeHtml(leaderPhoto)}" alt="Church Pastor"><div class="leader-name">${escapeHtml(leaderName)}</div><div class="leader-role">Church Pastor</div></div></div>
                             <div class="brand report-header"><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"><div><h1>E.A.P.C MUNYARI CHURCH</h1><p>Graduation Roster - ${escapeHtml(scopeLabel)}</p></div><img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Church logo"></div>
                             <h2 class="report-heading">Graduating Members (<?= (int)$current_year ?>)</h2>
                             <p class="roster-meta">Scope: ${escapeHtml(scopeLabel)}<br>Total members: ${rows.length}<br>Generated: ${escapeHtml(generatedAt)}</p>
