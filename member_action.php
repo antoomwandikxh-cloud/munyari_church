@@ -2258,6 +2258,101 @@ if (isset($_GET['action'])) {
         }
     }
     
+    // Graduands Secretary: Update a listed member's graduation date.
+    elseif ($action === 'update_graduand_date' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $manager_stmt = $conn->prepare("SELECT id, department, church_role FROM members WHERE id = ? LIMIT 1");
+        if (!$manager_stmt) {
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not verify your account.'));
+            exit();
+        }
+        $manager_stmt->bind_param('i', $member_id);
+        $manager_stmt->execute();
+        $manager_result = $manager_stmt->get_result();
+        $manager = $manager_result ? $manager_result->fetch_assoc() : null;
+        $manager_stmt->close();
+        $department = trim((string)($manager['department'] ?? ''));
+        if (!$manager
+            || !member_has_role($manager['church_role'] ?? '', 'graduands secretary')
+            || !department_allows_graduation_and_sport($department)) {
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('You are not allowed to change this graduation date.'));
+            exit();
+        }
+
+        $graduation_id = (int)($_POST['graduation_id'] ?? 0);
+        $graduation_year = (int)date('Y');
+        $graduation_date = trim((string)($_POST['graduation_date'] ?? ''));
+        $parsed_date = DateTime::createFromFormat('!Y-m-d', $graduation_date);
+        $date_errors = DateTime::getLastErrors();
+        if (!$parsed_date
+            || ($date_errors && ($date_errors['warning_count'] > 0 || $date_errors['error_count'] > 0))
+            || $parsed_date->format('Y-m-d') !== $graduation_date
+            || $graduation_date < date('Y-m-d')) {
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Choose a valid graduation date that is today or later.'));
+            exit();
+        }
+
+        $graduand_stmt = $conn->prepare("SELECT gl.id, gl.member_id, gl.department, gl.graduation_year, gl.graduation_date, m.first_name, m.last_name
+            FROM graduation_list gl JOIN members m ON m.id = gl.member_id
+            WHERE gl.id = ? AND gl.graduation_year = ? LIMIT 1");
+        if (!$graduand_stmt) {
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not load this graduation roster entry.'));
+            exit();
+        }
+        $graduand_stmt->bind_param('ii', $graduation_id, $graduation_year);
+        $graduand_stmt->execute();
+        $graduand_result = $graduand_stmt->get_result();
+        $graduand = $graduand_result ? $graduand_result->fetch_assoc() : null;
+        $graduand_stmt->close();
+        if (!$graduand || !department_matches($graduand['department'] ?? '', $department)) {
+            header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('That member is not on your department graduation roster.'));
+            exit();
+        }
+
+        $old_date = trim((string)($graduand['graduation_date'] ?? ''));
+        $date_changed = $old_date !== $graduation_date;
+        if ($date_changed) {
+            $conn->begin_transaction();
+            $update_stmt = $conn->prepare("UPDATE graduation_list SET graduation_date = ? WHERE id = ? AND graduation_year = ?");
+            if (!$update_stmt) {
+                $conn->rollback();
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not save the new graduation date.'));
+                exit();
+            }
+            $update_stmt->bind_param('sii', $graduation_date, $graduation_id, $graduation_year);
+            $updated = $update_stmt->execute();
+            $update_stmt->close();
+            if (!$updated) {
+                $conn->rollback();
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not save the new graduation date.'));
+                exit();
+            }
+
+            $graduand_name = trim(($graduand['first_name'] ?? '') . ' ' . ($graduand['last_name'] ?? ''));
+            $date_label = $parsed_date->format('F j, Y');
+            $message = "The graduation date for $graduand_name has changed to $date_label.";
+            $routed_message = notification_with_route(
+                $message,
+                'graduation_info',
+                notification_department_group_key($graduand['department']),
+                'graduation-roster-' . $graduation_id
+            );
+            if (!member_action_insert_notification($conn, (int)$graduand['member_id'], 'member', $routed_message)) {
+                $conn->rollback();
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('The date could not be saved because the member notification failed. Please try again.'));
+                exit();
+            }
+            if (!$conn->commit()) {
+                $conn->rollback();
+                header("Location: member_dashboard.php?tab=graduation_panel&error=" . urlencode('Could not complete the date update. Please try again.'));
+                exit();
+            }
+        }
+
+        $success_message = $date_changed ? 'Graduation date updated and member notified' : 'Graduation date is unchanged';
+        header("Location: member_dashboard.php?tab=graduation_panel&success=" . urlencode($success_message));
+        exit();
+    }
+
     // Graduands Secretary: Remove from Graduation List
     elseif ($action === 'remove_graduand' && isset($_GET['id'])) {
         $member_query = $conn->query("SELECT * FROM members WHERE id = $member_id")->fetch_assoc();

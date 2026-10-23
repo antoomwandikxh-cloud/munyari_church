@@ -4,6 +4,7 @@ const vm = require('node:vm');
 
 const page = fs.readFileSync('pastor_dashboard.php', 'utf8');
 const memberPage = fs.readFileSync('member_dashboard.php', 'utf8');
+const memberActions = fs.readFileSync('member_action.php', 'utf8');
 const sharedPrintHelpers = fs.readFileSync('script.js', 'utf8');
 const scriptMatch = page.match(/<script id="graduationDepartmentFilterScript">([\s\S]*?)<\/script>/);
 assert.ok(scriptMatch, 'Pastor Graduation Info has a department filter script');
@@ -25,6 +26,10 @@ assert.match(printScript, /\.signature \.stamp\{width:140px!important;height:140
 assert.match(printScript, /\.graduation-signatures \.signature > div\[style\*=\"flex:0 0 140px\"\]\{flex:0 0 140px!important\}/, 'Pastor signature layout reserves full width for the larger stamp');
 assert.doesNotMatch(printScript, /buildChurchPrintSignatureMarkup\('Pastor'/, 'graduation signature blocks are not signed as the pastor');
 assert.match(memberPage, /function printGraduationRoster\(orientation\)[\s\S]*?\.signature \.stamp\{width:140px!important;height:140px!important;min-width:140px!important;min-height:140px!important/, 'Graduands Secretary print uses the larger 140px stamp');
+assert.match(memberPage, /class="graduation-member-avatar"[\s\S]*class="graduation-member-option-name"/, 'graduation dropdown keeps the colored avatar distinct from each member name');
+assert.match(memberPage, /Change date[\s\S]*class="graduation-date-editor" method="POST" action="member_action\.php\?action=update_graduand_date"/, 'Graduands Secretary can open a date editor from each roster row');
+assert.match(memberPage, /data-notification-row="graduation-roster-<\?= \(int\)\$r\['id'\] \?>"/, 'member graduation rows expose the row key used by date-change notifications');
+assert.match(memberActions, /\$action === 'update_graduand_date'[\s\S]*notification_with_route\([\s\S]*'graduation_info',[\s\S]*'graduation-roster-' \. \$graduation_id/, 'a changed date notifies the graduand and routes to that exact roster row');
 assert.equal((printScript.match(/class="brand report-header"/g) || []).length, 1, 'each graduation print has one church report header');
 assert.doesNotMatch(printScript, /department-report-header|department-secretary-header/, 'department sections do not repeat full headers or secretary portraits');
 assert.ok(printScript.indexOf('secretaryProfilesMarkup}</div>') < printScript.indexOf('<div class="brand report-header"'), 'secretary portraits print above the single report header');

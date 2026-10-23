@@ -9866,7 +9866,7 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <p id="graduationMemberSearchError" role="status" hidden style="margin: 0 2px 8px; color: var(--danger); font-size: .82rem;">Use letters, spaces, apostrophes, or hyphens only.</p>
                             <input type="hidden" name="member_id" id="graduationMemberId" value="">
                             <button type="button" id="graduationMemberToggle" class="form-control" aria-haspopup="listbox" aria-expanded="false" <?= ($available_graduand_count === 0) ? 'disabled' : '' ?> style="width: 100%; min-height: 44px; display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer;">
-                                <img data-selected-photo src="uploads/default_avatar.png" alt="" hidden onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex: 0 0 34px;">
+                                <img class="graduation-selected-avatar" data-selected-photo src="uploads/default_avatar.png" alt="" hidden onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex: 0 0 38px;">
                                 <span data-selected-label><?= $available_graduand_count ? '-- Select Member to Add to Roster --' : 'No eligible members available' ?></span>
                                 <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-left: auto; flex: 0 0 16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"></path></svg>
                             </button>
@@ -9878,8 +9878,8 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                         $graduand_photo = 'uploads/' . basename($a['profile_picture'] ?: 'default_avatar.png');
                                         ?>
                                         <button type="button" role="option" aria-selected="false" class="graduation-member-option" data-member-id="<?= (int)$a['id'] ?>" data-member-name="<?= htmlspecialchars($graduand_name, ENT_QUOTES, 'UTF-8') ?>" data-member-photo="<?= htmlspecialchars($graduand_photo, ENT_QUOTES, 'UTF-8') ?>" style="width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 6px; color: var(--text-main); background: transparent; text-align: left; cursor: pointer;">
-                                            <img src="<?= htmlspecialchars($graduand_photo, ENT_QUOTES, 'UTF-8') ?>" alt="View <?= htmlspecialchars($graduand_name, ENT_QUOTES, 'UTF-8') ?> profile photo" title="Click to view full profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); flex: 0 0 38px; cursor: zoom-in;">
-                                            <span><?= htmlspecialchars($graduand_name, ENT_QUOTES, 'UTF-8') ?></span>
+                                            <img class="graduation-member-avatar" src="<?= htmlspecialchars($graduand_photo, ENT_QUOTES, 'UTF-8') ?>" alt="View <?= htmlspecialchars($graduand_name, ENT_QUOTES, 'UTF-8') ?> profile photo" title="Click to view full profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex: 0 0 42px; cursor: zoom-in;">
+                                            <span class="graduation-member-option-name"><?= htmlspecialchars($graduand_name, ENT_QUOTES, 'UTF-8') ?></span>
                                         </button>
                                     <?php endwhile; ?>
                                     <p id="graduationMemberNoResults" hidden style="margin: 10px 8px; color: var(--text-muted); font-size: .9rem;">No matching members.</p>
@@ -9892,13 +9892,23 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         </div>
                         <button type="submit" class="btn-submit" style="width: auto;" <?= ($available_graduand_count === 0) ? 'disabled' : '' ?>>Add to Graduation List</button>
                     <style>
+                        #graduationMemberOptions { display: flex; flex-direction: column; gap: 4px; }
+                        .graduation-member-option { min-height: 58px; min-width: 0; overflow: hidden; border: 1px solid transparent !important; transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease; }
                         .graduation-member-option:hover,
                         .graduation-member-option:focus-visible,
                         .graduation-member-option[aria-selected="true"] {
-                            background: rgba(59, 130, 246, .14) !important;
-                            background: color-mix(in srgb, var(--primary) 12%, var(--bg-card)) !important;
+                            background: color-mix(in srgb, var(--primary) 16%, var(--bg-card)) !important;
+                            border-color: color-mix(in srgb, var(--primary) 35%, var(--border-color)) !important;
+                            box-shadow: inset 3px 0 0 var(--primary);
                             outline: none;
                         }
+                        .graduation-member-avatar,
+                        .graduation-selected-avatar,
+                        .graduation-roster-avatar { border: 2px solid var(--primary); background: var(--bg-main); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+                        .graduation-member-option-name { position: relative; z-index: 1; flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 600; line-height: 1.3; }
+                        .graduation-roster-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+                        .graduation-date-editor { display: flex; align-items: end; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+                        .graduation-date-editor[hidden] { display: none !important; }
                         #graduationMemberSearch::-webkit-search-cancel-button { cursor: pointer; }
                     </style>
                     <script>
@@ -10035,13 +10045,24 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                                             $added_date_display = !empty($r['added_at']) ? date('M j, Y', strtotime($r['added_at'])) : '-';
                                         ?>
                                         <tr data-graduation-roster-entry="true" data-graduand-name="<?= htmlspecialchars($graduand_full_name, ENT_QUOTES, 'UTF-8') ?>" data-graduand-phone="<?= htmlspecialchars($r['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-graduation-date="<?= htmlspecialchars($r['graduation_date'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-added-date="<?= htmlspecialchars($added_date_display, ENT_QUOTES, 'UTF-8') ?>" data-graduand-photo="<?= htmlspecialchars($graduand_photo_url, ENT_QUOTES, 'UTF-8') ?>">
-                                            <td><img data-graduation-roster-photo src="<?= htmlspecialchars($graduand_photo_url, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($graduand_full_name, ENT_QUOTES, 'UTF-8') ?> profile photo" title="Click to view profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src);" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);cursor:zoom-in;"></td>
+                                            <td><img class="graduation-roster-avatar" data-graduation-roster-photo src="<?= htmlspecialchars($graduand_photo_url, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($graduand_full_name, ENT_QUOTES, 'UTF-8') ?> profile photo" title="Click to view profile photo" onerror="this.onerror=null;this.src='uploads/default_avatar.png';" onclick="viewProfileImage(this.src);" style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:zoom-in;"></td>
                                             <td style="font-weight:500;white-space:nowrap;"><?= htmlspecialchars($graduand_full_name) ?></td>
                                             <td><?= htmlspecialchars($r['phone'] ?? '-') ?></td>
                                             <td><?= htmlspecialchars($graduation_date_display) ?></td>
                                             <td style="color:var(--text-muted);"><?= htmlspecialchars($added_date_display) ?></td>
                                             <td>
-                                                <a href="member_action.php?action=remove_graduand&id=<?= $r['id'] ?>" class="btn-action" style="color: var(--danger); background: rgba(239,68,68,0.1); padding: 4px 8px; border-radius: 4px;" onclick="return confirm('Remove from graduation list?');">Remove</a>
+                                                <div class="graduation-roster-actions">
+                                                    <button type="button" class="btn-sm" onclick="toggleGraduationDateEditor(this)" style="background:color-mix(in srgb, var(--primary) 14%, var(--bg-card));color:var(--primary);border:1px solid color-mix(in srgb, var(--primary) 35%, var(--border-color));padding:5px 9px;border-radius:5px;cursor:pointer;">Change date</button>
+                                                    <a href="member_action.php?action=remove_graduand&id=<?= (int)$r['id'] ?>" class="btn-action" style="color: var(--danger); background: rgba(239,68,68,0.1); padding: 5px 9px; border-radius: 4px;" onclick="return confirm('Remove from graduation list?');">Remove</a>
+                                                </div>
+                                                <form class="graduation-date-editor" method="POST" action="member_action.php?action=update_graduand_date" hidden>
+                                                    <input type="hidden" name="graduation_id" value="<?= (int)$r['id'] ?>">
+                                                    <label style="display:grid;gap:4px;font-size:.75rem;font-weight:600;color:var(--text-muted);">New graduation date
+                                                        <input type="date" name="graduation_date" value="<?= htmlspecialchars($r['graduation_date'] ?? '', ENT_QUOTES, 'UTF-8') ?>" min="<?= date('Y-m-d') ?>" required class="form-control" style="min-width:155px;padding:6px 8px;">
+                                                    </label>
+                                                    <button type="submit" class="btn-sm" style="background:var(--success);color:#fff;border:0;padding:6px 10px;border-radius:5px;cursor:pointer;">Save</button>
+                                                    <button type="button" class="btn-sm" onclick="this.closest('.graduation-date-editor').hidden=true" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);padding:6px 10px;border-radius:5px;cursor:pointer;">Cancel</button>
+                                                </form>
                                             </td>
                                         </tr>
                                     <?php endwhile; ?>
@@ -10053,6 +10074,13 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php endif; ?>
                 </div>
                 <script>
+                    function toggleGraduationDateEditor(button) {
+                        const editor = button.closest('td')?.querySelector('.graduation-date-editor');
+                        if (!editor) return;
+                        editor.hidden = !editor.hidden;
+                        if (!editor.hidden) editor.querySelector('input[type="date"]')?.focus();
+                    }
+
                     function printGraduationRoster(orientation) {
                         if (!orientation) return choosePrintOrientation(selected => printGraduationRoster(selected));
                         const table = document.getElementById('graduationSecretaryRoster');
