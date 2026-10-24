@@ -57,10 +57,11 @@ assert.match(memberActions, /SELECT id FROM graduation_list WHERE member_id = \?
 assert.match(memberPage, /COUNT\(DISTINCT gl\.member_id\) as total FROM graduation_list gl JOIN members m ON m\.id = gl\.member_id WHERE gl\.department='\$esc_dept' AND gl\.graduation_year=\$selected_graduation_year[\s\S]*\$total_graduands === 1 \? 'member is graduating'/, 'graduand count excludes orphan rows, counts distinct members, and uses singular wording');
 assert.match(memberPage, /SELECT DISTINCT graduation_year FROM graduation_list WHERE department = '\$esc_dept'/, 'graduation year choices are limited to the secretary department');
 assert.match(memberPage, /name="graduation_print_year"/, 'secretary can choose the graduation year');
-assert.ok(memberPage.indexOf('id="graduationPrintYear"') < memberPage.indexOf('id="graduationRosterForm"'), 'the year selector appears before the add-member form so future years can be chosen first');
+assert.ok(memberPage.indexOf('id="graduationRosterForm"') < memberPage.indexOf('id="graduationPrintToolbar"'), 'the year selector appears with the graduation print controls after the add-member form');
+assert.match(memberPage, /id="graduationPrintToolbar"[\s\S]*?id="graduationPrintYear"[\s\S]*?onclick="printGraduationRoster\(\)"/, 'the year selector sits beside the graduation print button');
 assert.match(memberPage, /gl\.graduation_year = \$selected_graduation_year/, 'selected year drives the visible and printable roster');
 assert.match(memberPage, /type="number" id="graduationPrintYear" name="graduation_print_year"[^"]*value="<\?= \$selected_graduation_year \?>" min="<\?= \$min_graduation_year \?>" step="1" required onchange="this\.form\.submit\(\)"/, 'year selector accepts future years without a fixed maximum');
-assert.match(memberPage, /Enter any year from <\?= \$current_year \?> onward; the current year advances automatically each January\./, 'the year picker explains automatic January rollover');
+assert.match(memberPage, /graduationPrintToolbar[\s\S]*?Current year advances each January\./, 'the print-year control explains automatic January rollover');
 assert.match(memberPage, /name="graduation_year" value="<\?= \$selected_graduation_year \?>"/, 'new graduands are saved under the currently selected year');
 assert.match(memberActions, /\$year_input = trim\(\(string\)\(\$_POST\['graduation_year'\] \?\? ''\)\)[\s\S]*\$year > 9999[\s\S]*format\('Y'\) !== \$year/, 'new graduands can use any valid future year supported by graduation dates');
 assert.match(memberPage, /id="graduationDate" name="graduation_date"[^>]*min="<\?= max\(date\('Y-m-d'\), \$selected_graduation_year \. '-01-01'\) \?>" max="<\?= \$selected_graduation_year \?>-12-31"/, 'graduation date input is bounded by the selected calendar year');

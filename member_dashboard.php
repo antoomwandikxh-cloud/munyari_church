@@ -9947,14 +9947,6 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         const form = document.getElementById('graduationAnnouncementEditForm');
                         if (!editor || !form) return;
                         const currentAudio = document.getElementById('currentGraduationAnnouncementAudio');
-                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-basis:100%;margin-bottom:4px;">
-                        <label for="graduationPrintYear" style="color:var(--text-muted);font-size:.9rem;font-weight:600;">Graduation year</label>
-                        <form method="GET" action="member_dashboard.php" style="display:inline-flex;align-items:center;gap:8px;margin:0;">
-                            <input type="hidden" name="tab" value="graduation_panel">
-                            <input type="number" id="graduationPrintYear" name="graduation_print_year" value="<?= $selected_graduation_year ?>" min="<?= $min_graduation_year ?>" step="1" required onchange="this.form.submit()" aria-label="Graduation year" style="width:118px;min-height:38px;padding:7px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-main);">
-                        </form>
-                        <span style="color:var(--text-muted);font-size:.85rem;">Enter any year from <?= $current_year ?> onward; the current year advances automatically each January.</span>
-                    </div>
                         const replacementPreview = document.getElementById('graduationReplacementPreview');
                         const replacementBlob = document.getElementById('editGraduationVoiceBlob');
                         const status = document.getElementById('graduationReplacementStatus');
@@ -10227,14 +10219,25 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                     <?php
                     $roster = $conn->query("SELECT gl.*, m.first_name, m.last_name, m.phone, m.profile_picture FROM graduation_list gl JOIN members m ON gl.member_id = m.id WHERE gl.department = '$esc_dept' AND gl.graduation_year = $selected_graduation_year AND gl.id = (SELECT MIN(gl2.id) FROM graduation_list gl2 WHERE gl2.member_id = gl.member_id AND gl2.department = gl.department AND gl2.graduation_year = gl.graduation_year) ORDER BY m.first_name ASC, m.last_name ASC");
                     ?>
-                        <div class="table-responsive">
-                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
-                                <h3 style="margin:0;">Graduation roster (<?= $selected_graduation_year ?>)</h3>
+                    <div id="graduationPrintToolbar" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+                        <h3 style="margin:0;">Graduation roster (<?= $selected_graduation_year ?>)</h3>
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <form method="GET" action="member_dashboard.php" style="display:inline-flex;align-items:center;gap:8px;margin:0;">
+                                <input type="hidden" name="tab" value="graduation_panel">
+                                <label for="graduationPrintYear" style="color:var(--text-muted);font-size:.9rem;font-weight:600;">Year to print</label>
+                                <input type="number" id="graduationPrintYear" name="graduation_print_year" value="<?= $selected_graduation_year ?>" min="<?= $min_graduation_year ?>" step="1" required onchange="this.form.submit()" aria-label="Year to print" style="width:100px;min-height:38px;padding:7px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-main);">
+                            </form>
+                            <span style="color:var(--text-muted);font-size:.82rem;">Current year advances each January.</span>
+                            <?php if ($roster && $roster->num_rows > 0): ?>
                                 <button type="button" class="btn-sm" onclick="printGraduationRoster()" style="display:inline-flex;align-items:center;gap:7px;background:var(--primary);color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;">
-                                    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
+                                    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5h-2M6 14h12v8H6z"/></svg>
                                     Print Graduation List
                                 </button>
-                            </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php if ($roster && $roster->num_rows > 0): ?>
+                        <div class="table-responsive">
                             <table id="graduationSecretaryRoster">
                                 <thead><tr><th>Photo</th><th>Name</th><th>Phone Number</th><th>Graduation Date</th><th>Added Date</th><?php if ($can_manage_selected_graduation_year): ?><th>Action</th><?php endif; ?></tr></thead>
                                 <tbody>
