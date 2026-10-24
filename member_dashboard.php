@@ -9842,6 +9842,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                         || $selected_graduation_year > 9999) {
                         $selected_graduation_year = $current_year;
                     }
+                    $graduation_year_options = array_values(array_filter($graduation_years, static function ($year) use ($current_year) {
+                        return $year < $current_year;
+                    }));
+                    $graduation_year_options = array_merge($graduation_year_options, range($current_year, 9999));
+                    sort($graduation_year_options, SORT_NUMERIC);
                     $can_manage_selected_graduation_year = $selected_graduation_year >= $current_year && $selected_graduation_year <= 9999;
                     $count_query = $conn->query("SELECT COUNT(DISTINCT gl.member_id) as total FROM graduation_list gl JOIN members m ON m.id = gl.member_id WHERE gl.department='$esc_dept' AND gl.graduation_year=$selected_graduation_year");
                     $total_graduands = (int)($count_query->fetch_assoc()['total'] ?? 0);
@@ -10225,7 +10230,11 @@ document.getElementById('changeTaskModal').addEventListener('click', function(e)
                             <form method="GET" action="member_dashboard.php" style="display:inline-flex;align-items:center;gap:8px;margin:0;">
                                 <input type="hidden" name="tab" value="graduation_panel">
                                 <label for="graduationPrintYear" style="color:var(--text-muted);font-size:.9rem;font-weight:600;">Year to print</label>
-                                <input type="number" id="graduationPrintYear" name="graduation_print_year" value="<?= $selected_graduation_year ?>" min="<?= $min_graduation_year ?>" step="1" required onchange="this.form.submit()" aria-label="Year to print" style="width:100px;min-height:38px;padding:7px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-main);">
+                                <select id="graduationPrintYear" name="graduation_print_year" required onchange="this.form.submit()" aria-label="Year to print" style="width:116px;min-height:38px;padding:7px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-main);">
+                                    <?php foreach ($graduation_year_options as $year_option): ?>
+                                        <option value="<?= $year_option ?>" <?= $selected_graduation_year === $year_option ? 'selected' : '' ?>><?= $year_option ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                             </form>
                             <span style="color:var(--text-muted);font-size:.82rem;">Current year advances each January.</span>
                             <?php if ($roster && $roster->num_rows > 0): ?>
